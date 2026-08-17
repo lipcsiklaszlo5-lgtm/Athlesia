@@ -5,6 +5,12 @@ use athlesia_perception::{segment, touches, contains, distance_between, relative
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
 pub struct FeatureVector {
+    pub avg_fill_ratio_pct: u8,
+    pub max_hole_count: u8,
+    pub avg_h_symmetry_pct: u8,
+    pub avg_v_symmetry_pct: u8,
+    pub avg_rot_symmetry_pct: u8,
+    pub total_corner_count: u8,
     pub object_count: u8,
     pub color_counts: [u8; 4],
     pub touching_pairs: u8,
@@ -85,6 +91,33 @@ pub fn extract_features(grid: &Grid) -> FeatureVector {
     let has_hole = detect_hole(grid);
     let (symmetric_h, symmetric_v) = bounding_box_symmetry(grid);
 
+    // Új shape/symmetry jellemzők számítása
+    let total_corner_count = 0u8;
+    let mut total_fill_ratio_sum = 0.0f32;
+    let mut max_hole_count = 0u8;
+    let mut h_sym_sum = 0.0f32;
+    let mut v_sym_sum = 0.0f32;
+    let mut rot_sym_sum = 0.0f32;
+
+    for obj in &objects {
+        // Hole count
+        let hc = athlesia_perception::holes::hole_count(obj);
+        if hc > max_hole_count { max_hole_count = hc; }
+
+        // Fill ratio
+        total_fill_ratio_sum += athlesia_perception::shape::fill_ratio(obj);
+
+        // Szimmetriák
+        h_sym_sum += athlesia_perception::symmetry::horizontal_symmetry(obj);
+        v_sym_sum += athlesia_perception::symmetry::vertical_symmetry(obj);
+        rot_sym_sum += athlesia_perception::symmetry::rotational_symmetry_180(obj);
+    }
+
+    let avg_fill_ratio_pct = if !objects.is_empty() { (total_fill_ratio_sum / objects.len() as f32 * 100.0).round() as u8 } else { 0 };
+    let avg_h_symmetry_pct = if !objects.is_empty() { (h_sym_sum / objects.len() as f32 * 100.0).round() as u8 } else { 0 };
+    let avg_v_symmetry_pct = if !objects.is_empty() { (v_sym_sum / objects.len() as f32 * 100.0).round() as u8 } else { 0 };
+    let avg_rot_symmetry_pct = if !objects.is_empty() { (rot_sym_sum / objects.len() as f32 * 100.0).round() as u8 } else { 0 };
+
     FeatureVector {
         object_count,
         color_counts,
@@ -95,6 +128,12 @@ pub fn extract_features(grid: &Grid) -> FeatureVector {
         contains_pairs,
         min_distance_category,
         dominant_direction,
+        avg_fill_ratio_pct,
+        max_hole_count,
+        avg_h_symmetry_pct,
+        avg_v_symmetry_pct,
+        avg_rot_symmetry_pct,
+        total_corner_count,
     }
 }
 

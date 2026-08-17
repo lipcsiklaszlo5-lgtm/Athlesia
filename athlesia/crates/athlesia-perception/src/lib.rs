@@ -1,9 +1,11 @@
 
+use std::collections::HashMap;
 use athlesia_types::{Color, Coord, Grid};
 
 pub mod shape;
 pub mod holes;
 pub mod symmetry;
+pub mod texture;
 
 #[derive(Debug, Clone)]
 pub struct GameObject {
@@ -116,4 +118,95 @@ pub fn contains(a: &GameObject, b: &GameObject) -> bool {
     let (amin_x, amin_y, amax_x, amax_y) = bounding_box(a);
     let (bmin_x, bmin_y, bmax_x, bmax_y) = bounding_box(b);
     amin_x <= bmin_x && amin_y <= bmin_y && amax_x >= bmax_x && amax_y >= bmax_y
+}
+
+
+/// Két objektum méretének aránya.
+pub fn relative_size(a: &GameObject, b: &GameObject) -> f32 {
+    let size_a = a.cells.len() as f32;
+    let size_b = b.cells.len() as f32;
+    if size_b == 0.0 {
+        return 0.0;
+    }
+    size_a / size_b
+}
+
+/// Normalizált irányvektor a és b centroidja között, a rács átlójával osztva.
+pub fn relative_offset(a: &GameObject, b: &GameObject, grid: &Grid) -> (f32, f32) {
+    let (ax, ay) = centroid(a);
+    let (bx, by) = centroid(b);
+    let diag = ((grid.width as f64).powi(2) + (grid.height as f64).powi(2)).sqrt() as f32;
+    if diag == 0.0 {
+        return (0.0, 0.0);
+    }
+    (((bx - ax) as f32 / diag), ((by - ay) as f32 / diag))
+}
+
+/// Két objektum bbox-a metszi-e egymást sorban.
+pub fn shares_row(a: &GameObject, b: &GameObject) -> bool {
+    let (_, min_y_a, _, max_y_a) = bounding_box(a);
+    let (_, min_y_b, _, max_y_b) = bounding_box(b);
+    min_y_a <= max_y_b && min_y_b <= max_y_a
+}
+
+/// Két objektum bbox-a metszi-e egymást oszlopban.
+pub fn shares_col(a: &GameObject, b: &GameObject) -> bool {
+    let (min_x_a, _, max_x_a, _) = bounding_box(a);
+    let (min_x_b, _, max_x_b, _) = bounding_box(b);
+    min_x_a <= max_x_b && min_x_b <= max_x_a
+}
+
+/// A teljes rács színeloszlása.
+pub fn color_histogram(grid: &Grid) -> [usize; 10] {
+    let mut hist = [0usize; 10];
+    for cell in &grid.cells {
+        if cell.0 < 10 {
+            hist[cell.0 as usize] += 1;
+        }
+    }
+    hist
+}
+
+/// Azonos színű objektumok csoportosítása.
+pub fn group_objects_by_color(objects: &[GameObject]) -> HashMap<Color, Vec<u64>> {
+    let mut map: HashMap<Color, Vec<u64>> = HashMap::new();
+    for obj in objects {
+        map.entry(obj.color).or_default().push(obj.id);
+    }
+    map
+}
+
+/// Térben közeli objektumok klaszterezése.
+pub fn cluster_objects_by_proximity(objects: &[GameObject], max_dist: f32) -> Vec<Vec<u64>> {
+    let mut parent: Vec<usize> = (0..objects.len()).collect();
+
+    fn find(parent: &mut [usize], x: usize) -> usize {
+        if parent[x] != x {
+            parent[x] = find(parent, parent[x]);
+        }
+        parent[x]
+    }
+
+    fn union(parent: &mut [usize], x: usize, y: usize) {
+        let px = find(parent, x);
+        let py = find(parent, y);
+        if px != py {
+            parent[py] = px;
+        }
+    }
+
+    for i in 0..objects.len() {
+        for j in (i + 1)..objects.len() {
+            if distance_between(&objects[i], &objects[j]) <= max_dist as f64 {
+                union(&mut parent, i, j);
+            }
+        }
+    }
+
+    let mut clusters: HashMap<usize, Vec<u64>> = HashMap::new();
+    for (idx, obj) in objects.iter().enumerate() {
+        let root = find(&mut parent, idx);
+        clusters.entry(root).or_default().push(obj.id);
+    }
+    clusters.into_values().collect()
 }

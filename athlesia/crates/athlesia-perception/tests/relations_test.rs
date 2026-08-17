@@ -1,5 +1,5 @@
 
-use athlesia_perception::{segment, centroid, distance_between, relative_direction, contains};
+use athlesia_perception::{segment, centroid, distance_between, relative_direction, contains, relative_size, shares_row, shares_col, color_histogram};
 use athlesia_types::{Grid, Color};
 
 fn build_grid(rows: [[u8; 5]; 5]) -> Grid {
@@ -70,4 +70,51 @@ fn contains_detects_bbox_containment() {
     let (a, b) = if objects[0].color == Color(1) { (&objects[0], &objects[1]) } else { (&objects[1], &objects[0]) };
     assert!(contains(a, b));
     assert!(!contains(b, a));
+}
+
+
+#[test]
+fn relative_size_between_two_objects() {
+    let grid = build_grid([
+        [1, 1, 0, 0, 0],
+        [1, 1, 0, 0, 0],
+        [0, 0, 0, 0, 0],
+        [0, 0, 0, 2, 0],
+        [0, 0, 0, 0, 0],
+    ]);
+    let objects = segment(&grid);
+    assert_eq!(objects.len(), 2);
+
+    let rel = relative_size(&objects[0], &objects[1]);
+    assert_eq!(rel, 4.0);
+}
+
+#[test]
+fn shares_row_and_col_detect_overlap() {
+    let grid = build_grid([
+        [1, 2, 0, 0, 0],
+        [0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0],
+    ]);
+    let objects = segment(&grid);
+    assert_eq!(objects.len(), 2);
+    assert!(shares_row(&objects[0], &objects[1]));
+    assert!(!shares_col(&objects[0], &objects[1]));
+}
+
+#[test]
+fn color_histogram_counts_colors() {
+    let grid = build_grid([
+        [1, 2, 3, 0, 0],
+        [1, 2, 3, 0, 0],
+        [1, 2, 3, 0, 0],
+        [0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0],
+    ]);
+    let hist = color_histogram(&grid);
+    assert_eq!(hist[1], 3);
+    assert_eq!(hist[2], 3);
+    assert_eq!(hist[3], 3);
 }
