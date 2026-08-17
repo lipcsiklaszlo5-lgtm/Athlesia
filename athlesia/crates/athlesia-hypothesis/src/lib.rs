@@ -1,5 +1,5 @@
 
-use athlesia_types::{Program, PrimName, Params};
+use athlesia_types::{Program, PrimName, Params, Color};
 use athlesia_knowledge::KnowledgeBase;
 
 /// A hipotézis-javasló interfész. A későbbiekben egy LLM-alapú implementáció
@@ -30,7 +30,7 @@ impl HypothesisProposer for StaticProposer {
                 PrimName::ReflectH => vec![(PrimName::ReflectH, Params::None)],
                 PrimName::ReflectV => vec![(PrimName::ReflectV, Params::None)],
                 PrimName::Rotate90 => vec![(PrimName::Rotate90, Params::None)],
-                PrimName::Recolor => vec![(PrimName::Recolor, Params::Recolor([1,0,2,3]))],
+                PrimName::Recolor => vec![(PrimName::Recolor, Params::Recolor([Color(1), Color(0), Color(2), Color(3)]))],
             };
             proposals.push(program);
         }

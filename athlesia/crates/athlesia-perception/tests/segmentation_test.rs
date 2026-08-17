@@ -1,9 +1,9 @@
 
 use athlesia_perception::{segment, touches};
-use athlesia_types::Grid;
+use athlesia_types::{Grid, Color};
 
 fn build_grid(rows: [[u8; 5]; 5]) -> Grid {
-    Grid { cells: rows }
+    Grid::from_5x5(rows)
 }
 
 #[test]
@@ -18,8 +18,8 @@ fn segment_two_separate_objects() {
 
     let objects = segment(&grid);
     assert_eq!(objects.len(), 2);
-    assert_eq!(objects[0].color, 1);
-    assert_eq!(objects[1].color, 2);
+    assert_eq!(objects[0].color, Color(1));
+    assert_eq!(objects[1].color, Color(2));
 }
 
 #[test]

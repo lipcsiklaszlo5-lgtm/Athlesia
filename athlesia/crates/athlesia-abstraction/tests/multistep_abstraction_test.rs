@@ -1,14 +1,14 @@
 
 use athlesia_abstraction::AbstractionEngine;
 use athlesia_knowledge::KnowledgeBase;
-use athlesia_types::{PrimName, Params, Program};
+use athlesia_types::{PrimName, Params, Program, Color};
 
 #[test]
 fn extracts_frequent_two_step_macro() {
     let mut kb = KnowledgeBase::new();
 
     let translate: (PrimName, Params) = (PrimName::Translate, Params::Translate(1, 0));
-    let recolor: (PrimName, Params) = (PrimName::Recolor, Params::Recolor([1, 0, 2, 3]));
+    let recolor: (PrimName, Params) = (PrimName::Recolor, Params::Recolor([Color(1), Color(0), Color(2), Color(3)]));
 
     // A gyakori kétlépéses minta: translate + recolor
     let pattern: Program = vec![translate, recolor];
@@ -39,7 +39,7 @@ fn does_not_extract_infrequent_two_step_macro() {
 
     let a: Program = vec![
         (PrimName::Translate, Params::Translate(1, 0)),
-        (PrimName::Recolor, Params::Recolor([1, 0, 2, 3])),
+        (PrimName::Recolor, Params::Recolor([Color(1), Color(0), Color(2), Color(3)])),
     ];
     let b: Program = vec![
         (PrimName::ReflectH, Params::None),

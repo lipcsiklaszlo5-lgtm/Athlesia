@@ -4,7 +4,7 @@ use athlesia_types::{Grid, PrimName, Params, Budget};
 use athlesia_executor::run_program;
 
 fn build_grid(rows: [[u8; 5]; 5]) -> Grid {
-    Grid { cells: rows }
+    Grid::from_5x5(rows)
 }
 
 #[test]

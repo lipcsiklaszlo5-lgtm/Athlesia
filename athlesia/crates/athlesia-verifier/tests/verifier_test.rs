@@ -1,9 +1,9 @@
 
 use athlesia_verifier::{Verifier, VerificationResult};
-use athlesia_types::{Grid, PrimName, Params, Program};
+use athlesia_types::{Grid, PrimName, Params, Program, Color};
 
 fn build_grid(rows: [[u8; 5]; 5]) -> Grid {
-    Grid { cells: rows }
+    Grid::from_5x5(rows)
 }
 
 #[test]
@@ -57,7 +57,7 @@ fn rejects_wrong_program() {
 #[test]
 fn returns_inconclusive_for_empty_examples() {
     let v = Verifier;
-    let program: Program = vec![(PrimName::Recolor, Params::Recolor([1, 0, 2, 3]))];
+    let program: Program = vec![(PrimName::Recolor, Params::Recolor([Color(1), Color(0), Color(2), Color(3)]))];
     let result = v.verify(&program, &[]);
     assert_eq!(result, VerificationResult::Inconclusive);
 }

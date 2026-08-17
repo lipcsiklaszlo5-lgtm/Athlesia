@@ -3,7 +3,7 @@ use athlesia_search::{search, beam_search};
 use athlesia_types::Grid;
 
 fn build_grid(rows: [[u8; 5]; 5]) -> Grid {
-    Grid { cells: rows }
+    Grid::from_5x5(rows)
 }
 
 #[test]

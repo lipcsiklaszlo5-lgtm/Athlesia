@@ -1,5 +1,6 @@
-use athlesia_executor::{run_program, Budget};
-use athlesia_types::{Grid, PrimName, Params, GRID_SIZE};
+use athlesia_executor::run_program;
+use athlesia_types::Budget;
+use athlesia_types::{Grid, PrimName, Params, Color};
 use serde::Deserialize;
 use std::fs;
 
@@ -12,9 +13,15 @@ struct GoldenVector {
 }
 
 fn grid_from_vec(v: &[Vec<u8>]) -> Grid {
-    let mut cells = [[0u8; GRID_SIZE]; GRID_SIZE];
-    for i in 0..GRID_SIZE { for j in 0..GRID_SIZE { cells[i][j] = v[i][j]; } }
-    Grid { cells }
+    let height = v.len() as u8;
+    let width = if height > 0 { v[0].len() as u8 } else { 0 };
+    let mut cells = Vec::with_capacity((width as usize) * (height as usize));
+    for row in v {
+        for &cell in row {
+            cells.push(Color(cell));
+        }
+    }
+    Grid { width, height, cells }
 }
 
 #[test]
@@ -41,8 +48,8 @@ fn golden_vectors() {
                 }
                 PrimName::Recolor => {
                     let arr = params.as_array().expect("Recolor params should be array");
-                    let mut perm = [0u8; 4];
-                    for (i, v) in arr.iter().enumerate() { perm[i] = v.as_u64().unwrap() as u8; }
+                    let mut perm = [Color(0); 4];
+                    for (i, v) in arr.iter().enumerate() { perm[i] = Color(v.as_u64().unwrap() as u8); }
                     Params::Recolor(perm)
                 }
                 _ => Params::None,

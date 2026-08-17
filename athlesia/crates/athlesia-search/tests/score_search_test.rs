@@ -3,7 +3,7 @@ use athlesia_search::a_star_search_with_score;
 use athlesia_types::{Grid, Program};
 
 fn build_grid(rows: [[u8; 5]; 5]) -> Grid {
-    Grid { cells: rows }
+    Grid::from_5x5(rows)
 }
 
 #[test]
@@ -25,15 +25,18 @@ fn score_based_astar_finds_solution() {
 
     // Egyszerű pontozó: hány cella egyezik a targettel, plusz a mélység
     let score = |_prog: &Program, grid: &Grid, target: &Grid, depth: usize| -> usize {
+        let width = grid.width as usize;
+        let height = grid.height as usize;
         let mut match_count = 0;
-        for i in 0..grid.cells.len() {
-            for j in 0..grid.cells[0].len() {
-                if grid.cells[i][j] == target.cells[i][j] {
+        for i in 0..height {
+            for j in 0..width {
+                let idx = i * width + j;
+                if grid.cells[idx] == target.cells[idx] {
                     match_count += 1;
                 }
             }
         }
-        let mismatch = 25 - match_count;
+        let mismatch = width * height - match_count;
         mismatch + depth
     };
 

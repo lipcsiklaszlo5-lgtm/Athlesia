@@ -3,12 +3,12 @@ use athlesia_types::Action;
 use athlesia_world_model::{WorldModel, HypothesisStatus};
 use athlesia_planner::PlannerMode;
 
-use athlesia_types::{Grid, Program, Budget};
+use athlesia_types::{Grid, Program};
 use athlesia_memory::Memory;
 use athlesia_knowledge::KnowledgeBase;
 use athlesia_planner::Planner;
 use athlesia_verifier::{Verifier, VerificationResult};
-use athlesia_executor::run_program;
+use athlesia_core::CoreEngine;
 
 /// Integrációs funkció: megold egy feladatot a teljes csővezetéken.
 /// Visszaadja a megtalált programot, ha sikerült.
@@ -17,36 +17,30 @@ pub fn solve_with_kernel(
     target: &Grid,
     kb: &mut KnowledgeBase,
     memory: &mut Memory,
-    planner: &Planner, wm: &athlesia_world_model::WorldModel,
+    planner: &Planner,
+    wm: &athlesia_world_model::WorldModel,
+    core: &mut CoreEngine,
     max_depth: usize,
 ) -> Option<Program> {
-    // 1. Próbáljuk a memóriában lévő programokat
-    if let Some(program) = memory.find_program_by_input(input) {
-        let mut budget = Budget { max_steps: program.len() as u64 };
-        if let Ok(output) = run_program(&program, input, &mut budget) {
-            if output == *target {
-                return Some(program);
-            }
+    // 1. Próbáljuk a CoreEngine-t, amely a memóriát, a MetaLearnert,
+    //    a Synthesis Engine-t és a Search Engine-t is használja.
+    if let Some(program) = core.solve(input, target) {
+        memory.add_episode(input.clone(), target.clone(), program.clone());
+        if !kb.get_all_macros().iter().any(|m| m.program == program) {
+            kb.add_macro(format!("solved_{}", kb.get_all_macros().len()), program.clone());
         }
+        return Some(program);
     }
 
-    // 2. Próbáljuk a tudásbázisból a makrókat
-    for m in kb.get_all_macros() {
-        let mut budget = Budget { max_steps: m.program.len() as u64 };
-        if let Ok(output) = run_program(&m.program, input, &mut budget) {
-            if output == *target {
-                memory.add_episode(input.clone(), target.clone(), m.program.clone());
-                return Some(m.program.clone());
-            }
-        }
-    }
-
-    // 3. Tervezés a keresőmotorral
+    // 2. Ha a CoreEngine nem járt sikerrel, próbáljuk a Plannert.
+    //    (pl. ha a CoreEngine nem ismerte fel, de a Planner mégis talál megoldást)
     if let Some(program) = planner.plan(input, Some(target), wm, max_depth) {
         let verifier = Verifier;
         if verifier.verify(&program, &[(input.clone(), target.clone())]) == VerificationResult::Accept {
             memory.add_episode(input.clone(), target.clone(), program.clone());
-            kb.add_macro(format!("solved_{}", kb.get_all_macros().len()), program.clone());
+            if !kb.get_all_macros().iter().any(|m| m.program == program) {
+                kb.add_macro(format!("solved_{}", kb.get_all_macros().len()), program.clone());
+            }
             return Some(program);
         }
     }

@@ -1,9 +1,8 @@
 
-use athlesia_types::Grid;
+use std::collections::HashMap;
+use athlesia_types::{Grid, Color};
 use athlesia_perception::{segment, touches, contains, distance_between, relative_direction};
 
-/// FeatureVector: ezeket a jellemzőket fogja később a MetaLearner használni.
-/// A Hash miatt könnyen lehet HashMap kulcs.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
 pub struct FeatureVector {
     pub object_count: u8,
@@ -21,17 +20,13 @@ pub fn extract_features(grid: &Grid) -> FeatureVector {
     let objects = segment(grid);
     let object_count = objects.len() as u8;
 
-    // Szín gyakoriságok
     let mut color_counts = [0u8; 4];
-    for row in &grid.cells {
-        for &cell in row {
-            if cell < 4 {
-                color_counts[cell as usize] += 1;
-            }
+    for &cell in &grid.cells {
+        if cell.0 < 4 {
+            color_counts[cell.0 as usize] += 1;
         }
     }
 
-    // Érintkező párok száma
     let mut touching_pairs = 0;
     for i in 0..objects.len() {
         for j in (i + 1)..objects.len() {
@@ -41,7 +36,6 @@ pub fn extract_features(grid: &Grid) -> FeatureVector {
         }
     }
 
-    // Tartalmazási párok száma
     let mut contains_pairs = 0;
     for i in 0..objects.len() {
         for j in (i + 1)..objects.len() {
@@ -51,7 +45,6 @@ pub fn extract_features(grid: &Grid) -> FeatureVector {
         }
     }
 
-    // Minimális távolság kategória
     let mut min_distance_category = 0u8;
     if objects.len() >= 2 {
         let mut any_touching = false;
@@ -76,8 +69,7 @@ pub fn extract_features(grid: &Grid) -> FeatureVector {
         }
     }
 
-    // Domináns relatív irány az objektumpárok között
-    let mut dir_counts: std::collections::HashMap<(i8, i8), usize> = std::collections::HashMap::new();
+    let mut dir_counts: HashMap<(i8, i8), usize> = HashMap::new();
     for i in 0..objects.len() {
         for j in (i + 1)..objects.len() {
             let dir = relative_direction(&objects[i], &objects[j]);
@@ -106,17 +98,17 @@ pub fn extract_features(grid: &Grid) -> FeatureVector {
     }
 }
 
-
-/// Lyukasság: van-e olyan 0-s cella, amit teljesen körbezárnak nem-0 cellák?
-/// Egyszerű definíció: egy 0-s cella, amelynek mind a 4 közvetlen szomszédja nem-0.
 fn detect_hole(grid: &Grid) -> bool {
-    for i in 0..grid.cells.len() {
-        for j in 0..grid.cells[0].len() {
-            if grid.cells[i][j] == 0 {
-                let up = i > 0 && grid.cells[i - 1][j] != 0;
-                let down = i + 1 < grid.cells.len() && grid.cells[i + 1][j] != 0;
-                let left = j > 0 && grid.cells[i][j - 1] != 0;
-                let right = j + 1 < grid.cells[0].len() && grid.cells[i][j + 1] != 0;
+    let width = grid.width as usize;
+    let height = grid.height as usize;
+    for y in 0..height {
+        for x in 0..width {
+            let idx = y * width + x;
+            if grid.cells[idx] == Color(0) {
+                let up = y > 0 && grid.cells[(y - 1) * width + x] != Color(0);
+                let down = y + 1 < height && grid.cells[(y + 1) * width + x] != Color(0);
+                let left = x > 0 && grid.cells[y * width + x - 1] != Color(0);
+                let right = x + 1 < width && grid.cells[y * width + x + 1] != Color(0);
                 if up && down && left && right {
                     return true;
                 }
@@ -126,44 +118,40 @@ fn detect_hole(grid: &Grid) -> bool {
     false
 }
 
-/// Szimmetria: az objektumok befoglaló téglalapján belül ellenőrizzük.
-/// Ez eltolás-invariáns: ugyanaz a minta más pozícióban ugyanazt adja.
 fn bounding_box_symmetry(grid: &Grid) -> (bool, bool) {
-    let rows = grid.cells.len();
-    let cols = grid.cells[0].len();
+    let width = grid.width as usize;
+    let height = grid.height as usize;
 
-    // Keressük meg a legkisebb befoglaló téglalapot, ami minden nem-nulla cellát tartalmaz
-    let mut min_i = rows;
-    let mut max_i = 0;
-    let mut min_j = cols;
-    let mut max_j = 0;
+    let mut min_x = width;
+    let mut min_y = height;
+    let mut max_x = 0;
+    let mut max_y = 0;
     let mut has_object = false;
 
-    for i in 0..rows {
-        for j in 0..cols {
-            if grid.cells[i][j] != 0 {
+    for y in 0..height {
+        for x in 0..width {
+            if grid.cells[y * width + x] != Color(0) {
                 has_object = true;
-                if i < min_i { min_i = i; }
-                if i > max_i { max_i = i; }
-                if j < min_j { min_j = j; }
-                if j > max_j { max_j = j; }
+                if x < min_x { min_x = x; }
+                if x > max_x { max_x = x; }
+                if y < min_y { min_y = y; }
+                if y > max_y { max_y = y; }
             }
         }
     }
 
     if !has_object {
-        return (true, true); // üres grid mindig szimmetrikus
+        return (true, true);
     }
 
-    let _bbox_height = max_i - min_i + 1;
-    let _bbox_width = max_j - min_j + 1;
+    let _bbox_width = max_x - min_x + 1;
+    let _bbox_height = max_y - min_y + 1;
 
-    // Vízszintes szimmetria a bounding boxon belül
     let mut sym_h = true;
-    for i in min_i..=max_i {
-        for j in min_j..=max_j {
-            let mirrored_j = max_j - (j - min_j);
-            if grid.cells[i][j] != grid.cells[i][mirrored_j] {
+    for y in min_y..=max_y {
+        for x in min_x..=max_x {
+            let mir_x = max_x - (x - min_x);
+            if grid.cells[y * width + x] != grid.cells[y * width + mir_x] {
                 sym_h = false;
                 break;
             }
@@ -171,12 +159,11 @@ fn bounding_box_symmetry(grid: &Grid) -> (bool, bool) {
         if !sym_h { break; }
     }
 
-    // Függőleges szimmetria a bounding boxon belül
     let mut sym_v = true;
-    for i in min_i..=max_i {
-        for j in min_j..=max_j {
-            let mirrored_i = max_i - (i - min_i);
-            if grid.cells[i][j] != grid.cells[mirrored_i][j] {
+    for y in min_y..=max_y {
+        for x in min_x..=max_x {
+            let mir_y = max_y - (y - min_y);
+            if grid.cells[y * width + x] != grid.cells[mir_y * width + x] {
                 sym_v = false;
                 break;
             }

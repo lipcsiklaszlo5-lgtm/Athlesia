@@ -1,9 +1,9 @@
 
 use athlesia_perception::{segment, centroid, distance_between, relative_direction, contains};
-use athlesia_types::Grid;
+use athlesia_types::{Grid, Color};
 
 fn build_grid(rows: [[u8; 5]; 5]) -> Grid {
-    Grid { cells: rows }
+    Grid::from_5x5(rows)
 }
 
 #[test]
@@ -67,7 +67,7 @@ fn contains_detects_bbox_containment() {
     let objects = segment(&grid);
     assert_eq!(objects.len(), 2);
     // A az 1-es, B a 2-es
-    let (a, b) = if objects[0].color == 1 { (&objects[0], &objects[1]) } else { (&objects[1], &objects[0]) };
+    let (a, b) = if objects[0].color == Color(1) { (&objects[0], &objects[1]) } else { (&objects[1], &objects[0]) };
     assert!(contains(a, b));
     assert!(!contains(b, a));
 }

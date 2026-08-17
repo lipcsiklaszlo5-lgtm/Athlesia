@@ -1,5 +1,5 @@
 
-use athlesia_types::{Grid, PrimName, Params, Program, Budget};
+use athlesia_types::{Grid, PrimName, Params, Program, Budget, Color};
 use athlesia_executor::run_program;
 
 /// Keresési primitívek listája. A Synthesis Engine innen építkezik.
@@ -38,10 +38,10 @@ fn generate_primitives(template: PrimitiveTemplate) -> Vec<(PrimName, Params)> {
             // Néhány gyakori permutáció
             let mut v = Vec::new();
             for perm in [
-                [1, 0, 2, 3],
-                [2, 1, 0, 3],
-                [3, 2, 1, 0],
-                [1, 2, 3, 0],
+                [Color(1), Color(0), Color(2), Color(3)],
+                [Color(2), Color(1), Color(0), Color(3)],
+                [Color(3), Color(2), Color(1), Color(0)],
+                [Color(1), Color(2), Color(3), Color(0)],
             ] {
                 v.push((PrimName::Recolor, Params::Recolor(perm)));
             }

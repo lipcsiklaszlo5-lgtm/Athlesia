@@ -1,6 +1,7 @@
 
 use athlesia_types::{Action, Grid, Program};
-use athlesia_executor::{run_program, Budget};
+use athlesia_executor::run_program;
+use athlesia_types::Budget;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum HypothesisStatus {

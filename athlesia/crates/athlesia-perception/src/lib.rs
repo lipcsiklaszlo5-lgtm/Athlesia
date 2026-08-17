@@ -1,5 +1,5 @@
 
-use athlesia_types::{Color, Coord, Grid, GRID_SIZE};
+use athlesia_types::{Color, Coord, Grid};
 
 #[derive(Debug, Clone)]
 pub struct GameObject {
@@ -8,39 +8,39 @@ pub struct GameObject {
     pub cells: Vec<Coord>,
 }
 
-/// Flood-fill alapú összefüggő komponens keresés.
-/// 0 szín = háttér (nem objektum).
 pub fn segment(grid: &Grid) -> Vec<GameObject> {
-    let mut visited = [[false; GRID_SIZE]; GRID_SIZE];
+    let mut visited = vec![false; (grid.width as usize) * (grid.height as usize)];
     let mut objects = Vec::new();
     let mut next_id = 0u64;
 
-    for i in 0..GRID_SIZE {
-        for j in 0..GRID_SIZE {
-            if visited[i][j] {
+    for y in 0..grid.height as i8 {
+        for x in 0..grid.width as i8 {
+            let idx = (y as usize) * (grid.width as usize) + (x as usize);
+            if visited[idx] {
                 continue;
             }
-            let color = grid.cells[i][j];
-            if color == 0 {
-                visited[i][j] = true;
-                continue;
-            }
+            let color = match grid.get(x, y) {
+                Some(c) if c != Color(0) => c,
+                _ => {
+                    visited[idx] = true;
+                    continue;
+                }
+            };
 
-            let mut stack = vec![(i as i8, j as i8)];
+            let mut stack = vec![(x, y)];
             let mut cells = Vec::new();
-            visited[i][j] = true;
+            visited[idx] = true;
 
-            while let Some((x, y)) = stack.pop() {
-                cells.push(Coord { x, y });
+            while let Some((cx, cy)) = stack.pop() {
+                cells.push(Coord { x: cx, y: cy });
 
                 for (dx, dy) in [(-1, 0), (1, 0), (0, -1), (0, 1)] {
-                    let nx = x + dx;
-                    let ny = y + dy;
-                    if nx >= 0 && nx < GRID_SIZE as i8 && ny >= 0 && ny < GRID_SIZE as i8 {
-                        let ni = nx as usize;
-                        let nj = ny as usize;
-                        if !visited[ni][nj] && grid.cells[ni][nj] == color {
-                            visited[ni][nj] = true;
+                    let nx = cx + dx;
+                    let ny = cy + dy;
+                    if nx >= 0 && nx < grid.width as i8 && ny >= 0 && ny < grid.height as i8 {
+                        let nidx = (ny as usize) * (grid.width as usize) + (nx as usize);
+                        if !visited[nidx] && grid.get(nx, ny) == Some(color) {
+                            visited[nidx] = true;
                             stack.push((nx, ny));
                         }
                     }
@@ -59,8 +59,6 @@ pub fn segment(grid: &Grid) -> Vec<GameObject> {
     objects
 }
 
-/// Két objektum akkor érintkezik, ha van olyan cellájuk,
-/// amelyek egymás mellett vannak (Manhattan-távolság = 1).
 pub fn touches(a: &GameObject, b: &GameObject) -> bool {
     for ca in &a.cells {
         for cb in &b.cells {
@@ -72,8 +70,6 @@ pub fn touches(a: &GameObject, b: &GameObject) -> bool {
     false
 }
 
-
-/// Bounding box: (min_x, min_y, max_x, max_y) a cellákból.
 pub fn bounding_box(obj: &GameObject) -> (i8, i8, i8, i8) {
     let mut min_x = i8::MAX;
     let mut min_y = i8::MAX;
@@ -88,7 +84,6 @@ pub fn bounding_box(obj: &GameObject) -> (i8, i8, i8, i8) {
     (min_x, min_y, max_x, max_y)
 }
 
-/// Centroid: az objektum celláinak átlagos pozíciója.
 pub fn centroid(obj: &GameObject) -> (f64, f64) {
     let n = obj.cells.len() as f64;
     let sum_x: f64 = obj.cells.iter().map(|c| c.x as f64).sum();
@@ -96,15 +91,12 @@ pub fn centroid(obj: &GameObject) -> (f64, f64) {
     (sum_x / n, sum_y / n)
 }
 
-/// Centroidok euklideszi távolsága.
 pub fn distance_between(a: &GameObject, b: &GameObject) -> f64 {
     let (ax, ay) = centroid(a);
     let (bx, by) = centroid(b);
     ((ax - bx).powi(2) + (ay - by).powi(2)).sqrt()
 }
 
-/// Relatív irány A-tól B-hez: (dx, dy) irányvektor, komponensenként -1, 0 vagy 1.
-/// Például ha B jobbra és lefelé van A-hoz képest, akkor (1, 1).
 pub fn relative_direction(a: &GameObject, b: &GameObject) -> (i8, i8) {
     let (ax, ay) = centroid(a);
     let (bx, by) = centroid(b);
@@ -113,7 +105,6 @@ pub fn relative_direction(a: &GameObject, b: &GameObject) -> (i8, i8) {
     (dx, dy)
 }
 
-/// Igaz, ha A befoglaló téglalapja teljesen tartalmazza B-ét, és A != B.
 pub fn contains(a: &GameObject, b: &GameObject) -> bool {
     if a.id == b.id {
         return false;

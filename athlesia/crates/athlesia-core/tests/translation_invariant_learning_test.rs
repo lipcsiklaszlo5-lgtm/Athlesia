@@ -1,8 +1,8 @@
 use athlesia_core::CoreEngine;
-use athlesia_types::{Grid, PrimName, Params};
+use athlesia_types::{Grid, PrimName, Params, Color};
 
 fn build_grid(rows: [[u8; 5]; 5]) -> Grid {
-    Grid { cells: rows }
+    Grid::from_5x5(rows)
 }
 
 /// Segédfüggvény: egyetlen 1-es cellát rak a megadott pozícióba,
@@ -29,7 +29,7 @@ fn learning_transfers_across_positions() {
     core.known_programs.push(vec![(PrimName::ReflectH, Params::None)]);
     core.known_programs.push(vec![(PrimName::ReflectV, Params::None)]);
     core.known_programs.push(vec![(PrimName::Rotate90, Params::None)]);
-    core.known_programs.push(vec![(PrimName::Recolor, Params::Recolor([1, 0, 2, 3]))]);
+    core.known_programs.push(vec![(PrimName::Recolor, Params::Recolor([Color(1), Color(0), Color(2), Color(3)]))]);
 
     // Különböző pozíciók, ahol a cella nincs a jobb szélen
     let positions = [(0, 0), (1, 1), (2, 2), (0, 3), (1, 0)];
