@@ -39,7 +39,7 @@ pub fn extract_features(grid: &Grid) -> FeatureVector {
     }
 
     let has_hole = detect_hole(grid);
-    let (symmetric_h, symmetric_v) = detect_symmetry(grid);
+    let (symmetric_h, symmetric_v) = bounding_box_symmetry(grid);
 
     FeatureVector {
         object_count,
@@ -71,22 +71,63 @@ fn detect_hole(grid: &Grid) -> bool {
     false
 }
 
-/// Szimmetria: vízszintes és függőleges tengelyes tükrözés ellenőrzése.
-fn detect_symmetry(grid: &Grid) -> (bool, bool) {
+/// Szimmetria: az objektumok befoglaló téglalapján belül ellenőrizzük.
+/// Ez eltolás-invariáns: ugyanaz a minta más pozícióban ugyanazt adja.
+fn bounding_box_symmetry(grid: &Grid) -> (bool, bool) {
     let rows = grid.cells.len();
     let cols = grid.cells[0].len();
-    let mut sym_h = true;
-    let mut sym_v = true;
+
+    // Keressük meg a legkisebb befoglaló téglalapot, ami minden nem-nulla cellát tartalmaz
+    let mut min_i = rows;
+    let mut max_i = 0;
+    let mut min_j = cols;
+    let mut max_j = 0;
+    let mut has_object = false;
 
     for i in 0..rows {
         for j in 0..cols {
-            if grid.cells[i][j] != grid.cells[i][cols - 1 - j] {
-                sym_h = false;
-            }
-            if grid.cells[i][j] != grid.cells[rows - 1 - i][j] {
-                sym_v = false;
+            if grid.cells[i][j] != 0 {
+                has_object = true;
+                if i < min_i { min_i = i; }
+                if i > max_i { max_i = i; }
+                if j < min_j { min_j = j; }
+                if j > max_j { max_j = j; }
             }
         }
     }
+
+    if !has_object {
+        return (true, true); // üres grid mindig szimmetrikus
+    }
+
+    let _bbox_height = max_i - min_i + 1;
+    let _bbox_width = max_j - min_j + 1;
+
+    // Vízszintes szimmetria a bounding boxon belül
+    let mut sym_h = true;
+    for i in min_i..=max_i {
+        for j in min_j..=max_j {
+            let mirrored_j = max_j - (j - min_j);
+            if grid.cells[i][j] != grid.cells[i][mirrored_j] {
+                sym_h = false;
+                break;
+            }
+        }
+        if !sym_h { break; }
+    }
+
+    // Függőleges szimmetria a bounding boxon belül
+    let mut sym_v = true;
+    for i in min_i..=max_i {
+        for j in min_j..=max_j {
+            let mirrored_i = max_i - (i - min_i);
+            if grid.cells[i][j] != grid.cells[mirrored_i][j] {
+                sym_v = false;
+                break;
+            }
+        }
+        if !sym_v { break; }
+    }
+
     (sym_h, sym_v)
 }

@@ -24,7 +24,7 @@ fn score_based_astar_finds_solution() {
     ]);
 
     // Egyszerű pontozó: hány cella egyezik a targettel, plusz a mélység
-    let score = |prog: &Program, grid: &Grid, target: &Grid, depth: usize| -> usize {
+    let score = |_prog: &Program, grid: &Grid, target: &Grid, depth: usize| -> usize {
         let mut match_count = 0;
         for i in 0..grid.cells.len() {
             for j in 0..grid.cells[0].len() {

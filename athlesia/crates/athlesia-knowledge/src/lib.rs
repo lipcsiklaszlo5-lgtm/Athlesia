@@ -67,6 +67,29 @@ impl KnowledgeBase {
         });
     }
 
+
+    /// Makró eltávolítása név alapján.
+    /// A makró archiválásra kerül, azaz bejegyezzük a változást,
+    /// de magát a makrót eltávolítjuk az aktív könyvtárból.
+    pub fn remove_macro(&mut self, name: &str) -> bool {
+        if let Some(pos) = self.macros.iter().position(|m| m.name == name) {
+            self.macros.remove(pos);
+            self.version += 1;
+            self.archive.push(LibraryChange {
+                version: self.version,
+                change: ChangeKind::PruneMacro { name: name.to_string() },
+            });
+            true
+        } else {
+            false
+        }
+    }
+
+    /// Makró hátravitel (hideg tárolóba) – jelen implementációban ugyanaz,
+    /// mint az eltávolítás, de a ChangeKind megkülönbözteti a későbbi visszaállításhoz.
+    pub fn prune_macro(&mut self, name: &str) -> bool {
+        self.remove_macro(name)
+    }
     pub fn get_macro_by_name(&self, name: &str) -> Option<&Macro> {
         self.macros.iter().find(|m| m.name == name)
     }
