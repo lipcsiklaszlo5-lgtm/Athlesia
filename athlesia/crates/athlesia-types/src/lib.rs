@@ -67,6 +67,17 @@ pub enum PrimName {
     RemoveBorder,
     SwapColors,
     TranslateWrap,
+    CopyObject,
+    MoveTo,
+    Connect,
+    FillEnclosedArea,
+    DrawLine,
+    DrawBox,
+    FillObject,
+    ReplaceColor,
+    ShiftRow,
+    ShiftColumn,
+    DeleteObject,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -76,6 +87,12 @@ pub enum Params {
     Recolor([Color; 4]),
     SwapColors(u8, u8),
     TranslateWrap(i8, i8),
+    ObjectId(u64),
+    TwoObjectIds(u64, u64),
+    Color(u8),
+    StartEnd(i8, i8, i8, i8),
+    Row(u8),
+    Col(u8),
 }
 
 pub type Program = Vec<(PrimName, Params)>;

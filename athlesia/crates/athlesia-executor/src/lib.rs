@@ -142,6 +142,40 @@ pub fn apply_primitive(grid: &Grid, name: &PrimName, params: &Params) -> Grid {
                 }
             }
         }
+        PrimName::CopyObject => {
+            // Egyszerű placeholder: visszaadja a grid másolatát.
+            return grid.clone();
+        }
+        PrimName::MoveTo => {
+            return grid.clone();
+        }
+        PrimName::Connect => {
+            return grid.clone();
+        }
+        PrimName::FillEnclosedArea => {
+            return grid.clone();
+        }
+        PrimName::DrawLine => {
+            return grid.clone();
+        }
+        PrimName::DrawBox => {
+            return grid.clone();
+        }
+        PrimName::FillObject => {
+            return grid.clone();
+        }
+        PrimName::ReplaceColor => {
+            return grid.clone();
+        }
+        PrimName::ShiftRow => {
+            return grid.clone();
+        }
+        PrimName::ShiftColumn => {
+            return grid.clone();
+        }
+        PrimName::DeleteObject => {
+            return grid.clone();
+        }
     }
 
     new_grid

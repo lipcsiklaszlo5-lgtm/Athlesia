@@ -37,6 +37,17 @@ impl HypothesisProposer for StaticProposer {
                 PrimName::RemoveBorder => vec![(PrimName::RemoveBorder, Params::None)],
                 PrimName::SwapColors => vec![(PrimName::SwapColors, Params::SwapColors(1, 2))],
                 PrimName::TranslateWrap => vec![(PrimName::TranslateWrap, Params::TranslateWrap(1, 0))],
+                PrimName::CopyObject => vec![(PrimName::CopyObject, Params::None)],
+                PrimName::MoveTo => vec![(PrimName::MoveTo, Params::None)],
+                PrimName::Connect => vec![(PrimName::Connect, Params::None)],
+                PrimName::FillEnclosedArea => vec![(PrimName::FillEnclosedArea, Params::None)],
+                PrimName::DrawLine => vec![(PrimName::DrawLine, Params::None)],
+                PrimName::DrawBox => vec![(PrimName::DrawBox, Params::None)],
+                PrimName::FillObject => vec![(PrimName::FillObject, Params::None)],
+                PrimName::ReplaceColor => vec![(PrimName::ReplaceColor, Params::None)],
+                PrimName::ShiftRow => vec![(PrimName::ShiftRow, Params::None)],
+                PrimName::ShiftColumn => vec![(PrimName::ShiftColumn, Params::None)],
+                PrimName::DeleteObject => vec![(PrimName::DeleteObject, Params::None)],
             };
             proposals.push(program);
         }
