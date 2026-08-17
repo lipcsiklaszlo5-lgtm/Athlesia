@@ -5,7 +5,6 @@ use athlesia_perception::perceive;
 use athlesia_world_model::WorldModel;
 use athlesia_memory::{Memory, InteractionEvent};
 use athlesia_knowledge::KnowledgeBase;
-use athlesia_hypothesis::HypothesisProposer;
 use athlesia_verifier::{Verifier, VerificationResult};
 
 use athlesia_planner::{Planner, PlannerMode};

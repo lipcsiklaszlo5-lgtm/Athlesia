@@ -25,7 +25,7 @@ fn stores_and_retrieves_program_by_exact_input() {
     ]);
     let program = vec![(PrimName::Translate, Params::Translate(1, 0))];
 
-    mem.add_episode(input.clone(), target, program.clone());
+    mem.append_episode(input.clone(), target, program.clone());
 
     let retrieved = mem.find_program_by_input(&input);
     assert_eq!(retrieved, Some(program));
@@ -40,8 +40,8 @@ fn does_not_duplicate_known_program_but_increments_usage() {
     let target = build_grid([[0; 5]; 5]);
     let program = vec![(PrimName::ReflectH, Params::None)];
 
-    mem.add_episode(input.clone(), target.clone(), program.clone());
-    mem.add_episode(input.clone(), target, program.clone());
+    mem.append_episode(input.clone(), target.clone(), program.clone());
+    mem.append_episode(input.clone(), target, program.clone());
 
     assert_eq!(mem.get_known_programs().len(), 1);
     assert_eq!(mem.long_term.program_usage[0], 2);

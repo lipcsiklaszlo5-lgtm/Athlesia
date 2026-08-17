@@ -5,7 +5,7 @@ use athlesia_memory::Memory;
 use athlesia_knowledge::KnowledgeBase;
 use athlesia_planner::{Planner, PlannerMode};
 use athlesia_world_model::WorldModel;
-use athlesia_types::{Grid, PrimName, Params, Program};
+use athlesia_types::{Grid, PrimName, Params};
 
 fn build_grid(rows: [[u8; 5]; 5]) -> Grid {
     Grid::from_5x5(rows)

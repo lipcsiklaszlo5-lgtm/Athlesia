@@ -1,5 +1,5 @@
 
-use athlesia_hypothesis::{HypothesisProposer, StaticProposer, CandidateHypothesis};
+use athlesia_hypothesis::{HypothesisProposer, StaticProposer};
 use athlesia_knowledge::KnowledgeBase;
 use athlesia_types::{PrimName, Params, Program};
 

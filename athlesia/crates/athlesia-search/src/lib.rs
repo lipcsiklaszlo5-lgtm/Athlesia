@@ -58,8 +58,22 @@ impl SearchEngine for DefaultSearchEngine {
 }
 
 /// Primitívek listája, amelyeket a kereső kipróbál.
-fn candidate_primitives() -> Vec<(PrimName, Params)> {
+fn candidate_primitives(input: &Grid, target: &Grid) -> Vec<(PrimName, Params)> {
     let mut v = Vec::new();
+
+    // Dimenzióváltó primitívek kikövetkeztetése a célméretből
+    if input.width > 0 && input.height > 0
+        && target.width % input.width == 0
+        && target.height % input.height == 0
+    {
+        let w_ratio = target.width / input.width;
+        let h_ratio = target.height / input.height;
+        if w_ratio == h_ratio && w_ratio > 1 {
+            let k = w_ratio as usize;
+            v.push((PrimName::RepeatGrid, Params::RepeatGrid(k)));
+            v.push((PrimName::Tile, Params::Tile(k)));
+        }
+    }
 
     for (dx, dy) in [(0, 1), (0, -1), (1, 0), (-1, 0), (0, 0)] {
         v.push((PrimName::Translate, Params::Translate(dx, dy)));
@@ -120,7 +134,7 @@ pub fn search(input: &Grid, target: &Grid, max_depth: usize) -> Option<Program> 
             return None;
         }
 
-        for (prim, params) in candidate_primitives() {
+        for (prim, params) in candidate_primitives(input, target) {
             current.push((prim, params));
             if let Some(found) = dfs(input, target, max_depth, depth + 1, current) {
                 return Some(found);
@@ -148,7 +162,7 @@ pub fn beam_search(input: &Grid, target: &Grid, max_depth: usize, beam_width: us
         let mut next_beam: Vec<(Program, Grid)> = Vec::new();
 
         for (program, _current_grid) in &beam {
-            for (prim, params) in candidate_primitives() {
+            for (prim, params) in candidate_primitives(input, target) {
                 let mut new_program = program.clone();
                 new_program.push((prim, params));
                 let mut budget = Budget { max_steps: new_program.len() as u64, max_depth: 100 };
@@ -236,7 +250,7 @@ pub fn a_star_search(input: &Grid, target: &Grid, max_depth: usize) -> Option<Pr
             continue;
         }
 
-        for (prim, params) in candidate_primitives() {
+        for (prim, params) in candidate_primitives(input, target) {
             let mut new_program = node.program.clone();
             new_program.push((prim, params));
             let mut budget = Budget { max_steps: new_program.len() as u64, max_depth: 100 };
@@ -312,7 +326,7 @@ where
             continue;
         }
 
-        for (prim, params) in candidate_primitives() {
+        for (prim, params) in candidate_primitives(input, target) {
             let mut new_program = node.program.clone();
             new_program.push((prim, params));
             let mut budget = Budget { max_steps: new_program.len() as u64, max_depth: 100 };
@@ -333,6 +347,9 @@ where
 
 /// Rács pontozása: hány cella egyezik a céllal.
 fn score_grid(grid: &Grid, target: &Grid) -> usize {
+    if grid.width != target.width || grid.height != target.height {
+        return 0;
+    }
     let mut score = 0;
     for i in 0..grid.height as usize {
         for j in 0..grid.width as usize {

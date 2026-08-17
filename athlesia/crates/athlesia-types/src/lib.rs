@@ -89,12 +89,8 @@ pub enum Params {
     Recolor([Color; 10]),
     SwapColors(u8, u8),
     TranslateWrap(i8, i8),
-    ObjectId(u64),
-    TwoObjectIds(u64, u64),
-    Color(u8),
-    StartEnd(i8, i8, i8, i8),
-    Row(u8),
-    Col(u8),
+    Tile(usize),
+    RepeatGrid(usize),
 }
 
 pub type Program = Vec<(PrimName, Params)>;

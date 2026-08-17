@@ -128,47 +128,48 @@ pub fn apply_primitive(grid: &Grid, name: &PrimName, params: &Params) -> Grid {
             }
         }
         PrimName::RepeatGrid => {
-            // Az input rácsot k x k-szor ismétli blokkonként.
-            // k = 2 fix, mert nincs paraméter.
-            let k: u8 = 2;
-            let new_width = grid.width * k;
-            let new_height = grid.height * k;
-            let mut repeated = Grid::new(new_width, new_height);
-            for by in 0..k as i8 {
-                for bx in 0..k as i8 {
-                    for y in 0..grid.height as i8 {
-                        for x in 0..grid.width as i8 {
-                            if let Some(color) = grid.get(x, y) {
-                                repeated.set(bx * grid.width as i8 + x, by * grid.height as i8 + y, color);
+            if let Params::RepeatGrid(k) = params {
+                let k = *k as u8;
+                let new_width = grid.width * k;
+                let new_height = grid.height * k;
+                let mut repeated = Grid::new(new_width, new_height);
+                for by in 0..k as i8 {
+                    for bx in 0..k as i8 {
+                        for y in 0..grid.height as i8 {
+                            for x in 0..grid.width as i8 {
+                                if let Some(color) = grid.get(x, y) {
+                                    repeated.set(bx * grid.width as i8 + x, by * grid.height as i8 + y, color);
+                                }
                             }
                         }
                     }
                 }
+                return repeated;
             }
-            return repeated;
+            return grid.clone();
         }
-        PrimName::Tile => {
-            // Az inputot cellánként megismételve nagyítja.
-            // A kimenet mérete: width * tile_size, height * tile_size.
-            // A tile_size 2 fix, mert a Params-ben nincs külön paraméter.
-            let tile_size = 2u8;
-            let new_width = grid.width * tile_size;
-            let new_height = grid.height * tile_size;
-            let mut tiled = Grid::new(new_width, new_height);
-            for y in 0..grid.height as i8 {
-                for x in 0..grid.width as i8 {
-                    if let Some(color) = grid.get(x, y) {
-                        for dy in 0..tile_size as i8 {
-                            for dx in 0..tile_size as i8 {
-                                tiled.set(x * tile_size as i8 + dx, y * tile_size as i8 + dy, color);
+PrimName::Tile => {
+            if let Params::Tile(tile_size) = params {
+                let tile_size = *tile_size as u8;
+                let new_width = grid.width * tile_size;
+                let new_height = grid.height * tile_size;
+                let mut tiled = Grid::new(new_width, new_height);
+                for y in 0..grid.height as i8 {
+                    for x in 0..grid.width as i8 {
+                        if let Some(color) = grid.get(x, y) {
+                            for dy in 0..tile_size as i8 {
+                                for dx in 0..tile_size as i8 {
+                                    tiled.set(x * tile_size as i8 + dx, y * tile_size as i8 + dy, color);
+                                }
                             }
                         }
                     }
                 }
+                return tiled;
             }
-            return tiled;
+            return grid.clone();
         }
-        PrimName::TranslateWrap => {
+PrimName::TranslateWrap => {
             if let Params::TranslateWrap(dx, dy) = params {
                 let dx = *dx as i8;
                 let dy = *dy as i8;

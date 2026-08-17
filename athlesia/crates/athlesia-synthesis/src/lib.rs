@@ -67,12 +67,8 @@ fn generate_primitives(template: PrimitiveTemplate) -> Vec<(PrimName, Params)> {
         PrimitiveTemplate::TranslateWrap => {
             vec![(PrimName::TranslateWrap, Params::TranslateWrap(1, 0)), (PrimName::TranslateWrap, Params::TranslateWrap(0, 1)), (PrimName::TranslateWrap, Params::TranslateWrap(-1, 0)), (PrimName::TranslateWrap, Params::TranslateWrap(0, -1))]
         }
-        PrimitiveTemplate::Tile => {
-            vec![(PrimName::Tile, Params::None)]
-        }
-        PrimitiveTemplate::RepeatGrid => {
-            vec![(PrimName::RepeatGrid, Params::None)]
-        }
+        PrimitiveTemplate::Tile => Vec::new(),
+        PrimitiveTemplate::RepeatGrid => Vec::new(),
     }
 }
 
@@ -88,5 +84,32 @@ pub fn synthesize(input: &Grid, target: &Grid, templates: &[PrimitiveTemplate]) 
             }
         }
     }
+
+    // Dimenzióváltó primitívek induktív kipróbálása.
+    // Például 3x3 -> 9x9 esetén RepeatGrid(3) vagy Tile(3).
+    if input.width > 0 && input.height > 0 {
+        let w_ratio = target.width / input.width;
+        let h_ratio = target.height / input.height;
+        if target.width % input.width == 0
+            && target.height % input.height == 0
+            && w_ratio == h_ratio
+            && w_ratio > 0
+        {
+            let k = w_ratio as usize;
+            let dim_programs = [
+                vec![(PrimName::RepeatGrid, Params::RepeatGrid(k))],
+                vec![(PrimName::Tile, Params::Tile(k))],
+            ];
+            for program in dim_programs.iter() {
+                let mut budget = Budget { max_steps: 1, max_depth: 100 };
+                if let Ok(output) = run_program(program, input, &mut budget) {
+                    if output == *target {
+                        return Some(program.clone());
+                    }
+                }
+            }
+        }
+    }
+
     None
 }
