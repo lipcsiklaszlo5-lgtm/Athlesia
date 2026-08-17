@@ -1,5 +1,5 @@
 
-use athlesia_types::{Grid, PrimName, Params, Program, Budget};
+use athlesia_types::{Grid, PrimName, Params, Program, Budget, GRID_SIZE};
 use athlesia_executor::run_program;
 
 /// Determinisztikus, korlátos mélységű programkeresés.
@@ -80,4 +80,75 @@ pub fn search(input: &Grid, target: &Grid, max_depth: usize) -> Option<Program> 
         }
     }
     None
+}
+
+
+/// A beam search a lehetséges programteret szélességben járja be,
+/// de egyszerre csak a legjobb `beam_width` jelöltet tartja meg.
+/// A "jóság" mértéke most egyszerű: hány cella egyezik a cél-griddel.
+/// Ez a jövőben a MetaLearner tanult súlyaira cserélhető.
+pub fn beam_search(
+    input: &Grid,
+    target: &Grid,
+    max_depth: usize,
+    beam_width: usize,
+) -> Option<Program> {
+    // A jelöltek: (program, eddigi kimenet, pontszám)
+    let mut beam: Vec<(Program, Grid)> = Vec::new();
+
+    // Kezdeti üres program
+    let mut initial_program = Vec::new();
+    let mut budget = Budget { max_steps: 0 };
+    let initial_grid = match run_program(&initial_program, input, &mut budget) {
+        Ok(g) => g,
+        Err(_) => input.clone(),
+    };
+    beam.push((initial_program, initial_grid));
+
+    for _depth in 0..max_depth {
+        let mut next_beam: Vec<(Program, Grid)> = Vec::new();
+
+        for (program, current_grid) in &beam {
+            for (prim, params) in candidate_primitives() {
+                let mut new_program = program.clone();
+                new_program.push((prim, params));
+                let mut b = Budget { max_steps: new_program.len() as u64 };
+                if let Ok(new_grid) = run_program(&new_program, input, &mut b) {
+                    next_beam.push((new_program, new_grid));
+                }
+            }
+        }
+
+        // Rendezés pontszám szerint: hány cella egyezik a target-tel
+        next_beam.sort_by(|a, b| {
+            let score_a = score_grid(&a.1, target);
+            let score_b = score_grid(&b.1, target);
+            score_b.cmp(&score_a)
+        });
+
+        // Csak a legjobb beam_width darab marad
+        beam = next_beam.into_iter().take(beam_width).collect();
+
+        // Ha valamelyik pontosan célba ért, visszaadjuk
+        for (program, grid) in &beam {
+            if *grid == *target {
+                return Some(program.clone());
+            }
+        }
+    }
+
+    None
+}
+
+/// Pontszám: a targettel egyező cellák száma.
+fn score_grid(grid: &Grid, target: &Grid) -> usize {
+    let mut score = 0;
+    for i in 0..GRID_SIZE {
+        for j in 0..GRID_SIZE {
+            if grid.cells[i][j] == target.cells[i][j] {
+                score += 1;
+            }
+        }
+    }
+    score
 }
