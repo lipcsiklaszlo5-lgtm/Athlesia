@@ -76,6 +76,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "athlesia-planner"
+version = "0.1.0"
+dependencies = [
+ "athlesia-search",
+ "athlesia-types",
+]
+
+[[package]]
 name = "athlesia-search"
 version = "0.1.0"
 dependencies = [
