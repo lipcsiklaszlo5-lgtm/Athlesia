@@ -90,6 +90,7 @@ name = "athlesia-metalearner"
 version = "0.1.0"
 dependencies = [
  "athlesia-features",
+ "athlesia-types",
 ]
 
 [[package]]

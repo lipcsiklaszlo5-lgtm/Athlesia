@@ -1,16 +1,25 @@
+#!/usr/bin/env python3
+import os, subprocess, sys, pathlib
 
+def write_file(path, content):
+    pathlib.Path(path).parent.mkdir(parents=True, exist_ok=True)
+    with open(path, "w", encoding="utf-8") as f:
+        f.write(content)
+
+# 1. Kernel lib.rs teljes újraírása, hogy minden modult a frissített típusokkal használjon
+write_file("crates/athlesia-kernel/src/lib.rs", r'''
 use serde::Deserialize;
 use athlesia_types::{Grid, Color, Action, PrimName, Params, Program, Budget};
-use athlesia_perception::perceive;
-use athlesia_world_model::WorldModel;
+use athlesia_perception::{PerceptionOutput, perceive};
+use athlesia_world_model::{WorldModel, Query, Prediction};
 use athlesia_memory::{Memory, InteractionEvent};
 use athlesia_knowledge::KnowledgeBase;
-use athlesia_hypothesis::HypothesisProposer;
+use athlesia_hypothesis::{HypothesisProposer, StaticProposer, CandidateHypothesis};
 use athlesia_verifier::{Verifier, VerificationResult};
-
+use athlesia_search::{SearchEngine, DefaultSearchEngine, SearchStrategy};
 use athlesia_planner::{Planner, PlannerMode};
 use athlesia_core::CoreEngine;
-
+use athlesia_abstraction::AbstractionEngine;
 
 /// ARC példa struktúra JSON-ből.
 #[derive(Debug, Deserialize)]
@@ -127,7 +136,7 @@ pub fn solve_arc_json(task_json: &str) -> (Option<Grid>, Grid) {
         let verifier = Verifier::new();
         if verifier.verify(&program, &vec![(input_grid.clone(), output_grid.clone())]) == VerificationResult::Accept {
             let id = agent.core.known_programs.len() as u64;
-            agent.core.known_programs.push(program.clone());
+            agent.core.known_programs.push(program);
             agent.core.meta.record_success_in_context(
                 athlesia_features::extract_features(&input_grid),
                 id,
@@ -186,3 +195,87 @@ pub fn solve_with_kernel(
 
     None
 }
+''')
+print("[1] Kernel lib.rs teljesen újraírva.")
+
+# 2. Kernel main.rs frissítése
+write_file("crates/athlesia-kernel/src/main.rs", r'''
+fn main() {
+    println!("=== Athlesia Kernel ===");
+    println!("Manhattan Kernel core inicializálva.");
+    println!("Futtasd a teszteket: cargo test -p athlesia-kernel");
+}
+''')
+print("[2] Kernel main.rs frissítve.")
+
+# 3. Kernel tesztek frissítése
+write_file("crates/athlesia-kernel/tests/kernel_full_test.rs", r'''
+use athlesia_kernel::{solve_with_kernel, Agent};
+use athlesia_core::CoreEngine;
+use athlesia_memory::Memory;
+use athlesia_knowledge::KnowledgeBase;
+use athlesia_planner::{Planner, PlannerMode};
+use athlesia_world_model::WorldModel;
+use athlesia_types::{Grid, PrimName, Params, Program};
+
+fn build_grid(rows: [[u8; 5]; 5]) -> Grid {
+    Grid::from_5x5(rows)
+}
+
+#[test]
+fn solve_with_kernel_finds_simple_translate() {
+    let mut kb = KnowledgeBase::new();
+    let mut mem = Memory::new();
+    let planner = Planner::new(PlannerMode::GoalDirected);
+    let wm = WorldModel::new(build_grid([[0; 5]; 5]));
+    let mut core = CoreEngine::new();
+
+    let input = build_grid([
+        [1, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0],
+    ]);
+    let target = build_grid([
+        [0, 1, 0, 0, 0],
+        [0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0],
+    ]);
+
+    let program = solve_with_kernel(&input, &target, &mut kb, &mut mem, &planner, &wm, &mut core, 2);
+    assert!(program.is_some());
+    assert_eq!(program.unwrap(), vec![(PrimName::Translate, Params::Translate(1, 0))]);
+}
+
+#[test]
+fn agent_step_and_update_work() {
+    let initial = build_grid([[1, 0, 0, 0, 0], [0,0,0,0,0], [0,0,0,0,0], [0,0,0,0,0], [0,0,0,0,0]]);
+    let mut agent = Agent::new(initial.clone());
+
+    let action = agent.step(&initial, None);
+    assert_eq!(action.prim, PrimName::Translate); // A feltáró mód leggyakrabban mozgat
+
+    let observed = build_grid([[0, 1, 0, 0, 0], [0,0,0,0,0], [0,0,0,0,0], [0,0,0,0,0], [0,0,0,0,0]]);
+    agent.update(&observed);
+    assert!(agent.wm.tick > 0);
+}
+''')
+print("[3] Kernel tesztek hozzáadva.")
+
+# 4. Tesztek futtatása
+result = subprocess.run(["cargo", "test", "-p", "athlesia-kernel", "--test", "kernel_full_test"], capture_output=True, text=True, check=False)
+print(result.stdout)
+print(result.stderr)
+if result.returncode != 0:
+    print("\n[FAILURE] Kernel tesztek nem mentek át.")
+    sys.exit(1)
+print("\n[SUCCESS] Kernel tesztek zöldek.")
+
+# 5. Git commit és push
+subprocess.run(["git", "add", "-A"], check=True)
+subprocess.run(["git", "commit", "-m", "Finalize Kernel module integrating all components"], check=True)
+subprocess.run(["git", "push"], check=True)
+print("[INFO] Git commit és push sikeres.")

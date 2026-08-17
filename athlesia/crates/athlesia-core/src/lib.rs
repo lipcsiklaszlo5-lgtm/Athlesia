@@ -40,7 +40,7 @@ impl CoreEngine {
         for id in ranked {
             steps += 1;
             let program = self.known_programs[id as usize].clone();
-            let result = self.verifier.verify(&program, &[(input.clone(), target.clone())]);
+            let result = self.verifier.verify(&program, &vec![(input.clone(), target.clone())]);
             if result == VerificationResult::Accept {
                 self.meta.record_success_in_context(fv, id);
                 return (Some(program), steps);
@@ -67,7 +67,7 @@ impl CoreEngine {
         if let Some(program) = synthesize(input, target, &templates) {
             steps += 1; // a szintézis egy próbálkozásnak számít
             // Verifikáljuk a szintetizált programot
-            if self.verifier.verify(&program, &[(input.clone(), target.clone())]) == VerificationResult::Accept {
+            if self.verifier.verify(&program, &vec![(input.clone(), target.clone())]) == VerificationResult::Accept {
                 let id = self.known_programs.len() as u64;
                 self.known_programs.push(program.clone());
                 self.meta.record_success_in_context(fv, id);
@@ -78,7 +78,7 @@ impl CoreEngine {
         // 3. Ha a szintézis nem járt sikerrel, próbáljuk a többlépéses keresést
         if let Some(program) = search(input, target, 3) {
             steps += 1;
-            if self.verifier.verify(&program, &[(input.clone(), target.clone())]) == VerificationResult::Accept {
+            if self.verifier.verify(&program, &vec![(input.clone(), target.clone())]) == VerificationResult::Accept {
                 let id = self.known_programs.len() as u64;
                 self.known_programs.push(program.clone());
                 self.meta.record_success_in_context(fv, id);

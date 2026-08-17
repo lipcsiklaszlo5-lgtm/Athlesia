@@ -80,7 +80,7 @@ pub fn synthesize(input: &Grid, target: &Grid, templates: &[PrimitiveTemplate]) 
     for template in templates {
         for (prim, params) in generate_primitives(*template) {
             let program = vec![(prim, params)];
-            let mut budget = Budget { max_steps: 1 };
+            let mut budget = Budget { max_steps: 1, max_depth: 100 };
             if let Ok(output) = run_program(&program, input, &mut budget) {
                 if output == *target {
                     return Some(program);
