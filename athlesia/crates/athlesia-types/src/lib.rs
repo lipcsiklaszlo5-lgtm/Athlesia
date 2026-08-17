@@ -67,6 +67,8 @@ pub enum PrimName {
     RemoveBorder,
     SwapColors,
     TranslateWrap,
+    Tile,
+    RepeatGrid,
     CopyObject,
     MoveTo,
     Connect,

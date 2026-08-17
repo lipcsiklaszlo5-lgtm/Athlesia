@@ -164,7 +164,7 @@ pub fn solve_arc_json(task_json: &str) -> (Option<Grid>, Grid) {
             &planner,
             &wm,
             &mut core,
-            5,
+            2,
         );
     }
 

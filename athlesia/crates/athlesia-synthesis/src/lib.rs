@@ -14,6 +14,8 @@ pub enum PrimitiveTemplate {
     RemoveBorder,
     SwapColors,
     TranslateWrap,
+    Tile,
+    RepeatGrid,
 }
 
 fn generate_primitives(template: PrimitiveTemplate) -> Vec<(PrimName, Params)> {
@@ -64,6 +66,12 @@ fn generate_primitives(template: PrimitiveTemplate) -> Vec<(PrimName, Params)> {
         }
         PrimitiveTemplate::TranslateWrap => {
             vec![(PrimName::TranslateWrap, Params::TranslateWrap(1, 0)), (PrimName::TranslateWrap, Params::TranslateWrap(0, 1)), (PrimName::TranslateWrap, Params::TranslateWrap(-1, 0)), (PrimName::TranslateWrap, Params::TranslateWrap(0, -1))]
+        }
+        PrimitiveTemplate::Tile => {
+            vec![(PrimName::Tile, Params::None)]
+        }
+        PrimitiveTemplate::RepeatGrid => {
+            vec![(PrimName::RepeatGrid, Params::None)]
         }
     }
 }

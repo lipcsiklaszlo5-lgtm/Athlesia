@@ -48,8 +48,13 @@ fn golden_vectors() {
                 }
                 PrimName::Recolor => {
                     let arr = params.as_array().expect("Recolor params should be array");
-                    let mut perm = [Color(0); 4];
-                    for (i, v) in arr.iter().enumerate() { perm[i] = Color(v.as_u64().unwrap() as u8); }
+                    let mut perm = [Color(0); 10];
+                    for i in 0..10 {
+                        perm[i] = Color(i as u8); // identitás, ha nincs elég elem
+                    }
+                    for (i, v) in arr.iter().enumerate() {
+                        perm[i] = Color(v.as_u64().unwrap() as u8);
+                    }
                     Params::Recolor(perm)
                 }
                 _ => Params::None,

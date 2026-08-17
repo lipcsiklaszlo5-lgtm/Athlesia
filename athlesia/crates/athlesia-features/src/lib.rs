@@ -12,7 +12,7 @@ pub struct FeatureVector {
     pub avg_rot_symmetry_pct: u8,
     pub total_corner_count: u8,
     pub object_count: u8,
-    pub color_counts: [u8; 4],
+    pub color_counts: [u16; 10],
     pub touching_pairs: u8,
     pub has_hole: bool,
     pub symmetric_h: bool,
@@ -30,9 +30,9 @@ pub fn extract_features(grid: &Grid) -> FeatureVector {
     let objects = segment(grid);
     let object_count = objects.len() as u8;
 
-    let mut color_counts = [0u8; 4];
+    let mut color_counts = [0u16; 10];
     for &cell in &grid.cells {
-        if cell.0 < 4 {
+        if cell.0 < 10 {
             color_counts[cell.0 as usize] += 1;
         }
     }

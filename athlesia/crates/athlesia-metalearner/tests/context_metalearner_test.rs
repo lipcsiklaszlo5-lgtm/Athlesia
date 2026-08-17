@@ -5,7 +5,7 @@ use athlesia_features::FeatureVector;
 fn fv(object_count: u8, touching_pairs: u8) -> FeatureVector {
     FeatureVector {
         object_count,
-        color_counts: [0; 4],
+        color_counts: [0; 10],
         touching_pairs,
         ..Default::default()
     }

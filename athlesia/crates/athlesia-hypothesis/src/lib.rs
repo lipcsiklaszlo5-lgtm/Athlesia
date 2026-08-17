@@ -48,6 +48,8 @@ impl HypothesisProposer for StaticProposer {
                 PrimName::ShiftRow => vec![(PrimName::ShiftRow, Params::None)],
                 PrimName::ShiftColumn => vec![(PrimName::ShiftColumn, Params::None)],
                 PrimName::DeleteObject => vec![(PrimName::DeleteObject, Params::None)],
+                PrimName::Tile => vec![(PrimName::Tile, Params::None)],
+                PrimName::RepeatGrid => vec![(PrimName::RepeatGrid, Params::None)],
             };
             proposals.push(program);
         }

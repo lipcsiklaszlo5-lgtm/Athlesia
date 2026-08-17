@@ -1,5 +1,5 @@
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use athlesia_types::{Color, Coord, Grid};
 
 pub mod shape;
@@ -210,4 +210,124 @@ pub fn cluster_objects_by_proximity(objects: &[GameObject], max_dist: f32) -> Ve
         clusters.entry(root).or_default().push(obj.id);
     }
     clusters.into_values().collect()
+}
+
+
+/// Az előző és aktuális képkocka közötti változások.
+#[derive(Debug, Clone, Default)]
+pub struct FrameDelta {
+    pub added: Vec<Coord>,
+    pub removed: Vec<Coord>,
+    pub changed: Vec<Coord>,
+}
+
+/// Két grid közötti cellánkénti különbség.
+pub fn diff_grids(prev: &Grid, current: &Grid) -> FrameDelta {
+    let mut delta = FrameDelta::default();
+    if prev.width != current.width || prev.height != current.height {
+        // Méretváltozás esetén egyszerűen minden nem-nulla cella added, és minden prev cella removed
+        for y in 0..current.height as i8 {
+            for x in 0..current.width as i8 {
+                if current.get(x, y).map_or(false, |c| c != Color(0)) {
+                    delta.added.push(Coord { x, y });
+                }
+            }
+        }
+        for y in 0..prev.height as i8 {
+            for x in 0..prev.width as i8 {
+                if prev.get(x, y).map_or(false, |c| c != Color(0)) {
+                    delta.removed.push(Coord { x, y });
+                }
+            }
+        }
+        return delta;
+    }
+
+    for y in 0..current.height as i8 {
+        for x in 0..current.width as i8 {
+            let old = prev.get(x, y);
+            let new = current.get(x, y);
+            match (old, new) {
+                (Some(o), Some(n)) if o != n => delta.changed.push(Coord { x, y }),
+                (None, Some(_)) => delta.added.push(Coord { x, y }),
+                (Some(_), None) => delta.removed.push(Coord { x, y }),
+                _ => {}
+            }
+        }
+    }
+    delta
+}
+
+/// Objektumgráf: az objektumok listája, és a köztük lévő relációk.
+#[derive(Debug, Clone, Default)]
+pub struct ObjectGraph {
+    pub objects: Vec<GameObject>,
+    pub touching_pairs: Vec<(usize, usize)>,
+    pub contains_pairs: Vec<(usize, usize)>,
+}
+
+/// A percepciós csővezeték kimenete: az objektumgráf és a frame-delta.
+#[derive(Debug, Clone, Default)]
+pub struct PerceptionOutput {
+    pub graph: ObjectGraph,
+    pub delta: FrameDelta,
+}
+
+/// Objektum-ujjlenyomat: forgatás- és tükrözés-invariáns leírás.
+pub fn shape_fingerprint(obj: &GameObject) -> (Color, Vec<(i8, i8)>) {
+    let (min_x, min_y, _, _) = bounding_box(obj);
+    let mut rel: Vec<(i8, i8)> = obj.cells.iter().map(|c| (c.x - min_x, c.y - min_y)).collect();
+    rel.sort_unstable();
+    (obj.color, rel)
+}
+
+/// Két frame objektumainak párosítása ujjlenyomat alapján.
+/// Visszaadja a matched párokat (prev_index, current_index).
+pub fn track_objects(prev_objects: &[GameObject], current_objects: &[GameObject]) -> Vec<(usize, usize)> {
+    let mut matches = Vec::new();
+    let mut used_current = HashSet::new();
+
+    for (pi, p_obj) in prev_objects.iter().enumerate() {
+        let fp_p = shape_fingerprint(p_obj);
+        for (ci, c_obj) in current_objects.iter().enumerate() {
+            if used_current.contains(&ci) {
+                continue;
+            }
+            if shape_fingerprint(c_obj) == fp_p {
+                matches.push((pi, ci));
+                used_current.insert(ci);
+                break;
+            }
+        }
+    }
+    matches
+}
+
+/// A jelenlegi gridből teljes PerceptionOutput-ot készít.
+pub fn perceive(prev: Option<&Grid>, current: &Grid) -> PerceptionOutput {
+    let objects = segment(current);
+    let mut graph = ObjectGraph {
+        objects,
+        touching_pairs: Vec::new(),
+        contains_pairs: Vec::new(),
+    };
+
+    // Relációk kiszámítása
+    for i in 0..graph.objects.len() {
+        for j in (i + 1)..graph.objects.len() {
+            if touches(&graph.objects[i], &graph.objects[j]) {
+                graph.touching_pairs.push((i, j));
+            }
+            if contains(&graph.objects[i], &graph.objects[j]) || contains(&graph.objects[j], &graph.objects[i]) {
+                graph.contains_pairs.push((i, j));
+            }
+        }
+    }
+
+    let delta = match prev {
+        Some(p) => diff_grids(p, current),
+        None => FrameDelta::default(),
+    };
+
+    PerceptionOutput { graph, delta }
 }
