@@ -3,6 +3,7 @@ use athlesia_types::{Color, Coord, Grid};
 
 pub mod shape;
 pub mod holes;
+pub mod symmetry;
 
 #[derive(Debug, Clone)]
 pub struct GameObject {
