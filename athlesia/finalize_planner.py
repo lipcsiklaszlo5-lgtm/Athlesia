@@ -1,4 +1,13 @@
+#!/usr/bin/env python3
+import os, subprocess, sys, pathlib
 
+def write_file(path, content):
+    pathlib.Path(path).parent.mkdir(parents=True, exist_ok=True)
+    with open(path, "w", encoding="utf-8") as f:
+        f.write(content)
+
+# 1. Planner lib.rs teljes újraírása a dokumentum szerint
+write_file("crates/athlesia-planner/src/lib.rs", r'''
 use athlesia_types::{Grid, PrimName, Params, Program, Action};
 use athlesia_search::{SearchEngine, DefaultSearchEngine, SearchStrategy};
 use athlesia_world_model::{WorldModel, Query};
@@ -79,3 +88,86 @@ impl Planner {
         }
     }
 }
+''')
+print("[1] Planner lib.rs teljesen újraírva.")
+
+# 2. Tesztek frissítése
+write_file("crates/athlesia-planner/tests/planner_full_test.rs", r'''
+use athlesia_planner::{Planner, PlannerMode};
+use athlesia_world_model::WorldModel;
+use athlesia_types::Grid;
+
+fn build_grid(rows: [[u8; 5]; 5]) -> Grid {
+    Grid::from_5x5(rows)
+}
+
+#[test]
+fn goal_directed_planner_finds_reachable_target() {
+    let wm = WorldModel::new(build_grid([[0; 5]; 5]));
+    let planner = Planner::new(PlannerMode::GoalDirected);
+
+    let current = build_grid([
+        [1, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0],
+    ]);
+    let target = build_grid([
+        [0, 1, 0, 0, 0],
+        [0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0],
+    ]);
+
+    let plan = planner.plan(&current, Some(&target), &wm, 2);
+    assert!(plan.is_some());
+    assert!(!plan.unwrap().is_empty());
+}
+
+#[test]
+fn goal_directed_planner_returns_none_when_no_solution() {
+    let wm = WorldModel::new(build_grid([[0; 5]; 5]));
+    let planner = Planner::new(PlannerMode::GoalDirected);
+
+    let current = build_grid([[0; 5]; 5]);
+    let target = build_grid([
+        [9, 9, 9, 9, 9],
+        [9, 9, 9, 9, 9],
+        [9, 9, 9, 9, 9],
+        [9, 9, 9, 9, 9],
+        [9, 9, 9, 9, 9],
+    ]);
+
+    let plan = planner.plan(&current, Some(&target), &wm, 2);
+    assert!(plan.is_none());
+}
+
+#[test]
+fn exploration_planner_selects_uncertain_action() {
+    let wm = WorldModel::new(build_grid([[0; 5]; 5]));
+    let planner = Planner::new(PlannerMode::Exploration);
+
+    let current = build_grid([[0; 5]; 5]);
+    let plan = planner.plan(&current, None, &wm, 1);
+    assert!(plan.is_some());
+    assert_eq!(plan.unwrap().len(), 1);
+}
+''')
+print("[2] Planner tesztek hozzáadva.")
+
+# 3. Tesztek futtatása
+result = subprocess.run(["cargo", "test", "-p", "athlesia-planner", "--test", "planner_full_test"], capture_output=True, text=True, check=False)
+print(result.stdout)
+print(result.stderr)
+if result.returncode != 0:
+    print("\n[FAILURE] Planner tesztek nem mentek át.")
+    sys.exit(1)
+print("\n[SUCCESS] Planner tesztek zöldek.")
+
+# 4. Git commit és push
+subprocess.run(["git", "add", "-A"], check=True)
+subprocess.run(["git", "commit", "-m", "Finalize Planner with Search Engine integration"], check=True)
+subprocess.run(["git", "push"], check=True)
+print("[INFO] Git commit és push sikeres.")

@@ -82,7 +82,7 @@ impl WorldModel {
     /// A dokumentum szerinti `predict(state, action) -> Prediction`.
     pub fn predict(&self, state: &State, action: &Action) -> Prediction {
         let program = vec![(action.prim, action.params)];
-        let mut budget = Budget { max_steps: 1 };
+        let mut budget = Budget { max_steps: 1, max_depth: 100 };
         let predicted_state = run_program(&program, state, &mut budget)
             .unwrap_or_else(|_| state.clone());
 
@@ -114,7 +114,7 @@ impl WorldModel {
         for hyp in &mut self.hypotheses {
             let predicted = {
                 let program = &hyp.program;
-                let mut budget = Budget { max_steps: program.len() as u64 };
+                let mut budget = Budget { max_steps: program.len() as u64, max_depth: 100 };
                 run_program(program, &previous_state, &mut budget).ok()
             };
 
