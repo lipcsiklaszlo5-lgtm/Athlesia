@@ -1,8 +1,6 @@
-
 use athlesia_types::{Grid, PrimName, Params, Program, Budget, Color};
 use athlesia_executor::run_program;
 
-/// Keresési primitívek listája. A Synthesis Engine innen építkezik.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PrimitiveTemplate {
     Translate,
@@ -18,13 +16,9 @@ pub enum PrimitiveTemplate {
     TranslateWrap,
 }
 
-/// Elemi transzformációk generálása a template-hez.
-/// Itt csak a lehetséges paraméterek egy rögzített, korlátozott halmazát adjuk vissza.
-/// A cél a determinisztikus, korlátos keresés, nem az összes lehetséges paraméter.
 fn generate_primitives(template: PrimitiveTemplate) -> Vec<(PrimName, Params)> {
     match template {
         PrimitiveTemplate::Translate => {
-            // 4 környező irány + identitás
             let mut v = Vec::new();
             for (dx, dy) in [(0, 1), (0, -1), (1, 0), (-1, 0), (0, 0)] {
                 v.push((PrimName::Translate, Params::Translate(dx, dy)));
@@ -40,6 +34,12 @@ fn generate_primitives(template: PrimitiveTemplate) -> Vec<(PrimName, Params)> {
         PrimitiveTemplate::Rotate90 => {
             vec![(PrimName::Rotate90, Params::None)]
         }
+        PrimitiveTemplate::Rotate180 => {
+            vec![(PrimName::Rotate180, Params::None)]
+        }
+        PrimitiveTemplate::Rotate270 => {
+            vec![(PrimName::Rotate270, Params::None)]
+        }
         PrimitiveTemplate::Recolor => {
             let mut v = Vec::new();
             let perms: [[Color; 10]; 4] = [
@@ -52,14 +52,22 @@ fn generate_primitives(template: PrimitiveTemplate) -> Vec<(PrimName, Params)> {
                 v.push((PrimName::Recolor, Params::Recolor(perm)));
             }
             v
-        }        _ => Vec::new(),
-
+        }
+        PrimitiveTemplate::AddBorder => {
+            vec![(PrimName::AddBorder, Params::None)]
+        }
+        PrimitiveTemplate::RemoveBorder => {
+            vec![(PrimName::RemoveBorder, Params::None)]
+        }
+        PrimitiveTemplate::SwapColors => {
+            vec![(PrimName::SwapColors, Params::SwapColors(1, 2)), (PrimName::SwapColors, Params::SwapColors(1, 3)), (PrimName::SwapColors, Params::SwapColors(2, 3))]
+        }
+        PrimitiveTemplate::TranslateWrap => {
+            vec![(PrimName::TranslateWrap, Params::TranslateWrap(1, 0)), (PrimName::TranslateWrap, Params::TranslateWrap(0, 1)), (PrimName::TranslateWrap, Params::TranslateWrap(-1, 0)), (PrimName::TranslateWrap, Params::TranslateWrap(0, -1))]
+        }
     }
 }
 
-/// Egyszerű, 1 lépéses program szintézis.
-/// Megpróbál minden sablont és az azokhoz tartozó primitíveket,
-/// és visszaadja az első olyan programot, ami a kívánt kimenetet adja.
 pub fn synthesize(input: &Grid, target: &Grid, templates: &[PrimitiveTemplate]) -> Option<Program> {
     for template in templates {
         for (prim, params) in generate_primitives(*template) {

@@ -55,7 +55,13 @@ impl CoreEngine {
             PrimitiveTemplate::ReflectH,
             PrimitiveTemplate::ReflectV,
             PrimitiveTemplate::Rotate90,
+            PrimitiveTemplate::Rotate180,
+            PrimitiveTemplate::Rotate270,
             PrimitiveTemplate::Recolor,
+            PrimitiveTemplate::AddBorder,
+            PrimitiveTemplate::RemoveBorder,
+            PrimitiveTemplate::SwapColors,
+            PrimitiveTemplate::TranslateWrap,
         ];
 
         if let Some(program) = synthesize(input, target, &templates) {

@@ -14,8 +14,6 @@ fn candidate_primitives() -> Vec<(PrimName, Params)> {
     v.push((PrimName::Rotate90, Params::None));
     v.push((PrimName::Rotate180, Params::None));
     v.push((PrimName::Rotate270, Params::None));
-    v.push((PrimName::AddBorder, Params::None));
-    v.push((PrimName::RemoveBorder, Params::None));
 
     v.push((PrimName::SwapColors, Params::SwapColors(1, 2)));
     v.push((PrimName::SwapColors, Params::SwapColors(1, 3)));
