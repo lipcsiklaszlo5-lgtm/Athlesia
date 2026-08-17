@@ -20,6 +20,8 @@ pub struct FeatureVector {
     pub contains_pairs: u8,
     pub min_distance_category: u8,
     pub dominant_direction: (i8, i8),
+    pub background_color: Color,
+    pub empty_area_ratio_pct: u8,
 }
 
 pub fn extract_features(grid: &Grid) -> FeatureVector {
@@ -91,6 +93,10 @@ pub fn extract_features(grid: &Grid) -> FeatureVector {
     let has_hole = detect_hole(grid);
     let (symmetric_h, symmetric_v) = bounding_box_symmetry(grid);
 
+    // Textúra jellemzők
+    let background_color = athlesia_perception::texture::background_color(grid);
+    let empty_area_ratio_pct = (athlesia_perception::texture::empty_area_ratio(grid) * 100.0).round() as u8;
+
     // Új shape/symmetry jellemzők számítása
     let total_corner_count = 0u8;
     let mut total_fill_ratio_sum = 0.0f32;
@@ -134,6 +140,8 @@ pub fn extract_features(grid: &Grid) -> FeatureVector {
         avg_v_symmetry_pct,
         avg_rot_symmetry_pct,
         total_corner_count,
+        background_color,
+        empty_area_ratio_pct,
     }
 }
 
