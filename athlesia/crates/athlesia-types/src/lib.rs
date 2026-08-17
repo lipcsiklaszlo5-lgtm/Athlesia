@@ -60,7 +60,13 @@ pub enum PrimName {
     ReflectH,
     ReflectV,
     Rotate90,
+    Rotate180,
+    Rotate270,
     Recolor,
+    AddBorder,
+    RemoveBorder,
+    SwapColors,
+    TranslateWrap,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -68,6 +74,8 @@ pub enum Params {
     None,
     Translate(i8, i8),
     Recolor([Color; 4]),
+    SwapColors(u8, u8),
+    TranslateWrap(i8, i8),
 }
 
 pub type Program = Vec<(PrimName, Params)>;

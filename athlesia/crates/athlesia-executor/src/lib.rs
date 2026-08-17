@@ -1,5 +1,5 @@
 
-use athlesia_types::{Grid, PrimName, Params, Program, Budget, ExecError};
+use athlesia_types::{Grid, PrimName, Params, Program, Budget, ExecError, Color};
 
 
 
@@ -57,6 +57,86 @@ pub fn apply_primitive(grid: &Grid, name: &PrimName, params: &Params) -> Grid {
                         if let Some(color) = grid.get(x, y) {
                             let new_color = perm[color.0 as usize];
                             new_grid.set(x, y, new_color);
+                        }
+                    }
+                }
+            }
+        }
+        PrimName::Rotate180 => {
+            for y in 0..grid.height as i8 {
+                for x in 0..grid.width as i8 {
+                    if let Some(color) = grid.get(x, y) {
+                        new_grid.set(grid.width as i8 - 1 - x, grid.height as i8 - 1 - y, color);
+                    }
+                }
+            }
+        }
+        PrimName::Rotate270 => {
+            for y in 0..grid.height as i8 {
+                for x in 0..grid.width as i8 {
+                    if let Some(color) = grid.get(x, y) {
+                        new_grid.set(grid.height as i8 - 1 - y, x, color);
+                    }
+                }
+            }
+        }
+        PrimName::AddBorder => {
+            let new_width = grid.width + 2;
+            let new_height = grid.height + 2;
+            let mut bordered = Grid::new(new_width, new_height);
+            for y in 0..grid.height as i8 {
+                for x in 0..grid.width as i8 {
+                    if let Some(color) = grid.get(x, y) {
+                        bordered.set(x + 1, y + 1, color);
+                    }
+                }
+            }
+            return bordered;
+        }
+        PrimName::RemoveBorder => {
+            if grid.width < 3 || grid.height < 3 {
+                return grid.clone();
+            }
+            let new_width = grid.width - 2;
+            let new_height = grid.height - 2;
+            let mut cropped = Grid::new(new_width, new_height);
+            for y in 1..grid.height as i8 - 1 {
+                for x in 1..grid.width as i8 - 1 {
+                    if let Some(color) = grid.get(x, y) {
+                        cropped.set(x - 1, y - 1, color);
+                    }
+                }
+            }
+            return cropped;
+        }
+        PrimName::SwapColors => {
+            if let Params::SwapColors(c1, c2) = params {
+                for y in 0..grid.height as i8 {
+                    for x in 0..grid.width as i8 {
+                        if let Some(color) = grid.get(x, y) {
+                            let new_color = if color.0 == *c1 {
+                                Color(*c2)
+                            } else if color.0 == *c2 {
+                                Color(*c1)
+                            } else {
+                                color
+                            };
+                            new_grid.set(x, y, new_color);
+                        }
+                    }
+                }
+            }
+        }
+        PrimName::TranslateWrap => {
+            if let Params::TranslateWrap(dx, dy) = params {
+                let dx = *dx as i8;
+                let dy = *dy as i8;
+                for y in 0..grid.height as i8 {
+                    for x in 0..grid.width as i8 {
+                        if let Some(color) = grid.get(x, y) {
+                            let nx = (x + dx).rem_euclid(grid.width as i8);
+                            let ny = (y + dy).rem_euclid(grid.height as i8);
+                            new_grid.set(nx, ny, color);
                         }
                     }
                 }
