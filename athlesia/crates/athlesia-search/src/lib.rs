@@ -97,7 +97,7 @@ pub fn beam_search(
     let mut beam: Vec<(Program, Grid)> = Vec::new();
 
     // Kezdeti üres program
-    let mut initial_program = Vec::new();
+    let initial_program = Vec::new();
     let mut budget = Budget { max_steps: 0 };
     let initial_grid = match run_program(&initial_program, input, &mut budget) {
         Ok(g) => g,
@@ -108,7 +108,7 @@ pub fn beam_search(
     for _depth in 0..max_depth {
         let mut next_beam: Vec<(Program, Grid)> = Vec::new();
 
-        for (program, current_grid) in &beam {
+        for (program, _current_grid) in &beam {
             for (prim, params) in candidate_primitives() {
                 let mut new_program = program.clone();
                 new_program.push((prim, params));

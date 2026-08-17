@@ -1,5 +1,5 @@
 
-use athlesia_types::{Grid, Program};
+use athlesia_types::{Action, Grid, Program};
 use athlesia_executor::{run_program, Budget};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -46,11 +46,32 @@ impl WorldModel {
         id
     }
 
-    pub fn predict(&self, program: &Program, grid: &Grid) -> Option<Grid> {
-        let mut budget = Budget { max_steps: 1000 };
-        run_program(program, grid, &mut budget).ok()
+    pub fn predict(&self, state: &Grid, action: &Action) -> (Grid, f64) {
+        let program = vec![(action.prim, action.params)];
+        let mut budget = Budget { max_steps: 1 };
+        let predicted_grid = run_program(&program, state, &mut budget)
+            .unwrap_or_else(|_| state.clone());
+
+        let mut confidence = 0.5;
+        for hyp in &self.hypotheses {
+            if hyp.program == program {
+                if hyp.evidence_for + hyp.evidence_against > 0 {
+                    confidence = (hyp.evidence_for as f64 + 1.0)
+                        / (hyp.evidence_for as f64 + hyp.evidence_against as f64 + 2.0);
+                }
+                break;
+            }
+        }
+        (predicted_grid, confidence)
     }
 
+
+    /// Bizonytalanság: 1 - konfidencia. Determinisztikus, mert a konfidencia
+    /// az evidencia-számlálókból jön, nem valószínűségi mintavételből.
+    pub fn uncertainty(&self, state: &Grid, action: &Action) -> f64 {
+        let (_, confidence) = self.predict(state, action);
+        1.0 - confidence
+    }
     pub fn update(&mut self, previous_grid: &Grid, observed_grid: &Grid) {
         for hyp in &mut self.hypotheses {
             let mut budget = Budget { max_steps: 1000 };

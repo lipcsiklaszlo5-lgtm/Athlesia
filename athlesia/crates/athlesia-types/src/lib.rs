@@ -25,3 +25,10 @@ pub struct Coord {
     pub x: i8,
     pub y: i8,
 }
+
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct Action {
+    pub prim: PrimName,
+    pub params: Params,
+}
