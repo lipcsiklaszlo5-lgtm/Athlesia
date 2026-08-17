@@ -1,0 +1,5 @@
+[workspace]
+members = ["crates/athlesia-types", "crates/athlesia-executor", "crates/athlesia-perception"]
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
