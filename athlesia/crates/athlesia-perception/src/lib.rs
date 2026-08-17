@@ -264,6 +264,8 @@ pub struct ObjectGraph {
     pub objects: Vec<GameObject>,
     pub touching_pairs: Vec<(usize, usize)>,
     pub contains_pairs: Vec<(usize, usize)>,
+    pub same_color_pairs: Vec<(usize, usize)>,
+    pub symmetry_pairs: Vec<(usize, usize)>,
 }
 
 /// A percepciós csővezeték kimenete: az objektumgráf és a frame-delta.
@@ -280,6 +282,59 @@ pub fn shape_fingerprint(obj: &GameObject) -> (Color, Vec<(i8, i8)>) {
     rel.sort_unstable();
     (obj.color, rel)
 }
+
+/// Determinisztikus ujjlenyomat hash (FNV-1a).
+pub fn shape_fingerprint_hash(obj: &GameObject) -> u64 {
+    let (color, rel) = shape_fingerprint(obj);
+    let mut hash: u64 = 0xcbf29ce484222325;
+    let prime: u64 = 0x100000001b3;
+
+    // Szín belekeverése
+    hash ^= color.0 as u64;
+    hash = hash.wrapping_mul(prime);
+
+    // Relatív koordináták belekeverése
+    for (dx, dy) in rel {
+        hash ^= dx as u64;
+        hash = hash.wrapping_mul(prime);
+        hash ^= dy as u64;
+        hash = hash.wrapping_mul(prime);
+    }
+
+    hash
+}
+
+/// Két objektum szimmetria-relációja a rács középvonalaira tükrözve.
+/// Igaz, ha az alakjuk megegyezik (ujjlenyomat hash egyezik),
+/// és centroidjaik szimmetrikusak a rács függőleges vagy vízszintes középtengelyére.
+fn is_symmetric_pair(a: &GameObject, b: &GameObject, grid: &Grid) -> bool {
+    if shape_fingerprint_hash(a) != shape_fingerprint_hash(b) {
+        return false;
+    }
+
+    let (ax, ay) = centroid(a);
+    let (bx, by) = centroid(b);
+
+    let cx = (grid.width as f64 - 1.0) / 2.0;
+    let cy = (grid.height as f64 - 1.0) / 2.0;
+
+    // Függőleges tükrözés: b -> (2*cx - bx, by)
+    let vx = 2.0 * cx - bx;
+    let vy = by;
+    if (ax - vx).abs() < 0.1 && (ay - vy).abs() < 0.1 {
+        return true;
+    }
+
+    // Vízszintes tükrözés: b -> (bx, 2*cy - by)
+    let hx = bx;
+    let hy = 2.0 * cy - by;
+    if (ax - hx).abs() < 0.1 && (ay - hy).abs() < 0.1 {
+        return true;
+    }
+
+    false
+}
+
 
 /// Két frame objektumainak párosítása ujjlenyomat alapján.
 /// Visszaadja a matched párokat (prev_index, current_index).
@@ -310,6 +365,8 @@ pub fn perceive(prev: Option<&Grid>, current: &Grid) -> PerceptionOutput {
         objects,
         touching_pairs: Vec::new(),
         contains_pairs: Vec::new(),
+        same_color_pairs: Vec::new(),
+        symmetry_pairs: Vec::new(),
     };
 
     // Relációk kiszámítása
@@ -320,6 +377,12 @@ pub fn perceive(prev: Option<&Grid>, current: &Grid) -> PerceptionOutput {
             }
             if contains(&graph.objects[i], &graph.objects[j]) || contains(&graph.objects[j], &graph.objects[i]) {
                 graph.contains_pairs.push((i, j));
+            }
+            if graph.objects[i].color == graph.objects[j].color {
+                graph.same_color_pairs.push((i, j));
+            }
+            if is_symmetric_pair(&graph.objects[i], &graph.objects[j], current) {
+                graph.symmetry_pairs.push((i, j));
             }
         }
     }
