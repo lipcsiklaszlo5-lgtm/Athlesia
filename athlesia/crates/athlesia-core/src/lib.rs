@@ -4,6 +4,7 @@ use athlesia_features::extract_features;
 use athlesia_metalearner::MetaLearner;
 use athlesia_verifier::{Verifier, VerificationResult};
 use athlesia_synthesis::{synthesize, PrimitiveTemplate};
+use athlesia_search::search;
 
 /// A Manhattan Kernel első tanuló magja.
 /// Összeköti a jellemzőkinyerést, a MetaLearnert, a Verifiert és a Synthesis Engine-t.
@@ -60,6 +61,17 @@ impl CoreEngine {
         if let Some(program) = synthesize(input, target, &templates) {
             steps += 1; // a szintézis egy próbálkozásnak számít
             // Verifikáljuk a szintetizált programot
+            if self.verifier.verify(&program, &[(input.clone(), target.clone())]) == VerificationResult::Accept {
+                let id = self.known_programs.len() as u64;
+                self.known_programs.push(program.clone());
+                self.meta.record_success_in_context(fv, id);
+                return (Some(program), steps);
+            }
+        }
+
+        // 3. Ha a szintézis nem járt sikerrel, próbáljuk a többlépéses keresést
+        if let Some(program) = search(input, target, 3) {
+            steps += 1;
             if self.verifier.verify(&program, &[(input.clone(), target.clone())]) == VerificationResult::Accept {
                 let id = self.known_programs.len() as u64;
                 self.known_programs.push(program.clone());

@@ -34,6 +34,8 @@ impl LongTermMemory {
         }
     }
 
+
+
     pub fn get_known_programs(&self) -> &[Program] {
         &self.known_programs
     }
@@ -83,6 +85,14 @@ impl Memory {
             }
         }
         None
+    }
+
+    /// Hosszú távú memóriába emeli az epizodikus memóriában lévő összes programot.
+    /// Ez a játékok közötti tanulás alapja.
+    pub fn consolidate_known_programs(&mut self) {
+        for ep in &self.episodic {
+            self.long_term.add_program(ep.program.clone());
+        }
     }
 
     /// Visszaadja a hosszú távú memóriában tárolt összes ismert programot.

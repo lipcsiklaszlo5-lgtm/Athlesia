@@ -1,6 +1,6 @@
 
 use athlesia_types::Action;
-use athlesia_world_model::WorldModel;
+use athlesia_world_model::{WorldModel, HypothesisStatus};
 use athlesia_planner::PlannerMode;
 
 use athlesia_types::{Grid, Program, Budget};
@@ -104,6 +104,17 @@ impl Agent {
         action
     }
 
+
+    /// A WorldModel megerősített hipotéziseit makróként átemeli a Knowledge Base-be,
+    /// és a memóriába is. Ez a játékon belüli tanulás lezárása.
+    pub fn consolidate_learned_macros(&mut self, kb: &mut KnowledgeBase, memory: &mut Memory) {
+        for hyp in &self.wm.hypotheses {
+            if hyp.status == HypothesisStatus::Confirmed {
+                kb.add_macro(format!("learned_{}", kb.get_all_macros().len()), hyp.program.clone());
+                memory.long_term.add_program(hyp.program.clone());
+            }
+        }
+    }
     /// A környezet megfigyelése után frissíti a WorldModel-t.
     pub fn update(&mut self, previous: &Grid, observed: &Grid) {
         self.wm.update(previous, observed);

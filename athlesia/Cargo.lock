@@ -17,6 +17,7 @@ dependencies = [
  "athlesia-executor",
  "athlesia-features",
  "athlesia-metalearner",
+ "athlesia-search",
  "athlesia-synthesis",
  "athlesia-types",
  "athlesia-verifier",

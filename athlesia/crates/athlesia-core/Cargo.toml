@@ -4,6 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+athlesia-search = { path = "../athlesia-search" }
 athlesia-types = { path = "../athlesia-types" }
 athlesia-executor = { path = "../athlesia-executor" }
 athlesia-features = { path = "../athlesia-features" }
