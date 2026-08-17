@@ -1,4 +1,13 @@
+#!/usr/bin/env python3
+import os, subprocess, sys, pathlib
 
+def write_file(path, content):
+    pathlib.Path(path).parent.mkdir(parents=True, exist_ok=True)
+    with open(path, "w", encoding="utf-8") as f:
+        f.write(content)
+
+# 1. Search Engine lib.rs teljes újraírása a dokumentum 8. fejezete szerint
+write_file("crates/athlesia-search/src/lib.rs", r'''
 use athlesia_types::{Grid, PrimName, Params, Program, Budget, Color};
 use athlesia_executor::run_program;
 
@@ -345,3 +354,119 @@ fn score_grid(grid: &Grid, target: &Grid) -> usize {
     }
     score
 }
+''')
+print("[1] Search Engine lib.rs teljesen újraírva.")
+
+# 2. Tesztek frissítése
+write_file("crates/athlesia-search/tests/search_engine_full_test.rs", r'''
+use athlesia_search::{SearchEngine, DefaultSearchEngine, SearchStrategy};
+use athlesia_types::Grid;
+
+fn build_grid(rows: [[u8; 5]; 5]) -> Grid {
+    Grid::from_5x5(rows)
+}
+
+#[test]
+fn dfs_finds_solution() {
+    let input = build_grid([
+        [1, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0],
+    ]);
+    let target = build_grid([
+        [0, 1, 0, 0, 0],
+        [0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0],
+    ]);
+
+    let engine = DefaultSearchEngine;
+    let program = engine.search(&input, &target, 2, SearchStrategy::Dfs);
+    assert!(program.is_some());
+}
+
+#[test]
+fn beam_finds_solution() {
+    let input = build_grid([
+        [1, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0],
+    ]);
+    let target = build_grid([
+        [0, 0, 1, 0, 0],
+        [0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0],
+    ]);
+
+    let engine = DefaultSearchEngine;
+    let program = engine.search(&input, &target, 3, SearchStrategy::Beam { width: 10 });
+    assert!(program.is_some());
+}
+
+#[test]
+fn astar_finds_solution() {
+    let input = build_grid([
+        [1, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0],
+    ]);
+    let target = build_grid([
+        [0, 0, 1, 0, 0],
+        [0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0],
+    ]);
+
+    let engine = DefaultSearchEngine;
+    let program = engine.search(&input, &target, 3, SearchStrategy::AStar);
+    assert!(program.is_some());
+}
+
+#[test]
+fn astar_with_score_finds_solution() {
+    let input = build_grid([
+        [1, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0],
+    ]);
+    let target = build_grid([
+        [0, 0, 1, 0, 0],
+        [0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0],
+        [0, 0, 0, 0, 0],
+    ]);
+
+    let engine = DefaultSearchEngine;
+    let program = engine.search(&input, &target, 3, SearchStrategy::AStarWithScore);
+    assert!(program.is_some());
+}
+''')
+print("[2] Search Engine tesztek hozzáadva.")
+
+# 3. Tesztek futtatása
+result = subprocess.run(["cargo", "test", "-p", "athlesia-search", "--test", "search_engine_full_test"], capture_output=True, text=True, check=False)
+print(result.stdout)
+print(result.stderr)
+if result.returncode != 0:
+    print("\n[FAILURE] Search Engine tesztek nem mentek át.")
+    sys.exit(1)
+print("\n[SUCCESS] Search Engine tesztek zöldek.")
+
+# 4. Git commit és push
+subprocess.run(["git", "add", "-A"], check=True)
+subprocess.run(["git", "commit", "-m", "Finalize Search Engine with strategies and trait"], check=True)
+subprocess.run(["git", "push"], check=True)
+print("[INFO] Git commit és push sikeres.")
