@@ -46,6 +46,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "athlesia-search"
+version = "0.1.0"
+dependencies = [
+ "athlesia-executor",
+ "athlesia-types",
+]
+
+[[package]]
 name = "athlesia-synthesis"
 version = "0.1.0"
 dependencies = [
