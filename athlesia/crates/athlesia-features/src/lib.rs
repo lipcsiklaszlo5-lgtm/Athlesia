@@ -1,5 +1,5 @@
 
-use athlesia_types::{Grid, GRID_SIZE};
+use athlesia_types::Grid;
 use athlesia_perception::{segment, touches};
 
 /// FeatureVector: ezeket a jellemzőket fogja később a MetaLearner használni.

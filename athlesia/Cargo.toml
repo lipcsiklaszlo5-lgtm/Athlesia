@@ -1,5 +1,5 @@
 [workspace]
-members = ["crates/athlesia-types", "crates/athlesia-executor", "crates/athlesia-perception", "crates/athlesia-world-model", "crates/athlesia-features"]
+members = ["crates/athlesia-types", "crates/athlesia-executor", "crates/athlesia-perception", "crates/athlesia-world-model", "crates/athlesia-features", "crates/athlesia-metalearner"]
 [workspace.package]
 version = "0.1.0"
 edition = "2021"
