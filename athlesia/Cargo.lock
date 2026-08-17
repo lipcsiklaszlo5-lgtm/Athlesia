@@ -22,6 +22,9 @@ dependencies = [
 [[package]]
 name = "athlesia-metalearner"
 version = "0.1.0"
+dependencies = [
+ "athlesia-features",
+]
 
 [[package]]
 name = "athlesia-perception"
