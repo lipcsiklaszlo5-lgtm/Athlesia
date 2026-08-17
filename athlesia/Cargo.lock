@@ -12,6 +12,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "athlesia-features"
+version = "0.1.0"
+dependencies = [
+ "athlesia-perception",
+ "athlesia-types",
+]
+
+[[package]]
 name = "athlesia-perception"
 version = "0.1.0"
 dependencies = [
@@ -21,6 +29,14 @@ dependencies = [
 [[package]]
 name = "athlesia-types"
 version = "0.1.0"
+
+[[package]]
+name = "athlesia-world-model"
+version = "0.1.0"
+dependencies = [
+ "athlesia-executor",
+ "athlesia-types",
+]
 
 [[package]]
 name = "itoa"
