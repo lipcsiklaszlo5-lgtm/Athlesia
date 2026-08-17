@@ -152,3 +152,90 @@ fn score_grid(grid: &Grid, target: &Grid) -> usize {
     }
     score
 }
+
+/// A* keresés: a prioritás a megtett út hossza + a hátralévő becsült költség.
+/// A heurisztika: az aktuális rács és a célrács közötti eltérő cellák száma.
+/// Ez egy egyszerű, de hatékony alsó becslés (0, ha már elértük a célt).
+pub fn a_star_search(input: &Grid, target: &Grid, max_depth: usize) -> Option<Program> {
+    use std::collections::BinaryHeap;
+    use std::cmp::Ordering;
+
+    #[derive(Debug, Clone)]
+    struct Node {
+        program: Program,
+        grid: Grid,
+        depth: usize,
+        f_score: usize,
+    }
+
+    impl PartialEq for Node {
+        fn eq(&self, other: &Self) -> bool {
+            self.f_score == other.f_score && self.program == other.program
+        }
+    }
+    impl Eq for Node {}
+
+    impl PartialOrd for Node {
+        fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+            Some(self.cmp(other))
+        }
+    }
+
+    impl Ord for Node {
+        fn cmp(&self, other: &Self) -> Ordering {
+            // Fordított sorrend, mert BinaryHeap a legnagyobbat veszi előre
+            other.f_score.cmp(&self.f_score)
+        }
+    }
+
+    // Heurisztika: hány cella tér el a célrácstól
+    fn heuristic(grid: &Grid, target: &Grid) -> usize {
+        let mut diff = 0;
+        for i in 0..GRID_SIZE {
+            for j in 0..GRID_SIZE {
+                if grid.cells[i][j] != target.cells[i][j] {
+                    diff += 1;
+                }
+            }
+        }
+        diff
+    }
+
+    let mut heap = BinaryHeap::new();
+    let mut initial_budget = Budget { max_steps: 0 };
+    let initial_grid = run_program(&vec![], input, &mut initial_budget)
+        .unwrap_or_else(|_| input.clone());
+    let initial_node = Node {
+        program: vec![],
+        grid: initial_grid.clone(),
+        depth: 0,
+        f_score: heuristic(&initial_grid, target),
+    };
+    heap.push(initial_node);
+
+    while let Some(node) = heap.pop() {
+        if node.grid == *target {
+            return Some(node.program);
+        }
+        if node.depth >= max_depth {
+            continue;
+        }
+
+        for (prim, params) in candidate_primitives() {
+            let mut new_program = node.program.clone();
+            new_program.push((prim, params));
+            let mut b = Budget { max_steps: new_program.len() as u64 };
+            if let Ok(new_grid) = run_program(&new_program, input, &mut b) {
+                let new_depth = node.depth + 1;
+                let new_f = new_depth + heuristic(&new_grid, target);
+                heap.push(Node {
+                    program: new_program,
+                    grid: new_grid,
+                    depth: new_depth,
+                    f_score: new_f,
+                });
+            }
+        }
+    }
+    None
+}
