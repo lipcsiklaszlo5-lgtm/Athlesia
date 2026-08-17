@@ -239,3 +239,87 @@ pub fn a_star_search(input: &Grid, target: &Grid, max_depth: usize) -> Option<Pr
     }
     None
 }
+
+/// A* keresés általános pontozófüggvénnyel.
+/// A `score_fn` paraméter: (program, aktuális_grid, cél_grid, mélység) -> prioritás.
+/// Kisebb érték = jobb (mint az A* f-score).
+/// Ez lehetővé teszi, hogy a MetaLearner súlyait is figyelembe vegyük.
+pub fn a_star_search_with_score<F>(
+    input: &Grid,
+    target: &Grid,
+    max_depth: usize,
+    score_fn: F,
+) -> Option<Program>
+where
+    F: Fn(&Program, &Grid, &Grid, usize) -> usize,
+{
+    use std::collections::BinaryHeap;
+    use std::cmp::Ordering;
+
+    #[derive(Debug, Clone)]
+    struct Node {
+        program: Program,
+        grid: Grid,
+        depth: usize,
+        f_score: usize,
+    }
+
+    impl PartialEq for Node {
+        fn eq(&self, other: &Self) -> bool {
+            self.f_score == other.f_score && self.program == other.program
+        }
+    }
+    impl Eq for Node {}
+
+    impl PartialOrd for Node {
+        fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+            Some(self.cmp(other))
+        }
+    }
+
+    impl Ord for Node {
+        fn cmp(&self, other: &Self) -> Ordering {
+            other.f_score.cmp(&self.f_score)
+        }
+    }
+
+    let mut heap = BinaryHeap::new();
+    let mut initial_budget = Budget { max_steps: 0 };
+    let initial_grid = run_program(&vec![], input, &mut initial_budget)
+        .unwrap_or_else(|_| input.clone());
+
+    let initial_program = vec![];
+    let initial_score = score_fn(&initial_program, &initial_grid, target, 0);
+    heap.push(Node {
+        program: initial_program,
+        grid: initial_grid,
+        depth: 0,
+        f_score: initial_score,
+    });
+
+    while let Some(node) = heap.pop() {
+        if node.grid == *target {
+            return Some(node.program);
+        }
+        if node.depth >= max_depth {
+            continue;
+        }
+
+        for (prim, params) in candidate_primitives() {
+            let mut new_program = node.program.clone();
+            new_program.push((prim, params));
+            let mut b = Budget { max_steps: new_program.len() as u64 };
+            if let Ok(new_grid) = run_program(&new_program, input, &mut b) {
+                let new_depth = node.depth + 1;
+                let new_score = score_fn(&new_program, &new_grid, target, new_depth);
+                heap.push(Node {
+                    program: new_program,
+                    grid: new_grid,
+                    depth: new_depth,
+                    f_score: new_score,
+                });
+            }
+        }
+    }
+    None
+}
