@@ -34,7 +34,7 @@ fn stores_and_retrieves_program_by_exact_input() {
 }
 
 #[test]
-fn does_not_duplicate_known_program() {
+fn does_not_duplicate_known_program_but_increments_usage() {
     let mut mem = Memory::new();
     let input = build_grid([[0; 5]; 5]);
     let target = build_grid([[0; 5]; 5]);
@@ -44,4 +44,18 @@ fn does_not_duplicate_known_program() {
     mem.add_episode(input.clone(), target, program.clone());
 
     assert_eq!(mem.get_known_programs().len(), 1);
+    assert_eq!(mem.long_term.program_usage[0], 2);
+}
+
+#[test]
+fn working_context_is_set_and_cleared() {
+    let mut mem = Memory::new();
+    let grid = build_grid([[0; 5]; 5]);
+
+    mem.set_working_context(grid.clone(), Some(42));
+    assert!(mem.working.is_some());
+    assert_eq!(mem.working.as_ref().unwrap().active_hypothesis, Some(42));
+
+    mem.clear_working_context();
+    assert!(mem.working.is_none());
 }
