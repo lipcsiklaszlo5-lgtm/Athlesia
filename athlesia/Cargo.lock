@@ -67,6 +67,8 @@ dependencies = [
  "athlesia-types",
  "athlesia-verifier",
  "athlesia-world-model",
+ "serde",
+ "serde_json",
 ]
 
 [[package]]

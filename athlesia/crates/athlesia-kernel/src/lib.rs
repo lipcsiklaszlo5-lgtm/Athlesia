@@ -1,9 +1,10 @@
+use serde::Deserialize;
 
 use athlesia_types::Action;
 use athlesia_world_model::{WorldModel, HypothesisStatus};
 use athlesia_planner::PlannerMode;
 
-use athlesia_types::{Grid, Program};
+use athlesia_types::{Grid, Program, Color};
 use athlesia_memory::Memory;
 use athlesia_knowledge::KnowledgeBase;
 use athlesia_planner::Planner;
@@ -113,4 +114,72 @@ impl Agent {
     pub fn update(&mut self, previous: &Grid, observed: &Grid) {
         self.wm.update(previous, observed);
     }
+}
+
+#[derive(Debug, Deserialize)]
+pub struct ArcExample {
+    pub input: Vec<Vec<u8>>,
+    pub output: Vec<Vec<u8>>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct ArcTask {
+    pub train: Vec<ArcExample>,
+    pub test: Vec<ArcExample>,
+}
+
+pub fn grid_from_rows(rows: &[Vec<u8>]) -> Grid {
+    let height = rows.len() as u8;
+    let width = if height > 0 { rows[0].len() as u8 } else { 0 };
+    let mut cells = Vec::with_capacity((width as usize) * (height as usize));
+    for row in rows {
+        for &c in row {
+            cells.push(Color(c));
+        }
+    }
+    Grid { width, height, cells }
+}
+
+/// Betölt egy ARC feladatot JSON-ből, tanít a train példákon,
+/// majd megpróbálja megoldani az első test példát.
+/// Visszaadja a prediktált gridet (ha sikerült) és az elvárt gridet.
+pub fn solve_arc_json(task_json: &str) -> (Option<Grid>, Grid) {
+    let task: ArcTask = serde_json::from_str(task_json).expect("Hibás ARC JSON");
+
+    let mut core = CoreEngine::new();
+    let mut mem = Memory::new();
+    let mut kb = KnowledgeBase::new();
+    let planner = Planner::new(PlannerMode::GoalDirected);
+    let wm = WorldModel::new(Grid::new(0, 0));
+
+    // Tanulás a train példákon
+    for example in &task.train {
+        let input_grid = grid_from_rows(&example.input);
+        let output_grid = grid_from_rows(&example.output);
+        let _ = solve_with_kernel(
+            &input_grid,
+            &output_grid,
+            &mut kb,
+            &mut mem,
+            &planner,
+            &wm,
+            &mut core,
+            5,
+        );
+    }
+
+    let test_input = grid_from_rows(&task.test[0].input);
+    let test_expected = grid_from_rows(&task.test[0].output);
+
+    // A legjobbnak ítélt programot a core known_programs-ből próbáljuk
+    let mut predicted = None;
+    for program in core.known_programs.iter().rev() {
+        let mut budget = athlesia_types::Budget { max_steps: 10 };
+        if let Ok(output) = athlesia_executor::run_program(program, &test_input, &mut budget) {
+            predicted = Some(output);
+            break;
+        }
+    }
+
+    (predicted, test_expected)
 }
