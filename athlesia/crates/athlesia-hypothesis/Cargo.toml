@@ -1,0 +1,8 @@
+[package]
+name = "athlesia-hypothesis"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+athlesia-types = { path = "../athlesia-types" }
+athlesia-knowledge = { path = "../athlesia-knowledge" }

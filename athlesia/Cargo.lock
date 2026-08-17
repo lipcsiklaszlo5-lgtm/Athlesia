@@ -3,6 +3,14 @@
 version = 4
 
 [[package]]
+name = "athlesia-abstraction"
+version = "0.1.0"
+dependencies = [
+ "athlesia-knowledge",
+ "athlesia-types",
+]
+
+[[package]]
 name = "athlesia-core"
 version = "0.1.0"
 dependencies = [
@@ -28,6 +36,14 @@ name = "athlesia-features"
 version = "0.1.0"
 dependencies = [
  "athlesia-perception",
+ "athlesia-types",
+]
+
+[[package]]
+name = "athlesia-hypothesis"
+version = "0.1.0"
+dependencies = [
+ "athlesia-knowledge",
  "athlesia-types",
 ]
 

@@ -5,10 +5,10 @@ pub type Color = u8;
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Grid { pub cells: [[Color; GRID_SIZE]; GRID_SIZE] }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum PrimName { Translate, ReflectH, ReflectV, Rotate90, Recolor }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Params { None, Translate(i8, i8), Recolor([Color; 4]) }
 
 pub type Program = Vec<(PrimName, Params)>;
