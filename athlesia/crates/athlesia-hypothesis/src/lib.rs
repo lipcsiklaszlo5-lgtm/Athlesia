@@ -32,7 +32,7 @@ impl HypothesisProposer for StaticProposer {
                 PrimName::Rotate90 => vec![(PrimName::Rotate90, Params::None)],
                 PrimName::Rotate180 => vec![(PrimName::Rotate180, Params::None)],
                 PrimName::Rotate270 => vec![(PrimName::Rotate270, Params::None)],
-                PrimName::Recolor => vec![(PrimName::Recolor, Params::Recolor([Color(1), Color(0), Color(2), Color(3)]))],
+                PrimName::Recolor => vec![(PrimName::Recolor, Params::Recolor([Color(1), Color(0), Color(2), Color(3), Color(4), Color(5), Color(6), Color(7), Color(8), Color(9)]))],
                 PrimName::AddBorder => vec![(PrimName::AddBorder, Params::None)],
                 PrimName::RemoveBorder => vec![(PrimName::RemoveBorder, Params::None)],
                 PrimName::SwapColors => vec![(PrimName::SwapColors, Params::SwapColors(1, 2))],

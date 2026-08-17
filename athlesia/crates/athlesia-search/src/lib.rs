@@ -4,27 +4,46 @@ use athlesia_executor::run_program;
 
 fn candidate_primitives() -> Vec<(PrimName, Params)> {
     let mut v = Vec::new();
+
     for (dx, dy) in [(0, 1), (0, -1), (1, 0), (-1, 0), (0, 0)] {
         v.push((PrimName::Translate, Params::Translate(dx, dy)));
     }
+
     v.push((PrimName::ReflectH, Params::None));
     v.push((PrimName::ReflectV, Params::None));
     v.push((PrimName::Rotate90, Params::None));
-    for perm in [
-        [1, 0, 2, 3],
-        [2, 1, 0, 3],
-        [3, 2, 1, 0],
-        [1, 2, 3, 0],
-        [0, 1, 2, 3],
-    ] {
-        let arr: [Color; 4] = [
-            Color(perm[0]),
-            Color(perm[1]),
-            Color(perm[2]),
-            Color(perm[3]),
-        ];
-        v.push((PrimName::Recolor, Params::Recolor(arr)));
-    }
+    v.push((PrimName::Rotate180, Params::None));
+    v.push((PrimName::Rotate270, Params::None));
+    v.push((PrimName::AddBorder, Params::None));
+    v.push((PrimName::RemoveBorder, Params::None));
+
+    v.push((PrimName::SwapColors, Params::SwapColors(1, 2)));
+    v.push((PrimName::SwapColors, Params::SwapColors(1, 3)));
+    v.push((PrimName::SwapColors, Params::SwapColors(2, 3)));
+
+    v.push((PrimName::TranslateWrap, Params::TranslateWrap(1, 0)));
+    v.push((PrimName::TranslateWrap, Params::TranslateWrap(0, 1)));
+    v.push((PrimName::TranslateWrap, Params::TranslateWrap(-1, 0)));
+    v.push((PrimName::TranslateWrap, Params::TranslateWrap(0, -1)));
+
+    let identity: [Color; 10] = [
+        Color(0), Color(1), Color(2), Color(3), Color(4),
+        Color(5), Color(6), Color(7), Color(8), Color(9),
+    ];
+    v.push((PrimName::Recolor, Params::Recolor(identity)));
+
+    let swap12: [Color; 10] = [
+        Color(0), Color(2), Color(1), Color(3), Color(4),
+        Color(5), Color(6), Color(7), Color(8), Color(9),
+    ];
+    v.push((PrimName::Recolor, Params::Recolor(swap12)));
+
+    let swap13: [Color; 10] = [
+        Color(0), Color(3), Color(2), Color(1), Color(4),
+        Color(5), Color(6), Color(7), Color(8), Color(9),
+    ];
+    v.push((PrimName::Recolor, Params::Recolor(swap13)));
+
     v
 }
 

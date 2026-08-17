@@ -84,7 +84,7 @@ pub enum PrimName {
 pub enum Params {
     None,
     Translate(i8, i8),
-    Recolor([Color; 4]),
+    Recolor([Color; 10]),
     SwapColors(u8, u8),
     TranslateWrap(i8, i8),
     ObjectId(u64),

@@ -29,7 +29,7 @@ fn learning_transfers_across_positions() {
     core.known_programs.push(vec![(PrimName::ReflectH, Params::None)]);
     core.known_programs.push(vec![(PrimName::ReflectV, Params::None)]);
     core.known_programs.push(vec![(PrimName::Rotate90, Params::None)]);
-    core.known_programs.push(vec![(PrimName::Recolor, Params::Recolor([Color(1), Color(0), Color(2), Color(3)]))]);
+    core.known_programs.push(vec![(PrimName::Recolor, Params::Recolor([Color(1), Color(0), Color(2), Color(3), Color(4), Color(5), Color(6), Color(7), Color(8), Color(9)]))]);
 
     // Különböző pozíciók, ahol a cella nincs a jobb szélen
     let positions = [(0, 0), (1, 1), (2, 2), (0, 3), (1, 0)];

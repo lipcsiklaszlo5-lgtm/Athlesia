@@ -9,7 +9,13 @@ pub enum PrimitiveTemplate {
     ReflectH,
     ReflectV,
     Rotate90,
+    Rotate180,
+    Rotate270,
     Recolor,
+    AddBorder,
+    RemoveBorder,
+    SwapColors,
+    TranslateWrap,
 }
 
 /// Elemi transzformációk generálása a template-hez.
@@ -35,18 +41,19 @@ fn generate_primitives(template: PrimitiveTemplate) -> Vec<(PrimName, Params)> {
             vec![(PrimName::Rotate90, Params::None)]
         }
         PrimitiveTemplate::Recolor => {
-            // Néhány gyakori permutáció
             let mut v = Vec::new();
-            for perm in [
-                [Color(1), Color(0), Color(2), Color(3)],
-                [Color(2), Color(1), Color(0), Color(3)],
-                [Color(3), Color(2), Color(1), Color(0)],
-                [Color(1), Color(2), Color(3), Color(0)],
-            ] {
+            let perms: [[Color; 10]; 4] = [
+                [Color(1), Color(0), Color(2), Color(3), Color(4), Color(5), Color(6), Color(7), Color(8), Color(9)],
+                [Color(2), Color(1), Color(0), Color(3), Color(4), Color(5), Color(6), Color(7), Color(8), Color(9)],
+                [Color(3), Color(2), Color(1), Color(0), Color(4), Color(5), Color(6), Color(7), Color(8), Color(9)],
+                [Color(1), Color(2), Color(3), Color(0), Color(4), Color(5), Color(6), Color(7), Color(8), Color(9)],
+            ];
+            for perm in perms {
                 v.push((PrimName::Recolor, Params::Recolor(perm)));
             }
             v
-        }
+        }        _ => Vec::new(),
+
     }
 }
 

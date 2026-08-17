@@ -13,7 +13,7 @@ fn search_steps_decrease_after_learning_same_context() {
     core.known_programs.push(vec![(PrimName::ReflectH, Params::None)]);
     core.known_programs.push(vec![(PrimName::ReflectV, Params::None)]);
     core.known_programs.push(vec![(PrimName::Rotate90, Params::None)]);
-    core.known_programs.push(vec![(PrimName::Recolor, Params::Recolor([Color(1), Color(0), Color(2), Color(3)]))]);
+    core.known_programs.push(vec![(PrimName::Recolor, Params::Recolor([Color(1), Color(0), Color(2), Color(3), Color(4), Color(5), Color(6), Color(7), Color(8), Color(9)]))]);
 
     // Ugyanaz a bemenet-cél pár, így a FeatureVector azonos
     let input = build_grid([
