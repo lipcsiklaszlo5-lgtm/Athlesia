@@ -6,6 +6,7 @@ pub mod shape;
 pub mod holes;
 pub mod symmetry;
 pub mod texture;
+pub mod pattern;
 
 #[derive(Debug, Clone)]
 pub struct GameObject {
