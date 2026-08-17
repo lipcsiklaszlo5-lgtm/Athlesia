@@ -102,11 +102,13 @@ pub type Program = Vec<(PrimName, Params)>;
 #[derive(Debug, Clone, Copy)]
 pub struct Budget {
     pub max_steps: u64,
+    pub max_depth: u32,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ExecError {
     BudgetExceeded,
+    DepthExceeded,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]

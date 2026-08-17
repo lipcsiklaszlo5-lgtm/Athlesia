@@ -223,11 +223,18 @@ pub fn apply_primitive(grid: &Grid, name: &PrimName, params: &Params) -> Grid {
 }
 
 pub fn run_program(program: &Program, input: &Grid, budget: &mut Budget) -> Result<Grid, ExecError> {
+    if budget.max_depth == 0 {
+        return Err(ExecError::DepthExceeded);
+    }
+
     let mut current = input.clone();
 
-    for (name, params) in program {
+    for (i, (name, params)) in program.iter().enumerate() {
         if budget.max_steps == 0 {
             return Err(ExecError::BudgetExceeded);
+        }
+        if i as u32 >= budget.max_depth {
+            return Err(ExecError::DepthExceeded);
         }
         current = apply_primitive(&current, name, params);
         budget.max_steps -= 1;

@@ -64,7 +64,7 @@ fn golden_vectors() {
 
         let input_grid = grid_from_vec(&case.input);
         let expected_grid = grid_from_vec(&case.expected_output);
-        let mut budget = Budget { max_steps: 1000 };
+        let mut budget = Budget { max_steps: 1000, max_depth: 100 };
 
         let result = run_program(&program, &input_grid, &mut budget);
         let success = match &result {

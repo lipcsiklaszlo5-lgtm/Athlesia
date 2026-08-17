@@ -29,7 +29,7 @@ fn consolidates_learned_macro_for_next_level() {
     let mut current = start;
     for _ in 0..5 {
         let _action = agent.step(&current, None);
-        let mut budget = Budget { max_steps: 1 };
+        let mut budget = Budget { max_steps: 1, max_depth: 100 };
         let next = run_program(&rule, &current, &mut budget).unwrap();
         agent.update(&current, &next);
         current = next;

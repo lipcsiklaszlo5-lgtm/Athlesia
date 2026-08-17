@@ -27,7 +27,7 @@ fn agent_learns_translate_rule_interactively() {
         let _action = agent.step(&current, None);
 
         // A környezet a valós szabályt alkalmazza, nem az ágens akcióját
-        let mut budget = Budget { max_steps: 1 };
+        let mut budget = Budget { max_steps: 1, max_depth: 100 };
         let next = run_program(&rule, &current, &mut budget).unwrap();
 
         // Az ágens frissíti a világmodelljét a megfigyelés alapján
