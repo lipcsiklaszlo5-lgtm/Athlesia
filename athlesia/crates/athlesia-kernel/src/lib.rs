@@ -1,4 +1,8 @@
 
+use athlesia_types::Action;
+use athlesia_world_model::WorldModel;
+use athlesia_planner::PlannerMode;
+
 use athlesia_types::{Grid, Program, Budget};
 use athlesia_memory::Memory;
 use athlesia_knowledge::KnowledgeBase;
@@ -48,4 +52,60 @@ pub fn solve_with_kernel(
     }
 
     None
+}
+
+/// Interaktív ágens, amely a Manhattan Kernel moduljait használja.
+pub struct Agent {
+    pub wm: WorldModel,
+    pub planner: Planner,
+}
+
+impl Agent {
+    pub fn new(initial_grid: Grid) -> Self {
+        Agent {
+            wm: WorldModel::new(initial_grid),
+            planner: Planner::new(PlannerMode::Exploration),
+        }
+    }
+
+    /// Lépés: ha adott cél, és a világmodell elég magabiztos, cél-irányított
+    /// tervezést használ, egyébként feltár.
+    /// A kiválasztott akciót minden esetben hozzáadjuk a hipotézisekhez.
+    pub fn step(&mut self, current: &Grid, target: Option<&Grid>) -> Action {
+        if let Some(goal) = target {
+            // Próbáljunk cél-irányított tervet készíteni
+            let goal_planner = Planner::new(PlannerMode::GoalDirected);
+            if let Some(program) = goal_planner.plan(current, Some(goal), &self.wm, 3) {
+                let (prim, params) = program[0].clone();
+                let action = Action { prim, params };
+
+                let prog = vec![(prim, params)];
+                if !self.wm.hypotheses.iter().any(|h| h.program == prog) {
+                    self.wm.add_hypothesis(prog);
+                }
+                return action;
+            }
+        }
+
+        // Feltáró ág, ha nincs cél vagy a cél-irányított keresés kudarcot vall
+        let program = self
+            .planner
+            .plan(current, None, &self.wm, 1)
+            .expect("Feltáró módban mindig kell lennie akciónak");
+
+        let (prim, params) = program[0].clone();
+        let action = Action { prim, params };
+
+        let prog = vec![(prim, params)];
+        if !self.wm.hypotheses.iter().any(|h| h.program == prog) {
+            self.wm.add_hypothesis(prog);
+        }
+
+        action
+    }
+
+    /// A környezet megfigyelése után frissíti a WorldModel-t.
+    pub fn update(&mut self, previous: &Grid, observed: &Grid) {
+        self.wm.update(previous, observed);
+    }
 }
