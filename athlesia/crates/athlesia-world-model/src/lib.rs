@@ -1,15 +1,47 @@
 
-use athlesia_types::{Action, Grid, Program};
+use athlesia_types::{Grid, Program, Budget, Action};
 use athlesia_executor::run_program;
-use athlesia_types::Budget;
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+/// A környezet állapotának típusa (a dokumentum szerint `State`).
+pub type State = Grid;
+
+/// Egy előrejelzés a jósolt állapottal és a konfidenciával.
+#[derive(Debug, Clone, PartialEq)]
+pub struct Prediction {
+    pub state: State,
+    pub confidence: f64,
+}
+
+/// Egy megfigyelt állapot.
+#[derive(Debug, Clone, PartialEq)]
+pub struct Observation {
+    pub state: State,
+}
+
+/// A World Model frissítésének eredménye.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum UpdateResult {
+    NoChange,
+    Updated,
+    Falsified,
+}
+
+/// Egy bizonytalansági lekérdezés.
+#[derive(Debug, Clone)]
+pub struct Query {
+    pub state: State,
+    pub action: Action,
+}
+
+/// Hipotézis-státusz.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum HypothesisStatus {
     Active,
     Confirmed,
     Falsified,
 }
 
+/// Átmeneti szabály-hipotézis evidencia-számlálókkal.
 #[derive(Debug, Clone)]
 pub struct TransitionHypothesis {
     pub id: u64,
@@ -19,9 +51,9 @@ pub struct TransitionHypothesis {
     pub status: HypothesisStatus,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct WorldModel {
-    pub current_grid: Grid,
+    pub current_state: State,
     pub hypotheses: Vec<TransitionHypothesis>,
     pub tick: u64,
 }
@@ -29,7 +61,7 @@ pub struct WorldModel {
 impl WorldModel {
     pub fn new(initial_grid: Grid) -> Self {
         WorldModel {
-            current_grid: initial_grid,
+            current_state: initial_grid,
             hypotheses: Vec::new(),
             tick: 0,
         }
@@ -47,10 +79,11 @@ impl WorldModel {
         id
     }
 
-    pub fn predict(&self, state: &Grid, action: &Action) -> (Grid, f64) {
+    /// A dokumentum szerinti `predict(state, action) -> Prediction`.
+    pub fn predict(&self, state: &State, action: &Action) -> Prediction {
         let program = vec![(action.prim, action.params)];
         let mut budget = Budget { max_steps: 1 };
-        let predicted_grid = run_program(&program, state, &mut budget)
+        let predicted_state = run_program(&program, state, &mut budget)
             .unwrap_or_else(|_| state.clone());
 
         let mut confidence = 0.5;
@@ -63,32 +96,61 @@ impl WorldModel {
                 break;
             }
         }
-        (predicted_grid, confidence)
+
+        Prediction {
+            state: predicted_state,
+            confidence,
+        }
     }
 
+    /// A dokumentum szerinti `update(observation) -> UpdateResult`.
+    pub fn update(&mut self, observation: &Observation) -> UpdateResult {
+        let previous_state = self.current_state.clone();
+        let observed_state = observation.state.clone();
 
-    /// Bizonytalanság: 1 - konfidencia. Determinisztikus, mert a konfidencia
-    /// az evidencia-számlálókból jön, nem valószínűségi mintavételből.
-    pub fn uncertainty(&self, state: &Grid, action: &Action) -> f64 {
-        let (_, confidence) = self.predict(state, action);
-        1.0 - confidence
-    }
-    pub fn update(&mut self, previous_grid: &Grid, observed_grid: &Grid) {
+        let mut changed = false;
+        let mut any_falsified = false;
+
         for hyp in &mut self.hypotheses {
-            let mut budget = Budget { max_steps: 1000 };
-            let predicted = run_program(&hyp.program, previous_grid, &mut budget).ok();
-            if let Some(predicted) = predicted {
-                if predicted == *observed_grid {
+            let predicted = {
+                let program = &hyp.program;
+                let mut budget = Budget { max_steps: program.len() as u64 };
+                run_program(program, &previous_state, &mut budget).ok()
+            };
+
+            match predicted {
+                Some(pred) if pred == observed_state => {
                     hyp.evidence_for += 1;
                     if hyp.evidence_against == 0 && hyp.evidence_for >= 3 {
                         hyp.status = HypothesisStatus::Confirmed;
                     }
-                } else {
+                    changed = true;
+                }
+                Some(_) => {
                     hyp.evidence_against += 1;
                     hyp.status = HypothesisStatus::Falsified;
+                    any_falsified = true;
+                    changed = true;
                 }
+                None => {}
             }
         }
+
+        self.current_state = observed_state;
         self.tick += 1;
+
+        if any_falsified {
+            UpdateResult::Falsified
+        } else if changed {
+            UpdateResult::Updated
+        } else {
+            UpdateResult::NoChange
+        }
+    }
+
+    /// A dokumentum szerinti `uncertainty(query) -> f64`.
+    pub fn uncertainty(&self, query: &Query) -> f64 {
+        let pred = self.predict(&query.state, &query.action);
+        1.0 - pred.confidence
     }
 }

@@ -60,7 +60,8 @@ impl Planner {
                 let mut best_action: Option<Action> = None;
                 let mut max_uncertainty = -1.0;
                 for action in actions {
-                    let uncertainty = wm.uncertainty(current, &action);
+                    let query = athlesia_world_model::Query { state: current.clone(), action };
+                let uncertainty = wm.uncertainty(&query);
                     if uncertainty > max_uncertainty {
                         max_uncertainty = uncertainty;
                         best_action = Some(action);
