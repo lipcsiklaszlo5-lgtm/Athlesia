@@ -10,12 +10,21 @@ pub struct Macro {
     pub version_added: u64,
 }
 
+/// Fogalom (concept): makrók absztrakt, névvel ellátott csoportja.
+#[derive(Debug, Clone)]
+pub struct Concept {
+    pub id: u64,
+    pub name: String,
+    pub macro_ids: Vec<u64>,
+}
+
 /// A tudásbázisban rögzített változások típusai.
 #[derive(Debug, Clone)]
 pub enum ChangeKind {
     AddPrimitive(PrimName),
     AddMacro { name: String },
     PruneMacro { name: String },
+    AddConcept { name: String },
 }
 
 /// Egy audit bejegyzés.
@@ -23,15 +32,17 @@ pub enum ChangeKind {
 pub struct LibraryChange {
     pub version: u64,
     pub change: ChangeKind,
+    pub evidence: Option<String>,
 }
 
 /// A Manhattan Kernel perzisztens tudástára.
-/// Két nézet van: az aktív DSL-könyvtár (primitives, macros)
+/// Két nézet van: az aktív DSL-könyvtár (primitives, macros, concepts)
 /// és az archívum (changes), ami minden módosítást verziózva tárol.
 #[derive(Debug, Default)]
 pub struct KnowledgeBase {
     pub primitives: Vec<PrimName>,
     pub macros: Vec<Macro>,
+    pub concepts: Vec<Concept>,
     pub archive: Vec<LibraryChange>,
     pub version: u64,
 }
@@ -48,6 +59,7 @@ impl KnowledgeBase {
             self.archive.push(LibraryChange {
                 version: self.version,
                 change: ChangeKind::AddPrimitive(prim),
+                evidence: None,
             });
         }
     }
@@ -64,34 +76,31 @@ impl KnowledgeBase {
         self.archive.push(LibraryChange {
             version: self.version,
             change: ChangeKind::AddMacro { name },
+            evidence: None,
         });
     }
 
-
-    /// Makró eltávolítása név alapján.
-    /// A makró archiválásra kerül, azaz bejegyezzük a változást,
-    /// de magát a makrót eltávolítjuk az aktív könyvtárból.
-    pub fn remove_macro(&mut self, name: &str) -> bool {
-        if let Some(pos) = self.macros.iter().position(|m| m.name == name) {
-            self.macros.remove(pos);
-            self.version += 1;
-            self.archive.push(LibraryChange {
-                version: self.version,
-                change: ChangeKind::PruneMacro { name: name.to_string() },
-            });
-            true
-        } else {
-            false
-        }
+    pub fn add_concept(&mut self, name: String, macro_ids: Vec<u64>) {
+        let id = self.concepts.len() as u64;
+        self.concepts.push(Concept {
+            id,
+            name: name.clone(),
+            macro_ids,
+        });
+        self.version += 1;
+        self.archive.push(LibraryChange {
+            version: self.version,
+            change: ChangeKind::AddConcept { name },
+            evidence: None,
+        });
     }
 
-    /// Makró hátravitel (hideg tárolóba) – jelen implementációban ugyanaz,
-    /// mint az eltávolítás, de a ChangeKind megkülönbözteti a későbbi visszaállításhoz.
-    pub fn prune_macro(&mut self, name: &str) -> bool {
-        self.remove_macro(name)
-    }
     pub fn get_macro_by_name(&self, name: &str) -> Option<&Macro> {
         self.macros.iter().find(|m| m.name == name)
+    }
+
+    pub fn get_concept_by_name(&self, name: &str) -> Option<&Concept> {
+        self.concepts.iter().find(|c| c.name == name)
     }
 
     pub fn get_all_macros(&self) -> &[Macro] {
