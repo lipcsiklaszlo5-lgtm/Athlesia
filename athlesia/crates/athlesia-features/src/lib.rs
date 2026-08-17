@@ -22,6 +22,8 @@ pub struct FeatureVector {
     pub dominant_direction: (i8, i8),
     pub background_color: Color,
     pub empty_area_ratio_pct: u8,
+    pub periodicity_px: u8,
+    pub periodicity_py: u8,
 }
 
 pub fn extract_features(grid: &Grid) -> FeatureVector {
@@ -97,6 +99,10 @@ pub fn extract_features(grid: &Grid) -> FeatureVector {
     let background_color = athlesia_perception::texture::background_color(grid);
     let empty_area_ratio_pct = (athlesia_perception::texture::empty_area_ratio(grid) * 100.0).round() as u8;
 
+    // Periodicitás
+    let periodicity = athlesia_perception::pattern::detect_periodicity(grid, 0.99);
+    let (periodicity_px, periodicity_py) = periodicity.unwrap_or((0, 0));
+
     // Új shape/symmetry jellemzők számítása
     let total_corner_count = 0u8;
     let mut total_fill_ratio_sum = 0.0f32;
@@ -142,6 +148,8 @@ pub fn extract_features(grid: &Grid) -> FeatureVector {
         total_corner_count,
         background_color,
         empty_area_ratio_pct,
+        periodicity_px: periodicity_px as u8,
+        periodicity_py: periodicity_py as u8,
     }
 }
 
