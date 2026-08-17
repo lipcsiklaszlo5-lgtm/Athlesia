@@ -1,6 +1,9 @@
 
 use athlesia_types::{Color, Coord, Grid};
 
+pub mod shape;
+pub mod holes;
+
 #[derive(Debug, Clone)]
 pub struct GameObject {
     pub id: u64,
