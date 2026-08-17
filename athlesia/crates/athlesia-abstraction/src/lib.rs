@@ -26,21 +26,30 @@ impl AbstractionEngine {
     ) -> usize {
         let mut counts: HashMap<Program, usize> = HashMap::new();
 
-        // Számláljuk az egylépéses programokat
         for program in solved_programs {
-            if program.len() == 1 {
-                *counts.entry(program.clone()).or_insert(0) += 1;
+            // Egylépéses minták
+            for step in program {
+                let sub = vec![step.clone()];
+                *counts.entry(sub).or_insert(0) += 1;
+            }
+
+            // Kétlépéses összefüggő minták
+            if program.len() >= 2 {
+                for window in program.windows(2) {
+                    let sub: Program = window.to_vec();
+                    *counts.entry(sub).or_insert(0) += 1;
+                }
             }
         }
 
         let mut added = 0;
-        for (program, count) in counts {
+        for (pattern, count) in counts {
             if count >= threshold {
-                // Ellenőrizzük, hogy nincs-e már ilyen nevű makró
-                let name = format!("macro_{}", kb.get_all_macros().len());
-                let exists = kb.get_all_macros().iter().any(|m| m.program == program);
+                // Ellenőrizzük, hogy nincs-e már ilyen program a könyvtárban
+                let exists = kb.get_all_macros().iter().any(|m| m.program == pattern);
                 if !exists {
-                    kb.add_macro(name, program);
+                    let name = format!("macro_{}", kb.get_all_macros().len());
+                    kb.add_macro(name, pattern);
                     added += 1;
                 }
             }

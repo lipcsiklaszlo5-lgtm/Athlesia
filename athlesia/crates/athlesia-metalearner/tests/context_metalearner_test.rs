@@ -7,9 +7,7 @@ fn fv(object_count: u8, touching_pairs: u8) -> FeatureVector {
         object_count,
         color_counts: [0; 4],
         touching_pairs,
-        has_hole: false,
-        symmetric_h: false,
-        symmetric_v: false,
+        ..Default::default()
     }
 }
 
