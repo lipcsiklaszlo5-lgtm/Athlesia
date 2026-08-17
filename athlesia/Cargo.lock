@@ -3,6 +3,18 @@
 version = 4
 
 [[package]]
+name = "athlesia-core"
+version = "0.1.0"
+dependencies = [
+ "athlesia-executor",
+ "athlesia-features",
+ "athlesia-metalearner",
+ "athlesia-synthesis",
+ "athlesia-types",
+ "athlesia-verifier",
+]
+
+[[package]]
 name = "athlesia-executor"
 version = "0.1.0"
 dependencies = [

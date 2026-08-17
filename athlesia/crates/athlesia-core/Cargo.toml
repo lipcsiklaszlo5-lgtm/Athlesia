@@ -1,0 +1,12 @@
+[package]
+name = "athlesia-core"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+athlesia-types = { path = "../athlesia-types" }
+athlesia-executor = { path = "../athlesia-executor" }
+athlesia-features = { path = "../athlesia-features" }
+athlesia-metalearner = { path = "../athlesia-metalearner" }
+athlesia-verifier = { path = "../athlesia-verifier" }
+athlesia-synthesis = { path = "../athlesia-synthesis" }
