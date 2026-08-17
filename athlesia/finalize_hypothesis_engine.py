@@ -1,4 +1,13 @@
+#!/usr/bin/env python3
+import os, subprocess, sys, pathlib
 
+def write_file(path, content):
+    pathlib.Path(path).parent.mkdir(parents=True, exist_ok=True)
+    with open(path, "w", encoding="utf-8") as f:
+        f.write(content)
+
+# 1. Hypothesis Engine lib.rs teljes újraírása a dokumentum szerint
+write_file("crates/athlesia-hypothesis/src/lib.rs", r'''
 use athlesia_types::{Program, PrimName, Params, Color};
 use athlesia_knowledge::KnowledgeBase;
 
@@ -101,3 +110,81 @@ fn primitive_programs(prim: &PrimName) -> Vec<Program> {
         _ => vec![],
     }
 }
+''')
+print("[1] Hypothesis Engine lib.rs teljesen újraírva.")
+
+# 2. Tesztek frissítése
+write_file("crates/athlesia-hypothesis/tests/hypothesis_full_test.rs", r'''
+use athlesia_hypothesis::{HypothesisProposer, StaticProposer, CandidateHypothesis};
+use athlesia_knowledge::KnowledgeBase;
+use athlesia_types::{PrimName, Params, Program};
+
+#[test]
+fn proposes_from_primitives() {
+    let mut kb = KnowledgeBase::new();
+    kb.add_primitive(PrimName::ReflectH);
+
+    let proposer = StaticProposer;
+    let proposals = proposer.propose(&kb);
+
+    assert!(!proposals.is_empty());
+    assert!(proposals.iter().any(|p| {
+        matches!(&p.program.as_slice(), [(PrimName::ReflectH, Params::None)] )
+    }));
+}
+
+#[test]
+fn proposes_from_macros() {
+    let mut kb = KnowledgeBase::new();
+    let macro_program: Program = vec![(PrimName::Rotate90, Params::None)];
+    kb.add_macro("rotate90".to_string(), macro_program.clone());
+
+    let proposer = StaticProposer;
+    let proposals = proposer.propose(&kb);
+
+    assert!(proposals.iter().any(|p| p.program == macro_program));
+    assert!(proposals.iter().any(|p| p.source.contains("macro:")));
+}
+
+#[test]
+fn proposes_from_concepts() {
+    let mut kb = KnowledgeBase::new();
+    let macro1: Program = vec![(PrimName::Translate, Params::Translate(1, 0))];
+    let macro2: Program = vec![(PrimName::ReflectV, Params::None)];
+
+    kb.add_macro("move_right".to_string(), macro1.clone());
+    kb.add_macro("flip".to_string(), macro2.clone());
+    kb.add_concept("motion".to_string(), vec![0, 1]);
+
+    let proposer = StaticProposer;
+    let proposals = proposer.propose(&kb);
+
+    assert!(proposals.iter().any(|p| p.program == macro1));
+    assert!(proposals.iter().any(|p| p.program == macro2));
+    assert!(proposals.iter().any(|p| p.source.contains("concept:")));
+}
+
+#[test]
+fn empty_knowledge_base_returns_no_proposals() {
+    let kb = KnowledgeBase::new();
+    let proposer = StaticProposer;
+    let proposals = proposer.propose(&kb);
+    assert!(proposals.is_empty());
+}
+''')
+print("[2] Hypothesis Engine tesztek hozzáadva.")
+
+# 3. Tesztek futtatása
+result = subprocess.run(["cargo", "test", "-p", "athlesia-hypothesis", "--test", "hypothesis_full_test"], capture_output=True, text=True, check=False)
+print(result.stdout)
+print(result.stderr)
+if result.returncode != 0:
+    print("\n[FAILURE] Hypothesis Engine tesztek nem mentek át.")
+    sys.exit(1)
+print("\n[SUCCESS] Hypothesis Engine tesztek zöldek.")
+
+# 4. Git commit és push
+subprocess.run(["git", "add", "-A"], check=True)
+subprocess.run(["git", "commit", "-m", "Finalize Hypothesis Engine with candidate hypotheses and concept proposals"], check=True)
+subprocess.run(["git", "push"], check=True)
+print("[INFO] Git commit és push sikeres.")
