@@ -32,6 +32,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "athlesia-knowledge"
+version = "0.1.0"
+dependencies = [
+ "athlesia-types",
+]
+
+[[package]]
 name = "athlesia-memory"
 version = "0.1.0"
 dependencies = [

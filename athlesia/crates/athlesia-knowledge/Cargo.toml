@@ -1,0 +1,7 @@
+[package]
+name = "athlesia-knowledge"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+athlesia-types = { path = "../athlesia-types" }
