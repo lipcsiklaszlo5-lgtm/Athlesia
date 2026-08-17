@@ -48,6 +48,27 @@ dependencies = [
 ]
 
 [[package]]
+name = "athlesia-kernel"
+version = "0.1.0"
+dependencies = [
+ "athlesia-abstraction",
+ "athlesia-core",
+ "athlesia-executor",
+ "athlesia-features",
+ "athlesia-hypothesis",
+ "athlesia-knowledge",
+ "athlesia-memory",
+ "athlesia-metalearner",
+ "athlesia-perception",
+ "athlesia-planner",
+ "athlesia-search",
+ "athlesia-synthesis",
+ "athlesia-types",
+ "athlesia-verifier",
+ "athlesia-world-model",
+]
+
+[[package]]
 name = "athlesia-knowledge"
 version = "0.1.0"
 dependencies = [
@@ -81,6 +102,7 @@ version = "0.1.0"
 dependencies = [
  "athlesia-search",
  "athlesia-types",
+ "athlesia-world-model",
 ]
 
 [[package]]

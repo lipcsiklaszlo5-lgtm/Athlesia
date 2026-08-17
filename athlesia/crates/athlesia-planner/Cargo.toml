@@ -4,5 +4,6 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+athlesia-world-model = { path = "../athlesia-world-model" }
 athlesia-types = { path = "../athlesia-types" }
 athlesia-search = { path = "../athlesia-search" }

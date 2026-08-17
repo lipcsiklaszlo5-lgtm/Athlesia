@@ -1,0 +1,21 @@
+[package]
+name = "athlesia-kernel"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+athlesia-types = { path = "../athlesia-types" }
+athlesia-executor = { path = "../athlesia-executor" }
+athlesia-perception = { path = "../athlesia-perception" }
+athlesia-world-model = { path = "../athlesia-world-model" }
+athlesia-features = { path = "../athlesia-features" }
+athlesia-metalearner = { path = "../athlesia-metalearner" }
+athlesia-verifier = { path = "../athlesia-verifier" }
+athlesia-synthesis = { path = "../athlesia-synthesis" }
+athlesia-core = { path = "../athlesia-core" }
+athlesia-search = { path = "../athlesia-search" }
+athlesia-memory = { path = "../athlesia-memory" }
+athlesia-knowledge = { path = "../athlesia-knowledge" }
+athlesia-abstraction = { path = "../athlesia-abstraction" }
+athlesia-hypothesis = { path = "../athlesia-hypothesis" }
+athlesia-planner = { path = "../athlesia-planner" }
