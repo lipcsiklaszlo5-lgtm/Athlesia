@@ -66,7 +66,7 @@ impl CognitiveController {
         let conf = meta.priority_in_context(*features, 0) as f32;
 
         // Strukturális egyezés a Target Decomposer alapján
-        let structural_match = if let Some(meta_grid) = TargetDecomposer.decompose_dimensions(input, target) {
+        let structural_match = if let Some(meta_grid) = TargetDecomposer::decompose_dimensions(input, target) {
             // Ha a dimenziók oszthatók, és van blokk-dekompozíció,
             // akkor erős strukturális egyezést feltételezünk.
             let block_count = (meta_grid.block_rows * meta_grid.block_cols) as f32;
