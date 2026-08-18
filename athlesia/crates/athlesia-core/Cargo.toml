@@ -4,6 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+athlesia-planner = { path = "../athlesia-planner" }
 athlesia-knowledge = { path = "../athlesia-knowledge" }
 athlesia-abstraction = { path = "../athlesia-abstraction" }
 athlesia-hypothesis = { path = "../athlesia-hypothesis" }

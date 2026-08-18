@@ -23,6 +23,7 @@ dependencies = [
  "athlesia-interactive",
  "athlesia-knowledge",
  "athlesia-metalearner",
+ "athlesia-planner",
  "athlesia-search",
  "athlesia-synthesis",
  "athlesia-types",

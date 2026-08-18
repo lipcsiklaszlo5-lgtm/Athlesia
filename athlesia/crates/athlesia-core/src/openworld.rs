@@ -3,6 +3,7 @@ use athlesia_world_model::{WorldModel, KnowledgeState, Prediction, Observation};
 use athlesia_abstraction::AbstractionEngine;
 use athlesia_knowledge::KnowledgeBase;
 use athlesia_metalearner::MetaLearner;
+use athlesia_planner::{Planner, PlannerMode};
 use athlesia_types::Action;
 
 /// Open-world ciklus: reziduálisból fogalomjelölt, majd egyszerű verifikáció.
@@ -73,6 +74,33 @@ impl OpenWorldCycle {
             meta.record_failed_concept(candidate.sketch.relation_pattern.clone());
             OpenWorldOutcome::Abstain
         }
+    }
+
+    /// Kísérleti kérést generál a reziduálisból felfedezett candidate concepthez.
+    ///
+    /// Ha a rendszer OutOfModel, és a candidate confidence elég magas
+    /// (>= 0.5), akkor kísérleti kérést ad; különben `None`.
+    pub fn prepare_experiment(
+        wm: &WorldModel,
+        action: &Action,
+        prediction: &Prediction,
+        observation: &Observation,
+        _kb: &KnowledgeBase,
+    ) -> Option<athlesia_planner::ExperimentRequest> {
+        let (state, residual) = wm.evaluate_with_residual(action, prediction, observation);
+        if state != KnowledgeState::OutOfModel {
+            return None;
+        }
+
+        let residuals = vec![residual];
+        let candidate = AbstractionEngine::discover_candidate_concept(&residuals)?;
+
+        if candidate.confidence < 0.5 {
+            return None;
+        }
+
+        let planner = Planner::new(PlannerMode::Exploration);
+        Some(planner.plan_experiment_request(&candidate))
     }
 
     /// Az open-world ciklus kimenettel együtt (MetaLearner nélkül).

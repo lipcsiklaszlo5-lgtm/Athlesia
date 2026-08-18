@@ -30,6 +30,15 @@ pub struct ExperimentPlan {
     pub expected_observation: String,
 }
 
+
+/// Kísérleti kérés: egyetlen akció, amelyet végre kell hajtani.
+#[derive(Debug, Clone)]
+pub struct ExperimentRequest {
+    pub action: athlesia_types::Action,
+    pub target_hypothesis: String,
+    pub expected_observation: String,
+}
+
 /// A Manhattan Kernel tervezője.
 ///
 /// Cél-irányított mód: a Search Engine-t használja a cél eléréséhez.
@@ -171,6 +180,17 @@ impl Planner {
             Action { prim: PrimName::ReflectH, params: Params::None }
         } else {
             Action { prim: PrimName::Translate, params: Params::Translate(0, 1) }
+        }
+    }
+
+
+    /// Kísérleti kérést készít a candidate concepthez.
+    pub fn plan_experiment_request(&self, candidate: &CandidateConcept) -> ExperimentRequest {
+        let action = self.select_probe_action(candidate);
+        ExperimentRequest {
+            action,
+            target_hypothesis: candidate.sketch.name.clone(),
+            expected_observation: candidate.sketch.relation_pattern.clone(),
         }
     }
 
