@@ -50,12 +50,9 @@ fn run_experiment_cycle_discovers_trigger_via_interactive_environment() {
         request,
         |_| {
             executed = true;
-            // Szimulált megfigyelés dimenzióeltéréssel, hogy a ciklus
-            // Verified kimenetet adjon. Ez a teszt a generikus ciklus
-            // kontrollfolyamát ellenőrzi, nem a valódi környezetet.
-            Observation {
-                state: Grid::new(3, 3),
-            }
+            // Valós interaktív környezet: a C akció jobbra mozdítja az objektumot.
+            let observed_grid = env.step(&ProbeAction::C);
+            Observation { state: observed_grid }
         },
     );
 

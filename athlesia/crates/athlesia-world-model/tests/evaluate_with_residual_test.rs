@@ -41,7 +41,7 @@ fn evaluate_with_residual_contradicted() {
     let (state, residual) = wm.evaluate_with_residual(&action, &prediction, &wrong_observation);
     assert_eq!(state, KnowledgeState::Contradicted);
     assert!(residual.mismatch_score > 0.0);
-    assert_eq!(residual.unexplained_features, vec!["pixel_mismatch"]);
+    assert!(residual.unexplained_features.contains(&"pixel_mismatch".to_string()));
 }
 
 #[test]

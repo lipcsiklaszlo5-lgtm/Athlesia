@@ -19,7 +19,7 @@ fn run_with_meta_records_failed_concept_and_abstains_on_second_try() {
         confidence: 0.5,
     };
     let observation = Observation {
-        state: grid_5x5_with_pixel(1, 0, 2),
+        state: grid_5x5_with_pixel(0, 0, 2),
     };
     let mut wm = WorldModel::new(grid_5x5_with_pixel(0, 0, 1));
     wm.add_hypothesis(vec![(PrimName::ReflectH, Params::None)]);

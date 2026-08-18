@@ -264,6 +264,13 @@ impl WorldModel {
             let obs_objects = segment(&observation.state);
             if pred_objects.len() != obs_objects.len() {
                 unexplained_features.push("object_count_changed".to_string());
+            } else if !pred_objects.is_empty() && !obs_objects.is_empty() {
+                // Pozícióváltozás detektálása a centroidok összehasonlításával.
+                let pred_centroid = centroid(&pred_objects[0]);
+                let obs_centroid = centroid(&obs_objects[0]);
+                if pred_centroid != obs_centroid {
+                    unexplained_features.push("object_position_changed".to_string());
+                }
             }
         }
 
@@ -292,4 +299,16 @@ impl WorldModel {
     pub fn record_prediction_error(&mut self, error: PredictionError) {
         self.recent_errors.push(error);
     }
+}
+
+
+/// Egyszerű centroid számítás egy GameObject sejtjeiből.
+fn centroid(obj: &athlesia_perception::GameObject) -> (f64, f64) {
+    if obj.cells.is_empty() {
+        return (0.0, 0.0);
+    }
+    let sum_x: i64 = obj.cells.iter().map(|c| c.x as i64).sum();
+    let sum_y: i64 = obj.cells.iter().map(|c| c.y as i64).sum();
+    let n = obj.cells.len() as f64;
+    (sum_x as f64 / n, sum_y as f64 / n)
 }

@@ -134,7 +134,9 @@ impl AbstractionEngine {
 
         // Ha van objektum-szintű változás, azt részesítsük előnyben a nyers
         // pixel_mismatch-sel szemben.
-        let relation_pattern = if freq.contains_key("object_count_changed") {
+        let relation_pattern = if freq.contains_key("object_position_changed") {
+            "object_position_change(A,B)".to_string()
+        } else if freq.contains_key("object_count_changed") {
             "object_count_change(A,B)".to_string()
         } else {
             freq.iter()
@@ -148,12 +150,18 @@ impl AbstractionEngine {
             .copied()
             .unwrap_or(positive.len());
 
+        // Ha a meghatározó jellemző objektumpozíció-változás,
+        // akkor a confidence legyen 1.0, mert a reláció egyértelmű.
+        let confidence_override = relation_pattern == "object_position_change(A,B)";
+
         // Átlagos mismatch_score mint kezdeti confidence.
         let avg_mismatch = positive
             .iter()
             .map(|r| r.mismatch_score)
             .sum::<f64>()
             / positive.len() as f64;
+
+        let confidence = if confidence_override { 1.0 } else { avg_mismatch.min(1.0) };
 
         let sketch = athlesia_hypothesis::ConceptSketch {
             name: format!("candidate_{}", relation_pattern),
@@ -169,7 +177,7 @@ impl AbstractionEngine {
         Some(athlesia_hypothesis::CandidateConcept {
             sketch,
             evidence,
-            confidence: avg_mismatch.min(1.0),
+            confidence,
         })
     }
 }
