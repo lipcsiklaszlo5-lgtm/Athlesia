@@ -1,4 +1,5 @@
 use athlesia_types::{Grid, PrimName, Params, Program, Budget, Action};
+use athlesia_perception::segment;
 use athlesia_executor::run_program;
 
 pub type State = Grid;
@@ -252,6 +253,18 @@ impl WorldModel {
         let mut unexplained_features = Vec::new();
         if mismatch_score > 0.0 {
             unexplained_features.push("pixel_mismatch".to_string());
+        }
+
+        // Objektum-szintű eltérések detektálása a perception szegmentációval.
+        // Csak azonos dimenziójú grideken értelmes.
+        if prediction.state.width == observation.state.width
+            && prediction.state.height == observation.state.height
+        {
+            let pred_objects = segment(&prediction.state);
+            let obs_objects = segment(&observation.state);
+            if pred_objects.len() != obs_objects.len() {
+                unexplained_features.push("object_count_changed".to_string());
+            }
         }
 
         PredictionResidual {

@@ -37,7 +37,7 @@ fn residual_fraction_for_partial_mismatch() {
     let residual = wm.compute_prediction_residual(&action, &prediction, &observation);
     // 25 pixelből 1 tér el, ha expected[1,0]=1 és initial[0,0]=1, a többi 0.
     assert!((residual.mismatch_score - 0.08).abs() < 0.0001);
-    assert_eq!(residual.unexplained_features, vec!["pixel_mismatch"]);
+    assert!(residual.unexplained_features.contains(&"pixel_mismatch".to_string()));
 }
 
 #[test]
@@ -51,5 +51,5 @@ fn residual_one_for_dimension_mismatch() {
 
     let residual = wm.compute_prediction_residual(&action, &prediction, &observation);
     assert_eq!(residual.mismatch_score, 1.0);
-    assert_eq!(residual.unexplained_features, vec!["pixel_mismatch"]);
+    assert!(residual.unexplained_features.contains(&"pixel_mismatch".to_string()));
 }
