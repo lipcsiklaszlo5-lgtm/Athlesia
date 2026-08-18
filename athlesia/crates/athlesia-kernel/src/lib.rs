@@ -3,7 +3,8 @@ pub mod cognitive;
 use serde::Deserialize;
 use athlesia_types::{Grid, Color, Action, PrimName, Params, Program, Budget};
 use athlesia_perception::perceive;
-use athlesia_world_model::{WorldModel, PredictionError};
+use athlesia_world_model::{WorldModel, PredictionError, Observation};
+use athlesia_core::openworld::{OpenWorldCycle, OpenWorldOutcome};
 use athlesia_memory::{Memory, InteractionEvent};
 use athlesia_knowledge::KnowledgeBase;
 use athlesia_verifier::{Verifier, VerificationResult};
@@ -139,6 +140,28 @@ impl Agent {
                 self.memory.long_term.add_program(hyp.program.clone());
             }
         }
+    }
+
+
+    /// Open-world megfigyelési lépés: predikció, kiértékelés és fogalomtanulás.
+    ///
+    /// A jelenlegi állapotból predikciót készít az adott akcióra, majd az
+    /// `OpenWorldCycle::run_with_outcome` segítségével kiértékeli a
+    /// megfigyelést, és ha OutOfModel, fogalomtanulást hajt végre.
+    pub fn openworld_step(
+        &mut self,
+        action: &Action,
+        observation: &Observation,
+    ) -> OpenWorldOutcome {
+        let current_state = self.wm.current_state.clone();
+        let prediction = self.wm.predict(&current_state, action);
+        OpenWorldCycle::run_with_outcome(
+            &self.wm,
+            action,
+            &prediction,
+            observation,
+            &mut self.kb,
+        )
     }
 }
 
