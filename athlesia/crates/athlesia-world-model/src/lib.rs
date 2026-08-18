@@ -66,6 +66,7 @@ pub struct WorldModel {
     pub current_state: State,
     pub hypotheses: Vec<TransitionHypothesis>,
     pub tick: u64,
+    pub recent_errors: Vec<PredictionError>,
 }
 
 impl WorldModel {
@@ -74,6 +75,7 @@ impl WorldModel {
             current_state: initial_grid,
             hypotheses: Vec::new(),
             tick: 0,
+            recent_errors: Vec::new(),
         }
     }
 
@@ -168,5 +170,10 @@ impl WorldModel {
             hyp.evidence_against += 1;
             hyp.status = HypothesisStatus::Falsified;
         }
+    }
+
+    /// A predikciós hiba tárolása későbbi absztrakcióhoz.
+    pub fn record_prediction_error(&mut self, error: PredictionError) {
+        self.recent_errors.push(error);
     }
 }

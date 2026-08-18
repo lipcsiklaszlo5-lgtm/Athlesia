@@ -3,7 +3,7 @@ pub mod cognitive;
 use serde::Deserialize;
 use athlesia_types::{Grid, Color, Action, PrimName, Params, Program, Budget};
 use athlesia_perception::perceive;
-use athlesia_world_model::WorldModel;
+use athlesia_world_model::{WorldModel, PredictionError};
 use athlesia_memory::{Memory, InteractionEvent};
 use athlesia_knowledge::KnowledgeBase;
 use athlesia_verifier::{Verifier, VerificationResult};
@@ -135,6 +135,23 @@ pub fn solve_arc_json(task_json: &str) -> (Option<Grid>, Grid) {
                 id,
             );
             agent.memory.append_episode(input_grid.clone(), output_grid.clone(), program);
+        } else {
+            // Predikciós hiba rögzítése
+            let mut budget = Budget { max_steps: 1000, max_depth: 100 };
+            let actual_output = athlesia_executor::run_program(&program, &input_grid, &mut budget)
+                .unwrap_or_else(|_| input_grid.clone());
+            let report = verifier.report(&program, &input_grid, &output_grid);
+            let error = PredictionError {
+                expected: output_grid.clone(),
+                observed: actual_output,
+                summary: report.failure_signature.summary.clone(),
+                feature_mismatch: report.failure_signature.pixel_mismatch,
+            };
+            if let Some(hyp) = agent.wm.hypotheses.iter().find(|h| h.program == program) {
+                let id = hyp.id;
+                agent.wm.learn_from_error(id, &error);
+            }
+            agent.wm.record_prediction_error(error);
         }
     }
 
