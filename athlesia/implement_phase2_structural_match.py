@@ -1,4 +1,13 @@
+#!/usr/bin/env python3
+import pathlib, subprocess, sys
 
+def write_file(path, content):
+    pathlib.Path(path).parent.mkdir(parents=True, exist_ok=True)
+    with open(path, "w", encoding="utf-8") as f:
+        f.write(content)
+
+# 1. cognitive.rs frissítése a pontosabb structural_match számítással
+cognitive_rs = r'''
 use athlesia_features::FeatureVector;
 use athlesia_metalearner::MetaLearner;
 use athlesia_structure::TargetDecomposer;
@@ -136,3 +145,80 @@ impl CognitiveController {
         }
     }
 }
+'''
+
+write_file("crates/athlesia-kernel/src/cognitive.rs", cognitive_rs)
+print("[1] cognitive.rs frissítve: structural_match most a MetaGrid felismerésén alapul.")
+
+# 2. Új teszt a strukturális elemzésre
+test_code = r'''
+use athlesia_kernel::cognitive::{CognitiveController, CompetenceEstimate};
+use athlesia_features::FeatureVector;
+use athlesia_metalearner::MetaLearner;
+use athlesia_types::{Grid, Color};
+
+fn grid_from_rows(rows: Vec<Vec<u8>>) -> Grid {
+    let height = rows.len() as u8;
+    let width = if height > 0 { rows[0].len() as u8 } else { 0 };
+    let mut cells = Vec::new();
+    for row in &rows {
+        for &c in row {
+            cells.push(Color(c));
+        }
+    }
+    Grid { width, height, cells }
+}
+
+#[test]
+fn structural_match_high_for_repeated_identity_blocks() {
+    let input = grid_from_rows(vec![
+        vec![1, 2],
+        vec![3, 4],
+    ]);
+    let target = grid_from_rows(vec![
+        vec![1,2,1,2],
+        vec![3,4,3,4],
+        vec![1,2,1,2],
+        vec![3,4,3,4],
+    ]);
+
+    let meta = MetaLearner::new();
+    let fv = FeatureVector::default();
+    let estimate = CognitiveController::estimate(&fv, &meta, &input, &target);
+    assert!(estimate.structural_match > 0.9, "Az identitás ismétlődésnek magas strukturális egyezést kell adnia, de {} volt", estimate.structural_match);
+}
+
+#[test]
+fn structural_match_zero_for_trivial_same_size() {
+    let input = grid_from_rows(vec![vec![1,2], vec![3,4]]);
+    let target = grid_from_rows(vec![vec![1,2], vec![3,4]]);
+
+    let meta = MetaLearner::new();
+    let fv = FeatureVector::default();
+    let estimate = CognitiveController::estimate(&fv, &meta, &input, &target);
+    assert_eq!(estimate.structural_match, 0.0, "Azonos méretű grid nem ad strukturális jelet");
+}
+'''
+
+write_file("crates/athlesia-kernel/tests/structural_analysis_test.rs", test_code)
+print("[2] structural_analysis_test.rs létrehozva.")
+
+# 3. Tesztek futtatása
+result = subprocess.run(
+    ["cargo", "test", "-p", "athlesia-kernel"],
+    capture_output=True,
+    text=True,
+    check=False,
+)
+print(result.stdout)
+print(result.stderr)
+if result.returncode != 0:
+    print("\n[FAILURE] A kernel tesztek nem mentek át.")
+    sys.exit(1)
+print("\n[SUCCESS] Kernel tesztek zöldek.")
+
+# 4. Git commit és push
+subprocess.run(["git", "add", "-A"], check=True)
+subprocess.run(["git", "commit", "-m", "Phase 2: structural_match now based on MetaGrid recognition ratio"], check=True)
+subprocess.run(["git", "push"], check=True)
+print("[INFO] Git commit és push sikeres.")
