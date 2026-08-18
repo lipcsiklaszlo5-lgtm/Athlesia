@@ -10,6 +10,7 @@ use athlesia_verifier::{Verifier, VerificationResult};
 
 use athlesia_planner::{Planner, PlannerMode};
 use athlesia_core::CoreEngine;
+use athlesia_synthesis::{synthesize, PrimitiveTemplate};
 use crate::cognitive::{CognitiveController, CognitiveDecision};
 
 
@@ -177,9 +178,31 @@ pub fn solve_arc_json_with_cognition(task_json: &str) -> (Option<Grid>, Grid) {
         return (None, test_expected);
     }
 
+    // Ha a strukturális egyezés magas, próbáljunk közvetlenül BlockMap programot generálni
+    let estimate = CognitiveController::estimate(
+        &features,
+        &agent.core.meta,
+        &first_train_input,
+        &first_train_output,
+    );
+
+    if estimate.structural_match > 0.9 {
+        // Az üres template lista a BlockMap generálást engedi (a synthesis crate így működik)
+        let templates: &[PrimitiveTemplate] = &[];
+        if let Some(program) = synthesize(&first_train_input, &first_train_output, templates) {
+            let test_input = grid_from_rows(&task.test[0].input);
+            let mut budget = Budget { max_steps: 10, max_depth: 100 };
+            if let Ok(output) = athlesia_executor::run_program(&program, &test_input, &mut budget) {
+                let test_expected = grid_from_rows(&task.test[0].output);
+                return (Some(output), test_expected);
+            }
+        }
+    }
+
     // Különben ugyanaz, mint a solve_arc_json
     solve_arc_json(task_json)
 }
+
 /// Egyszerű kernel szintű megoldás adott bemenet-cél párra.
 pub fn solve_with_kernel(
     input: &Grid,

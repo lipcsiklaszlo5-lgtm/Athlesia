@@ -72,7 +72,9 @@ impl CognitiveController {
             predicted_search_cost = predicted_search_cost.min(10.0);
         }
 
-        if estimate.hypothesis_confidence > 0.8 {
+        if estimate.structural_match > 0.9 {
+            CognitiveDecision::Solve
+        } else if estimate.hypothesis_confidence > 0.8 {
             CognitiveDecision::Solve
         } else if estimate.hypothesis_confidence > 0.5 {
             CognitiveDecision::Explore
