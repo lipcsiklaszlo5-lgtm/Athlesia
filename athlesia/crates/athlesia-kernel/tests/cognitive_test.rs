@@ -17,7 +17,7 @@ fn controller_decides_guess_when_no_prior() {
     let meta = MetaLearner::new();
     let programs: Vec<Program> = vec![vec![(PrimName::Translate, Params::Translate(1, 0))]];
 
-    let decision = CognitiveController::decide(&fv, &meta, &programs);
+    let decision = CognitiveController::decide(&fv, &meta, &programs, &Grid::new(5,5), &Grid::new(5,5));
     // Mivel nincs kontextus-pontszám, a döntés Guess (vagy Explore, ha így alakul)
     // Most a placeholder logika szerint Guess lesz, de ellenőrizzük a változatosságot.
     assert_ne!(decision, CognitiveDecision::Abstain);
@@ -46,7 +46,7 @@ fn controller_decides_solve_when_confident() {
     }
 
     let programs: Vec<Program> = vec![vec![(PrimName::Translate, Params::Translate(1, 0))]];
-    let decision = CognitiveController::decide(&fv, &meta, &programs);
+    let decision = CognitiveController::decide(&fv, &meta, &programs, &Grid::new(5,5), &Grid::new(5,5));
 
     assert_eq!(decision, CognitiveDecision::Solve);
 }

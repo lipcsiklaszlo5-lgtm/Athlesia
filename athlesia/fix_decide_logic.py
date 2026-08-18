@@ -1,4 +1,13 @@
+#!/usr/bin/env python3
+import pathlib, subprocess, sys
 
+def write_file(path, content):
+    pathlib.Path(path).parent.mkdir(parents=True, exist_ok=True)
+    with open(path, "w", encoding="utf-8") as f:
+        f.write(content)
+
+# 1. cognitive.rs újratöltése, decide logika finomítása
+cognitive_rs = r'''
 use athlesia_features::FeatureVector;
 use athlesia_metalearner::MetaLearner;
 use athlesia_structure::TargetDecomposer;
@@ -131,3 +140,27 @@ impl CognitiveController {
         }
     }
 }
+'''
+
+write_file("crates/athlesia-kernel/src/cognitive.rs", cognitive_rs)
+print("[1] cognitive.rs frissítve (decide logika finomítva).")
+
+# 2. Tesztek futtatása
+result = subprocess.run(
+    ["cargo", "test", "-p", "athlesia-kernel"],
+    capture_output=True,
+    text=True,
+    check=False,
+)
+print(result.stdout)
+print(result.stderr)
+if result.returncode != 0:
+    print("\n[FAILURE] A kernel tesztek nem mentek át.")
+    sys.exit(1)
+print("\n[SUCCESS] Kernel tesztek zöldek.")
+
+# 3. Git commit és push
+subprocess.run(["git", "add", "-A"], check=True)
+subprocess.run(["git", "commit", "-m", "Refine cognitive decide logic to handle known programs and confidence"], check=True)
+subprocess.run(["git", "push"], check=True)
+print("[INFO] Git commit és push sikeres.")

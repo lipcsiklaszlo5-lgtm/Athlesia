@@ -10,6 +10,7 @@ use athlesia_verifier::{Verifier, VerificationResult};
 
 use athlesia_planner::{Planner, PlannerMode};
 use athlesia_core::CoreEngine;
+use crate::cognitive::{CognitiveController, CognitiveDecision};
 
 
 /// ARC példa struktúra JSON-ből.
@@ -152,6 +153,33 @@ pub fn solve_arc_json(task_json: &str) -> (Option<Grid>, Grid) {
     (predicted, test_expected)
 }
 
+/// Kognitív döntéssel kiegészített megoldó: ha a rendszer nem érti a feladatot,
+/// Abstain esetén None-t ad vissza.
+pub fn solve_arc_json_with_cognition(task_json: &str) -> (Option<Grid>, Grid) {
+    let task: ArcTask = serde_json::from_str(task_json).expect("Hibás ARC JSON");
+
+    let first_train_input = grid_from_rows(&task.train[0].input);
+    let first_train_output = grid_from_rows(&task.train[0].output);
+    let features = athlesia_features::extract_features(&first_train_input);
+
+    let mut agent = Agent::new(first_train_input.clone());
+
+    let decision = CognitiveController::decide(
+        &features,
+        &agent.core.meta,
+        &agent.core.known_programs,
+        &first_train_input,
+        &first_train_output,
+    );
+
+    if decision == CognitiveDecision::Abstain {
+        let test_expected = grid_from_rows(&task.test[0].output);
+        return (None, test_expected);
+    }
+
+    // Különben ugyanaz, mint a solve_arc_json
+    solve_arc_json(task_json)
+}
 /// Egyszerű kernel szintű megoldás adott bemenet-cél párra.
 pub fn solve_with_kernel(
     input: &Grid,
