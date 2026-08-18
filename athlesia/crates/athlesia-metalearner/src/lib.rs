@@ -195,3 +195,12 @@ impl MetaLearner {
         self.failed_concepts.contains(relation_pattern)
     }
 }
+
+
+impl MetaLearner {
+    /// Igaz, ha van legalább egy olyan globális hipotézis, amelynek
+    /// `successes` száma nagyobb, mint 0.
+    pub fn has_any_success(&self) -> bool {
+        self.global_scores.values().any(|s| s.successes > 0)
+    }
+}

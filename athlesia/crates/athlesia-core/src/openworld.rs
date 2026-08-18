@@ -56,7 +56,11 @@ impl OpenWorldCycle {
             return OpenWorldOutcome::Retrieved(existing.clone());
         }
 
-        if candidate.confidence >= 0.5 {
+        // Adaptív küszöb: ha a MetaLearnernek már van sikeres fogalma,
+        // akkor alacsonyabb confidence is elfogadható.
+        let threshold = if meta.has_any_success() { 0.3 } else { 0.5 };
+
+        if candidate.confidence >= threshold {
             let verified = athlesia_knowledge::VerifiedConcept {
                 id: kb.get_verified_concepts().len() as u64,
                 name: candidate.sketch.name.clone(),
