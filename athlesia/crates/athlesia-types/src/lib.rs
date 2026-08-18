@@ -69,6 +69,7 @@ pub enum PrimName {
     TranslateWrap,
     Tile,
     RepeatGrid,
+    BlockMap,
     CopyObject,
     MoveTo,
     Connect,
@@ -79,10 +80,9 @@ pub enum PrimName {
     ReplaceColor,
     ShiftRow,
     ShiftColumn,
-    DeleteObject,
-}
+    DeleteObject,}
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum Params {
     None,
     Translate(i8, i8),
@@ -91,6 +91,7 @@ pub enum Params {
     TranslateWrap(i8, i8),
     Tile(usize),
     RepeatGrid(usize),
+    BlockMap(usize, usize, Vec<u8>),
 }
 
 pub type Program = Vec<(PrimName, Params)>;
@@ -107,7 +108,7 @@ pub enum ExecError {
     DepthExceeded,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Action {
     pub prim: PrimName,
     pub params: Params,

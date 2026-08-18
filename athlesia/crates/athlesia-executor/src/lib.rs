@@ -127,6 +127,45 @@ pub fn apply_primitive(grid: &Grid, name: &PrimName, params: &Params) -> Grid {
                 }
             }
         }
+        PrimName::BlockMap => {
+            // BlockMap: a targetet input-méretű blokkokra bontja, és minden blokkra
+            // a Paraméterben kapott transzformáció-azonosító listát alkalmazza.
+            // A Params::BlockMap tartalmazza a sorok/oszlopok számát és a transzformációkat.
+            if let Params::BlockMap(rows, cols, transforms) = params {
+                let block_h = grid.height;
+                let block_w = grid.width;
+                let out_h = block_h * (*rows as u8);
+                let out_w = block_w * (*cols as u8);
+                let mut out = Grid::new(out_w, out_h);
+
+                for r in 0..*rows {
+                    for c in 0..*cols {
+                        let idx = r * *cols + c;
+                        let transform_id = transforms.get(idx).copied().unwrap_or(0u8);
+                        let block = match transform_id {
+                            1 => apply_primitive(grid, &PrimName::Rotate90, &Params::None),
+                            2 => apply_primitive(grid, &PrimName::Rotate180, &Params::None),
+                            3 => apply_primitive(grid, &PrimName::Rotate270, &Params::None),
+                            4 => apply_primitive(grid, &PrimName::ReflectH, &Params::None),
+                            5 => apply_primitive(grid, &PrimName::ReflectV, &Params::None),
+                            _ => grid.clone(),
+                        };
+
+                        let start_x = (c as i8) * block_w as i8;
+                        let start_y = (r as i8) * block_h as i8;
+                        for y in 0..block_h as i8 {
+                            for x in 0..block_w as i8 {
+                                if let Some(cell) = block.get(x, y) {
+                                    out.set(start_x + x, start_y + y, cell);
+                                }
+                            }
+                        }
+                    }
+                }
+                return out;
+            }
+            return grid.clone();
+        }
         PrimName::RepeatGrid => {
             if let Params::RepeatGrid(k) = params {
                 let k = *k as u8;

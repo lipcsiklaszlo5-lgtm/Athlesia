@@ -131,6 +131,7 @@ name = "athlesia-synthesis"
 version = "0.1.0"
 dependencies = [
  "athlesia-executor",
+ "athlesia-structure",
  "athlesia-types",
 ]
 

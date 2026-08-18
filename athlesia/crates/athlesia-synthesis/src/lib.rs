@@ -85,6 +85,37 @@ pub fn synthesize(input: &Grid, target: &Grid, templates: &[PrimitiveTemplate]) 
         }
     }
 
+    // MetaGrid-alapú BlockMap generálás
+    if let Some(meta) = athlesia_structure::TargetDecomposer::decompose_dimensions(input, target) {
+        // A MetaGrid celláiból készítünk BlockMap paramétereket
+        let mut transforms: Vec<u8> = Vec::new();
+        // A decompose-ot használjuk a transzformációk felismerésére
+        let decomposer = athlesia_structure::TargetDecomposer;
+        if let Some(grid_meta) = decomposer.decompose(input, target) {
+            for cell in &grid_meta.cells {
+                transforms.push(match cell {
+                    Some(athlesia_structure::TransformId::Identity) => 0,
+                    Some(athlesia_structure::TransformId::Rot90) => 1,
+                    Some(athlesia_structure::TransformId::Rot180) => 2,
+                    Some(athlesia_structure::TransformId::Rot270) => 3,
+                    Some(athlesia_structure::TransformId::ReflectH) => 4,
+                    Some(athlesia_structure::TransformId::ReflectV) => 5,
+                    None => return None,
+                });
+            }
+            let program = vec![(
+                PrimName::BlockMap,
+                Params::BlockMap(meta.block_rows, meta.block_cols, transforms),
+            )];
+            let mut budget = Budget { max_steps: 1, max_depth: 100 };
+            if let Ok(output) = run_program(&program, input, &mut budget) {
+                if output == *target {
+                    return Some(program);
+                }
+            }
+        }
+    }
+
     // Dimenzióváltó primitívek induktív kipróbálása.
     // Például 3x3 -> 9x9 esetén RepeatGrid(3) vagy Tile(3).
     if input.width > 0 && input.height > 0 {
