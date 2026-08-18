@@ -63,6 +63,7 @@ dependencies = [
  "athlesia-perception",
  "athlesia-planner",
  "athlesia-search",
+ "athlesia-structure",
  "athlesia-synthesis",
  "athlesia-types",
  "athlesia-verifier",
@@ -111,6 +112,14 @@ dependencies = [
 
 [[package]]
 name = "athlesia-search"
+version = "0.1.0"
+dependencies = [
+ "athlesia-executor",
+ "athlesia-types",
+]
+
+[[package]]
+name = "athlesia-structure"
 version = "0.1.0"
 dependencies = [
  "athlesia-executor",

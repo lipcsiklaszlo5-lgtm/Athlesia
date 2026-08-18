@@ -1,7 +1,8 @@
 
 use athlesia_features::FeatureVector;
 use athlesia_metalearner::MetaLearner;
-use athlesia_types::Program;
+use athlesia_structure::TargetDecomposer;
+use athlesia_types::{Program, Grid};
 
 /// Döntés, amit a kognitív kontroller hozhat.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -58,12 +59,29 @@ impl CognitiveController {
     pub fn estimate(
         features: &FeatureVector,
         meta: &MetaLearner,
+        input: &Grid,
+        target: &Grid,
     ) -> CompetenceEstimate {
-        // Egyszerű közelítés: a konfidencia a 0. hipotézisre.
+        // Konfidencia a 0. hipotézisre
         let conf = meta.priority_in_context(*features, 0) as f32;
+
+        // Strukturális egyezés a Target Decomposer alapján
+        let structural_match = if let Some(meta_grid) = TargetDecomposer.decompose_dimensions(input, target) {
+            // Ha a dimenziók oszthatók, és van blokk-dekompozíció,
+            // akkor erős strukturális egyezést feltételezünk.
+            let block_count = (meta_grid.block_rows * meta_grid.block_cols) as f32;
+            if block_count > 0.0 {
+                1.0 / (1.0 + block_count) // minél több blokk, annál kisebb, de még mindig jel
+            } else {
+                0.0
+            }
+        } else {
+            0.0
+        };
+
         CompetenceEstimate {
             familiarity: conf,
-            structural_match: 0.0,
+            structural_match,
             hypothesis_confidence: conf,
             predicted_search_cost: 100.0,
             expected_information_gain: 0.5,

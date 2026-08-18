@@ -2,7 +2,7 @@
 use athlesia_kernel::cognitive::{CognitiveController, CognitiveDecision};
 use athlesia_metalearner::MetaLearner;
 use athlesia_features::FeatureVector;
-use athlesia_types::{PrimName, Params, Program};
+use athlesia_types::{Grid, PrimName, Params, Program};
 
 fn make_fv(object_count: u8) -> FeatureVector {
     FeatureVector {
@@ -28,8 +28,11 @@ fn controller_estimates_competence() {
     let fv = make_fv(2);
     let meta = MetaLearner::new();
 
-    let estimate = CognitiveController::estimate(&fv, &meta);
+    let input = Grid::new(3, 3);
+    let target = Grid::new(9, 9);
+    let estimate = CognitiveController::estimate(&fv, &meta, &input, &target);
     assert!(estimate.hypothesis_confidence >= 0.0 && estimate.hypothesis_confidence <= 1.0);
+    assert!(estimate.structural_match > 0.0, "Strukturális egyezésnek pozitívnak kell lennie 3x3->9x9 esetén.");
     assert_eq!(estimate.familiarity, estimate.hypothesis_confidence);
 }
 
