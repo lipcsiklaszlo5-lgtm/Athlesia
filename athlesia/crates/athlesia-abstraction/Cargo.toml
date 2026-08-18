@@ -6,3 +6,5 @@ edition = "2021"
 [dependencies]
 athlesia-types = { path = "../athlesia-types" }
 athlesia-knowledge = { path = "../athlesia-knowledge" }
+athlesia-world-model = { path = "../athlesia-world-model" }
+athlesia-hypothesis = { path = "../athlesia-hypothesis" }

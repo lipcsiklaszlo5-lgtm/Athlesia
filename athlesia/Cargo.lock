@@ -6,8 +6,10 @@ version = 4
 name = "athlesia-abstraction"
 version = "0.1.0"
 dependencies = [
+ "athlesia-hypothesis",
  "athlesia-knowledge",
  "athlesia-types",
+ "athlesia-world-model",
 ]
 
 [[package]]

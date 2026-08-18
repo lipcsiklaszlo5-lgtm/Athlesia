@@ -103,3 +103,62 @@ impl AbstractionEngine {
         lcs
     }
 }
+
+
+impl AbstractionEngine {
+    /// CandidateConcept generálása predikciós reziduálisokból.
+    ///
+    /// Ez a Phase 13 minimális mechanizmusa: még nem valódi relációindukció,
+    /// de a reziduálisok alapján általános fogalomjelöltet hoz létre.
+    /// A későbbi mikrolépések ezt fogják finomítani.
+    pub fn discover_candidate_concept(
+        residuals: &[athlesia_world_model::PredictionResidual],
+    ) -> Option<athlesia_hypothesis::CandidateConcept> {
+        // Csak azokat vesszük figyelembe, ahol van eltérés.
+        let positive: Vec<_> = residuals
+            .iter()
+            .filter(|r| r.mismatch_score > 0.0)
+            .collect();
+
+        if positive.is_empty() {
+            return None;
+        }
+
+        // A leggyakoribb megmagyarázatlan jellemzőt emeljük ki.
+        let mut freq: std::collections::HashMap<&str, usize> = std::collections::HashMap::new();
+        for r in &positive {
+            for feat in &r.unexplained_features {
+                *freq.entry(feat.as_str()).or_insert(0) += 1;
+            }
+        }
+
+        let (relation_pattern, count) = freq
+            .into_iter()
+            .max_by_key(|(_, count)| *count)
+            .unwrap_or(("pixel_mismatch", positive.len()));
+
+        // Átlagos mismatch_score mint kezdeti confidence.
+        let avg_mismatch = positive
+            .iter()
+            .map(|r| r.mismatch_score)
+            .sum::<f64>()
+            / positive.len() as f64;
+
+        let sketch = athlesia_hypothesis::ConceptSketch {
+            name: format!("candidate_{}", relation_pattern),
+            relation_pattern: relation_pattern.to_string(),
+            objects_involved: Vec::new(),
+        };
+
+        let evidence = positive
+            .iter()
+            .map(|r| format!("residual: {} features, mismatch={:.2}", r.unexplained_features.join(","), r.mismatch_score))
+            .collect();
+
+        Some(athlesia_hypothesis::CandidateConcept {
+            sketch,
+            evidence,
+            confidence: avg_mismatch.min(1.0),
+        })
+    }
+}
