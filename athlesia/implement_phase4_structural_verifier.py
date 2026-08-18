@@ -1,4 +1,13 @@
+#!/usr/bin/env python3
+import os, subprocess, sys, pathlib
 
+def write_file(path, content):
+    pathlib.Path(path).parent.mkdir(parents=True, exist_ok=True)
+    with open(path, "w", encoding="utf-8") as f:
+        f.write(content)
+
+# 1. Verifier lib.rs teljes újraírása strukturált riporttal
+write_file("crates/athlesia-verifier/src/lib.rs", r'''
 use athlesia_types::{Grid, Program, Budget};
 use athlesia_executor::run_program;
 
@@ -173,3 +182,89 @@ impl Verifier {
         }
     }
 }
+''')
+
+print("[1] Verifier lib.rs strukturált riporttal frissítve.")
+
+# 2. Teszt hozzáadása
+write_file("crates/athlesia-verifier/tests/structural_report_test.rs", r'''
+use athlesia_verifier::{Verifier, ResidualStructure};
+use athlesia_types::{Grid, PrimName, Params, Program};
+
+fn build_grid(rows: [[u8; 5]; 5]) -> Grid {
+    Grid::from_5x5(rows)
+}
+
+#[test]
+fn report_exact_match() {
+    let v = Verifier::new();
+    let program: Program = vec![(PrimName::Translate, Params::Translate(1, 0))];
+    let input = build_grid([
+        [1,0,0,0,0],
+        [0,0,0,0,0],
+        [0,0,0,0,0],
+        [0,0,0,0,0],
+        [0,0,0,0,0],
+    ]);
+    let target = build_grid([
+        [0,1,0,0,0],
+        [0,0,0,0,0],
+        [0,0,0,0,0],
+        [0,0,0,0,0],
+        [0,0,0,0,0],
+    ]);
+
+    let report = v.report(&program, &input, &target);
+    assert!(report.exact);
+    assert_eq!(report.residual, ResidualStructure::None);
+    assert_eq!(report.pixel_accuracy, 1.0);
+}
+
+#[test]
+fn report_rejects_mismatch() {
+    let v = Verifier::new();
+    let program: Program = vec![(PrimName::ReflectH, Params::None)];
+    let input = build_grid([
+        [1,2,0,0,0],
+        [0,0,0,0,0],
+        [0,0,0,0,0],
+        [0,0,0,0,0],
+        [0,0,0,0,0],
+    ]);
+    let target = build_grid([
+        [2,1,0,0,0],
+        [0,0,0,0,0],
+        [0,0,0,0,0],
+        [0,0,0,0,0],
+        [0,0,0,0,0],
+    ]);
+
+    let report = v.report(&program, &input, &target);
+    assert!(!report.exact);
+    assert!(report.pixel_accuracy < 1.0);
+    assert!(report.pixel_accuracy > 0.0);
+    assert_eq!(report.residual, ResidualStructure::Unknown);
+}
+''')
+
+print("[2] Strukturált verifier teszt hozzáadva.")
+
+# 3. Tesztek futtatása
+result = subprocess.run(
+    ["cargo", "test", "-p", "athlesia-verifier"],
+    capture_output=True,
+    text=True,
+    check=False,
+)
+print(result.stdout)
+print(result.stderr)
+if result.returncode != 0:
+    print("\n[FAILURE] Structural verifier tesztek nem mentek át.")
+    sys.exit(1)
+print("\n[SUCCESS] Structural verifier tesztek zöldek.")
+
+# 4. Git commit és push
+subprocess.run(["git", "add", "-A"], check=True)
+subprocess.run(["git", "commit", "-m", "Add structural verifier with rich report"], check=True)
+subprocess.run(["git", "push"], check=True)
+print("[INFO] Git commit és push sikeres.")
