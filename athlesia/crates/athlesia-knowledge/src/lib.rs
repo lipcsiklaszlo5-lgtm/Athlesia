@@ -18,6 +18,16 @@ pub struct Concept {
     pub macro_ids: Vec<u64>,
 }
 
+
+/// Igazolt fogalom: olyan fogalom, amelyet kísérletekkel megerősítettünk.
+#[derive(Debug, Clone)]
+pub struct VerifiedConcept {
+    pub id: u64,
+    pub name: String,
+    pub relation_pattern: String,
+    pub evidence_count: usize,
+}
+
 /// A tudásbázisban rögzített változások típusai.
 #[derive(Debug, Clone)]
 pub enum ChangeKind {
@@ -43,6 +53,7 @@ pub struct KnowledgeBase {
     pub primitives: Vec<PrimName>,
     pub macros: Vec<Macro>,
     pub concepts: Vec<Concept>,
+    pub verified_concepts: Vec<VerifiedConcept>,
     pub archive: Vec<LibraryChange>,
     pub version: u64,
 }
@@ -105,5 +116,23 @@ impl KnowledgeBase {
 
     pub fn get_all_macros(&self) -> &[Macro] {
         &self.macros
+    }
+
+
+    /// Új igazolt fogalom hozzáadása.
+    pub fn add_verified_concept(&mut self, name: String, relation_pattern: String, evidence_count: usize) {
+        let id = self.verified_concepts.len() as u64;
+        self.verified_concepts.push(VerifiedConcept {
+            id,
+            name,
+            relation_pattern,
+            evidence_count,
+        });
+        self.version += 1;
+    }
+
+    /// Az összes igazolt fogalom visszaadása.
+    pub fn get_verified_concepts(&self) -> &[VerifiedConcept] {
+        &self.verified_concepts
     }
 }
