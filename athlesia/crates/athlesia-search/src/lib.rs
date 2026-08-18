@@ -39,7 +39,7 @@ impl SearchTelemetry {
             high_confidence_hits: 0,
             estimated_remaining_cost: 0.0,
             stagnation_counter: 0,
-            patience_window: 20,
+            patience_window: 1000,
             max_possible_score,
         }
     }
