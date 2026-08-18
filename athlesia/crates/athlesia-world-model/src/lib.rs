@@ -1,24 +1,19 @@
-
-use athlesia_types::{Grid, Program, Budget, Action};
+use athlesia_types::{Grid, PrimName, Params, Program, Budget, Action};
 use athlesia_executor::run_program;
 
-/// A környezet állapotának típusa (a dokumentum szerint `State`).
 pub type State = Grid;
 
-/// Egy előrejelzés a jósolt állapottal és a konfidenciával.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Prediction {
     pub state: State,
     pub confidence: f64,
 }
 
-/// Egy megfigyelt állapot.
 #[derive(Debug, Clone, PartialEq)]
 pub struct Observation {
     pub state: State,
 }
 
-/// A World Model frissítésének eredménye.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum UpdateResult {
     NoChange,
@@ -26,14 +21,12 @@ pub enum UpdateResult {
     Falsified,
 }
 
-/// Egy bizonytalansági lekérdezés.
 #[derive(Debug, Clone)]
 pub struct Query {
     pub state: State,
     pub action: Action,
 }
 
-/// Hipotézis-státusz.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum HypothesisStatus {
     Active,
@@ -41,7 +34,6 @@ pub enum HypothesisStatus {
     Falsified,
 }
 
-/// Átmeneti szabály-hipotézis evidencia-számlálókkal.
 #[derive(Debug, Clone)]
 pub struct TransitionHypothesis {
     pub id: u64,
@@ -49,6 +41,24 @@ pub struct TransitionHypothesis {
     pub evidence_for: u32,
     pub evidence_against: u32,
     pub status: HypothesisStatus,
+}
+
+/// Explicit prior/belief egy fogalom vagy szabály megbízhatóságáról.
+#[derive(Debug, Clone)]
+pub struct Belief {
+    pub concept_id: u64,
+    pub confidence: f32,
+    pub evidence_for: usize,
+    pub evidence_against: usize,
+}
+
+/// Predikciós hiba: miért nem egyezett a predikció a megfigyeléssel.
+#[derive(Debug, Clone)]
+pub struct PredictionError {
+    pub expected: Grid,
+    pub observed: Grid,
+    pub summary: String,
+    pub feature_mismatch: usize,
 }
 
 #[derive(Debug)]
@@ -79,7 +89,6 @@ impl WorldModel {
         id
     }
 
-    /// A dokumentum szerinti `predict(state, action) -> Prediction`.
     pub fn predict(&self, state: &State, action: &Action) -> Prediction {
         let program = vec![(action.prim, action.params.clone())];
         let mut budget = Budget { max_steps: 1, max_depth: 100 };
@@ -103,7 +112,6 @@ impl WorldModel {
         }
     }
 
-    /// A dokumentum szerinti `update(observation) -> UpdateResult`.
     pub fn update(&mut self, observation: &Observation) -> UpdateResult {
         let previous_state = self.current_state.clone();
         let observed_state = observation.state.clone();
@@ -148,9 +156,17 @@ impl WorldModel {
         }
     }
 
-    /// A dokumentum szerinti `uncertainty(query) -> f64`.
     pub fn uncertainty(&self, query: &Query) -> f64 {
         let pred = self.predict(&query.state, &query.action);
         1.0 - pred.confidence
+    }
+
+    /// A modell frissítése predikciós hiba alapján.
+    /// A hibát egy hipotézishez kötjük, és csökkentjük annak konfidenciáját.
+    pub fn learn_from_error(&mut self, hypothesis_id: u64, _error: &PredictionError) {
+        if let Some(hyp) = self.hypotheses.iter_mut().find(|h| h.id == hypothesis_id) {
+            hyp.evidence_against += 1;
+            hyp.status = HypothesisStatus::Falsified;
+        }
     }
 }

@@ -1,4 +1,13 @@
+#!/usr/bin/env python3
+import pathlib, subprocess, sys
 
+def write_file(path, content):
+    pathlib.Path(path).parent.mkdir(parents=True, exist_ok=True)
+    with open(path, "w", encoding="utf-8") as f:
+        f.write(content)
+
+# 1. cognitive.rs újratöltése, javítás a structural_match számításában
+cognitive_rs = r'''
 use athlesia_features::FeatureVector;
 use athlesia_metalearner::MetaLearner;
 use athlesia_structure::TargetDecomposer;
@@ -126,3 +135,30 @@ impl CognitiveController {
         }
     }
 }
+'''
+
+write_file("crates/athlesia-kernel/src/cognitive.rs", cognitive_rs)
+print("[1] cognitive.rs frissítve (structural_match triviális kizárással).")
+
+# 2. Teszt változatlan, de most már át kell mennie
+# (a prior_test.rs már létezik, nem írjuk felül)
+
+# 3. Tesztek futtatása
+result = subprocess.run(
+    ["cargo", "test", "-p", "athlesia-kernel", "--test", "prior_test"],
+    capture_output=True,
+    text=True,
+    check=False,
+)
+print(result.stdout)
+print(result.stderr)
+if result.returncode != 0:
+    print("\n[FAILURE] A prior tesztek nem mentek át.")
+    sys.exit(1)
+print("\n[SUCCESS] Prior tesztek zöldek.")
+
+# 4. Git commit és push
+subprocess.run(["git", "add", "-A"], check=True)
+subprocess.run(["git", "commit", "-m", "Fix structural_match to ignore trivial 1-block decomposition"], check=True)
+subprocess.run(["git", "push"], check=True)
+print("[INFO] Git commit és push sikeres.")
