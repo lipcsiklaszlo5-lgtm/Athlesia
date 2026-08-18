@@ -75,6 +75,22 @@ impl CoreEngine {
             }
         }
 
+        // 2.5 A meglévő programok kompozícióinak kipróbálása (kettő hosszig)
+        let known = self.known_programs.clone();
+        for p1 in &known {
+            for p2 in &known {
+                let mut combined = p1.clone();
+                combined.extend(p2.clone());
+                steps += 1;
+                if self.verifier.verify(&combined, &vec![(input.clone(), target.clone())]) == VerificationResult::Accept {
+                    let id = self.known_programs.len() as u64;
+                    self.known_programs.push(combined.clone());
+                    self.meta.record_success_in_context(fv, id);
+                    return (Some(combined), steps);
+                }
+            }
+        }
+
         // 3. Ha a szintézis nem járt sikerrel, próbáljuk a többlépéses keresést
         let max_score = (target.width as usize * target.height as usize) as f32;
         let mut telemetry = SearchTelemetry::new(max_score);
