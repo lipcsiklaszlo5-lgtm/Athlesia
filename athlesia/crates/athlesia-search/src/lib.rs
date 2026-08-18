@@ -1,4 +1,104 @@
 
+/// Keresési telemetria: a kereső futásának élő adatai.
+#[derive(Debug, Clone)]
+pub struct SearchTelemetry {
+    pub nodes_expanded: u64,
+    pub current_depth: u32,
+    pub branching_factor: f32,
+    pub best_score: f32,
+    pub previous_best_score: f32,
+    pub score_delta: f32,
+    pub hypotheses_tested: u64,
+    pub high_confidence_hits: u64,
+    pub estimated_remaining_cost: f32,
+    // Belső állapot az abort döntéshez
+    stagnation_counter: u32,
+    patience_window: u32,
+    max_possible_score: f32,
+}
+
+/// Keresési döntés: folytatás, metszés vagy leállítás.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SearchDecision {
+    Continue,
+    Prune,
+    Abort,
+}
+
+impl SearchTelemetry {
+    /// Új telemetria adott maximális pontszámmal (cellaegyezések maximuma).
+    pub fn new(max_possible_score: f32) -> Self {
+        Self {
+            nodes_expanded: 0,
+            current_depth: 0,
+            branching_factor: 0.0,
+            best_score: 0.0,
+            previous_best_score: 0.0,
+            score_delta: 0.0,
+            hypotheses_tested: 0,
+            high_confidence_hits: 0,
+            estimated_remaining_cost: 0.0,
+            stagnation_counter: 0,
+            patience_window: 20,
+            max_possible_score,
+        }
+    }
+
+    /// Egy csomópont kiterjesztésének rögzítése.
+    /// - `depth`: az aktuális mélység
+    /// - `score`: az aktuális csomópont pontszáma (cellaegyezés)
+    /// - `candidates_count`: a kiterjesztésből származó gyermekek száma
+    /// - `remaining_cost`: becsült hátralévő költség (pl. mismatch)
+    pub fn record_expansion(&mut self, depth: u32, score: f32, candidates_count: usize, remaining_cost: f32) {
+        self.nodes_expanded += 1;
+        self.hypotheses_tested += 1;
+        self.current_depth = depth;
+
+        // Átlagos elágazási tényező frissítése
+        let n = self.nodes_expanded as f32;
+        self.branching_factor = if n > 1.0 {
+            (self.branching_factor * (n - 1.0) + candidates_count as f32) / n
+        } else {
+            candidates_count as f32
+        };
+
+        self.previous_best_score = self.best_score;
+        self.best_score = self.best_score.max(score);
+        self.score_delta = self.best_score - self.previous_best_score;
+
+        self.estimated_remaining_cost = remaining_cost;
+
+        // Magas konfidencia találat, ha a pontszám közel van a maximumhoz
+        if self.max_possible_score > 0.0 && score > 0.9 * self.max_possible_score {
+            self.high_confidence_hits += 1;
+        }
+
+        // Stagnálás számláló frissítése
+        if self.score_delta <= 0.0 && self.nodes_expanded > 1 {
+            self.stagnation_counter += 1;
+        } else {
+            self.stagnation_counter = 0;
+        }
+    }
+
+    /// Döntés, hogy a keresést le kell-e állítani.
+    /// `Abort` akkor, ha a legjobb pontszám tartósan nem javul.
+    pub fn should_abort(&self) -> bool {
+        self.stagnation_counter >= self.patience_window
+    }
+
+    /// A jelenlegi keresési döntés lekérdezése.
+    pub fn decision(&self) -> SearchDecision {
+        if self.should_abort() {
+            SearchDecision::Abort
+        } else if self.score_delta <= 0.0 && self.nodes_expanded > 1 {
+            SearchDecision::Prune
+        } else {
+            SearchDecision::Continue
+        }
+    }
+}
+
 use athlesia_types::{Grid, PrimName, Params, Program, Budget, Color};
 use athlesia_executor::run_program;
 
@@ -356,6 +456,10 @@ fn score_grid(grid: &Grid, target: &Grid) -> usize {
     if grid.width != target.width || grid.height != target.height {
         return 0;
     }
+
+/// Keresés költségvetéssel és telemetriával.
+/// A* keresést végez, gyűjti a telemetriát, és abortál, ha a fejlődés tartósan megáll.
+
     let mut score = 0;
     for i in 0..grid.height as usize {
         for j in 0..grid.width as usize {
@@ -367,4 +471,107 @@ fn score_grid(grid: &Grid, target: &Grid) -> usize {
         }
     }
     score
+}
+
+pub fn search_with_budget(
+    input: &Grid,
+    target: &Grid,
+    max_depth: usize,
+    telemetry: &mut SearchTelemetry,
+) -> Option<Program> {
+    use std::collections::BinaryHeap;
+    use std::cmp::Ordering;
+
+    #[derive(Debug, Clone)]
+    struct Node {
+        program: Program,
+        grid: Grid,
+        depth: usize,
+        f_score: usize,
+    }
+
+    impl PartialEq for Node {
+        fn eq(&self, other: &Self) -> bool {
+            self.f_score == other.f_score && self.program == other.program
+        }
+    }
+    impl Eq for Node {}
+    impl PartialOrd for Node {
+        fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+            Some(self.cmp(other))
+        }
+    }
+    impl Ord for Node {
+        fn cmp(&self, other: &Self) -> Ordering {
+            other.f_score.cmp(&self.f_score)
+        }
+    }
+
+    let total_cells = (target.width as usize) * (target.height as usize);
+    let max_possible_score = total_cells as f32;
+
+    fn mismatch_count(grid: &Grid, target: &Grid) -> usize {
+        if grid.width != target.width || grid.height != target.height {
+            return usize::MAX;
+        }
+        let mut mismatch = 0;
+        for i in 0..grid.height as usize {
+            for j in 0..grid.width as usize {
+                let idx = i * grid.width as usize + j;
+                let tidx = i * target.width as usize + j;
+                if grid.cells[idx] != target.cells[tidx] {
+                    mismatch += 1;
+                }
+            }
+        }
+        mismatch
+    }
+
+    let initial_grid = input.clone();
+    let initial_program = Vec::new();
+    let initial_mismatch = mismatch_count(&initial_grid, target);
+    let initial_score = score_grid(&initial_grid, target);
+    let mut heap = BinaryHeap::new();
+    heap.push(Node {
+        program: initial_program,
+        grid: initial_grid,
+        depth: 0,
+        f_score: initial_mismatch,
+    });
+
+    while let Some(node) = heap.pop() {
+        if telemetry.should_abort() {
+            return None;
+        }
+        if node.grid == *target {
+            return Some(node.program);
+        }
+
+        let score = score_grid(&node.grid, target) as f32;
+        let remaining = mismatch_count(&node.grid, target) as f32;
+        let candidates_count = candidate_primitives(input, target).len();
+        telemetry.record_expansion(node.depth as u32, score, candidates_count, remaining);
+
+        if node.depth >= max_depth {
+            continue;
+        }
+
+        for (prim, params) in candidate_primitives(input, target) {
+            let mut new_program = node.program.clone();
+            new_program.push((prim, params));
+            let mut budget = Budget { max_steps: new_program.len() as u64, max_depth: 100 };
+            if let Ok(new_grid) = run_program(&new_program, input, &mut budget) {
+                let new_depth = node.depth + 1;
+                let new_mismatch = mismatch_count(&new_grid, target);
+                let new_f = new_depth + new_mismatch;
+                heap.push(Node {
+                    program: new_program,
+                    grid: new_grid,
+                    depth: new_depth,
+                    f_score: new_f,
+                });
+            }
+        }
+    }
+    None
 }

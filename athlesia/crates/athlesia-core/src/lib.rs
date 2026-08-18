@@ -4,7 +4,7 @@ use athlesia_features::extract_features;
 use athlesia_metalearner::MetaLearner;
 use athlesia_verifier::{Verifier, VerificationResult};
 use athlesia_synthesis::{synthesize, PrimitiveTemplate};
-use athlesia_search::search;
+use athlesia_search::{search_with_budget, SearchTelemetry};
 
 /// A Manhattan Kernel első tanuló magja.
 /// Összeköti a jellemzőkinyerést, a MetaLearnert, a Verifiert és a Synthesis Engine-t.
@@ -76,15 +76,20 @@ impl CoreEngine {
         }
 
         // 3. Ha a szintézis nem járt sikerrel, próbáljuk a többlépéses keresést
-        if let Some(program) = search(input, target, 3) {
-            steps += 1;
+        let max_score = (target.width as usize * target.height as usize) as f32;
+        let mut telemetry = SearchTelemetry::new(max_score);
+        if let Some(program) = search_with_budget(input, target, 3, &mut telemetry) {
+            steps += telemetry.hypotheses_tested as usize;
             if self.verifier.verify(&program, &vec![(input.clone(), target.clone())]) == VerificationResult::Accept {
                 let id = self.known_programs.len() as u64;
                 self.known_programs.push(program.clone());
                 self.meta.record_success_in_context(fv, id);
+                self.meta.record_search_cost_in_context(fv, id, telemetry.hypotheses_tested as f64);
                 return (Some(program), steps);
             }
         }
+        // Akár talált, akár nem, rögzítsük a keresés költségét a 0-s hipotézishez
+        self.meta.record_search_cost_in_context(fv, 0, telemetry.hypotheses_tested as f64);
 
         (None, steps)
     }
