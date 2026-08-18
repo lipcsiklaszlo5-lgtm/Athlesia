@@ -65,12 +65,12 @@ impl Planner {
                 for action in actions {
                     let query = Query {
                         state: current.clone(),
-                        action,
+                        action: action.clone(),
                     };
                     let uncertainty = wm.uncertainty(&query);
                     if uncertainty > max_uncertainty {
                         max_uncertainty = uncertainty;
-                        best_action = Some(action);
+                        best_action = Some(action.clone());
                     }
                 }
 

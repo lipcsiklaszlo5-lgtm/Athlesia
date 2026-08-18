@@ -166,6 +166,60 @@ pub fn apply_primitive(grid: &Grid, name: &PrimName, params: &Params) -> Grid {
             }
             return grid.clone();
         }
+        PrimName::ConditionalTile => {
+
+            // Az inputot maszkként használjuk: csak azokra a blokk-pozíciókra
+
+            // helyezzük el az inputot, ahol a maszk cella nem háttérszín (0).
+
+            let tile_h = grid.height;
+
+            let tile_w = grid.width;
+
+            let out_h = tile_h * tile_h;
+
+            let out_w = tile_w * tile_w;
+
+            let mut out = Grid::new(out_w as u8, out_h as u8);
+
+            for mask_y in 0..grid.height as i8 {
+
+                for mask_x in 0..grid.width as i8 {
+
+                    if let Some(mask_val) = grid.get(mask_x, mask_y) {
+
+                        if mask_val != Color(0) {
+
+                            let start_x = mask_x * tile_w as i8;
+
+                            let start_y = mask_y * tile_h as i8;
+
+                            for y in 0..grid.height as i8 {
+
+                                for x in 0..grid.width as i8 {
+
+                                    if let Some(cell) = grid.get(x, y) {
+
+                                        out.set(start_x + x, start_y + y, cell);
+
+                                    }
+
+                                }
+
+                            }
+
+                        }
+
+                    }
+
+                }
+
+            }
+
+            return out;
+
+        }
+
         PrimName::RepeatGrid => {
             if let Params::RepeatGrid(k) = params {
                 let k = *k as u8;

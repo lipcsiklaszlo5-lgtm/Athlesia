@@ -70,6 +70,7 @@ pub enum PrimName {
     Tile,
     RepeatGrid,
     BlockMap,
+    ConditionalTile,
     CopyObject,
     MoveTo,
     Connect,
@@ -92,6 +93,7 @@ pub enum Params {
     Tile(usize),
     RepeatGrid(usize),
     BlockMap(usize, usize, Vec<u8>),
+    ConditionalTile,
 }
 
 pub type Program = Vec<(PrimName, Params)>;

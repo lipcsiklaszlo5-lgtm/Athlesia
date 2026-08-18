@@ -12,15 +12,15 @@ fn extracts_frequent_subsequence_as_macro() {
         Color(1), Color(0), Color(2), Color(3), Color(4), Color(5), Color(6), Color(7), Color(8), Color(9)
     ]));
 
-    // Gyakori részsorozat: translate + recolor
-    let pattern: Program = vec![translate, recolor];
+    // Gyakori részsorozat: translate.clone() + recolor.clone()
+    let pattern: Program = vec![translate.clone(), recolor.clone()];
 
     let solved = vec![
         pattern.clone(),
-        vec![translate, recolor, (PrimName::ReflectH, Params::None)],
-        vec![(PrimName::Rotate90, Params::None), translate, recolor],
+        vec![translate.clone(), recolor.clone(), (PrimName::ReflectH, Params::None)],
+        vec![(PrimName::Rotate90, Params::None), translate.clone(), recolor.clone()],
         pattern.clone(),
-        vec![translate, recolor, (PrimName::ReflectV, Params::None)],
+        vec![translate.clone(), recolor.clone(), (PrimName::ReflectV, Params::None)],
     ];
 
     let added = AbstractionEngine::extract_macros(&solved, &mut kb, 4);

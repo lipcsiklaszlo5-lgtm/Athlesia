@@ -69,7 +69,7 @@ fn uncertainty_decreases_with_confidence() {
     let step3 = make_input(3, 0);
 
     let action = Action { prim: PrimName::Translate, params: Params::Translate(1, 0) };
-    let program = vec![(action.prim, action.params)];
+    let program = vec![(action.prim, action.params.clone())];
     let mut wm = WorldModel::new(step0.clone());
     wm.add_hypothesis(program);
 

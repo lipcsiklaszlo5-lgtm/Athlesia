@@ -70,13 +70,13 @@ impl Agent {
 
         if let Some(program) = program {
             let (prim, params) = program[0].clone();
-            let action = Action { prim, params };
+            let action = Action { prim, params: params.clone() };
 
             let prog = vec![(prim, params)];
             if !self.wm.hypotheses.iter().any(|h| h.program == prog) {
                 self.wm.add_hypothesis(prog);
             }
-            self.memory.append_event(InteractionEvent::Action(action));
+            self.memory.append_event(InteractionEvent::Action(action.clone()));
             return action;
         }
 

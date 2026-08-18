@@ -10,19 +10,19 @@ fn extracts_frequent_two_step_macro() {
     let translate: (PrimName, Params) = (PrimName::Translate, Params::Translate(1, 0));
     let recolor: (PrimName, Params) = (PrimName::Recolor, Params::Recolor([Color(1), Color(0), Color(2), Color(3), Color(4), Color(5), Color(6), Color(7), Color(8), Color(9)]));
 
-    // A gyakori kétlépéses minta: translate + recolor
-    let pattern: Program = vec![translate, recolor];
+    // A gyakori kétlépéses minta: translate.clone() + recolor.clone()
+    let pattern: Program = vec![translate.clone(), recolor.clone()];
 
     // Hét megoldott program, mindegyik tartalmazza ezt a mintát,
     // de különböző további lépésekkel.
     let solved = vec![
         pattern.clone(),
-        vec![translate, recolor, (PrimName::ReflectH, Params::None)],
-        vec![(PrimName::Rotate90, Params::None), translate, recolor],
+        vec![translate.clone(), recolor.clone(), (PrimName::ReflectH, Params::None)],
+        vec![(PrimName::Rotate90, Params::None), translate.clone(), recolor.clone()],
         pattern.clone(),
-        vec![translate, recolor, (PrimName::ReflectV, Params::None)],
+        vec![translate.clone(), recolor.clone(), (PrimName::ReflectV, Params::None)],
         pattern.clone(),
-        vec![(PrimName::Translate, Params::Translate(0, 1)), translate, recolor],
+        vec![(PrimName::Translate, Params::Translate(0, 1)), translate.clone(), recolor.clone()],
     ];
 
     let added = AbstractionEngine::extract_macros(&solved, &mut kb, 5);

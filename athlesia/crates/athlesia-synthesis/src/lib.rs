@@ -116,6 +116,42 @@ pub fn synthesize(input: &Grid, target: &Grid, templates: &[PrimitiveTemplate]) 
         }
     }
 
+    // ConditionalTile kipróbálása
+
+
+    if target.width == input.width.saturating_mul(input.width) &&
+
+
+       target.height == input.height.saturating_mul(input.height)
+
+
+    {
+
+
+        let program = vec![(PrimName::ConditionalTile, Params::ConditionalTile)];
+
+
+        let mut budget = Budget { max_steps: 1, max_depth: 100 };
+
+
+        if let Ok(output) = run_program(&program, input, &mut budget) {
+
+
+            if output == *target {
+
+
+                return Some(program);
+
+
+            }
+
+
+        }
+
+
+    }
+
+
     // Dimenzióváltó primitívek induktív kipróbálása.
     // Például 3x3 -> 9x9 esetén RepeatGrid(3) vagy Tile(3).
     if input.width > 0 && input.height > 0 {
