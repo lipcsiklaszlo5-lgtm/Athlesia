@@ -41,6 +41,9 @@ impl SearchEngine for DefaultSearchEngine {
             SearchStrategy::AStar => a_star_search(input, target, max_depth),
             SearchStrategy::AStarWithScore => {
                 let score_fn = |_: &Program, grid: &Grid, target: &Grid, depth: usize| -> usize {
+                    if grid.width != target.width || grid.height != target.height {
+                        return usize::MAX;
+                    }
                     let mut mismatch = 0usize;
                     for y in 0..grid.height as usize {
                         for x in 0..grid.width as usize {
@@ -220,6 +223,9 @@ pub fn a_star_search(input: &Grid, target: &Grid, max_depth: usize) -> Option<Pr
     }
 
     fn heuristic(grid: &Grid, target: &Grid) -> usize {
+        if grid.width != target.width || grid.height != target.height {
+            return 0;
+        }
         let mut diff = 0;
         for i in 0..grid.height as usize {
             for j in 0..grid.width as usize {

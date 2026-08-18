@@ -108,6 +108,16 @@ impl MetaLearner {
         self.failure_archive.contains(&(fv, program.clone()))
     }
 
+
+    /// Egyszerűségi pontszám (Occam-prior): a rövidebb program jobb.
+    /// A komplexitás büntetése: minden lépésért 1.0, a nagyobb mélységért extra.
+    pub fn simplicity_score(&self, program: &Program) -> f64 {
+        let len = program.len() as f64;
+        // Egyszerű lineáris büntetés: minél hosszabb, annál kisebb a pontszám.
+        // 1.0 / (1.0 + len) -> 1.0 az üres programra, csökken a hosszal.
+        1.0 / (1.0 + len)
+    }
+
     /// Zárt alakú, determinisztikus lineáris absztrakció-minőség pontozó.
     ///
     /// A jellemzők:

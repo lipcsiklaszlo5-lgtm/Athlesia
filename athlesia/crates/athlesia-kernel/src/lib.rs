@@ -1,4 +1,5 @@
 
+pub mod cognitive;
 use serde::Deserialize;
 use athlesia_types::{Grid, Color, Action, PrimName, Params, Program, Budget};
 use athlesia_perception::perceive;

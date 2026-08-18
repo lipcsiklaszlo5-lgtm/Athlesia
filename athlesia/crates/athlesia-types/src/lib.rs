@@ -112,3 +112,13 @@ pub struct Action {
     pub prim: PrimName,
     pub params: Params,
 }
+
+
+/// Kemény kényszer megsértése (például érvénytelen koordináta vagy dimenzió).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum HardConstraintError {
+    InvalidCoordinate { x: i8, y: i8 },
+    InvalidDimensions { expected_width: u8, expected_height: u8 },
+    InvalidColorValue { color: u8 },
+    InvalidAction { action: String },
+}
