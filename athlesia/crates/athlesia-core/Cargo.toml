@@ -4,6 +4,10 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+athlesia-knowledge = { path = "../athlesia-knowledge" }
+athlesia-abstraction = { path = "../athlesia-abstraction" }
+athlesia-hypothesis = { path = "../athlesia-hypothesis" }
+athlesia-world-model = { path = "../athlesia-world-model" }
 athlesia-search = { path = "../athlesia-search" }
 athlesia-types = { path = "../athlesia-types" }
 athlesia-executor = { path = "../athlesia-executor" }

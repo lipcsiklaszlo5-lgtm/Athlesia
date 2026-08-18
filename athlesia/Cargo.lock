@@ -16,13 +16,17 @@ dependencies = [
 name = "athlesia-core"
 version = "0.1.0"
 dependencies = [
+ "athlesia-abstraction",
  "athlesia-executor",
  "athlesia-features",
+ "athlesia-hypothesis",
+ "athlesia-knowledge",
  "athlesia-metalearner",
  "athlesia-search",
  "athlesia-synthesis",
  "athlesia-types",
  "athlesia-verifier",
+ "athlesia-world-model",
 ]
 
 [[package]]
