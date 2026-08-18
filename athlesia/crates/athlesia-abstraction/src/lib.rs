@@ -56,7 +56,7 @@ impl AbstractionEngine {
             // Itt egyszerű proxy: a minta hossza * előfordulás - a minta hossza.
             // Minél hosszabb és gyakoribb, annál nagyobb a nyereség.
             let gain = (pattern.len() as i64) * (count as i64 - 1) - 1;
-            if gain <= 0 {
+            if gain < 0 {
                 continue;
             }
 

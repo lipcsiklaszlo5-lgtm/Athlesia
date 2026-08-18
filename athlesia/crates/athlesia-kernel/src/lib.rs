@@ -10,6 +10,7 @@ use athlesia_verifier::{Verifier, VerificationResult};
 
 use athlesia_planner::{Planner, PlannerMode};
 use athlesia_core::CoreEngine;
+use athlesia_abstraction::AbstractionEngine;
 use athlesia_synthesis::{synthesize, PrimitiveTemplate};
 use crate::cognitive::{CognitiveController, CognitiveDecision};
 
@@ -51,6 +52,40 @@ pub struct Agent {
 }
 
 impl Agent {
+    /// Az epizodikus memóriában lévő programokból absztrakció kinyerése.
+    /// Az AbstractionEngine a gyakori programmintákat makrókká emeli,
+    /// és a tudásbázisba valamint a CoreEngine ismert programjai közé teszi.
+    pub fn abstract_from_episodes(&mut self) {
+        let solved_programs: Vec<Program> = self
+            .memory
+            .episodic
+            .iter()
+            .map(|ep| ep.program.clone())
+            .collect();
+
+        if solved_programs.len() < 2 {
+            return;
+        }
+
+        let added = AbstractionEngine::extract_macros(&solved_programs, &mut self.kb, 2);
+        if added > 0 {
+            // Az új makrókat a CoreEngine ismert programjaihoz adjuk,
+            // hogy a későbbi megoldások során használhatók legyenek.
+            let macros: Vec<Program> = self
+                .kb
+                .get_all_macros()
+                .iter()
+                .map(|m| m.program.clone())
+                .collect();
+            for program in macros {
+                if !self.core.known_programs.contains(&program) {
+                    self.core.known_programs.push(program);
+                }
+            }
+        }
+    }
+
+
     pub fn new(initial_grid: Grid) -> Self {
         Agent {
             wm: WorldModel::new(initial_grid.clone()),
@@ -171,6 +206,8 @@ pub fn solve_arc_json(task_json: &str) -> (Option<Grid>, Grid) {
             break;
         }
     }
+
+    agent.abstract_from_episodes();
 
     (predicted, test_expected)
 }
