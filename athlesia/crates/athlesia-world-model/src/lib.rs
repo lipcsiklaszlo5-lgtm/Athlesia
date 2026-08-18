@@ -61,6 +61,25 @@ pub struct PredictionError {
     pub feature_mismatch: usize,
 }
 
+
+/// A tudás állapota a jelenlegi hipotézistér és a megfigyelés viszonyában.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum KnowledgeState {
+    Explained,
+    Uncertain,
+    Contradicted,
+    OutOfModel,
+}
+
+/// Predikciós reziduális: strukturált különbség a várt és megfigyelt állapot között.
+#[derive(Debug, Clone)]
+pub struct PredictionResidual {
+    pub expected_observation: Observation,
+    pub observed_observation: Observation,
+    pub mismatch_score: f64,
+    pub unexplained_features: Vec<String>,
+}
+
 #[derive(Debug)]
 pub struct WorldModel {
     pub current_state: State,
@@ -169,6 +188,35 @@ impl WorldModel {
         if let Some(hyp) = self.hypotheses.iter_mut().find(|h| h.id == hypothesis_id) {
             hyp.evidence_against += 1;
             hyp.status = HypothesisStatus::Falsified;
+        }
+    }
+
+
+    /// Kiértékeli a predikciót a megfigyeléshez képest.
+    ///
+    /// - Ha a predikció állapota egyezik a megfigyelttel -> Explained
+    /// - Ha van illeszkedő hipotézis, de a predikció rossz -> Contradicted
+    /// - Ha nincs hipotézis egyáltalán -> Uncertain
+    /// - Különben (vannak hipotézisek, de egyik sem illik az akcióra) -> OutOfModel
+    pub fn evaluate_prediction(
+        &self,
+        action: &Action,
+        prediction: &Prediction,
+        observation: &Observation,
+    ) -> KnowledgeState {
+        if prediction.state == observation.state {
+            return KnowledgeState::Explained;
+        }
+
+        let action_program = vec![(action.prim, action.params.clone())];
+        let matching_hypothesis = self.hypotheses.iter().any(|h| h.program == action_program);
+
+        if matching_hypothesis {
+            KnowledgeState::Contradicted
+        } else if self.hypotheses.is_empty() {
+            KnowledgeState::Uncertain
+        } else {
+            KnowledgeState::OutOfModel
         }
     }
 
