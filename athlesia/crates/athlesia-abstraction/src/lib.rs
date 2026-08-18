@@ -132,10 +132,21 @@ impl AbstractionEngine {
             }
         }
 
-        let (relation_pattern, count) = freq
-            .into_iter()
-            .max_by_key(|(_, count)| *count)
-            .unwrap_or(("pixel_mismatch", positive.len()));
+        // Ha van objektum-szintű változás, azt részesítsük előnyben a nyers
+        // pixel_mismatch-sel szemben.
+        let relation_pattern = if freq.contains_key("object_count_changed") {
+            "object_count_change(A,B)".to_string()
+        } else {
+            freq.iter()
+                .max_by_key(|(_, count)| *count)
+                .map(|(feature, _)| feature.to_string())
+                .unwrap_or_else(|| "pixel_mismatch".to_string())
+        };
+
+        let count = freq
+            .get(relation_pattern.as_str())
+            .copied()
+            .unwrap_or(positive.len());
 
         // Átlagos mismatch_score mint kezdeti confidence.
         let avg_mismatch = positive
