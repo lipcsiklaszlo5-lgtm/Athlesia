@@ -151,6 +151,27 @@ impl Planner {
         }
     }
 
+
+    /// Egyetlen egyszerű kísérleti akciót választ a candidate concept alapján.
+    ///
+    /// Jelenleg csak a relation_pattern stringjére hagyatkozik:
+    /// - ha tartalmazza az "interaction" szót, Translate(1,0)
+    /// - ha tartalmazza a "symmetry" szót, ReflectH
+    /// - különben Translate(0,1)
+    ///
+    /// Ez egy placeholder heurisztika, amit később információnyerés-alapú
+    /// diszkriminatív akcióválasztással váltunk ki.
+    pub fn select_probe_action(&self, candidate: &CandidateConcept) -> Action {
+        let pattern = candidate.sketch.relation_pattern.to_lowercase();
+        if pattern.contains("interaction") {
+            Action { prim: PrimName::Translate, params: Params::Translate(1, 0) }
+        } else if pattern.contains("symmetry") {
+            Action { prim: PrimName::ReflectH, params: Params::None }
+        } else {
+            Action { prim: PrimName::Translate, params: Params::Translate(0, 1) }
+        }
+    }
+
     /// Kiválasztja a legjobb akciót a megadott súlyokkal.
     ///
     /// `value = α * info_gain + β * progress - γ * cost - δ * risk`
