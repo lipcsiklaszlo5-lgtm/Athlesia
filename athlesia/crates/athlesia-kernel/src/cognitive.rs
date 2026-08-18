@@ -123,7 +123,12 @@ impl CognitiveController {
 
         // A prediktált keresési költség becslése (most egyszerű: minél alacsonyabb
         // a konfidencia, annál drágább a keresés).
-        let predicted_search_cost = 100.0 * (1.0 - conf);
+        // A prediktált keresési költség becslése. Ha a meta learner már tanult
+        // költséget, használjuk azt, különben konfidencia-alapú heurisztika.
+        let predicted_search_cost = meta
+            .estimated_cost(*features, 0)
+            .map(|c| c as f32)
+            .unwrap_or_else(|| 100.0 * (1.0 - conf));
 
         // Az elvárt információnyerés: bizonytalanság esetén magasabb.
         let expected_information_gain = 1.0 - conf;

@@ -8,6 +8,8 @@ use athlesia_features::FeatureVector;
 pub struct HypothesisScore {
     pub successes: u32,
     pub failures: u32,
+    pub total_cost: f64,
+    pub cost_samples: u32,
 }
 
 /// A Manhattan Kernel MetaLearner modulja.
@@ -141,5 +143,41 @@ impl MetaLearner {
         } else {
             score
         }
+    }
+}
+
+
+impl MetaLearner {
+    /// Keresési költség rögzítése kontextusban.
+    /// A költség (pl. megtett keresési lépések száma) átlagolva tárolódik.
+    pub fn record_search_cost_in_context(&mut self, context: FeatureVector, hyp_id: u64, cost: f64) {
+        let score = self
+            .context_scores
+            .entry((context, hyp_id))
+            .or_insert(HypothesisScore::default());
+        score.total_cost += cost;
+        score.cost_samples += 1;
+
+        if let Some(global) = self.global_scores.get_mut(&hyp_id) {
+            global.total_cost += cost;
+            global.cost_samples += 1;
+        }
+    }
+
+    /// Átlagos keresési költség becslése adott kontextusban.
+    /// Ha nincs elég adat, visszaesik a globális költségre,
+    /// ha az sincs, akkor `None`-t ad.
+    pub fn estimated_cost(&self, context: FeatureVector, hyp_id: u64) -> Option<f64> {
+        if let Some(score) = self.context_scores.get(&(context, hyp_id)) {
+            if score.cost_samples > 0 {
+                return Some(score.total_cost / score.cost_samples as f64);
+            }
+        }
+        if let Some(score) = self.global_scores.get(&hyp_id) {
+            if score.cost_samples > 0 {
+                return Some(score.total_cost / score.cost_samples as f64);
+            }
+        }
+        None
     }
 }
