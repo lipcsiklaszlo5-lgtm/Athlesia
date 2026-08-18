@@ -262,6 +262,19 @@ impl WorldModel {
         }
     }
 
+    /// Egyetlen hívás, amely visszaadja a tudásállapotot és a reziduálist is.
+    /// Ez a Phase 13 későbbi ciklusának alapművelete.
+    pub fn evaluate_with_residual(
+        &self,
+        action: &Action,
+        prediction: &Prediction,
+        observation: &Observation,
+    ) -> (KnowledgeState, PredictionResidual) {
+        let state = self.evaluate_prediction(action, prediction, observation);
+        let residual = self.compute_prediction_residual(action, prediction, observation);
+        (state, residual)
+    }
+
     /// A predikciós hiba tárolása későbbi absztrakcióhoz.
     pub fn record_prediction_error(&mut self, error: PredictionError) {
         self.recent_errors.push(error);
