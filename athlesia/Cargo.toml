@@ -1,5 +1,5 @@
 [workspace]
-members = ["crates/athlesia-types", "crates/athlesia-executor", "crates/athlesia-perception", "crates/athlesia-world-model", "crates/athlesia-features", "crates/athlesia-metalearner", "crates/athlesia-verifier", "crates/athlesia-synthesis", "crates/athlesia-core", "crates/athlesia-search", "crates/athlesia-memory", "crates/athlesia-knowledge", "crates/athlesia-abstraction", "crates/athlesia-hypothesis", "crates/athlesia-planner", "crates/athlesia-kernel"]
+members = ["crates/athlesia-types", "crates/athlesia-executor", "crates/athlesia-perception", "crates/athlesia-world-model", "crates/athlesia-features", "crates/athlesia-metalearner", "crates/athlesia-verifier", "crates/athlesia-synthesis", "crates/athlesia-core", "crates/athlesia-search", "crates/athlesia-memory", "crates/athlesia-knowledge", "crates/athlesia-abstraction", "crates/athlesia-hypothesis", "crates/athlesia-planner", "crates/athlesia-kernel", "crates/athlesia-interactive"]
 [workspace.package]
 version = "0.1.0"
 edition = "2021"

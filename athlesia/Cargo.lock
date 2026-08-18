@@ -49,6 +49,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "athlesia-interactive"
+version = "0.1.0"
+dependencies = [
+ "athlesia-types",
+]
+
+[[package]]
 name = "athlesia-kernel"
 version = "0.1.0"
 dependencies = [
