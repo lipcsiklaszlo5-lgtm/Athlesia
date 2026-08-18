@@ -1,4 +1,12 @@
+#!/usr/bin/env python3
+import pathlib, subprocess, sys
 
+def write_file(path, content):
+    pathlib.Path(path).parent.mkdir(parents=True, exist_ok=True)
+    with open(path, "w", encoding="utf-8") as f:
+        f.write(content)
+
+content = r'''
 use athlesia_world_model::{WorldModel, KnowledgeState, Prediction, Observation};
 use athlesia_abstraction::AbstractionEngine;
 use athlesia_knowledge::KnowledgeBase;
@@ -112,3 +120,55 @@ impl OpenWorldCycle {
         }
     }
 }
+'''
+
+write_file("crates/athlesia-core/src/openworld.rs", content)
+print("[1] openworld.rs teljes újraírva, zárójelhiba megszüntetve.")
+
+# Core tesztek futtatása
+result = subprocess.run(
+    ["cargo", "test", "-p", "athlesia-core"],
+    capture_output=True,
+    text=True,
+    check=False,
+)
+print(result.stdout)
+print(result.stderr)
+if result.returncode != 0:
+    print("\n[FAILURE] Core tesztek nem mentek át.")
+    sys.exit(1)
+print("\n[SUCCESS] Core tesztek zöldek.")
+
+# Kernel tesztek futtatása
+result = subprocess.run(
+    ["cargo", "test", "-p", "athlesia-kernel"],
+    capture_output=True,
+    text=True,
+    check=False,
+)
+print(result.stdout)
+print(result.stderr)
+if result.returncode != 0:
+    print("\n[FAILURE] Kernel tesztek nem mentek át.")
+    sys.exit(1)
+print("\n[SUCCESS] Kernel tesztek zöldek.")
+
+# Teljes workspace teszt
+result = subprocess.run(
+    ["cargo", "test", "--workspace", "--no-fail-fast"],
+    capture_output=True,
+    text=True,
+    check=False,
+)
+print(result.stdout)
+print(result.stderr)
+if result.returncode != 0:
+    print("\n[FAILURE] Teljes workspace tesztek nem mentek át.")
+    sys.exit(1)
+print("\n[SUCCESS] Teljes workspace tesztek zöldek.")
+
+# Git commit és push
+subprocess.run(["git", "add", "-A"], check=True)
+subprocess.run(["git", "commit", "-m", "Rewrite openworld.rs with clean method boundaries to fix stray delimiter"], check=True)
+subprocess.run(["git", "push"], check=True)
+print("[INFO] Git commit és push sikeres.")

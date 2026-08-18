@@ -155,12 +155,13 @@ impl Agent {
     ) -> OpenWorldOutcome {
         let current_state = self.wm.current_state.clone();
         let prediction = self.wm.predict(&current_state, action);
-        OpenWorldCycle::run_with_outcome(
+        OpenWorldCycle::run_with_meta(
             &self.wm,
             action,
             &prediction,
             observation,
             &mut self.kb,
+            &mut self.core.meta,
         )
     }
 }
