@@ -144,8 +144,10 @@ impl Planner {
     /// Jelenleg egyszerű placeholder: az akciósor üres, de a célhipotézis
     /// neve rögzítve van. A következő mikrolépésekben lesz diszkriminatív.
     pub fn plan_experiment(&self, candidate: &CandidateConcept) -> ExperimentPlan {
+        // A kísérleti akciót a jelenlegi heurisztika alapján választjuk.
+        let probe_action = self.select_probe_action(candidate);
         ExperimentPlan {
-            actions: Vec::new(),
+            actions: vec![probe_action],
             target_hypothesis: candidate.sketch.name.clone(),
             expected_observation: candidate.sketch.relation_pattern.clone(),
         }

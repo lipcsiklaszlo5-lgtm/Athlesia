@@ -18,5 +18,6 @@ fn plan_experiment_returns_plan_with_target_hypothesis() {
     let plan: ExperimentPlan = planner.plan_experiment(&candidate);
     assert_eq!(plan.target_hypothesis, "RepeatedInteraction");
     assert_eq!(plan.expected_observation, "interaction(A,B)");
-    assert!(plan.actions.is_empty());
+    assert_eq!(plan.actions.len(), 1);
+    assert_eq!(plan.actions[0].prim, athlesia_types::PrimName::Translate);
 }
