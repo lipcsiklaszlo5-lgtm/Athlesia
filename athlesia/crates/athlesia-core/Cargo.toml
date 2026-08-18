@@ -15,3 +15,6 @@ athlesia-features = { path = "../athlesia-features" }
 athlesia-metalearner = { path = "../athlesia-metalearner" }
 athlesia-verifier = { path = "../athlesia-verifier" }
 athlesia-synthesis = { path = "../athlesia-synthesis" }
+
+[dev-dependencies]
+athlesia-interactive = { path = "../athlesia-interactive" }

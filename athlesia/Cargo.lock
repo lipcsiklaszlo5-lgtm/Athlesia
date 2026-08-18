@@ -20,6 +20,7 @@ dependencies = [
  "athlesia-executor",
  "athlesia-features",
  "athlesia-hypothesis",
+ "athlesia-interactive",
  "athlesia-knowledge",
  "athlesia-metalearner",
  "athlesia-search",
