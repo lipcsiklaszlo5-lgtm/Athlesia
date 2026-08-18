@@ -3,7 +3,7 @@ use athlesia_world_model::{WorldModel, KnowledgeState, Prediction, Observation};
 use athlesia_abstraction::AbstractionEngine;
 use athlesia_knowledge::KnowledgeBase;
 use athlesia_metalearner::MetaLearner;
-use athlesia_planner::{Planner, PlannerMode};
+use athlesia_planner::{Planner, PlannerMode, ExperimentRequest};
 use athlesia_types::Action;
 
 /// Open-world ciklus: reziduálisból fogalomjelölt, majd egyszerű verifikáció.
@@ -101,6 +101,35 @@ impl OpenWorldCycle {
 
         let planner = Planner::new(PlannerMode::Exploration);
         Some(planner.plan_experiment_request(&candidate))
+    }
+
+
+    /// Generikus kísérleti ciklus.
+    ///
+    /// A megadott `execute` closure végrehajtja az `ExperimentRequest` akcióját,
+    /// és visszaadja a megfigyelt állapotot. Ezután az OpenWorldCycle
+    /// lefuttatja a fogalomtanulást a predikció és a megfigyelés alapján.
+    ///
+    /// F: FnMut(&Action) -> Observation
+    pub fn run_experiment_cycle<F>(
+        wm: &WorldModel,
+        kb: &mut KnowledgeBase,
+        meta: &mut MetaLearner,
+        request: ExperimentRequest,
+        mut execute: F,
+    ) -> OpenWorldOutcome
+    where
+        F: FnMut(&Action) -> Observation,
+    {
+        // Predikció készítése a jelenlegi állapotból.
+        let current_state = wm.current_state.clone();
+        let prediction = wm.predict(&current_state, &request.action);
+
+        // Az akció végrehajtása a külvilág által.
+        let observation = execute(&request.action);
+
+        // OpenWorld futtatása a megfigyeléssel.
+        Self::run_with_meta(wm, &request.action, &prediction, &observation, kb, meta)
     }
 
     /// Az open-world ciklus kimenettel együtt (MetaLearner nélkül).
