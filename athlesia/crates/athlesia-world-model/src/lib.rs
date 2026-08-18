@@ -220,6 +220,48 @@ impl WorldModel {
         }
     }
 
+    /// Strukturált predikciós reziduális előállítása.
+    /// - mismatch_score: 0.0 = nincs eltérés, 1.0 = teljes eltérés vagy dimenzióeltérés.
+    /// - unexplained_features: jelenleg alapvető "pixel_mismatch" jelzés, ha eltérés van.
+    pub fn compute_prediction_residual(
+        &self,
+        _action: &Action,
+        prediction: &Prediction,
+        observation: &Observation,
+    ) -> PredictionResidual {
+        let mismatch_score = if prediction.state.width != observation.state.width
+            || prediction.state.height != observation.state.height
+        {
+            1.0
+        } else {
+            let total = (prediction.state.width as usize) * (prediction.state.height as usize);
+            if total == 0 {
+                0.0
+            } else {
+                let mismatches = prediction
+                    .state
+                    .cells
+                    .iter()
+                    .zip(observation.state.cells.iter())
+                    .filter(|(a, b)| a != b)
+                    .count();
+                mismatches as f64 / total as f64
+            }
+        };
+
+        let mut unexplained_features = Vec::new();
+        if mismatch_score > 0.0 {
+            unexplained_features.push("pixel_mismatch".to_string());
+        }
+
+        PredictionResidual {
+            expected_observation: Observation { state: prediction.state.clone() },
+            observed_observation: observation.clone(),
+            mismatch_score,
+            unexplained_features,
+        }
+    }
+
     /// A predikciós hiba tárolása későbbi absztrakcióhoz.
     pub fn record_prediction_error(&mut self, error: PredictionError) {
         self.recent_errors.push(error);
