@@ -2,6 +2,7 @@
 use athlesia_types::{Grid, PrimName, Params, Program, Action};
 use athlesia_search::{SearchEngine, DefaultSearchEngine, SearchStrategy};
 use athlesia_world_model::{WorldModel, Query};
+use athlesia_hypothesis::CandidateConcept;
 
 /// A tervező üzemmódja.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -20,6 +21,14 @@ pub struct ActionValue {
     pub risk: f32,
 }
 
+
+/// Kísérleti terv a candidate concept aktív verifikálásához.
+#[derive(Debug, Clone)]
+pub struct ExperimentPlan {
+    pub actions: Vec<athlesia_types::Action>,
+    pub target_hypothesis: String,
+    pub expected_observation: String,
+}
 
 /// A Manhattan Kernel tervezője.
 ///
@@ -128,6 +137,17 @@ impl Planner {
             expected_progress: progress,
             action_cost: 1.0,
             risk: 0.0,
+        }
+    }
+
+    /// Kísérleti tervet készít egy candidate concept alapján.
+    /// Jelenleg egyszerű placeholder: az akciósor üres, de a célhipotézis
+    /// neve rögzítve van. A következő mikrolépésekben lesz diszkriminatív.
+    pub fn plan_experiment(&self, candidate: &CandidateConcept) -> ExperimentPlan {
+        ExperimentPlan {
+            actions: Vec::new(),
+            target_hypothesis: candidate.sketch.name.clone(),
+            expected_observation: candidate.sketch.relation_pattern.clone(),
         }
     }
 

@@ -114,6 +114,7 @@ dependencies = [
 name = "athlesia-planner"
 version = "0.1.0"
 dependencies = [
+ "athlesia-hypothesis",
  "athlesia-search",
  "athlesia-types",
  "athlesia-world-model",
