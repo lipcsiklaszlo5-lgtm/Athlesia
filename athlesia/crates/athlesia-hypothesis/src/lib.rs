@@ -14,6 +14,24 @@ pub struct CandidateHypothesis {
     pub program: Program,
 }
 
+
+/// Absztrakt fogalomvázlat: relációs mintát ír le anélkül,
+/// hogy konkrét primitívre vagy programra hivatkozna.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ConceptSketch {
+    pub name: String,
+    pub relation_pattern: String,
+    pub objects_involved: Vec<u64>,
+}
+
+/// Jelölt fogalom, amelyet még nem igazoltak.
+#[derive(Debug, Clone, PartialEq)]
+pub struct CandidateConcept {
+    pub sketch: ConceptSketch,
+    pub evidence: Vec<String>,
+    pub confidence: f64,
+}
+
 /// Statikus javasló: a tudásbázisban található primitívekből, makrókból
 /// és fogalmakból generál jelölt programokat. Ez a legegyszerűbb,
 /// determinisztikus választás. Az LLM-alapú javasló ezt fogja kiegészíteni.
