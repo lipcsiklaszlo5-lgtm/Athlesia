@@ -12,7 +12,8 @@ impl OpenWorldCycle {
     ///
     /// 1. Kiértékeli a predikciót (tudásállapot + reziduális).
     /// 2. Ha OutOfModel, a reziduálisból candidate conceptet generál.
-    /// 3. Ha a candidate confidence elég magas, verifikálja és beilleszti a KB-be.
+    /// 3. Ha a candidate relation_pattern már létezik a KB-ben, visszaadja azt.
+    /// 4. Különben, ha a candidate confidence elég magas, verifikálja és beilleszti a KB-be.
     pub fn run(
         wm: &WorldModel,
         action: &Action,
@@ -28,8 +29,17 @@ impl OpenWorldCycle {
         let residuals = vec![residual];
         let candidate = AbstractionEngine::discover_candidate_concept(&residuals)?;
 
+        // Transfer: ha már van ilyen kapcsolati mintánk, használjuk azt.
+        if let Some(existing) = kb
+            .get_verified_concepts()
+            .iter()
+            .find(|c| c.relation_pattern == candidate.sketch.relation_pattern)
+        {
+            return Some(existing.clone());
+        }
+
         // Egyszerű verifikáció: ha a candidate confidence elér egy küszöböt,
-        // igazolt fogalomként kezeljük.
+        // igazolt fogalomként tároljuk.
         if candidate.confidence >= 0.5 {
             let verified = athlesia_knowledge::VerifiedConcept {
                 id: kb.get_verified_concepts().len() as u64,
