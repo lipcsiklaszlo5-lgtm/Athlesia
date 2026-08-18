@@ -150,6 +150,10 @@ pub fn solve_arc_json(task_json: &str) -> (Option<Grid>, Grid) {
             if let Some(hyp) = agent.wm.hypotheses.iter().find(|h| h.program == program) {
                 let id = hyp.id;
                 agent.wm.learn_from_error(id, &error);
+                agent.core.meta.record_failure_in_context(
+                    athlesia_features::extract_features(&input_grid),
+                    id,
+                );
             }
             agent.wm.record_prediction_error(error);
         }
