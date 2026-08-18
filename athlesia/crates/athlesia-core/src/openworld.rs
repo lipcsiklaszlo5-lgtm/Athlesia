@@ -43,6 +43,11 @@ impl OpenWorldCycle {
             None => return OpenWorldOutcome::Abstain,
         };
 
+        // Ha ezt a fogalmat korábban már elvetettük, ne próbáljuk újra.
+        // A MetaLearner failure_archive-ját itt nem közvetlenül érjük el,
+        // mert az OpenWorldCycle nem kap MetaLearner referenciát.
+        // Ezért a KnowledgeBase-ben egy egyszerű "failed" archívumot használunk.
+        // (A MetaLearner integráció a következő mikrostepben történik.)
         if let Some(existing) = kb
             .get_verified_concepts()
             .iter()

@@ -22,6 +22,7 @@ pub struct MetaLearner {
     pub global_scores: HashMap<u64, HypothesisScore>,
     pub context_scores: HashMap<(FeatureVector, u64), HypothesisScore>,
     pub failure_archive: std::collections::HashSet<(FeatureVector, Program)>,
+    pub failed_concepts: std::collections::HashSet<String>,
 }
 
 impl MetaLearner {
@@ -179,5 +180,18 @@ impl MetaLearner {
             }
         }
         None
+    }
+}
+
+
+impl MetaLearner {
+    /// Kudarcos fogalom relation_pattern rögzítése.
+    pub fn record_failed_concept(&mut self, relation_pattern: String) {
+        self.failed_concepts.insert(relation_pattern);
+    }
+
+    /// Ellenőrzi, hogy egy relation_pattern korábban kudarcot vallott-e.
+    pub fn is_known_failed_concept(&self, relation_pattern: &str) -> bool {
+        self.failed_concepts.contains(relation_pattern)
     }
 }
