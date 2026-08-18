@@ -20,7 +20,7 @@ pub struct Concept {
 
 
 /// Igazolt fogalom: olyan fogalom, amelyet kísérletekkel megerősítettünk.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct VerifiedConcept {
     pub id: u64,
     pub name: String,
