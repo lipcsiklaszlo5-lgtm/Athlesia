@@ -250,3 +250,98 @@ impl HierarchyRecognizer {
             .collect()
     }
 }
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct HierarchyPrediction {
+    hierarchy: HierarchicalConcept,
+    observed_children: usize,
+    missing_children: Vec<StructuralConcept>,
+}
+
+impl HierarchyPrediction {
+    pub fn hierarchy(&self) -> &HierarchicalConcept {
+        &self.hierarchy
+    }
+
+    pub const fn observed_children(&self) -> usize {
+        self.observed_children
+    }
+
+    pub fn missing_children(&self) -> &[StructuralConcept] {
+        &self.missing_children
+    }
+
+    pub fn missing_count(&self) -> usize {
+        self.missing_children.len()
+    }
+
+    pub fn is_single_step_completion(&self) -> bool {
+        self.missing_children.len() == 1
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct HierarchyPredictor;
+
+impl HierarchyPredictor {
+    pub const fn new() -> Self {
+        Self
+    }
+
+    pub fn predict(
+        &self,
+        hierarchy: &HierarchicalConcept,
+        observation: &HierarchyObservation,
+    ) -> Option<HierarchyPrediction> {
+        let observed_children = hierarchy
+            .children()
+            .iter()
+            .filter(|child| observation.concepts().binary_search(child).is_ok())
+            .count();
+
+        if observed_children == 0 || observed_children == hierarchy.arity() {
+            return None;
+        }
+
+        let missing_children = hierarchy
+            .children()
+            .iter()
+            .filter(|child| observation.concepts().binary_search(child).is_err())
+            .cloned()
+            .collect();
+
+        Some(HierarchyPrediction {
+            hierarchy: hierarchy.clone(),
+            observed_children,
+            missing_children,
+        })
+    }
+
+    pub fn predict_memory(
+        &self,
+        memory: &HierarchicalMemory,
+        observation: &HierarchyObservation,
+    ) -> Vec<HierarchyPrediction> {
+        let mut predictions: Vec<HierarchyPrediction> = memory
+            .concepts()
+            .filter_map(|hierarchy| self.predict(hierarchy, observation))
+            .collect();
+
+        predictions.sort_by(|left, right| {
+            left.missing_count()
+                .cmp(&right.missing_count())
+                .then_with(|| right.observed_children().cmp(&left.observed_children()))
+                .then_with(|| left.hierarchy().cmp(right.hierarchy()))
+        });
+
+        predictions
+    }
+
+    pub fn best_prediction(
+        &self,
+        memory: &HierarchicalMemory,
+        observation: &HierarchyObservation,
+    ) -> Option<HierarchyPrediction> {
+        self.predict_memory(memory, observation).into_iter().next()
+    }
+}
