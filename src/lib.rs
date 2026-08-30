@@ -1,6 +1,7 @@
 pub mod concept;
 pub mod encoder;
 pub mod hypothesis;
+pub mod prediction;
 pub mod primitive;
 pub mod recognition;
 pub mod relation;
@@ -10,6 +11,10 @@ pub mod structure;
 pub use concept::{ConceptConsolidator, ConceptMemory, StructuralConcept};
 pub use encoder::Encoder;
 pub use hypothesis::{HypothesisInducer, PrimitiveSignature, StructuralHypothesis};
+pub use prediction::{
+    PartialStructuralState, PredictionEngine, PredictionError, PredictionRule,
+    PredictiveStructuralModel,
+};
 pub use primitive::{PrimitiveDiscovery, PrimitiveOccurrence, StructuralPrimitive};
 pub use recognition::{RecognitionEngine, RecognitionResult};
 pub use relation::{RelationKind, RelationalStructure, StructuralRelation};
