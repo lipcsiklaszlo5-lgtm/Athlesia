@@ -271,3 +271,92 @@ const fn status_rank(status: RevisionStatus) -> u8 {
         RevisionStatus::Weakened => 3,
     }
 }
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct DiscriminativeExperiment {
+    signature: athlesia::PrimitiveSignature,
+    supporting_models: usize,
+    opposing_models: usize,
+}
+
+impl DiscriminativeExperiment {
+    pub const fn signature(&self) -> athlesia::PrimitiveSignature {
+        self.signature
+    }
+
+    pub const fn supporting_models(&self) -> usize {
+        self.supporting_models
+    }
+
+    pub const fn opposing_models(&self) -> usize {
+        self.opposing_models
+    }
+
+    pub const fn discrimination_gain(&self) -> usize {
+        self.supporting_models * self.opposing_models
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct DiscriminativeExperimentSelector;
+
+impl DiscriminativeExperimentSelector {
+    pub const fn new() -> Self {
+        Self
+    }
+
+    pub fn generate(&self, models: &CompetingModels) -> Vec<DiscriminativeExperiment> {
+        use std::collections::BTreeSet;
+
+        let assessments = models.assessments();
+
+        let active: Vec<&ModelAssessment> = assessments
+            .iter()
+            .filter(|assessment| assessment.status() != RevisionStatus::Weakened)
+            .collect();
+
+        if active.len() < 2 {
+            return Vec::new();
+        }
+
+        let signatures: BTreeSet<athlesia::PrimitiveSignature> = active
+            .iter()
+            .flat_map(|assessment| assessment.concept().signatures().iter().copied())
+            .collect();
+
+        let mut candidates: Vec<DiscriminativeExperiment> = signatures
+            .into_iter()
+            .filter_map(|signature| {
+                let supporting_models = active
+                    .iter()
+                    .filter(|assessment| assessment.concept().contains(signature))
+                    .count();
+
+                let opposing_models = active.len() - supporting_models;
+
+                if supporting_models == 0 || opposing_models == 0 {
+                    return None;
+                }
+
+                Some(DiscriminativeExperiment {
+                    signature,
+                    supporting_models,
+                    opposing_models,
+                })
+            })
+            .collect();
+
+        candidates.sort_by(|left, right| {
+            right
+                .discrimination_gain()
+                .cmp(&left.discrimination_gain())
+                .then_with(|| left.signature.cmp(&right.signature))
+        });
+
+        candidates
+    }
+
+    pub fn select(&self, models: &CompetingModels) -> Option<DiscriminativeExperiment> {
+        self.generate(models).into_iter().next()
+    }
+}
