@@ -234,3 +234,134 @@ impl RecursivePlanningMemory {
         RecursivePlanningSuccessorGenerator::new().generate(self, state)
     }
 }
+
+use std::collections::BTreeMap;
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct RecursivePlanningPlan {
+    start: RecursivePlanningState,
+    goal: RecursivePlanningGoal,
+    transitions: Vec<RecursivePlanningTransition>,
+    final_state: RecursivePlanningState,
+    total_cost: usize,
+}
+
+impl RecursivePlanningPlan {
+    pub fn start(&self) -> &RecursivePlanningState {
+        &self.start
+    }
+
+    pub fn goal(&self) -> &RecursivePlanningGoal {
+        &self.goal
+    }
+
+    pub fn transitions(&self) -> &[RecursivePlanningTransition] {
+        &self.transitions
+    }
+
+    pub fn final_state(&self) -> &RecursivePlanningState {
+        &self.final_state
+    }
+
+    pub fn total_cost(&self) -> usize {
+        self.total_cost
+    }
+
+    pub fn len(&self) -> usize {
+        self.transitions.len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.transitions.is_empty()
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct RecursivePlanningSearch;
+
+impl RecursivePlanningSearch {
+    pub const fn new() -> Self {
+        Self
+    }
+
+    pub fn find_plan(
+        &self,
+        memory: &RecursivePlanningMemory,
+        start: &RecursivePlanningState,
+        goal: &RecursivePlanningGoal,
+    ) -> Option<RecursivePlanningPlan> {
+        if goal.is_satisfied_by(start) {
+            return Some(RecursivePlanningPlan {
+                start: start.clone(),
+                goal: goal.clone(),
+                transitions: Vec::new(),
+                final_state: start.clone(),
+                total_cost: 0,
+            });
+        }
+
+        let mut frontier = BTreeSet::new();
+
+        let mut best_cost = BTreeMap::new();
+
+        frontier.insert((
+            0usize,
+            start.clone(),
+            Vec::<RecursivePlanningTransition>::new(),
+        ));
+
+        best_cost.insert(start.clone(), 0usize);
+
+        while let Some((cost, state, path)) = frontier.iter().next().cloned() {
+            frontier.remove(&(cost, state.clone(), path.clone()));
+
+            if best_cost.get(&state).is_some_and(|known| cost > *known) {
+                continue;
+            }
+
+            if goal.is_satisfied_by(&state) {
+                return Some(RecursivePlanningPlan {
+                    start: start.clone(),
+                    goal: goal.clone(),
+                    transitions: path,
+                    final_state: state,
+                    total_cost: cost,
+                });
+            }
+
+            for successor in memory.successors(&state) {
+                let next_state = successor.state().clone();
+
+                let next_cost = cost + successor.cost();
+
+                let should_visit = best_cost
+                    .get(&next_state)
+                    .is_none_or(|known| next_cost < *known);
+
+                if !should_visit {
+                    continue;
+                }
+
+                best_cost.insert(next_state.clone(), next_cost);
+
+                let mut next_path = path.clone();
+
+                next_path.push(successor.transition().clone());
+
+                frontier.insert((next_cost, next_state, next_path));
+            }
+        }
+
+        None
+    }
+}
+
+impl RecursivePlanningMemory {
+    pub fn find_plan(
+        &self,
+        start: &RecursivePlanningState,
+        goal: &RecursivePlanningGoal,
+    ) -> Option<RecursivePlanningPlan> {
+        RecursivePlanningSearch::new().find_plan(self, start, goal)
+    }
+}
