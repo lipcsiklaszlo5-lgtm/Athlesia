@@ -1,0 +1,11 @@
+[package]
+name = "athlesia_recursive_planning"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+athlesia = { path = "../.." }
+athlesia_hierarchy = { path = "../athlesia_hierarchy" }
+athlesia_cross_level = { path = "../athlesia_cross_level" }
+athlesia_recursive = { path = "../athlesia_recursive" }
+athlesia_recursive_revision = { path = "../athlesia_recursive_revision" }

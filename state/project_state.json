@@ -39,6 +39,10 @@
     "crates/athlesia_recursive/tests/recursive_foundation.rs": "f69160108e8dbe3a8e678f11b00e0ee5e27e002250897b79cffb5e8ca0be89b3",
     "crates/athlesia_recursive/tests/recursive_prediction.rs": "b9e96da2afcd23e26dcc5f91d33eca97a2367ec4659904143bd10fa2f5289297",
     "crates/athlesia_recursive/tests/recursive_recognition.rs": "904492c0bc40b19ab34651cd417ed2f0340918fa2be5c6627b1611664c484389",
+    "crates/athlesia_recursive_planning/Cargo.lock": "1b98847a561bf7d6003a8f8eb1894cdfe3ccd0d72104644c6da315fcc4119a8b",
+    "crates/athlesia_recursive_planning/Cargo.toml": "b5253078a43da960d98859a7b0d28827d02df8f22d0d878bcc657741e219188b",
+    "crates/athlesia_recursive_planning/src/lib.rs": "f75cfd674885c6d4b2ed143091824660e72ebe256a4393bfbc330e9f29d0ec60",
+    "crates/athlesia_recursive_planning/tests/recursive_planning_foundation.rs": "c528f4bf43977833ad632a774d5b97a97a64ba410185a6211db26bc464cc680c",
     "crates/athlesia_recursive_revision/Cargo.lock": "367fa1516dba773da707a866f7dd67c6fa01f96480c3f22c486d2aad27da198a",
     "crates/athlesia_recursive_revision/Cargo.toml": "c699dc95992ce1b3853bbe27f7a2e13b99247474db120edae9b0a9acb6120f2e",
     "crates/athlesia_recursive_revision/src/lib.rs": "dd26a13d017695520da3c428931e0c652b54b3ad043ab9aaffe5b88b79150524",
@@ -159,7 +163,8 @@
       "module_28_recursive_discriminative_experiments",
       "module_28_recursive_evidence_loop",
       "module_28_recursive_revision_cycle",
-      "module_28_recursive_revision_freeze"
+      "module_28_recursive_revision_freeze",
+      "module_29_recursive_planning_foundation"
     ],
     "module_23_integrity": {
       "status": "pass",
@@ -172,8 +177,8 @@
       "status": "frozen",
       "verifier": "tools/verify_module_23_parity.py"
     },
-    "next_layer": "module_29_recursive_planning_foundation",
-    "stage": "module_28_recursive_revision_freeze",
+    "next_layer": "module_29_recursive_planning_successors",
+    "stage": "module_29_recursive_planning_foundation",
     "status": "validated"
   },
   "validated_invariants": [
@@ -577,6 +582,18 @@
     "recursive_revision_cycle_recursive_target",
     "recursive_revision_cycle_depth_preservation",
     "recursive_revision_cycle_determinism",
-    "module_28_recursive_revision_freeze"
+    "module_28_recursive_revision_freeze",
+    "recursive_planning_state_canonicalization",
+    "recursive_planning_state_deduplication",
+    "recursive_planning_recursive_identity",
+    "recursive_planning_goal_non_empty",
+    "recursive_planning_goal_satisfaction",
+    "recursive_planning_goal_missing_units",
+    "recursive_planning_transition_non_identity",
+    "recursive_planning_transition_diff",
+    "recursive_planning_transition_cost",
+    "recursive_planning_depth_preservation",
+    "recursive_planning_memory_deduplication",
+    "recursive_planning_memory_determinism"
   ]
 }
