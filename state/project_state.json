@@ -44,6 +44,7 @@
     "src/structure.rs": "9f016a78ecdeabc9a7c2fc3ebedaf1d7e0f4d471f347b120d83b5fcf76f5bc28",
     "state/module_23_parity.json": "2030364d9e939e3be1c4051dbddcab92c357651e21fbe0bd4b50efe5b07974d3",
     "state/module_24_revision_freeze.json": "b8a09e83876271e27efb3baa32b8d7c8d9e54146ad3f7d9415c32479999240c2",
+    "state/module_25_hierarchy_freeze.json": "4d0e561f17ddcb837dfa80ad2e8f2fb2da1bde4bcaa64627301c02d1e28720cc",
     "tests/module_23_concept.rs": "5462517fe36bb9653e926c096d5ca44acd6a4d10fb58aba23e5965e19d153dfa",
     "tests/module_23_encoder.rs": "9e4937f018fc4472f3e2bf63ab8049d9813123b367e5c93e382674caad3edcf3",
     "tests/module_23_evaluation.rs": "f128e24f15e9015019ee5d7af9901ac4434a2b600b7ab8f8650850d88bee3ed6",
@@ -59,7 +60,8 @@
     "tests/module_23_selection.rs": "27b6a99a7aa5f3bbc58cca54e2541df8d118c517280a9389c8f065092a4a33d4",
     "tests/module_23_structure.rs": "3cad4520dff4b9b6f95bd3a360fe236133347a9a93ac464b35ee49b1dc8afa8e",
     "tools/verify_module_23_parity.py": "41cbbc17e6dd623359517f566ae344a60798972de7c98ade596df0717032a848",
-    "tools/verify_module_24_revision.py": "f89121ed36a23c79990b75050a37d58920ba571b8d684348d8835c01c29a4c92"
+    "tools/verify_module_24_revision.py": "f89121ed36a23c79990b75050a37d58920ba571b8d684348d8835c01c29a4c92",
+    "tools/verify_module_25_hierarchy.py": "ba6068daa8ce115d1abd3fe9dc1ebb814c4dd55833d98a10eb03cde59d340ad6"
   },
   "project": "Athlesia",
   "research_baseline": {
@@ -98,7 +100,8 @@
       "module_25_hierarchy_prediction",
       "module_25_hierarchy_completion_selection",
       "module_25_hierarchy_completion_evaluation",
-      "module_25_hierarchy_active_cycle"
+      "module_25_hierarchy_active_cycle",
+      "module_25_hierarchy_freeze"
     ],
     "module_23_integrity": {
       "status": "pass",
@@ -111,8 +114,8 @@
       "status": "frozen",
       "verifier": "tools/verify_module_23_parity.py"
     },
-    "next_layer": "module_25_hierarchy_freeze",
-    "stage": "module_25_hierarchy_active_cycle",
+    "next_layer": "module_26_cross_level_abstraction_foundation",
+    "stage": "module_25_hierarchy_freeze",
     "status": "validated"
   },
   "validated_invariants": [
@@ -320,6 +323,7 @@
     "hierarchy_active_stop_condition",
     "hierarchy_active_extent_preservation",
     "hierarchy_active_determinism",
-    "hierarchy_active_non_mutation"
+    "hierarchy_active_non_mutation",
+    "module_25_hierarchy_freeze"
   ]
 }
