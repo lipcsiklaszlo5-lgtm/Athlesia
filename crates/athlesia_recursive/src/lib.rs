@@ -144,3 +144,118 @@ impl RecursiveMemory {
         self.concepts.iter()
     }
 }
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct RecursiveObservation {
+    units: Vec<RecursiveUnit>,
+}
+
+impl RecursiveObservation {
+    pub fn new(units: Vec<RecursiveUnit>) -> Self {
+        let unique: BTreeSet<RecursiveUnit> = units.into_iter().collect();
+
+        Self {
+            units: unique.into_iter().collect(),
+        }
+    }
+
+    pub fn units(&self) -> &[RecursiveUnit] {
+        &self.units
+    }
+
+    pub fn len(&self) -> usize {
+        self.units.len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.units.is_empty()
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct RecursiveCandidate {
+    concept: RecursiveConcept,
+    support: usize,
+}
+
+impl RecursiveCandidate {
+    pub fn concept(&self) -> &RecursiveConcept {
+        &self.concept
+    }
+
+    pub const fn support(&self) -> usize {
+        self.support
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct RecursiveDiscovery {
+    minimum_support: usize,
+}
+
+impl RecursiveDiscovery {
+    pub const fn new(minimum_support: usize) -> Self {
+        Self { minimum_support }
+    }
+
+    pub const fn minimum_support(self) -> usize {
+        self.minimum_support
+    }
+
+    pub fn discover(&self, observations: &[RecursiveObservation]) -> Vec<RecursiveCandidate> {
+        use std::collections::BTreeMap;
+
+        let mut support: BTreeMap<RecursiveConcept, usize> = BTreeMap::new();
+
+        for observation in observations {
+            let units = observation.units();
+
+            for left_index in 0..units.len() {
+                for right_index in (left_index + 1)..units.len() {
+                    let candidate = RecursiveConcept::new(vec![
+                        units[left_index].clone(),
+                        units[right_index].clone(),
+                    ]);
+
+                    if let Some(candidate) = candidate {
+                        *support.entry(candidate).or_insert(0) += 1;
+                    }
+                }
+            }
+        }
+
+        support
+            .into_iter()
+            .filter_map(|(concept, count)| {
+                if count >= self.minimum_support {
+                    Some(RecursiveCandidate {
+                        concept,
+                        support: count,
+                    })
+                } else {
+                    None
+                }
+            })
+            .collect()
+    }
+
+    pub fn consolidate(
+        &self,
+        observations: &[RecursiveObservation],
+        memory: &mut RecursiveMemory,
+    ) -> Vec<RecursiveCandidate> {
+        let candidates = self.discover(observations);
+
+        for candidate in &candidates {
+            memory.insert(candidate.concept().clone());
+        }
+
+        candidates
+    }
+}
+
+impl Default for RecursiveDiscovery {
+    fn default() -> Self {
+        Self::new(2)
+    }
+}

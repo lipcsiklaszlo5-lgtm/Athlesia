@@ -31,7 +31,8 @@
     "crates/athlesia_hierarchy/tests/hierarchy_recognition.rs": "bc7fe6ac289f8697e65b2ebe9aab179ae0cdb2db655fed18afae454bf2132841",
     "crates/athlesia_recursive/Cargo.lock": "eb3234330b5d1f01b30b6d9f1be64743a933ea15a7f5ff2057ba8dc943f7bf44",
     "crates/athlesia_recursive/Cargo.toml": "3aaaefa8e4d7f79d56f15e0a1f789b913bc3c3c45f422151356c0e560e182ae2",
-    "crates/athlesia_recursive/src/lib.rs": "f41ec611e7160afb92a2de5b5a3c0c0a1b98f17f228993550c7fbcde0df9b281",
+    "crates/athlesia_recursive/src/lib.rs": "488420f06715c83e67d95db91877e04cde7ad0aec45f79522cfcf40c984ed29a",
+    "crates/athlesia_recursive/tests/recursive_discovery.rs": "6913a0d79aa9b8b6ef1b341af3fdd71605b315d9ed50d8e19480ea788d0e8f22",
     "crates/athlesia_recursive/tests/recursive_foundation.rs": "f69160108e8dbe3a8e678f11b00e0ee5e27e002250897b79cffb5e8ca0be89b3",
     "crates/athlesia_revision/Cargo.toml": "5d86f3c6ebd51f093e03c171df1520526f4e9da298cb07cd04123191f4b0f814",
     "crates/athlesia_revision/src/lib.rs": "a688ddd7a219ab78fb699658cf16c7a52b39fffb81a2b7f11f26f8083a0e9a2d",
@@ -126,7 +127,8 @@
       "module_26_cross_level_completion_evaluation",
       "module_26_cross_level_active_cycle",
       "module_26_cross_level_freeze",
-      "module_27_recursive_abstraction_foundation"
+      "module_27_recursive_abstraction_foundation",
+      "module_27_recursive_discovery"
     ],
     "module_23_integrity": {
       "status": "pass",
@@ -139,8 +141,8 @@
       "status": "frozen",
       "verifier": "tools/verify_module_23_parity.py"
     },
-    "next_layer": "module_27_recursive_discovery",
-    "stage": "module_27_recursive_abstraction_foundation",
+    "next_layer": "module_27_recursive_recognition",
+    "stage": "module_27_recursive_discovery",
     "status": "validated"
   },
   "validated_invariants": [
@@ -422,6 +424,14 @@
     "recursive_child_embedding",
     "recursive_depth_accounting",
     "recursive_memory_deduplication",
-    "recursive_memory_determinism"
+    "recursive_memory_determinism",
+    "recursive_observation_canonicalization",
+    "recursive_repeated_higher_order_cooccurrence",
+    "recursive_base_only_rejection",
+    "recursive_support_threshold",
+    "recursive_discovery_determinism",
+    "recursive_discovery_order_independence",
+    "recursive_discovery_depth_preservation",
+    "recursive_consolidation_deduplication"
   ]
 }
