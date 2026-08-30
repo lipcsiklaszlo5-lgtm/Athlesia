@@ -13,9 +13,10 @@
     "src/concept.rs": "90bf7bb03cf24faa22867f6a1c07149e12d7c614ff2b0636f944fbd8b8e92e38",
     "src/encoder.rs": "99f1a0999307c67f2d79bd84141fd0df79c9ed9226fce4878902afc34b43cfcd",
     "src/hypothesis.rs": "03511779f26fcede58785ab9f354d70f4be362ff51cdf1d8d517e74de42606d1",
-    "src/lib.rs": "6520df2be3884f7eeac571ab6f983c32b679e2084fedb177136c666619cf314a",
+    "src/lib.rs": "d0e7221ede4db2974889cd58b81d0abfc284dfa56d38cfd6d8d20c65ad4e1a05",
     "src/main.rs": "b65d3afa4b3c1dcd522e8490a15a7d2862f5962a4452bfe6a8dfe4161dcda531",
     "src/primitive.rs": "bff0f97054096b284324858dd6251baf08f979db8fa383978f2c39459d157d8c",
+    "src/recognition.rs": "b5eff24022677693f1a4253785111b2c1d9a043cbba873152d8740697de7adae",
     "src/relation.rs": "64518eb7420f647bde9e00e665031be17f4b25ed7ca131403c56380657efff14",
     "src/role.rs": "23ce51691e64c3166cf3515ab969d101a35787859e0ab09270d128e7190fd0ad",
     "src/structure.rs": "9f016a78ecdeabc9a7c2fc3ebedaf1d7e0f4d471f347b120d83b5fcf76f5bc28",
@@ -23,6 +24,7 @@
     "tests/module_23_encoder.rs": "9e4937f018fc4472f3e2bf63ab8049d9813123b367e5c93e382674caad3edcf3",
     "tests/module_23_hypothesis.rs": "95c6d21113b381bbb897295c8d4bd8cc104d867ff2f3b98e510492af487c67bc",
     "tests/module_23_primitive.rs": "ac9a727f21130e4bda1951f516201bc78e3b10337b3c1f184e5baf201036aeef",
+    "tests/module_23_recognition.rs": "82018e6c102bba52f6f8a99efd18ed3d69fca43dd10b4c51d3de29e7d247ea10",
     "tests/module_23_relation.rs": "a92a47ee29c550c28ac3735db3163d4caf9f42743ce05093342f2c8fd6ed31f1",
     "tests/module_23_structure.rs": "3cad4520dff4b9b6f95bd3a360fe236133347a9a93ac464b35ee49b1dc8afa8e"
   },
@@ -40,10 +42,11 @@
       "equality_relational_structure",
       "primitive_discovery",
       "structural_hypothesis_induction",
-      "concept_consolidation"
+      "concept_consolidation",
+      "structural_recognition"
     ],
-    "next_layer": "structural_recognition",
-    "stage": "concept_consolidation",
+    "next_layer": "predictive_structural_model",
+    "stage": "structural_recognition",
     "status": "validated"
   },
   "validated_invariants": [
@@ -94,6 +97,16 @@
     "equivalent_observation_concept_reuse",
     "concept_memory_deterministic_order",
     "composite_concept_consolidation",
-    "concept_memory_structural_only"
+    "concept_memory_structural_only",
+    "post_training_recognition",
+    "recognition_value_invariance",
+    "recognition_without_retraining",
+    "recognition_memory_immutability",
+    "recognition_determinism",
+    "recognizer_structural_input_only",
+    "recognition_negative_rejection",
+    "recognition_support_requirement",
+    "composite_concept_complete_signature_requirement",
+    "recognizer_training_independence"
   ]
 }
