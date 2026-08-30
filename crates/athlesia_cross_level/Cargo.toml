@@ -1,0 +1,8 @@
+[package]
+name = "athlesia_cross_level"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+athlesia = { path = "../.." }
+athlesia_hierarchy = { path = "../athlesia_hierarchy" }
