@@ -454,3 +454,89 @@ impl EvidenceUpdateLoop {
         Some((experiment, updates))
     }
 }
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct RevisionCycleTransition {
+    experiment: DiscriminativeExperiment,
+    observation: StructuralObservationResult,
+    updates: Vec<ModelEvidenceUpdate>,
+    ranking_before: Vec<ModelAssessment>,
+    ranking_after: Vec<ModelAssessment>,
+    best_before: Option<StructuralConcept>,
+    best_after: Option<StructuralConcept>,
+}
+
+impl RevisionCycleTransition {
+    pub fn experiment(&self) -> &DiscriminativeExperiment {
+        &self.experiment
+    }
+
+    pub const fn observation(&self) -> StructuralObservationResult {
+        self.observation
+    }
+
+    pub fn updates(&self) -> &[ModelEvidenceUpdate] {
+        &self.updates
+    }
+
+    pub fn ranking_before(&self) -> &[ModelAssessment] {
+        &self.ranking_before
+    }
+
+    pub fn ranking_after(&self) -> &[ModelAssessment] {
+        &self.ranking_after
+    }
+
+    pub fn best_before(&self) -> Option<&StructuralConcept> {
+        self.best_before.as_ref()
+    }
+
+    pub fn best_after(&self) -> Option<&StructuralConcept> {
+        self.best_after.as_ref()
+    }
+
+    pub fn preference_changed(&self) -> bool {
+        self.best_before != self.best_after
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct RevisionCycleEngine;
+
+impl RevisionCycleEngine {
+    pub const fn new() -> Self {
+        Self
+    }
+
+    pub fn step(
+        &self,
+        models: &mut CompetingModels,
+        observation: StructuralObservationResult,
+    ) -> Option<RevisionCycleTransition> {
+        let ranking_before = models.assessments();
+
+        let best_before = ranking_before
+            .first()
+            .map(|assessment| assessment.concept().clone());
+
+        let experiment = DiscriminativeExperimentSelector::new().select(models)?;
+
+        let updates = EvidenceUpdateLoop::new().apply(models, &experiment, observation);
+
+        let ranking_after = models.assessments();
+
+        let best_after = ranking_after
+            .first()
+            .map(|assessment| assessment.concept().clone());
+
+        Some(RevisionCycleTransition {
+            experiment,
+            observation,
+            updates,
+            ranking_before,
+            ranking_after,
+            best_before,
+            best_after,
+        })
+    }
+}
