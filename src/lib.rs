@@ -1,5 +1,6 @@
 pub mod concept;
 pub mod encoder;
+pub mod experiment;
 pub mod hypothesis;
 pub mod prediction;
 pub mod primitive;
@@ -10,6 +11,7 @@ pub mod structure;
 
 pub use concept::{ConceptConsolidator, ConceptMemory, StructuralConcept};
 pub use encoder::Encoder;
+pub use experiment::{ExperimentCandidate, ExperimentGenerator};
 pub use hypothesis::{HypothesisInducer, PrimitiveSignature, StructuralHypothesis};
 pub use prediction::{
     PartialStructuralState, PredictionEngine, PredictionError, PredictionRule,

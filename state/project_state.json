@@ -12,8 +12,9 @@
     "Cargo.toml": "e852faab0d9dff23b09e1ee2323d0998955f837450c70ea015382ffe5ec52bff",
     "src/concept.rs": "90bf7bb03cf24faa22867f6a1c07149e12d7c614ff2b0636f944fbd8b8e92e38",
     "src/encoder.rs": "99f1a0999307c67f2d79bd84141fd0df79c9ed9226fce4878902afc34b43cfcd",
+    "src/experiment.rs": "dbd9c98197c32e2d579e50265180d84852a8bd2b96c41b01e99d0ae5f6eced1f",
     "src/hypothesis.rs": "03511779f26fcede58785ab9f354d70f4be362ff51cdf1d8d517e74de42606d1",
-    "src/lib.rs": "42ea80b5cf4a974fbc8930df9c92ac1da4f737916ae83439107de4c24e7ace92",
+    "src/lib.rs": "b668a081059217ef8eeb3d0c66b0a1dc55f5fe573d642fa142634dc9fe4f005d",
     "src/main.rs": "b65d3afa4b3c1dcd522e8490a15a7d2862f5962a4452bfe6a8dfe4161dcda531",
     "src/prediction.rs": "808fce2534bfc32e7b776ce24e4d0dc252dc402cde71d291557f81da26e7bba8",
     "src/primitive.rs": "bff0f97054096b284324858dd6251baf08f979db8fa383978f2c39459d157d8c",
@@ -23,6 +24,7 @@
     "src/structure.rs": "9f016a78ecdeabc9a7c2fc3ebedaf1d7e0f4d471f347b120d83b5fcf76f5bc28",
     "tests/module_23_concept.rs": "5462517fe36bb9653e926c096d5ca44acd6a4d10fb58aba23e5965e19d153dfa",
     "tests/module_23_encoder.rs": "9e4937f018fc4472f3e2bf63ab8049d9813123b367e5c93e382674caad3edcf3",
+    "tests/module_23_experiment.rs": "435bc69a7cbaf251e71ca9d3c7332c858b6f0e32c7bd6da97a6c7aff582fd1a7",
     "tests/module_23_hypothesis.rs": "95c6d21113b381bbb897295c8d4bd8cc104d867ff2f3b98e510492af487c67bc",
     "tests/module_23_prediction.rs": "32d9a3ea6d6494445d9d6d7937a0d4a52f985925056ff2940958da4ba4f447da",
     "tests/module_23_primitive.rs": "ac9a727f21130e4bda1951f516201bc78e3b10337b3c1f184e5baf201036aeef",
@@ -46,10 +48,11 @@
       "structural_hypothesis_induction",
       "concept_consolidation",
       "structural_recognition",
-      "predictive_structural_model"
+      "predictive_structural_model",
+      "active_experiment_generation"
     ],
-    "next_layer": "active_experiment_generation",
-    "stage": "predictive_structural_model",
+    "next_layer": "active_experiment_selection",
+    "stage": "active_experiment_generation",
     "status": "validated"
   },
   "validated_invariants": [
@@ -120,6 +123,16 @@
     "predictive_model_concept_support",
     "predictive_model_length_contract",
     "predictive_rule_forward_direction",
-    "predictive_model_training_value_exclusion"
+    "predictive_model_training_value_exclusion",
+    "experiment_generation",
+    "experiment_target_grouping",
+    "experiment_information_gain_structural",
+    "experiment_generation_determinism",
+    "experiment_target_order_stability",
+    "experiment_value_independence",
+    "experiment_concrete_value_exclusion",
+    "experiment_observed_target_exclusion",
+    "experiment_requires_predictive_reference",
+    "experiment_prediction_error_propagation"
   ]
 }
