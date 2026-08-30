@@ -41,8 +41,9 @@
     "crates/athlesia_recursive/tests/recursive_recognition.rs": "904492c0bc40b19ab34651cd417ed2f0340918fa2be5c6627b1611664c484389",
     "crates/athlesia_recursive_revision/Cargo.lock": "367fa1516dba773da707a866f7dd67c6fa01f96480c3f22c486d2aad27da198a",
     "crates/athlesia_recursive_revision/Cargo.toml": "c699dc95992ce1b3853bbe27f7a2e13b99247474db120edae9b0a9acb6120f2e",
-    "crates/athlesia_recursive_revision/src/lib.rs": "c46996187b4526765bcebe536dcf375d051712c1ca408ec8f0097a317ccf8e80",
+    "crates/athlesia_recursive_revision/src/lib.rs": "c260c5757d2d711712fb8641df738b1babc96caa05d616045b569013c3258298",
     "crates/athlesia_recursive_revision/tests/recursive_revision_foundation.rs": "a860367d099441081f343953c566352ba2cae41385d93706a5aa331bf2bb83a9",
+    "crates/athlesia_recursive_revision/tests/recursive_revision_policy.rs": "7a4607b5bc0a0eb02ec9cfa6cb391a148d73f27010875cf3b4dcf79a73ed162b",
     "crates/athlesia_revision/Cargo.toml": "5d86f3c6ebd51f093e03c171df1520526f4e9da298cb07cd04123191f4b0f814",
     "crates/athlesia_revision/src/lib.rs": "a688ddd7a219ab78fb699658cf16c7a52b39fffb81a2b7f11f26f8083a0e9a2d",
     "crates/athlesia_revision/tests/competing_models.rs": "3bba71b5e7d33259583e409cd54100cca885f472aded81f3da1f5bab1e3e75c9",
@@ -146,7 +147,8 @@
       "module_27_recursive_completion_evaluation",
       "module_27_recursive_active_cycle",
       "module_27_recursive_freeze",
-      "module_28_recursive_revision_foundation"
+      "module_28_recursive_revision_foundation",
+      "module_28_recursive_revision_policy"
     ],
     "module_23_integrity": {
       "status": "pass",
@@ -159,8 +161,8 @@
       "status": "frozen",
       "verifier": "tools/verify_module_23_parity.py"
     },
-    "next_layer": "module_28_recursive_revision_policy",
-    "stage": "module_28_recursive_revision_foundation",
+    "next_layer": "module_28_recursive_competing_models",
+    "stage": "module_28_recursive_revision_policy",
     "status": "validated"
   },
   "validated_invariants": [
@@ -512,6 +514,16 @@
     "recursive_revision_exact_identity",
     "recursive_revision_depth_identity",
     "recursive_revision_entry_reuse",
-    "recursive_revision_memory_determinism"
+    "recursive_revision_memory_determinism",
+    "recursive_revision_unsupported_status",
+    "recursive_revision_weakened_status",
+    "recursive_revision_contested_status",
+    "recursive_revision_supported_status",
+    "recursive_revision_status_exclusivity",
+    "recursive_revision_assessment_identity",
+    "recursive_revision_policy_ranking",
+    "recursive_revision_policy_depth_preservation",
+    "recursive_revision_policy_determinism",
+    "recursive_revision_policy_non_mutation"
   ]
 }

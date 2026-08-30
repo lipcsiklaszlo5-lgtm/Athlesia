@@ -118,3 +118,106 @@ impl RecursiveRevisionMemory {
         self.evidence.iter()
     }
 }
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd)]
+pub enum RecursiveRevisionStatus {
+    Unsupported,
+    Weakened,
+    Contested,
+    Supported,
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct RecursiveRevisionPolicy;
+
+impl RecursiveRevisionPolicy {
+    pub const fn new() -> Self {
+        Self
+    }
+
+    pub const fn classify(&self, evidence: &RecursiveEvidenceState) -> RecursiveRevisionStatus {
+        match (evidence.confirmations() > 0, evidence.violations() > 0) {
+            (false, false) => RecursiveRevisionStatus::Unsupported,
+            (false, true) => RecursiveRevisionStatus::Weakened,
+            (true, true) => RecursiveRevisionStatus::Contested,
+            (true, false) => RecursiveRevisionStatus::Supported,
+        }
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct RecursiveModelAssessment {
+    concept: RecursiveConcept,
+    evidence: RecursiveEvidenceState,
+    status: RecursiveRevisionStatus,
+}
+
+impl RecursiveModelAssessment {
+    pub fn concept(&self) -> &RecursiveConcept {
+        &self.concept
+    }
+
+    pub const fn evidence(&self) -> RecursiveEvidenceState {
+        self.evidence
+    }
+
+    pub const fn status(&self) -> RecursiveRevisionStatus {
+        self.status
+    }
+
+    pub const fn confirmations(&self) -> usize {
+        self.evidence.confirmations()
+    }
+
+    pub const fn violations(&self) -> usize {
+        self.evidence.violations()
+    }
+
+    pub const fn observations(&self) -> usize {
+        self.evidence.observations()
+    }
+
+    pub const fn balance(&self) -> isize {
+        self.evidence.balance()
+    }
+}
+
+impl RecursiveRevisionMemory {
+    pub fn assessment(&self, concept: &RecursiveConcept) -> RecursiveModelAssessment {
+        let evidence = self.evidence(concept).copied().unwrap_or_default();
+
+        let status = RecursiveRevisionPolicy::new().classify(&evidence);
+
+        RecursiveModelAssessment {
+            concept: concept.clone(),
+            evidence,
+            status,
+        }
+    }
+
+    pub fn assessments(&self) -> Vec<RecursiveModelAssessment> {
+        self.iter()
+            .map(|(concept, evidence)| RecursiveModelAssessment {
+                concept: concept.clone(),
+                evidence: *evidence,
+                status: RecursiveRevisionPolicy::new().classify(evidence),
+            })
+            .collect()
+    }
+
+    pub fn ranked_assessments(&self) -> Vec<RecursiveModelAssessment> {
+        let mut assessments = self.assessments();
+
+        assessments.sort_by(|left, right| {
+            right
+                .status()
+                .cmp(&left.status())
+                .then_with(|| right.balance().cmp(&left.balance()))
+                .then_with(|| right.confirmations().cmp(&left.confirmations()))
+                .then_with(|| left.violations().cmp(&right.violations()))
+                .then_with(|| left.concept().cmp(right.concept()))
+        });
+
+        assessments
+    }
+}
