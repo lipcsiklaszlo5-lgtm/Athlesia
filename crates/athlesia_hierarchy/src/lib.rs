@@ -430,3 +430,88 @@ impl HierarchyCompletionSelector {
         self.generate(memory, observation).into_iter().next()
     }
 }
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum HierarchyCompletionOutcome {
+    Confirmed,
+    Violated,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct HierarchyCompletionEvaluation {
+    target: StructuralConcept,
+    outcome: HierarchyCompletionOutcome,
+    supporting_hierarchies: usize,
+    single_step_support: usize,
+}
+
+impl HierarchyCompletionEvaluation {
+    pub fn target(&self) -> &StructuralConcept {
+        &self.target
+    }
+
+    pub const fn outcome(&self) -> HierarchyCompletionOutcome {
+        self.outcome
+    }
+
+    pub const fn supporting_hierarchies(&self) -> usize {
+        self.supporting_hierarchies
+    }
+
+    pub const fn single_step_support(&self) -> usize {
+        self.single_step_support
+    }
+
+    pub const fn is_confirmed(&self) -> bool {
+        matches!(self.outcome, HierarchyCompletionOutcome::Confirmed)
+    }
+
+    pub const fn is_violated(&self) -> bool {
+        matches!(self.outcome, HierarchyCompletionOutcome::Violated)
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct HierarchyCompletionEvaluator;
+
+impl HierarchyCompletionEvaluator {
+    pub const fn new() -> Self {
+        Self
+    }
+
+    pub fn evaluate(
+        &self,
+        candidate: &HierarchyCompletionCandidate,
+        observation: &HierarchyObservation,
+    ) -> HierarchyCompletionEvaluation {
+        let outcome = if observation
+            .concepts()
+            .binary_search(candidate.child())
+            .is_ok()
+        {
+            HierarchyCompletionOutcome::Confirmed
+        } else {
+            HierarchyCompletionOutcome::Violated
+        };
+
+        HierarchyCompletionEvaluation {
+            target: candidate.child().clone(),
+            outcome,
+            supporting_hierarchies: candidate.supporting_hierarchies(),
+            single_step_support: candidate.single_step_support(),
+        }
+    }
+
+    pub fn select_and_evaluate(
+        &self,
+        memory: &HierarchicalMemory,
+        prior_observation: &HierarchyObservation,
+        next_observation: &HierarchyObservation,
+    ) -> Option<(HierarchyCompletionCandidate, HierarchyCompletionEvaluation)> {
+        let candidate = HierarchyCompletionSelector::new().select(memory, prior_observation)?;
+
+        let evaluation = self.evaluate(&candidate, next_observation);
+
+        Some((candidate, evaluation))
+    }
+}

@@ -11,8 +11,9 @@
   "implementation_sha256": {
     "Cargo.toml": "e852faab0d9dff23b09e1ee2323d0998955f837450c70ea015382ffe5ec52bff",
     "crates/athlesia_hierarchy/Cargo.toml": "6853cd5d63d5be93d8c1fa37d8961514bf1f48801ae59f90bf4fd0e6da49b3ee",
-    "crates/athlesia_hierarchy/src/lib.rs": "68d26d1cc47b13da4e21a830fe9e6f015854e0d74f85adac72a2bbfd3f51c9c7",
+    "crates/athlesia_hierarchy/src/lib.rs": "e2103b6b402e7666123abfd172ecb5fb62e42d8df390d16b53a9b8f3fbe75e94",
     "crates/athlesia_hierarchy/tests/hierarchical_memory_foundation.rs": "6e49dda50a6c06d191e5bcfd0637be862ad57bee36a82c5994d33252631124da",
+    "crates/athlesia_hierarchy/tests/hierarchy_completion_evaluation.rs": "9f49abaa468cf9045dff5fd4652853aef16e28cae7bc1e420b49e0110eac5dea",
     "crates/athlesia_hierarchy/tests/hierarchy_completion_selection.rs": "db69a1f77551bb6baff95efd8ef4fca5e1e04623ebb969a0fc1fb2ef738f1bb2",
     "crates/athlesia_hierarchy/tests/hierarchy_discovery.rs": "07504754806d1086c9e5a5ab41cb405b2f5f531c8548372a586770e9ecc124b9",
     "crates/athlesia_hierarchy/tests/hierarchy_prediction.rs": "ea8133128eab713a9ee3e38dac1c71766dd948e06171725957f70a125431adc6",
@@ -94,7 +95,8 @@
       "module_25_hierarchy_discovery",
       "module_25_hierarchy_recognition",
       "module_25_hierarchy_prediction",
-      "module_25_hierarchy_completion_selection"
+      "module_25_hierarchy_completion_selection",
+      "module_25_hierarchy_completion_evaluation"
     ],
     "module_23_integrity": {
       "status": "pass",
@@ -107,8 +109,8 @@
       "status": "frozen",
       "verifier": "tools/verify_module_23_parity.py"
     },
-    "next_layer": "module_25_hierarchy_completion_evaluation",
-    "stage": "module_25_hierarchy_completion_selection",
+    "next_layer": "module_25_hierarchy_active_cycle",
+    "stage": "module_25_hierarchy_completion_evaluation",
     "status": "validated"
   },
   "validated_invariants": [
@@ -300,6 +302,14 @@
     "hierarchy_completion_extent_preservation",
     "hierarchy_completion_determinism",
     "hierarchy_completion_order_independence",
-    "hierarchy_completion_non_mutation"
+    "hierarchy_completion_non_mutation",
+    "hierarchy_completion_confirmation",
+    "hierarchy_completion_violation",
+    "hierarchy_evaluation_target_identity",
+    "hierarchy_evaluation_support_snapshot",
+    "hierarchy_evaluation_context_tolerance",
+    "hierarchy_evaluation_extent_preservation",
+    "hierarchy_evaluation_determinism",
+    "hierarchy_evaluation_non_mutation"
   ]
 }
