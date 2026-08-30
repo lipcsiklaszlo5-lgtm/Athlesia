@@ -12,7 +12,8 @@
     "Cargo.toml": "e852faab0d9dff23b09e1ee2323d0998955f837450c70ea015382ffe5ec52bff",
     "crates/athlesia_cross_level/Cargo.lock": "e7672cfc40c8c81465a5682b0ae831a17215d2bfeefd293b3d570168194e0d38",
     "crates/athlesia_cross_level/Cargo.toml": "d32ebca99f825d3dc7b0ec6d8197457ba47688f2a73bb6fe72acb45c0a5ef04b",
-    "crates/athlesia_cross_level/src/lib.rs": "a71b08f2851b861d6d41c089512f4372a2f37d202d8881ab1ecf74c290bc05ec",
+    "crates/athlesia_cross_level/src/lib.rs": "1413fa9de9abe1284130ca3caa5c212b35d647b3009581a1884d3ee344201689",
+    "crates/athlesia_cross_level/tests/cross_level_active_cycle.rs": "9bb1393ceded0f0d09b4df86a68812d8aff7ea96c4d37050c9a2747b6381715e",
     "crates/athlesia_cross_level/tests/cross_level_completion_evaluation.rs": "44001ed0286d918d61a91a91a6469e8a8a19ca68a5f946e1ff46caab6eccd052",
     "crates/athlesia_cross_level/tests/cross_level_completion_selection.rs": "dde939880c2d746a2d4822676b607b330277e8a1589fc5d80d906f151069f60c",
     "crates/athlesia_cross_level/tests/cross_level_discovery.rs": "25c21284fa685c703efbdd52789dfc876191ba76e65783295e28d4aaf96e71d0",
@@ -116,7 +117,8 @@
       "module_26_cross_level_recognition",
       "module_26_cross_level_prediction",
       "module_26_cross_level_completion_selection",
-      "module_26_cross_level_completion_evaluation"
+      "module_26_cross_level_completion_evaluation",
+      "module_26_cross_level_active_cycle"
     ],
     "module_23_integrity": {
       "status": "pass",
@@ -129,8 +131,8 @@
       "status": "frozen",
       "verifier": "tools/verify_module_23_parity.py"
     },
-    "next_layer": "module_26_cross_level_active_cycle",
-    "stage": "module_26_cross_level_completion_evaluation",
+    "next_layer": "module_26_cross_level_freeze",
+    "stage": "module_26_cross_level_active_cycle",
     "status": "validated"
   },
   "validated_invariants": [
@@ -392,6 +394,16 @@
     "cross_level_evaluation_extent_preservation",
     "cross_level_evaluation_hierarchy_identity_preservation",
     "cross_level_evaluation_determinism",
-    "cross_level_evaluation_non_mutation"
+    "cross_level_evaluation_non_mutation",
+    "cross_level_active_transition",
+    "cross_level_active_bidirectional_completion",
+    "cross_level_active_confirmation",
+    "cross_level_active_violation",
+    "cross_level_active_observation_snapshot",
+    "cross_level_active_stop_condition",
+    "cross_level_active_extent_preservation",
+    "cross_level_active_hierarchy_identity_preservation",
+    "cross_level_active_determinism",
+    "cross_level_active_non_mutation"
   ]
 }

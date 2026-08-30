@@ -577,3 +577,69 @@ impl CrossLevelCompletionEvaluator {
         Some((candidate, evaluation))
     }
 }
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct CrossLevelActiveTransition {
+    candidate: CrossLevelCompletionCandidate,
+    evaluation: CrossLevelCompletionEvaluation,
+    prior_observation: CrossLevelObservation,
+    next_observation: CrossLevelObservation,
+}
+
+impl CrossLevelActiveTransition {
+    pub fn candidate(&self) -> &CrossLevelCompletionCandidate {
+        &self.candidate
+    }
+
+    pub fn evaluation(&self) -> &CrossLevelCompletionEvaluation {
+        &self.evaluation
+    }
+
+    pub fn prior_observation(&self) -> &CrossLevelObservation {
+        &self.prior_observation
+    }
+
+    pub fn next_observation(&self) -> &CrossLevelObservation {
+        &self.next_observation
+    }
+
+    pub const fn outcome(&self) -> CrossLevelCompletionOutcome {
+        self.evaluation.outcome()
+    }
+
+    pub const fn is_confirmed(&self) -> bool {
+        self.evaluation.is_confirmed()
+    }
+
+    pub const fn is_violated(&self) -> bool {
+        self.evaluation.is_violated()
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct CrossLevelActiveCycle;
+
+impl CrossLevelActiveCycle {
+    pub const fn new() -> Self {
+        Self
+    }
+
+    pub fn step(
+        &self,
+        memory: &CrossLevelMemory,
+        prior_observation: &CrossLevelObservation,
+        next_observation: &CrossLevelObservation,
+    ) -> Option<CrossLevelActiveTransition> {
+        let candidate = CrossLevelCompletionSelector::new().select(memory, prior_observation)?;
+
+        let evaluation =
+            CrossLevelCompletionEvaluator::new().evaluate(&candidate, next_observation);
+
+        Some(CrossLevelActiveTransition {
+            candidate,
+            evaluation,
+            prior_observation: prior_observation.clone(),
+            next_observation: next_observation.clone(),
+        })
+    }
+}
