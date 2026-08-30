@@ -11,7 +11,6 @@ pub struct PrimitiveOccurrence {
 impl PrimitiveOccurrence {
     pub const fn new(left: usize, right: usize) -> Self {
         assert!(left < right);
-
         Self { left, right }
     }
 
@@ -32,14 +31,21 @@ impl PrimitiveOccurrence {
 pub struct StructuralPrimitive {
     kind: RelationKind,
     span: usize,
+    sequence_length: usize,
     occurrences: Vec<PrimitiveOccurrence>,
 }
 
 impl StructuralPrimitive {
-    fn new(kind: RelationKind, span: usize, occurrences: Vec<PrimitiveOccurrence>) -> Self {
+    fn new(
+        kind: RelationKind,
+        span: usize,
+        sequence_length: usize,
+        occurrences: Vec<PrimitiveOccurrence>,
+    ) -> Self {
         Self {
             kind,
             span,
+            sequence_length,
             occurrences,
         }
     }
@@ -50,6 +56,10 @@ impl StructuralPrimitive {
 
     pub const fn span(&self) -> usize {
         self.span
+    }
+
+    pub const fn sequence_length(&self) -> usize {
+        self.sequence_length
     }
 
     pub fn support(&self) -> usize {
@@ -69,7 +79,6 @@ pub struct PrimitiveDiscovery {
 impl PrimitiveDiscovery {
     pub const fn new(minimum_support: usize) -> Self {
         assert!(minimum_support > 0);
-
         Self { minimum_support }
     }
 
@@ -93,7 +102,12 @@ impl PrimitiveDiscovery {
             .into_iter()
             .filter_map(|((kind, span), occurrences)| {
                 if occurrences.len() >= self.minimum_support {
-                    Some(StructuralPrimitive::new(kind, span, occurrences))
+                    Some(StructuralPrimitive::new(
+                        kind,
+                        span,
+                        structure.length(),
+                        occurrences,
+                    ))
                 } else {
                     None
                 }

@@ -5,6 +5,7 @@ use crate::{PrimitiveSignature, StructuralHypothesis};
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub struct StructuralConcept {
     signatures: Vec<PrimitiveSignature>,
+    sequence_length: Option<usize>,
 }
 
 impl StructuralConcept {
@@ -12,11 +13,31 @@ impl StructuralConcept {
         signatures.sort();
         signatures.dedup();
 
-        Self { signatures }
+        Self {
+            signatures,
+            sequence_length: None,
+        }
+    }
+
+    pub fn with_sequence_length(
+        mut signatures: Vec<PrimitiveSignature>,
+        sequence_length: usize,
+    ) -> Self {
+        signatures.sort();
+        signatures.dedup();
+
+        Self {
+            signatures,
+            sequence_length: Some(sequence_length),
+        }
     }
 
     pub fn signatures(&self) -> &[PrimitiveSignature] {
         &self.signatures
+    }
+
+    pub const fn sequence_length(&self) -> Option<usize> {
+        self.sequence_length
     }
 
     pub fn complexity(&self) -> usize {
@@ -26,11 +47,25 @@ impl StructuralConcept {
     pub fn contains(&self, signature: PrimitiveSignature) -> bool {
         self.signatures.binary_search(&signature).is_ok()
     }
+
+    pub fn matches_query(&self, query: &StructuralConcept) -> bool {
+        if self.signatures != query.signatures {
+            return false;
+        }
+
+        match query.sequence_length {
+            Some(expected) => self.sequence_length == Some(expected),
+            None => true,
+        }
+    }
 }
 
 impl From<&StructuralHypothesis> for StructuralConcept {
     fn from(hypothesis: &StructuralHypothesis) -> Self {
-        Self::new(hypothesis.signatures().to_vec())
+        Self::with_sequence_length(
+            hypothesis.signatures().to_vec(),
+            hypothesis.sequence_length(),
+        )
     }
 }
 
@@ -56,8 +91,10 @@ impl ConceptMemory {
         self.concepts.is_empty()
     }
 
-    pub fn contains(&self, concept: &StructuralConcept) -> bool {
-        self.concepts.contains(concept)
+    pub fn contains(&self, query: &StructuralConcept) -> bool {
+        self.concepts
+            .iter()
+            .any(|stored| stored.matches_query(query))
     }
 
     pub fn concepts(&self) -> impl Iterator<Item = &StructuralConcept> {
@@ -90,9 +127,7 @@ impl ConceptConsolidator {
         hypotheses: &[StructuralHypothesis],
         memory: &mut ConceptMemory,
     ) -> usize {
-        let concepts = self.consolidate(hypotheses);
-
-        concepts
+        self.consolidate(hypotheses)
             .into_iter()
             .filter(|concept| memory.insert(concept.clone()))
             .count()

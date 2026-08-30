@@ -29,16 +29,22 @@ impl From<&StructuralPrimitive> for PrimitiveSignature {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct StructuralHypothesis {
     signatures: Vec<PrimitiveSignature>,
+    sequence_length: usize,
     evidence_count: usize,
     description_cost: usize,
 }
 
 impl StructuralHypothesis {
-    fn new(signatures: Vec<PrimitiveSignature>, evidence_count: usize) -> Self {
+    fn new(
+        signatures: Vec<PrimitiveSignature>,
+        sequence_length: usize,
+        evidence_count: usize,
+    ) -> Self {
         let description_cost = signatures.len();
 
         Self {
             signatures,
+            sequence_length,
             evidence_count,
             description_cost,
         }
@@ -46,6 +52,10 @@ impl StructuralHypothesis {
 
     pub fn signatures(&self) -> &[PrimitiveSignature] {
         &self.signatures
+    }
+
+    pub const fn sequence_length(&self) -> usize {
+        self.sequence_length
     }
 
     pub const fn evidence_count(&self) -> usize {
@@ -89,6 +99,7 @@ impl HypothesisInducer {
         for primitive in primitives {
             let hypothesis = StructuralHypothesis::new(
                 vec![PrimitiveSignature::from(primitive)],
+                primitive.sequence_length(),
                 primitive.support(),
             );
 
@@ -98,18 +109,27 @@ impl HypothesisInducer {
         }
 
         if primitives.len() > 1 {
-            let mut signatures: Vec<PrimitiveSignature> =
-                primitives.iter().map(PrimitiveSignature::from).collect();
+            let sequence_length = primitives[0].sequence_length();
 
-            signatures.sort();
-            signatures.dedup();
+            let same_extent = primitives
+                .iter()
+                .all(|primitive| primitive.sequence_length() == sequence_length);
 
-            let evidence_count = primitives.iter().map(StructuralPrimitive::support).sum();
+            if same_extent {
+                let mut signatures: Vec<PrimitiveSignature> =
+                    primitives.iter().map(PrimitiveSignature::from).collect();
 
-            let composite = StructuralHypothesis::new(signatures, evidence_count);
+                signatures.sort();
+                signatures.dedup();
 
-            if composite.compression_gain() >= self.minimum_gain {
-                hypotheses.push(composite);
+                let evidence_count = primitives.iter().map(StructuralPrimitive::support).sum();
+
+                let composite =
+                    StructuralHypothesis::new(signatures, sequence_length, evidence_count);
+
+                if composite.compression_gain() >= self.minimum_gain {
+                    hypotheses.push(composite);
+                }
             }
         }
 
@@ -118,6 +138,7 @@ impl HypothesisInducer {
                 .compression_gain()
                 .cmp(&left.compression_gain())
                 .then_with(|| left.description_cost().cmp(&right.description_cost()))
+                .then_with(|| left.sequence_length().cmp(&right.sequence_length()))
                 .then_with(|| left.signatures().cmp(right.signatures()))
         });
 

@@ -37,8 +37,10 @@ impl RecognitionResult {
         self.recognized.is_empty()
     }
 
-    pub fn contains(&self, concept: &StructuralConcept) -> bool {
-        self.recognized.binary_search(concept).is_ok()
+    pub fn contains(&self, query: &StructuralConcept) -> bool {
+        self.recognized
+            .iter()
+            .any(|recognized| recognized.matches_query(query))
     }
 }
 
@@ -69,10 +71,16 @@ impl RecognitionEngine {
         let mut recognized: Vec<StructuralConcept> = memory
             .concepts()
             .filter(|concept| {
-                concept
-                    .signatures()
-                    .iter()
-                    .all(|signature| observed.contains(signature))
+                let length_matches = match concept.sequence_length() {
+                    Some(expected) => expected == structure.length(),
+                    None => true,
+                };
+
+                length_matches
+                    && concept
+                        .signatures()
+                        .iter()
+                        .all(|signature| observed.contains(signature))
             })
             .cloned()
             .collect();
