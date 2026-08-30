@@ -11,8 +11,9 @@
   "implementation_sha256": {
     "Cargo.toml": "e852faab0d9dff23b09e1ee2323d0998955f837450c70ea015382ffe5ec52bff",
     "crates/athlesia_hierarchy/Cargo.toml": "6853cd5d63d5be93d8c1fa37d8961514bf1f48801ae59f90bf4fd0e6da49b3ee",
-    "crates/athlesia_hierarchy/src/lib.rs": "51b0eb6d723445bc213b5cb104c23b4a3d9f62b8680e59be0d2252f3fb1fa973",
+    "crates/athlesia_hierarchy/src/lib.rs": "68d26d1cc47b13da4e21a830fe9e6f015854e0d74f85adac72a2bbfd3f51c9c7",
     "crates/athlesia_hierarchy/tests/hierarchical_memory_foundation.rs": "6e49dda50a6c06d191e5bcfd0637be862ad57bee36a82c5994d33252631124da",
+    "crates/athlesia_hierarchy/tests/hierarchy_completion_selection.rs": "db69a1f77551bb6baff95efd8ef4fca5e1e04623ebb969a0fc1fb2ef738f1bb2",
     "crates/athlesia_hierarchy/tests/hierarchy_discovery.rs": "07504754806d1086c9e5a5ab41cb405b2f5f531c8548372a586770e9ecc124b9",
     "crates/athlesia_hierarchy/tests/hierarchy_prediction.rs": "ea8133128eab713a9ee3e38dac1c71766dd948e06171725957f70a125431adc6",
     "crates/athlesia_hierarchy/tests/hierarchy_recognition.rs": "bc7fe6ac289f8697e65b2ebe9aab179ae0cdb2db655fed18afae454bf2132841",
@@ -92,7 +93,8 @@
       "module_25_hierarchical_memory_foundation",
       "module_25_hierarchy_discovery",
       "module_25_hierarchy_recognition",
-      "module_25_hierarchy_prediction"
+      "module_25_hierarchy_prediction",
+      "module_25_hierarchy_completion_selection"
     ],
     "module_23_integrity": {
       "status": "pass",
@@ -105,8 +107,8 @@
       "status": "frozen",
       "verifier": "tools/verify_module_23_parity.py"
     },
-    "next_layer": "module_25_hierarchy_completion_selection",
-    "stage": "module_25_hierarchy_prediction",
+    "next_layer": "module_25_hierarchy_completion_evaluation",
+    "stage": "module_25_hierarchy_completion_selection",
     "status": "validated"
   },
   "validated_invariants": [
@@ -290,6 +292,14 @@
     "hierarchy_prediction_extent_preservation",
     "hierarchy_prediction_ranking",
     "hierarchy_prediction_determinism",
-    "hierarchy_prediction_non_mutation"
+    "hierarchy_prediction_non_mutation",
+    "hierarchy_completion_support_aggregation",
+    "hierarchy_completion_support_ranking",
+    "hierarchy_completion_single_step_preference",
+    "hierarchy_completion_structural_tie_break",
+    "hierarchy_completion_extent_preservation",
+    "hierarchy_completion_determinism",
+    "hierarchy_completion_order_independence",
+    "hierarchy_completion_non_mutation"
   ]
 }

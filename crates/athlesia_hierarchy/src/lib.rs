@@ -345,3 +345,88 @@ impl HierarchyPredictor {
         self.predict_memory(memory, observation).into_iter().next()
     }
 }
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct HierarchyCompletionCandidate {
+    child: StructuralConcept,
+    supporting_hierarchies: usize,
+    single_step_support: usize,
+}
+
+impl HierarchyCompletionCandidate {
+    pub fn child(&self) -> &StructuralConcept {
+        &self.child
+    }
+
+    pub const fn supporting_hierarchies(&self) -> usize {
+        self.supporting_hierarchies
+    }
+
+    pub const fn single_step_support(&self) -> usize {
+        self.single_step_support
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct HierarchyCompletionSelector;
+
+impl HierarchyCompletionSelector {
+    pub const fn new() -> Self {
+        Self
+    }
+
+    pub fn generate(
+        &self,
+        memory: &HierarchicalMemory,
+        observation: &HierarchyObservation,
+    ) -> Vec<HierarchyCompletionCandidate> {
+        use std::collections::BTreeMap;
+
+        let predictions = HierarchyPredictor::new().predict_memory(memory, observation);
+
+        let mut support: BTreeMap<StructuralConcept, (usize, usize)> = BTreeMap::new();
+
+        for prediction in predictions {
+            let single_step = prediction.is_single_step_completion();
+
+            for child in prediction.missing_children() {
+                let entry = support.entry(child.clone()).or_insert((0, 0));
+
+                entry.0 += 1;
+
+                if single_step {
+                    entry.1 += 1;
+                }
+            }
+        }
+
+        let mut candidates: Vec<HierarchyCompletionCandidate> = support
+            .into_iter()
+            .map(|(child, (supporting_hierarchies, single_step_support))| {
+                HierarchyCompletionCandidate {
+                    child,
+                    supporting_hierarchies,
+                    single_step_support,
+                }
+            })
+            .collect();
+
+        candidates.sort_by(|left, right| {
+            right
+                .supporting_hierarchies()
+                .cmp(&left.supporting_hierarchies())
+                .then_with(|| right.single_step_support().cmp(&left.single_step_support()))
+                .then_with(|| left.child().cmp(right.child()))
+        });
+
+        candidates
+    }
+
+    pub fn select(
+        &self,
+        memory: &HierarchicalMemory,
+        observation: &HierarchyObservation,
+    ) -> Option<HierarchyCompletionCandidate> {
+        self.generate(memory, observation).into_iter().next()
+    }
+}
