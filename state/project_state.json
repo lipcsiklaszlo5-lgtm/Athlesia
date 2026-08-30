@@ -41,8 +41,9 @@
     "crates/athlesia_recursive/tests/recursive_recognition.rs": "904492c0bc40b19ab34651cd417ed2f0340918fa2be5c6627b1611664c484389",
     "crates/athlesia_recursive_control/Cargo.lock": "770807cb2d8881bc73b9dc01f64f2bb621b03b8730fa7918a834847146c431f7",
     "crates/athlesia_recursive_control/Cargo.toml": "e419ce35592c0cc759ee800a61a48564c0f8be397aaca8bfe4297e84e520ad73",
-    "crates/athlesia_recursive_control/src/lib.rs": "0a278f7cd5d4e78a623474be5e6dd54d82bcb6f656bef388c58c3546b2565d5d",
+    "crates/athlesia_recursive_control/src/lib.rs": "98919bf12511e3f27a16df845d47d0f07694f657cd43c49fa6b9fb96cb40b18e",
     "crates/athlesia_recursive_control/tests/recursive_control_foundation.rs": "d06e5595290e2c17459c09e9f14d918c5294be93e96c052144d904660808adad",
+    "crates/athlesia_recursive_control/tests/recursive_control_model_policy.rs": "b4bf0a98e2e6ab20213e91aa8e0c018548969cb5780b933aa3f11d9b8dc0242d",
     "crates/athlesia_recursive_planning/Cargo.lock": "1b98847a561bf7d6003a8f8eb1894cdfe3ccd0d72104644c6da315fcc4119a8b",
     "crates/athlesia_recursive_planning/Cargo.toml": "b5253078a43da960d98859a7b0d28827d02df8f22d0d878bcc657741e219188b",
     "crates/athlesia_recursive_planning/src/lib.rs": "d9a86f6f834ddb82b284d9b887995f721dd4f5c1183d13babfbefdf4c432fcf5",
@@ -182,7 +183,8 @@
       "module_29_recursive_planning_replanning",
       "module_29_recursive_planning_active_cycle",
       "module_29_recursive_planning_freeze",
-      "module_30_recursive_control_foundation"
+      "module_30_recursive_control_foundation",
+      "module_30_recursive_control_model_policy"
     ],
     "module_23_integrity": {
       "status": "pass",
@@ -195,8 +197,8 @@
       "status": "frozen",
       "verifier": "tools/verify_module_23_parity.py"
     },
-    "next_layer": "module_30_recursive_control_model_policy",
-    "stage": "module_30_recursive_control_foundation",
+    "next_layer": "module_30_recursive_control_uncertainty_policy",
+    "stage": "module_30_recursive_control_model_policy",
     "status": "validated"
   },
   "validated_invariants": [
@@ -680,6 +682,18 @@
     "recursive_control_zero_step_goal",
     "recursive_control_multi_step_plan",
     "recursive_control_depth_preservation",
-    "recursive_control_determinism"
+    "recursive_control_determinism",
+    "recursive_control_policy_best_model_selection",
+    "recursive_control_policy_revision_ranking",
+    "recursive_control_policy_ranking_change",
+    "recursive_control_policy_best_objective_required",
+    "recursive_control_policy_goal_tie_break",
+    "recursive_control_policy_execution_binding",
+    "recursive_control_policy_unreachable_rejection",
+    "recursive_control_policy_objective_preservation",
+    "recursive_control_policy_model_identity",
+    "recursive_control_policy_depth_preservation",
+    "recursive_control_policy_non_mutation",
+    "recursive_control_policy_determinism"
   ]
 }

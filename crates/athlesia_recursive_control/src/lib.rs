@@ -87,3 +87,89 @@ impl RecursiveControlPlanner {
         })
     }
 }
+
+use athlesia_recursive::RecursiveConcept;
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct RecursiveControlObjective {
+    model: RecursiveConcept,
+    goal: RecursivePlanningGoal,
+}
+
+impl RecursiveControlObjective {
+    pub fn new(model: RecursiveConcept, goal: RecursivePlanningGoal) -> Self {
+        Self { model, goal }
+    }
+
+    pub fn model(&self) -> &RecursiveConcept {
+        &self.model
+    }
+
+    pub fn goal(&self) -> &RecursivePlanningGoal {
+        &self.goal
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct RecursiveControlPolicyDecision {
+    objective: RecursiveControlObjective,
+    control: RecursiveControlDecision,
+}
+
+impl RecursiveControlPolicyDecision {
+    pub fn objective(&self) -> &RecursiveControlObjective {
+        &self.objective
+    }
+
+    pub fn control(&self) -> &RecursiveControlDecision {
+        &self.control
+    }
+
+    pub fn execution(&self) -> &RecursivePlanningExecution {
+        self.control.execution()
+    }
+
+    pub fn into_execution(self) -> RecursivePlanningExecution {
+        self.control.into_execution()
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct RecursiveControlModelPolicy;
+
+impl RecursiveControlModelPolicy {
+    pub const fn new() -> Self {
+        Self
+    }
+
+    pub fn select_objective(
+        &self,
+        models: &RecursiveCompetingModels,
+        objectives: &[RecursiveControlObjective],
+    ) -> Option<RecursiveControlObjective> {
+        let best = models.best()?;
+
+        objectives
+            .iter()
+            .filter(|objective| objective.model() == best.concept())
+            .min_by(|left, right| left.goal().cmp(right.goal()))
+            .cloned()
+    }
+
+    pub fn prepare(
+        &self,
+        planning_memory: &RecursivePlanningMemory,
+        models: &RecursiveCompetingModels,
+        start: &RecursivePlanningState,
+        objectives: &[RecursiveControlObjective],
+    ) -> Option<RecursiveControlPolicyDecision> {
+        let objective = self.select_objective(models, objectives)?;
+
+        let request =
+            RecursiveControlRequest::new(models.clone(), start.clone(), objective.goal().clone());
+
+        let control = RecursiveControlPlanner::new().prepare(planning_memory, request)?;
+
+        Some(RecursiveControlPolicyDecision { objective, control })
+    }
+}
