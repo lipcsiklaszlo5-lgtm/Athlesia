@@ -476,3 +476,74 @@ impl RecursiveEvidenceLoop {
         RecursiveEvidenceLoopResult { updates }
     }
 }
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct RecursiveRevisionTransition {
+    before: RecursiveCompetingModels,
+    experiment: RecursiveDiscriminativeExperiment,
+    observation: RecursiveExperimentObservation,
+    evidence_updates: RecursiveEvidenceLoopResult,
+    after: RecursiveCompetingModels,
+}
+
+impl RecursiveRevisionTransition {
+    pub fn before(&self) -> &RecursiveCompetingModels {
+        &self.before
+    }
+
+    pub fn experiment(&self) -> &RecursiveDiscriminativeExperiment {
+        &self.experiment
+    }
+
+    pub const fn observation(&self) -> RecursiveExperimentObservation {
+        self.observation
+    }
+
+    pub fn evidence_updates(&self) -> &RecursiveEvidenceLoopResult {
+        &self.evidence_updates
+    }
+
+    pub fn after(&self) -> &RecursiveCompetingModels {
+        &self.after
+    }
+
+    pub fn best_before(&self) -> Option<&RecursiveModelAssessment> {
+        self.before.best()
+    }
+
+    pub fn best_after(&self) -> Option<&RecursiveModelAssessment> {
+        self.after.best()
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct RecursiveRevisionCycle;
+
+impl RecursiveRevisionCycle {
+    pub const fn new() -> Self {
+        Self
+    }
+
+    pub fn step(
+        &self,
+        memory: &mut RecursiveRevisionMemory,
+        observation: RecursiveExperimentObservation,
+    ) -> Option<RecursiveRevisionTransition> {
+        let before = RecursiveCompetingModels::from_memory(memory);
+
+        let experiment = RecursiveDiscriminativeExperimentSelector::new().select(&before)?;
+
+        let evidence_updates =
+            RecursiveEvidenceLoop::new().apply(memory, &before, &experiment, observation);
+
+        let after = RecursiveCompetingModels::from_memory(memory);
+
+        Some(RecursiveRevisionTransition {
+            before,
+            experiment,
+            observation,
+            evidence_updates,
+            after,
+        })
+    }
+}
