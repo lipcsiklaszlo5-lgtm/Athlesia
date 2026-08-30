@@ -11,8 +11,9 @@
   "implementation_sha256": {
     "Cargo.toml": "e852faab0d9dff23b09e1ee2323d0998955f837450c70ea015382ffe5ec52bff",
     "crates/athlesia_hierarchy/Cargo.toml": "6853cd5d63d5be93d8c1fa37d8961514bf1f48801ae59f90bf4fd0e6da49b3ee",
-    "crates/athlesia_hierarchy/src/lib.rs": "feb6e2a378f66ddffc11e6478655e09beead973d0f6daa01ac8e9595d7c1c42a",
+    "crates/athlesia_hierarchy/src/lib.rs": "0441b17340cc8ac940d69286b80c96dc180496988654756ad2761e35e3a6d9ec",
     "crates/athlesia_hierarchy/tests/hierarchical_memory_foundation.rs": "6e49dda50a6c06d191e5bcfd0637be862ad57bee36a82c5994d33252631124da",
+    "crates/athlesia_hierarchy/tests/hierarchy_discovery.rs": "07504754806d1086c9e5a5ab41cb405b2f5f531c8548372a586770e9ecc124b9",
     "crates/athlesia_revision/Cargo.toml": "5d86f3c6ebd51f093e03c171df1520526f4e9da298cb07cd04123191f4b0f814",
     "crates/athlesia_revision/src/lib.rs": "a688ddd7a219ab78fb699658cf16c7a52b39fffb81a2b7f11f26f8083a0e9a2d",
     "crates/athlesia_revision/tests/competing_models.rs": "3bba71b5e7d33259583e409cd54100cca885f472aded81f3da1f5bab1e3e75c9",
@@ -86,7 +87,8 @@
       "module_24_evidence_update_loop",
       "module_24_revision_cycle",
       "module_24_revision_memory_freeze",
-      "module_25_hierarchical_memory_foundation"
+      "module_25_hierarchical_memory_foundation",
+      "module_25_hierarchy_discovery"
     ],
     "module_23_integrity": {
       "status": "pass",
@@ -99,8 +101,8 @@
       "status": "frozen",
       "verifier": "tools/verify_module_23_parity.py"
     },
-    "next_layer": "module_25_hierarchy_discovery",
-    "stage": "module_25_hierarchical_memory_foundation",
+    "next_layer": "module_25_hierarchy_recognition",
+    "stage": "module_25_hierarchy_discovery",
     "status": "validated"
   },
   "validated_invariants": [
@@ -262,6 +264,13 @@
     "hierarchy_child_extent_preservation",
     "hierarchy_memory_deduplication",
     "hierarchy_memory_determinism",
-    "hierarchy_structural_purity"
+    "hierarchy_structural_purity",
+    "hierarchy_observation_canonicalization",
+    "hierarchy_repeated_cooccurrence",
+    "hierarchy_support_threshold",
+    "hierarchy_discovery_determinism",
+    "hierarchy_discovery_order_independence",
+    "hierarchy_discovery_extent_preservation",
+    "hierarchy_consolidation_deduplication"
   ]
 }
