@@ -7,6 +7,7 @@ pub mod primitive;
 pub mod recognition;
 pub mod relation;
 pub mod role;
+pub mod selection;
 pub mod structure;
 
 pub use concept::{ConceptConsolidator, ConceptMemory, StructuralConcept};
@@ -21,6 +22,7 @@ pub use primitive::{PrimitiveDiscovery, PrimitiveOccurrence, StructuralPrimitive
 pub use recognition::{RecognitionEngine, RecognitionResult};
 pub use relation::{RelationKind, RelationalStructure, StructuralRelation};
 pub use role::Role;
+pub use selection::{ExperimentSelection, ExperimentSelector};
 pub use structure::StructuralSequence;
 
 pub fn architecture_name() -> &'static str {
