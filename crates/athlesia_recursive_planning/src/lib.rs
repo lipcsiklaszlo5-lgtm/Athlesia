@@ -568,3 +568,101 @@ impl RecursivePlanningReplanner {
         }
     }
 }
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum RecursivePlanningActiveOutcome {
+    PreservedAndAdvanced,
+    ReplannedAndAdvanced,
+    GoalReached,
+    Unreachable,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct RecursivePlanningActiveCycleResult {
+    outcome: RecursivePlanningActiveOutcome,
+    reconciliation: RecursiveReplanningOutcome,
+    observed_state: RecursivePlanningState,
+    execution: Option<RecursivePlanningExecution>,
+}
+
+impl RecursivePlanningActiveCycleResult {
+    pub const fn outcome(&self) -> RecursivePlanningActiveOutcome {
+        self.outcome
+    }
+
+    pub const fn reconciliation(&self) -> RecursiveReplanningOutcome {
+        self.reconciliation
+    }
+
+    pub fn observed_state(&self) -> &RecursivePlanningState {
+        &self.observed_state
+    }
+
+    pub fn execution(&self) -> Option<&RecursivePlanningExecution> {
+        self.execution.as_ref()
+    }
+
+    pub fn into_execution(self) -> Option<RecursivePlanningExecution> {
+        self.execution
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct RecursivePlanningActiveCycle;
+
+impl RecursivePlanningActiveCycle {
+    pub const fn new() -> Self {
+        Self
+    }
+
+    pub fn tick(
+        &self,
+        memory: &RecursivePlanningMemory,
+        execution: &RecursivePlanningExecution,
+        observed_state: RecursivePlanningState,
+    ) -> RecursivePlanningActiveCycleResult {
+        let reconciliation =
+            RecursivePlanningReplanner::new().reconcile(memory, execution, observed_state.clone());
+
+        let reconciliation_outcome = reconciliation.outcome();
+
+        match reconciliation_outcome {
+            RecursiveReplanningOutcome::Unreachable => RecursivePlanningActiveCycleResult {
+                outcome: RecursivePlanningActiveOutcome::Unreachable,
+                reconciliation: reconciliation_outcome,
+                observed_state,
+                execution: None,
+            },
+
+            RecursiveReplanningOutcome::GoalReached => RecursivePlanningActiveCycleResult {
+                outcome: RecursivePlanningActiveOutcome::GoalReached,
+                reconciliation: reconciliation_outcome,
+                observed_state,
+                execution: reconciliation.into_execution(),
+            },
+
+            RecursiveReplanningOutcome::PlanPreserved | RecursiveReplanningOutcome::Replanned => {
+                let mut next_execution = reconciliation
+                    .into_execution()
+                    .expect("preserved or replanned outcomes carry execution");
+
+                let status = next_execution.step();
+
+                let outcome = if status == RecursivePlanningExecutionStatus::GoalReached {
+                    RecursivePlanningActiveOutcome::GoalReached
+                } else if reconciliation_outcome == RecursiveReplanningOutcome::PlanPreserved {
+                    RecursivePlanningActiveOutcome::PreservedAndAdvanced
+                } else {
+                    RecursivePlanningActiveOutcome::ReplannedAndAdvanced
+                };
+
+                RecursivePlanningActiveCycleResult {
+                    outcome,
+                    reconciliation: reconciliation_outcome,
+                    observed_state,
+                    execution: Some(next_execution),
+                }
+            }
+        }
+    }
+}
