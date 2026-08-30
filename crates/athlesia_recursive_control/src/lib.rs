@@ -334,3 +334,153 @@ impl RecursiveControlExperimentLoop {
         })
     }
 }
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct RecursiveControlActionStep {
+    decision: RecursiveControlPolicyDecision,
+    execution: RecursivePlanningExecution,
+}
+
+impl RecursiveControlActionStep {
+    pub fn decision(&self) -> &RecursiveControlPolicyDecision {
+        &self.decision
+    }
+
+    pub fn execution(&self) -> &RecursivePlanningExecution {
+        &self.execution
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum RecursiveControlActiveOutcome {
+    Action(Box<RecursiveControlActionStep>),
+    AwaitingExperiment(RecursiveDiscriminativeExperiment),
+    ExperimentObserved(Box<RecursiveControlExperimentTransition>),
+    NoDecision,
+    UnexpectedObservation,
+}
+
+impl RecursiveControlActiveOutcome {
+    pub fn is_action(&self) -> bool {
+        matches!(self, Self::Action(_))
+    }
+
+    pub fn is_awaiting_experiment(&self) -> bool {
+        matches!(self, Self::AwaitingExperiment(_))
+    }
+
+    pub fn is_experiment_observed(&self) -> bool {
+        matches!(self, Self::ExperimentObserved(_))
+    }
+
+    pub fn is_no_decision(&self) -> bool {
+        matches!(self, Self::NoDecision)
+    }
+
+    pub fn is_unexpected_observation(&self) -> bool {
+        matches!(self, Self::UnexpectedObservation)
+    }
+
+    pub fn action(&self) -> Option<&RecursiveControlActionStep> {
+        match self {
+            Self::Action(step) => Some(step.as_ref()),
+            Self::AwaitingExperiment(_)
+            | Self::ExperimentObserved(_)
+            | Self::NoDecision
+            | Self::UnexpectedObservation => None,
+        }
+    }
+
+    pub fn experiment(&self) -> Option<&RecursiveDiscriminativeExperiment> {
+        match self {
+            Self::AwaitingExperiment(experiment) => Some(experiment),
+            Self::Action(_)
+            | Self::ExperimentObserved(_)
+            | Self::NoDecision
+            | Self::UnexpectedObservation => None,
+        }
+    }
+
+    pub fn experiment_transition(&self) -> Option<&RecursiveControlExperimentTransition> {
+        match self {
+            Self::ExperimentObserved(transition) => Some(transition.as_ref()),
+            Self::Action(_)
+            | Self::AwaitingExperiment(_)
+            | Self::NoDecision
+            | Self::UnexpectedObservation => None,
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct RecursiveControlActiveCycle;
+
+impl RecursiveControlActiveCycle {
+    pub const fn new() -> Self {
+        Self
+    }
+
+    pub fn tick(
+        &self,
+        planning_memory: &RecursivePlanningMemory,
+        revision_memory: &mut RecursiveRevisionMemory,
+        start: &RecursivePlanningState,
+        objectives: &[RecursiveControlObjective],
+        observation: Option<RecursiveExperimentObservation>,
+    ) -> RecursiveControlActiveOutcome {
+        let models = RecursiveCompetingModels::from_memory(revision_memory);
+
+        let decision = RecursiveControlUncertaintyPolicy::new().decide(
+            planning_memory,
+            &models,
+            start,
+            objectives,
+        );
+
+        match decision {
+            RecursiveControlUncertaintyDecision::Act(decision) => {
+                if observation.is_some() {
+                    return RecursiveControlActiveOutcome::UnexpectedObservation;
+                }
+
+                let decision = *decision;
+
+                let mut execution = decision.execution().clone();
+
+                execution.step();
+
+                RecursiveControlActiveOutcome::Action(Box::new(RecursiveControlActionStep {
+                    decision,
+                    execution,
+                }))
+            }
+
+            RecursiveControlUncertaintyDecision::Experiment(experiment) => {
+                let Some(observation) = observation else {
+                    return RecursiveControlActiveOutcome::AwaitingExperiment(experiment);
+                };
+
+                RecursiveControlExperimentLoop::new()
+                    .observe(
+                        planning_memory,
+                        revision_memory,
+                        start,
+                        objectives,
+                        observation,
+                    )
+                    .map(|transition| {
+                        RecursiveControlActiveOutcome::ExperimentObserved(Box::new(transition))
+                    })
+                    .unwrap_or(RecursiveControlActiveOutcome::NoDecision)
+            }
+
+            RecursiveControlUncertaintyDecision::NoDecision => {
+                if observation.is_some() {
+                    RecursiveControlActiveOutcome::UnexpectedObservation
+                } else {
+                    RecursiveControlActiveOutcome::NoDecision
+                }
+            }
+        }
+    }
+}
