@@ -12,7 +12,8 @@
     "Cargo.toml": "e852faab0d9dff23b09e1ee2323d0998955f837450c70ea015382ffe5ec52bff",
     "crates/athlesia_cross_level/Cargo.lock": "e7672cfc40c8c81465a5682b0ae831a17215d2bfeefd293b3d570168194e0d38",
     "crates/athlesia_cross_level/Cargo.toml": "d32ebca99f825d3dc7b0ec6d8197457ba47688f2a73bb6fe72acb45c0a5ef04b",
-    "crates/athlesia_cross_level/src/lib.rs": "5ad180d0a7cc72938b70e720f8fab905ca8b2730afd5ec52e02a504f3fce329b",
+    "crates/athlesia_cross_level/src/lib.rs": "cadd52510a26ae747fc1deac9f621d0653f7b9f46a6562e00372ca2e40131085",
+    "crates/athlesia_cross_level/tests/cross_level_discovery.rs": "25c21284fa685c703efbdd52789dfc876191ba76e65783295e28d4aaf96e71d0",
     "crates/athlesia_cross_level/tests/cross_level_foundation.rs": "c5b5a9bdcbcfa542bf5f7f4b4d29b03383b4ec8de74e0f0f1145fb147c283f6e",
     "crates/athlesia_hierarchy/Cargo.toml": "6853cd5d63d5be93d8c1fa37d8961514bf1f48801ae59f90bf4fd0e6da49b3ee",
     "crates/athlesia_hierarchy/src/lib.rs": "dfcea2b7af7a59a1c4e214372e098408ef2411b1c81fb5f0d147e73acd403f7d",
@@ -106,7 +107,8 @@
       "module_25_hierarchy_completion_evaluation",
       "module_25_hierarchy_active_cycle",
       "module_25_hierarchy_freeze",
-      "module_26_cross_level_abstraction_foundation"
+      "module_26_cross_level_abstraction_foundation",
+      "module_26_cross_level_discovery"
     ],
     "module_23_integrity": {
       "status": "pass",
@@ -119,8 +121,8 @@
       "status": "frozen",
       "verifier": "tools/verify_module_23_parity.py"
     },
-    "next_layer": "module_26_cross_level_discovery",
-    "stage": "module_26_cross_level_abstraction_foundation",
+    "next_layer": "module_26_cross_level_recognition",
+    "stage": "module_26_cross_level_discovery",
     "status": "validated"
   },
   "validated_invariants": [
@@ -336,6 +338,14 @@
     "cross_level_structural_extent_preservation",
     "cross_level_hierarchy_identity_preservation",
     "cross_level_memory_deduplication",
-    "cross_level_memory_determinism"
+    "cross_level_memory_determinism",
+    "cross_level_observation_canonicalization",
+    "cross_level_repeated_mixed_cooccurrence",
+    "cross_level_same_level_rejection",
+    "cross_level_support_threshold",
+    "cross_level_discovery_determinism",
+    "cross_level_discovery_order_independence",
+    "cross_level_discovery_extent_preservation",
+    "cross_level_consolidation_deduplication"
   ]
 }

@@ -116,3 +116,128 @@ impl CrossLevelMemory {
         self.concepts.iter()
     }
 }
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct CrossLevelObservation {
+    units: Vec<AbstractionUnit>,
+}
+
+impl CrossLevelObservation {
+    pub fn new(units: Vec<AbstractionUnit>) -> Self {
+        let unique: BTreeSet<AbstractionUnit> = units.into_iter().collect();
+
+        Self {
+            units: unique.into_iter().collect(),
+        }
+    }
+
+    pub fn units(&self) -> &[AbstractionUnit] {
+        &self.units
+    }
+
+    pub fn len(&self) -> usize {
+        self.units.len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.units.is_empty()
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct CrossLevelCandidate {
+    concept: CrossLevelConcept,
+    support: usize,
+}
+
+impl CrossLevelCandidate {
+    pub fn concept(&self) -> &CrossLevelConcept {
+        &self.concept
+    }
+
+    pub const fn support(&self) -> usize {
+        self.support
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct CrossLevelDiscovery {
+    minimum_support: usize,
+}
+
+impl CrossLevelDiscovery {
+    pub const fn new(minimum_support: usize) -> Self {
+        Self { minimum_support }
+    }
+
+    pub const fn minimum_support(self) -> usize {
+        self.minimum_support
+    }
+
+    pub fn discover(&self, observations: &[CrossLevelObservation]) -> Vec<CrossLevelCandidate> {
+        use std::collections::BTreeMap;
+
+        let mut support: BTreeMap<CrossLevelConcept, usize> = BTreeMap::new();
+
+        for observation in observations {
+            let structural_units: Vec<AbstractionUnit> = observation
+                .units()
+                .iter()
+                .filter(|unit| unit.is_structural())
+                .cloned()
+                .collect();
+
+            let hierarchical_units: Vec<AbstractionUnit> = observation
+                .units()
+                .iter()
+                .filter(|unit| unit.is_hierarchical())
+                .cloned()
+                .collect();
+
+            for structural in &structural_units {
+                for hierarchical in &hierarchical_units {
+                    let candidate =
+                        CrossLevelConcept::new(vec![structural.clone(), hierarchical.clone()]);
+
+                    if let Some(candidate) = candidate {
+                        *support.entry(candidate).or_insert(0) += 1;
+                    }
+                }
+            }
+        }
+
+        support
+            .into_iter()
+            .filter_map(|(concept, count)| {
+                if count >= self.minimum_support {
+                    Some(CrossLevelCandidate {
+                        concept,
+                        support: count,
+                    })
+                } else {
+                    None
+                }
+            })
+            .collect()
+    }
+
+    pub fn consolidate(
+        &self,
+        observations: &[CrossLevelObservation],
+        memory: &mut CrossLevelMemory,
+    ) -> Vec<CrossLevelCandidate> {
+        let candidates = self.discover(observations);
+
+        for candidate in &candidates {
+            memory.insert(candidate.concept().clone());
+        }
+
+        candidates
+    }
+}
+
+impl Default for CrossLevelDiscovery {
+    fn default() -> Self {
+        Self::new(2)
+    }
+}
