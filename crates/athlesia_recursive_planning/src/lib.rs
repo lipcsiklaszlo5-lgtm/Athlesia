@@ -175,3 +175,62 @@ impl RecursivePlanningMemory {
         self.transitions.iter()
     }
 }
+
+#[derive(Clone, Debug, Eq, PartialEq, Ord, PartialOrd)]
+pub struct RecursivePlanningSuccessor {
+    state: RecursivePlanningState,
+    transition: RecursivePlanningTransition,
+}
+
+impl RecursivePlanningSuccessor {
+    pub fn state(&self) -> &RecursivePlanningState {
+        &self.state
+    }
+
+    pub fn transition(&self) -> &RecursivePlanningTransition {
+        &self.transition
+    }
+
+    pub fn cost(&self) -> usize {
+        self.transition.cost()
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct RecursivePlanningSuccessorGenerator;
+
+impl RecursivePlanningSuccessorGenerator {
+    pub const fn new() -> Self {
+        Self
+    }
+
+    pub fn generate(
+        &self,
+        memory: &RecursivePlanningMemory,
+        state: &RecursivePlanningState,
+    ) -> Vec<RecursivePlanningSuccessor> {
+        let mut successors = memory
+            .transitions()
+            .filter(|transition| transition.from() == state)
+            .map(|transition| RecursivePlanningSuccessor {
+                state: transition.to().clone(),
+                transition: transition.clone(),
+            })
+            .collect::<Vec<_>>();
+
+        successors.sort_by(|left, right| {
+            left.cost()
+                .cmp(&right.cost())
+                .then_with(|| left.state().cmp(right.state()))
+                .then_with(|| left.transition().cmp(right.transition()))
+        });
+
+        successors
+    }
+}
+
+impl RecursivePlanningMemory {
+    pub fn successors(&self, state: &RecursivePlanningState) -> Vec<RecursivePlanningSuccessor> {
+        RecursivePlanningSuccessorGenerator::new().generate(self, state)
+    }
+}
