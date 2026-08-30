@@ -11,8 +11,9 @@
   "implementation_sha256": {
     "Cargo.toml": "e852faab0d9dff23b09e1ee2323d0998955f837450c70ea015382ffe5ec52bff",
     "crates/athlesia_hierarchy/Cargo.toml": "6853cd5d63d5be93d8c1fa37d8961514bf1f48801ae59f90bf4fd0e6da49b3ee",
-    "crates/athlesia_hierarchy/src/lib.rs": "e2103b6b402e7666123abfd172ecb5fb62e42d8df390d16b53a9b8f3fbe75e94",
+    "crates/athlesia_hierarchy/src/lib.rs": "dfcea2b7af7a59a1c4e214372e098408ef2411b1c81fb5f0d147e73acd403f7d",
     "crates/athlesia_hierarchy/tests/hierarchical_memory_foundation.rs": "6e49dda50a6c06d191e5bcfd0637be862ad57bee36a82c5994d33252631124da",
+    "crates/athlesia_hierarchy/tests/hierarchy_active_cycle.rs": "83ad5ef863953632f648dd595a8858979b8df07cdf72c691d01d5f39fa54dbea",
     "crates/athlesia_hierarchy/tests/hierarchy_completion_evaluation.rs": "9f49abaa468cf9045dff5fd4652853aef16e28cae7bc1e420b49e0110eac5dea",
     "crates/athlesia_hierarchy/tests/hierarchy_completion_selection.rs": "db69a1f77551bb6baff95efd8ef4fca5e1e04623ebb969a0fc1fb2ef738f1bb2",
     "crates/athlesia_hierarchy/tests/hierarchy_discovery.rs": "07504754806d1086c9e5a5ab41cb405b2f5f531c8548372a586770e9ecc124b9",
@@ -96,7 +97,8 @@
       "module_25_hierarchy_recognition",
       "module_25_hierarchy_prediction",
       "module_25_hierarchy_completion_selection",
-      "module_25_hierarchy_completion_evaluation"
+      "module_25_hierarchy_completion_evaluation",
+      "module_25_hierarchy_active_cycle"
     ],
     "module_23_integrity": {
       "status": "pass",
@@ -109,8 +111,8 @@
       "status": "frozen",
       "verifier": "tools/verify_module_23_parity.py"
     },
-    "next_layer": "module_25_hierarchy_active_cycle",
-    "stage": "module_25_hierarchy_completion_evaluation",
+    "next_layer": "module_25_hierarchy_freeze",
+    "stage": "module_25_hierarchy_active_cycle",
     "status": "validated"
   },
   "validated_invariants": [
@@ -310,6 +312,14 @@
     "hierarchy_evaluation_context_tolerance",
     "hierarchy_evaluation_extent_preservation",
     "hierarchy_evaluation_determinism",
-    "hierarchy_evaluation_non_mutation"
+    "hierarchy_evaluation_non_mutation",
+    "hierarchy_active_transition",
+    "hierarchy_active_confirmation",
+    "hierarchy_active_violation",
+    "hierarchy_active_observation_snapshot",
+    "hierarchy_active_stop_condition",
+    "hierarchy_active_extent_preservation",
+    "hierarchy_active_determinism",
+    "hierarchy_active_non_mutation"
   ]
 }

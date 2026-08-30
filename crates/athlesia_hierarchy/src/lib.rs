@@ -515,3 +515,68 @@ impl HierarchyCompletionEvaluator {
         Some((candidate, evaluation))
     }
 }
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct HierarchyActiveTransition {
+    candidate: HierarchyCompletionCandidate,
+    evaluation: HierarchyCompletionEvaluation,
+    prior_observation: HierarchyObservation,
+    next_observation: HierarchyObservation,
+}
+
+impl HierarchyActiveTransition {
+    pub fn candidate(&self) -> &HierarchyCompletionCandidate {
+        &self.candidate
+    }
+
+    pub fn evaluation(&self) -> &HierarchyCompletionEvaluation {
+        &self.evaluation
+    }
+
+    pub fn prior_observation(&self) -> &HierarchyObservation {
+        &self.prior_observation
+    }
+
+    pub fn next_observation(&self) -> &HierarchyObservation {
+        &self.next_observation
+    }
+
+    pub const fn outcome(&self) -> HierarchyCompletionOutcome {
+        self.evaluation.outcome()
+    }
+
+    pub const fn is_confirmed(&self) -> bool {
+        self.evaluation.is_confirmed()
+    }
+
+    pub const fn is_violated(&self) -> bool {
+        self.evaluation.is_violated()
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct HierarchyActiveCycle;
+
+impl HierarchyActiveCycle {
+    pub const fn new() -> Self {
+        Self
+    }
+
+    pub fn step(
+        &self,
+        memory: &HierarchicalMemory,
+        prior_observation: &HierarchyObservation,
+        next_observation: &HierarchyObservation,
+    ) -> Option<HierarchyActiveTransition> {
+        let candidate = HierarchyCompletionSelector::new().select(memory, prior_observation)?;
+
+        let evaluation = HierarchyCompletionEvaluator::new().evaluate(&candidate, next_observation);
+
+        Some(HierarchyActiveTransition {
+            candidate,
+            evaluation,
+            prior_observation: prior_observation.clone(),
+            next_observation: next_observation.clone(),
+        })
+    }
+}
