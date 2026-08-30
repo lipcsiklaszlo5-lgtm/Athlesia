@@ -313,3 +313,98 @@ impl CrossLevelRecognizer {
             .collect()
     }
 }
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct CrossLevelPrediction {
+    concept: CrossLevelConcept,
+    observed_units: usize,
+    missing_units: Vec<AbstractionUnit>,
+}
+
+impl CrossLevelPrediction {
+    pub fn concept(&self) -> &CrossLevelConcept {
+        &self.concept
+    }
+
+    pub const fn observed_units(&self) -> usize {
+        self.observed_units
+    }
+
+    pub fn missing_units(&self) -> &[AbstractionUnit] {
+        &self.missing_units
+    }
+
+    pub fn missing_count(&self) -> usize {
+        self.missing_units.len()
+    }
+
+    pub fn is_single_step_completion(&self) -> bool {
+        self.missing_units.len() == 1
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct CrossLevelPredictor;
+
+impl CrossLevelPredictor {
+    pub const fn new() -> Self {
+        Self
+    }
+
+    pub fn predict(
+        &self,
+        concept: &CrossLevelConcept,
+        observation: &CrossLevelObservation,
+    ) -> Option<CrossLevelPrediction> {
+        let observed_units = concept
+            .units()
+            .iter()
+            .filter(|unit| observation.units().binary_search(unit).is_ok())
+            .count();
+
+        if observed_units == 0 || observed_units == concept.len() {
+            return None;
+        }
+
+        let missing_units = concept
+            .units()
+            .iter()
+            .filter(|unit| observation.units().binary_search(unit).is_err())
+            .cloned()
+            .collect();
+
+        Some(CrossLevelPrediction {
+            concept: concept.clone(),
+            observed_units,
+            missing_units,
+        })
+    }
+
+    pub fn predict_memory(
+        &self,
+        memory: &CrossLevelMemory,
+        observation: &CrossLevelObservation,
+    ) -> Vec<CrossLevelPrediction> {
+        let mut predictions: Vec<CrossLevelPrediction> = memory
+            .concepts()
+            .filter_map(|concept| self.predict(concept, observation))
+            .collect();
+
+        predictions.sort_by(|left, right| {
+            left.missing_count()
+                .cmp(&right.missing_count())
+                .then_with(|| right.observed_units().cmp(&left.observed_units()))
+                .then_with(|| left.concept().cmp(right.concept()))
+        });
+
+        predictions
+    }
+
+    pub fn best_prediction(
+        &self,
+        memory: &CrossLevelMemory,
+        observation: &CrossLevelObservation,
+    ) -> Option<CrossLevelPrediction> {
+        self.predict_memory(memory, observation).into_iter().next()
+    }
+}
