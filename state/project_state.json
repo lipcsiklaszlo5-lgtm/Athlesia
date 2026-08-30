@@ -11,9 +11,10 @@
   "implementation_sha256": {
     "Cargo.toml": "e852faab0d9dff23b09e1ee2323d0998955f837450c70ea015382ffe5ec52bff",
     "crates/athlesia_revision/Cargo.toml": "5d86f3c6ebd51f093e03c171df1520526f4e9da298cb07cd04123191f4b0f814",
-    "crates/athlesia_revision/src/lib.rs": "8f5f14bc14e299ef28298be240a592793d9a2b7b2c432398f7b5d2d2e97dec9f",
+    "crates/athlesia_revision/src/lib.rs": "6dbf453c77eff8ee738e15eb45f77d6a22e9fe6873067bf317f0231cb8d067e7",
     "crates/athlesia_revision/tests/competing_models.rs": "3bba71b5e7d33259583e409cd54100cca885f472aded81f3da1f5bab1e3e75c9",
     "crates/athlesia_revision/tests/discriminative_experiments.rs": "e26acfb70179a95f93d2728efed46819f712fa841937325773c20f329d9dcf19",
+    "crates/athlesia_revision/tests/evidence_update_loop.rs": "40cbed694150e07e5bc00329e9478901638c313b2b2e3503b0ab49295b2d2be2",
     "crates/athlesia_revision/tests/revision_foundation.rs": "32827637fa01b5dc4a5a41a15b0112fdbb99208cf5f3ff9634d8d264b51cb073",
     "crates/athlesia_revision/tests/revision_policy.rs": "6378aee538bf205e5fd65a1fa7f1413b109f34f4b6f9858015dfb8d046c99773",
     "src/concept.rs": "8b0b0e8417354c20abedc2ae4f6d4e7d173333fc4ed8626694c1ddc90c788d4f",
@@ -75,7 +76,8 @@
       "module_24_revision_foundation",
       "module_24_revision_policy",
       "module_24_competing_models",
-      "module_24_discriminative_experiments"
+      "module_24_discriminative_experiments",
+      "module_24_evidence_update_loop"
     ],
     "module_23_integrity": {
       "status": "pass",
@@ -88,8 +90,8 @@
       "status": "frozen",
       "verifier": "tools/verify_module_23_parity.py"
     },
-    "next_layer": "module_24_evidence_update_loop",
-    "stage": "module_24_discriminative_experiments",
+    "next_layer": "module_24_revision_cycle",
+    "stage": "module_24_evidence_update_loop",
     "status": "validated"
   },
   "validated_invariants": [
@@ -231,6 +233,13 @@
     "weakened_model_exclusion",
     "discrimination_determinism",
     "discrimination_order_independence",
-    "discrimination_non_mutation"
+    "discrimination_non_mutation",
+    "evidence_loop_confirmation",
+    "evidence_loop_violation",
+    "non_supporter_neutrality",
+    "evidence_driven_reranking",
+    "repeated_contradiction_weakening",
+    "weakened_model_update_exclusion",
+    "evidence_loop_determinism"
   ]
 }

@@ -360,3 +360,97 @@ impl DiscriminativeExperimentSelector {
         self.generate(models).into_iter().next()
     }
 }
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum StructuralObservationResult {
+    Present,
+    Absent,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ModelEvidenceUpdate {
+    concept: StructuralConcept,
+    before: EvidenceState,
+    after: EvidenceState,
+    observation: StructuralObservationResult,
+}
+
+impl ModelEvidenceUpdate {
+    pub fn concept(&self) -> &StructuralConcept {
+        &self.concept
+    }
+
+    pub const fn before(&self) -> EvidenceState {
+        self.before
+    }
+
+    pub const fn after(&self) -> EvidenceState {
+        self.after
+    }
+
+    pub const fn observation(&self) -> StructuralObservationResult {
+        self.observation
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct EvidenceUpdateLoop;
+
+impl EvidenceUpdateLoop {
+    pub const fn new() -> Self {
+        Self
+    }
+
+    pub fn apply(
+        &self,
+        models: &mut CompetingModels,
+        experiment: &DiscriminativeExperiment,
+        observation: StructuralObservationResult,
+    ) -> Vec<ModelEvidenceUpdate> {
+        let signature = experiment.signature();
+
+        let mut targets: Vec<StructuralConcept> = models
+            .assessments()
+            .into_iter()
+            .filter(|assessment| assessment.status() != RevisionStatus::Weakened)
+            .filter(|assessment| assessment.concept().contains(signature))
+            .map(|assessment| assessment.concept().clone())
+            .collect();
+
+        targets.sort();
+        targets.dedup();
+
+        let evidence_observation = match observation {
+            StructuralObservationResult::Present => RevisionObservation::Confirmed,
+            StructuralObservationResult::Absent => RevisionObservation::Violated,
+        };
+
+        targets
+            .into_iter()
+            .filter_map(|concept| {
+                let before = models.assess(&concept)?.evidence();
+
+                let after = models.record(concept.clone(), evidence_observation);
+
+                Some(ModelEvidenceUpdate {
+                    concept,
+                    before,
+                    after,
+                    observation,
+                })
+            })
+            .collect()
+    }
+
+    pub fn select_and_apply(
+        &self,
+        models: &mut CompetingModels,
+        observation: StructuralObservationResult,
+    ) -> Option<(DiscriminativeExperiment, Vec<ModelEvidenceUpdate>)> {
+        let experiment = DiscriminativeExperimentSelector::new().select(models)?;
+
+        let updates = self.apply(models, &experiment, observation);
+
+        Some((experiment, updates))
+    }
+}
