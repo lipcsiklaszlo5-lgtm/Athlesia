@@ -39,6 +39,10 @@
     "crates/athlesia_recursive/tests/recursive_foundation.rs": "f69160108e8dbe3a8e678f11b00e0ee5e27e002250897b79cffb5e8ca0be89b3",
     "crates/athlesia_recursive/tests/recursive_prediction.rs": "b9e96da2afcd23e26dcc5f91d33eca97a2367ec4659904143bd10fa2f5289297",
     "crates/athlesia_recursive/tests/recursive_recognition.rs": "904492c0bc40b19ab34651cd417ed2f0340918fa2be5c6627b1611664c484389",
+    "crates/athlesia_recursive_revision/Cargo.lock": "367fa1516dba773da707a866f7dd67c6fa01f96480c3f22c486d2aad27da198a",
+    "crates/athlesia_recursive_revision/Cargo.toml": "c699dc95992ce1b3853bbe27f7a2e13b99247474db120edae9b0a9acb6120f2e",
+    "crates/athlesia_recursive_revision/src/lib.rs": "c46996187b4526765bcebe536dcf375d051712c1ca408ec8f0097a317ccf8e80",
+    "crates/athlesia_recursive_revision/tests/recursive_revision_foundation.rs": "a860367d099441081f343953c566352ba2cae41385d93706a5aa331bf2bb83a9",
     "crates/athlesia_revision/Cargo.toml": "5d86f3c6ebd51f093e03c171df1520526f4e9da298cb07cd04123191f4b0f814",
     "crates/athlesia_revision/src/lib.rs": "a688ddd7a219ab78fb699658cf16c7a52b39fffb81a2b7f11f26f8083a0e9a2d",
     "crates/athlesia_revision/tests/competing_models.rs": "3bba71b5e7d33259583e409cd54100cca885f472aded81f3da1f5bab1e3e75c9",
@@ -141,7 +145,8 @@
       "module_27_recursive_completion_selection",
       "module_27_recursive_completion_evaluation",
       "module_27_recursive_active_cycle",
-      "module_27_recursive_freeze"
+      "module_27_recursive_freeze",
+      "module_28_recursive_revision_foundation"
     ],
     "module_23_integrity": {
       "status": "pass",
@@ -154,8 +159,8 @@
       "status": "frozen",
       "verifier": "tools/verify_module_23_parity.py"
     },
-    "next_layer": "module_28_recursive_revision_foundation",
-    "stage": "module_27_recursive_freeze",
+    "next_layer": "module_28_recursive_revision_policy",
+    "stage": "module_28_recursive_revision_foundation",
     "status": "validated"
   },
   "validated_invariants": [
@@ -499,6 +504,14 @@
     "recursive_active_depth_preservation",
     "recursive_active_determinism",
     "recursive_active_non_mutation",
-    "module_27_recursive_freeze"
+    "module_27_recursive_freeze",
+    "recursive_revision_evidence_state",
+    "recursive_revision_confirmation_accumulation",
+    "recursive_revision_violation_accumulation",
+    "recursive_revision_observation_mapping",
+    "recursive_revision_exact_identity",
+    "recursive_revision_depth_identity",
+    "recursive_revision_entry_reuse",
+    "recursive_revision_memory_determinism"
   ]
 }
