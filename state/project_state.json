@@ -86,6 +86,7 @@
     "state/module_26_cross_level_freeze.json": "ea0f6972eb4a60833a76e6b303ec2fe48e032918a40d609c7fdc850ddd522ec4",
     "state/module_27_recursive_freeze.json": "a26c4ee0e19b498b7cb69d1707c50a88c3fbd7261b7314af7f9290ef3872fde6",
     "state/module_28_recursive_revision_freeze.json": "8f660713ba343a0946253285a1ff8c83127bbec1e9257e49371ae8fff7fc90e7",
+    "state/module_29_recursive_planning_freeze.json": "5067823e04b5cba2e6fce6ff3702416dcb4562a020f385cdacf1e29c3b6731c1",
     "tests/module_23_concept.rs": "5462517fe36bb9653e926c096d5ca44acd6a4d10fb58aba23e5965e19d153dfa",
     "tests/module_23_encoder.rs": "9e4937f018fc4472f3e2bf63ab8049d9813123b367e5c93e382674caad3edcf3",
     "tests/module_23_evaluation.rs": "f128e24f15e9015019ee5d7af9901ac4434a2b600b7ab8f8650850d88bee3ed6",
@@ -105,7 +106,8 @@
     "tools/verify_module_25_hierarchy.py": "ba6068daa8ce115d1abd3fe9dc1ebb814c4dd55833d98a10eb03cde59d340ad6",
     "tools/verify_module_26_cross_level.py": "db1f460fdb565e1159d41a6c60bf5b4b2dc042bcc6683670d65c8636861efefe",
     "tools/verify_module_27_recursive.py": "94bef071431ed359ed01c8d60349a9e754cde7b2b89c5bdae18e771e8f343dc2",
-    "tools/verify_module_28_recursive_revision.py": "6370ec64bcf6c141435d66b5154dc9f4195f87638225e8622db2a21efb4b2861"
+    "tools/verify_module_28_recursive_revision.py": "6370ec64bcf6c141435d66b5154dc9f4195f87638225e8622db2a21efb4b2861",
+    "tools/verify_module_29_recursive_planning.py": "f3ac002af3c518b6065e3626df1836d6f574243c6a4edda937795eccbec27240"
   },
   "project": "Athlesia",
   "research_baseline": {
@@ -174,7 +176,8 @@
       "module_29_recursive_planning_search",
       "module_29_recursive_planning_execution",
       "module_29_recursive_planning_replanning",
-      "module_29_recursive_planning_active_cycle"
+      "module_29_recursive_planning_active_cycle",
+      "module_29_recursive_planning_freeze"
     ],
     "module_23_integrity": {
       "status": "pass",
@@ -187,8 +190,8 @@
       "status": "frozen",
       "verifier": "tools/verify_module_23_parity.py"
     },
-    "next_layer": "module_29_recursive_planning_freeze",
-    "stage": "module_29_recursive_planning_active_cycle",
+    "next_layer": "module_30_recursive_control_foundation",
+    "stage": "module_29_recursive_planning_freeze",
     "status": "validated"
   },
   "validated_invariants": [
@@ -659,6 +662,7 @@
     "recursive_planning_active_observation_identity",
     "recursive_planning_active_depth_preservation",
     "recursive_planning_active_non_mutation",
-    "recursive_planning_active_determinism"
+    "recursive_planning_active_determinism",
+    "module_29_recursive_planning_freeze"
   ]
 }
