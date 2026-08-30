@@ -365,3 +365,116 @@ impl RecursivePlanningMemory {
         RecursivePlanningSearch::new().find_plan(self, start, goal)
     }
 }
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum RecursivePlanningExecutionStatus {
+    Running,
+    GoalReached,
+    Exhausted,
+    InvalidState,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct RecursivePlanningExecution {
+    plan: RecursivePlanningPlan,
+    current_state: RecursivePlanningState,
+    next_transition_index: usize,
+    accumulated_cost: usize,
+    status: RecursivePlanningExecutionStatus,
+}
+
+impl RecursivePlanningExecution {
+    pub fn new(plan: RecursivePlanningPlan) -> Self {
+        let status = if plan.goal().is_satisfied_by(plan.start()) {
+            RecursivePlanningExecutionStatus::GoalReached
+        } else if plan.transitions().is_empty() {
+            RecursivePlanningExecutionStatus::Exhausted
+        } else {
+            RecursivePlanningExecutionStatus::Running
+        };
+
+        Self {
+            current_state: plan.start().clone(),
+            plan,
+            next_transition_index: 0,
+            accumulated_cost: 0,
+            status,
+        }
+    }
+
+    pub fn plan(&self) -> &RecursivePlanningPlan {
+        &self.plan
+    }
+
+    pub fn current_state(&self) -> &RecursivePlanningState {
+        &self.current_state
+    }
+
+    pub const fn next_transition_index(&self) -> usize {
+        self.next_transition_index
+    }
+
+    pub const fn accumulated_cost(&self) -> usize {
+        self.accumulated_cost
+    }
+
+    pub const fn status(&self) -> RecursivePlanningExecutionStatus {
+        self.status
+    }
+
+    pub fn is_finished(&self) -> bool {
+        self.status != RecursivePlanningExecutionStatus::Running
+    }
+
+    pub fn next_transition(&self) -> Option<&RecursivePlanningTransition> {
+        if self.status != RecursivePlanningExecutionStatus::Running {
+            return None;
+        }
+
+        self.plan.transitions().get(self.next_transition_index)
+    }
+
+    pub fn step(&mut self) -> RecursivePlanningExecutionStatus {
+        if self.status != RecursivePlanningExecutionStatus::Running {
+            return self.status;
+        }
+
+        let Some(transition) = self.plan.transitions().get(self.next_transition_index) else {
+            self.status = if self.plan.goal().is_satisfied_by(&self.current_state) {
+                RecursivePlanningExecutionStatus::GoalReached
+            } else {
+                RecursivePlanningExecutionStatus::Exhausted
+            };
+
+            return self.status;
+        };
+
+        if transition.from() != &self.current_state {
+            self.status = RecursivePlanningExecutionStatus::InvalidState;
+
+            return self.status;
+        }
+
+        self.current_state = transition.to().clone();
+
+        self.accumulated_cost += transition.cost();
+
+        self.next_transition_index += 1;
+
+        if self.plan.goal().is_satisfied_by(&self.current_state) {
+            self.status = RecursivePlanningExecutionStatus::GoalReached;
+        } else if self.next_transition_index >= self.plan.transitions().len() {
+            self.status = RecursivePlanningExecutionStatus::Exhausted;
+        }
+
+        self.status
+    }
+
+    pub fn run_to_completion(&mut self) -> RecursivePlanningExecutionStatus {
+        while self.status == RecursivePlanningExecutionStatus::Running {
+            self.step();
+        }
+
+        self.status
+    }
+}
