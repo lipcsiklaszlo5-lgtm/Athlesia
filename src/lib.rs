@@ -1,0 +1,38 @@
+pub mod encoder;
+pub mod relation;
+pub mod role;
+pub mod structure;
+
+pub use encoder::Encoder;
+pub use relation::{RelationKind, RelationalStructure, StructuralRelation};
+pub use role::Role;
+pub use structure::StructuralSequence;
+
+pub fn architecture_name() -> &'static str {
+    "Athlesia"
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn architecture_name_is_stable() {
+        assert_eq!(architecture_name(), "Athlesia");
+    }
+
+    #[test]
+    fn structural_sequence_can_be_constructed() {
+        let sequence = StructuralSequence::new(vec![
+            Role::new(0),
+            Role::new(1),
+            Role::new(0),
+            Role::new(1),
+            Role::new(2),
+        ]);
+
+        assert_eq!(sequence.len(), 5);
+        assert_eq!(sequence.roles()[0], Role::new(0));
+        assert_eq!(sequence.roles()[2], Role::new(0));
+    }
+}

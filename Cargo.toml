@@ -1,0 +1,17 @@
+[package]
+name = "athlesia"
+version = "0.1.0"
+edition = "2021"
+description = "Athlesia structural intelligence kernel"
+
+[lib]
+name = "athlesia"
+path = "src/lib.rs"
+
+[[bin]]
+name = "athlesia"
+path = "src/main.rs"
+
+[dependencies]
+
+[dev-dependencies]
