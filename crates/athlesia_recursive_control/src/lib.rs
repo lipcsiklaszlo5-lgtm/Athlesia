@@ -173,3 +173,76 @@ impl RecursiveControlModelPolicy {
         Some(RecursiveControlPolicyDecision { objective, control })
     }
 }
+
+use athlesia_recursive_revision::{
+    RecursiveDiscriminativeExperiment, RecursiveDiscriminativeExperimentSelector,
+    RecursiveRevisionStatus,
+};
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum RecursiveControlUncertaintyDecision {
+    Act(Box<RecursiveControlPolicyDecision>),
+    Experiment(RecursiveDiscriminativeExperiment),
+    NoDecision,
+}
+
+impl RecursiveControlUncertaintyDecision {
+    pub fn is_act(&self) -> bool {
+        matches!(self, Self::Act(_))
+    }
+
+    pub fn is_experiment(&self) -> bool {
+        matches!(self, Self::Experiment(_))
+    }
+
+    pub fn is_no_decision(&self) -> bool {
+        matches!(self, Self::NoDecision)
+    }
+
+    pub fn control(&self) -> Option<&RecursiveControlPolicyDecision> {
+        match self {
+            Self::Act(decision) => Some(decision.as_ref()),
+            Self::Experiment(_) | Self::NoDecision => None,
+        }
+    }
+
+    pub fn experiment(&self) -> Option<&RecursiveDiscriminativeExperiment> {
+        match self {
+            Self::Experiment(experiment) => Some(experiment),
+            Self::Act(_) | Self::NoDecision => None,
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct RecursiveControlUncertaintyPolicy;
+
+impl RecursiveControlUncertaintyPolicy {
+    pub const fn new() -> Self {
+        Self
+    }
+
+    pub fn decide(
+        &self,
+        planning_memory: &RecursivePlanningMemory,
+        models: &RecursiveCompetingModels,
+        start: &RecursivePlanningState,
+        objectives: &[RecursiveControlObjective],
+    ) -> RecursiveControlUncertaintyDecision {
+        let Some(best) = models.best() else {
+            return RecursiveControlUncertaintyDecision::NoDecision;
+        };
+
+        if best.status() == RecursiveRevisionStatus::Supported {
+            return RecursiveControlModelPolicy::new()
+                .prepare(planning_memory, models, start, objectives)
+                .map(|decision| RecursiveControlUncertaintyDecision::Act(Box::new(decision)))
+                .unwrap_or(RecursiveControlUncertaintyDecision::NoDecision);
+        }
+
+        RecursiveDiscriminativeExperimentSelector::new()
+            .select(models)
+            .map(RecursiveControlUncertaintyDecision::Experiment)
+            .unwrap_or(RecursiveControlUncertaintyDecision::NoDecision)
+    }
+}
