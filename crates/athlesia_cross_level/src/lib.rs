@@ -493,3 +493,87 @@ impl CrossLevelCompletionSelector {
         self.generate(memory, observation).into_iter().next()
     }
 }
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum CrossLevelCompletionOutcome {
+    Confirmed,
+    Violated,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct CrossLevelCompletionEvaluation {
+    target: AbstractionUnit,
+    outcome: CrossLevelCompletionOutcome,
+    supporting_concepts: usize,
+    single_step_support: usize,
+}
+
+impl CrossLevelCompletionEvaluation {
+    pub fn target(&self) -> &AbstractionUnit {
+        &self.target
+    }
+
+    pub const fn outcome(&self) -> CrossLevelCompletionOutcome {
+        self.outcome
+    }
+
+    pub const fn supporting_concepts(&self) -> usize {
+        self.supporting_concepts
+    }
+
+    pub const fn single_step_support(&self) -> usize {
+        self.single_step_support
+    }
+
+    pub const fn is_confirmed(&self) -> bool {
+        matches!(self.outcome, CrossLevelCompletionOutcome::Confirmed)
+    }
+
+    pub const fn is_violated(&self) -> bool {
+        matches!(self.outcome, CrossLevelCompletionOutcome::Violated)
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct CrossLevelCompletionEvaluator;
+
+impl CrossLevelCompletionEvaluator {
+    pub const fn new() -> Self {
+        Self
+    }
+
+    pub fn evaluate(
+        &self,
+        candidate: &CrossLevelCompletionCandidate,
+        observation: &CrossLevelObservation,
+    ) -> CrossLevelCompletionEvaluation {
+        let outcome = if observation.units().binary_search(candidate.unit()).is_ok() {
+            CrossLevelCompletionOutcome::Confirmed
+        } else {
+            CrossLevelCompletionOutcome::Violated
+        };
+
+        CrossLevelCompletionEvaluation {
+            target: candidate.unit().clone(),
+            outcome,
+            supporting_concepts: candidate.supporting_concepts(),
+            single_step_support: candidate.single_step_support(),
+        }
+    }
+
+    pub fn select_and_evaluate(
+        &self,
+        memory: &CrossLevelMemory,
+        prior_observation: &CrossLevelObservation,
+        next_observation: &CrossLevelObservation,
+    ) -> Option<(
+        CrossLevelCompletionCandidate,
+        CrossLevelCompletionEvaluation,
+    )> {
+        let candidate = CrossLevelCompletionSelector::new().select(memory, prior_observation)?;
+
+        let evaluation = self.evaluate(&candidate, next_observation);
+
+        Some((candidate, evaluation))
+    }
+}
