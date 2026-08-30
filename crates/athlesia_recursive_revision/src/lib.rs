@@ -221,3 +221,80 @@ impl RecursiveRevisionMemory {
         assessments
     }
 }
+
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
+pub struct RecursiveCompetingModels {
+    models: Vec<RecursiveModelAssessment>,
+}
+
+impl RecursiveCompetingModels {
+    pub fn new(models: Vec<RecursiveModelAssessment>) -> Self {
+        let mut models = models;
+
+        models.sort_by(|left, right| {
+            right
+                .status()
+                .cmp(&left.status())
+                .then_with(|| right.balance().cmp(&left.balance()))
+                .then_with(|| right.confirmations().cmp(&left.confirmations()))
+                .then_with(|| left.violations().cmp(&right.violations()))
+                .then_with(|| left.concept().cmp(right.concept()))
+        });
+
+        models.dedup_by(|left, right| left.concept() == right.concept());
+
+        Self { models }
+    }
+
+    pub fn from_memory(memory: &RecursiveRevisionMemory) -> Self {
+        Self::new(memory.ranked_assessments())
+    }
+
+    pub fn len(&self) -> usize {
+        self.models.len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.models.is_empty()
+    }
+
+    pub fn models(&self) -> &[RecursiveModelAssessment] {
+        &self.models
+    }
+
+    pub fn best(&self) -> Option<&RecursiveModelAssessment> {
+        self.models.first()
+    }
+
+    pub fn runner_up(&self) -> Option<&RecursiveModelAssessment> {
+        self.models.get(1)
+    }
+
+    pub fn supported_count(&self) -> usize {
+        self.models
+            .iter()
+            .filter(|model| model.status() == RecursiveRevisionStatus::Supported)
+            .count()
+    }
+
+    pub fn contested_count(&self) -> usize {
+        self.models
+            .iter()
+            .filter(|model| model.status() == RecursiveRevisionStatus::Contested)
+            .count()
+    }
+
+    pub fn weakened_count(&self) -> usize {
+        self.models
+            .iter()
+            .filter(|model| model.status() == RecursiveRevisionStatus::Weakened)
+            .count()
+    }
+
+    pub fn unsupported_count(&self) -> usize {
+        self.models
+            .iter()
+            .filter(|model| model.status() == RecursiveRevisionStatus::Unsupported)
+            .count()
+    }
+}

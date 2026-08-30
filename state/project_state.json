@@ -41,7 +41,8 @@
     "crates/athlesia_recursive/tests/recursive_recognition.rs": "904492c0bc40b19ab34651cd417ed2f0340918fa2be5c6627b1611664c484389",
     "crates/athlesia_recursive_revision/Cargo.lock": "367fa1516dba773da707a866f7dd67c6fa01f96480c3f22c486d2aad27da198a",
     "crates/athlesia_recursive_revision/Cargo.toml": "c699dc95992ce1b3853bbe27f7a2e13b99247474db120edae9b0a9acb6120f2e",
-    "crates/athlesia_recursive_revision/src/lib.rs": "c260c5757d2d711712fb8641df738b1babc96caa05d616045b569013c3258298",
+    "crates/athlesia_recursive_revision/src/lib.rs": "c0722efa97a44889543e19424310674f2a2511ad748d199575f794687e2a6f93",
+    "crates/athlesia_recursive_revision/tests/recursive_competing_models.rs": "8c71eed98d5b12dae1a0585ab7865b6160e88966e1534a845a0c5b75e72d9477",
     "crates/athlesia_recursive_revision/tests/recursive_revision_foundation.rs": "a860367d099441081f343953c566352ba2cae41385d93706a5aa331bf2bb83a9",
     "crates/athlesia_recursive_revision/tests/recursive_revision_policy.rs": "7a4607b5bc0a0eb02ec9cfa6cb391a148d73f27010875cf3b4dcf79a73ed162b",
     "crates/athlesia_revision/Cargo.toml": "5d86f3c6ebd51f093e03c171df1520526f4e9da298cb07cd04123191f4b0f814",
@@ -148,7 +149,8 @@
       "module_27_recursive_active_cycle",
       "module_27_recursive_freeze",
       "module_28_recursive_revision_foundation",
-      "module_28_recursive_revision_policy"
+      "module_28_recursive_revision_policy",
+      "module_28_recursive_competing_models"
     ],
     "module_23_integrity": {
       "status": "pass",
@@ -161,8 +163,8 @@
       "status": "frozen",
       "verifier": "tools/verify_module_23_parity.py"
     },
-    "next_layer": "module_28_recursive_competing_models",
-    "stage": "module_28_recursive_revision_policy",
+    "next_layer": "module_28_recursive_discriminative_experiments",
+    "stage": "module_28_recursive_competing_models",
     "status": "validated"
   },
   "validated_invariants": [
@@ -524,6 +526,17 @@
     "recursive_revision_policy_ranking",
     "recursive_revision_policy_depth_preservation",
     "recursive_revision_policy_determinism",
-    "recursive_revision_policy_non_mutation"
+    "recursive_revision_policy_non_mutation",
+    "recursive_competing_model_set",
+    "recursive_competing_status_ordering",
+    "recursive_competing_evidence_ordering",
+    "recursive_competing_runner_up",
+    "recursive_competing_status_counts",
+    "recursive_competing_identity_tie_break",
+    "recursive_competing_depth_preservation",
+    "recursive_competing_assessment_preservation",
+    "recursive_competing_deduplication",
+    "recursive_competing_determinism",
+    "recursive_competing_non_mutation"
   ]
 }
