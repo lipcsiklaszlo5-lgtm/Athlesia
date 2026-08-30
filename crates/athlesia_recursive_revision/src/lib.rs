@@ -388,3 +388,91 @@ impl RecursiveDiscriminativeExperimentSelector {
         self.generate(models).into_iter().next()
     }
 }
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum RecursiveExperimentObservation {
+    Present,
+    Absent,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct RecursiveEvidenceUpdate {
+    concept: RecursiveConcept,
+    before: RecursiveEvidenceState,
+    after: RecursiveEvidenceState,
+}
+
+impl RecursiveEvidenceUpdate {
+    pub fn concept(&self) -> &RecursiveConcept {
+        &self.concept
+    }
+
+    pub const fn before(&self) -> RecursiveEvidenceState {
+        self.before
+    }
+
+    pub const fn after(&self) -> RecursiveEvidenceState {
+        self.after
+    }
+}
+
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
+pub struct RecursiveEvidenceLoopResult {
+    updates: Vec<RecursiveEvidenceUpdate>,
+}
+
+impl RecursiveEvidenceLoopResult {
+    pub fn updates(&self) -> &[RecursiveEvidenceUpdate] {
+        &self.updates
+    }
+
+    pub fn len(&self) -> usize {
+        self.updates.len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.updates.is_empty()
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct RecursiveEvidenceLoop;
+
+impl RecursiveEvidenceLoop {
+    pub const fn new() -> Self {
+        Self
+    }
+
+    pub fn apply(
+        &self,
+        memory: &mut RecursiveRevisionMemory,
+        models: &RecursiveCompetingModels,
+        experiment: &RecursiveDiscriminativeExperiment,
+        observation: RecursiveExperimentObservation,
+    ) -> RecursiveEvidenceLoopResult {
+        let mut updates = Vec::new();
+
+        for model in models.models() {
+            if !model.concept().contains(experiment.target()) {
+                continue;
+            }
+
+            let concept = model.concept().clone();
+
+            let before = memory.evidence(&concept).copied().unwrap_or_default();
+
+            let after = match observation {
+                RecursiveExperimentObservation::Present => memory.confirm(concept.clone()),
+                RecursiveExperimentObservation::Absent => memory.violate(concept.clone()),
+            };
+
+            updates.push(RecursiveEvidenceUpdate {
+                concept,
+                before,
+                after,
+            });
+        }
+
+        RecursiveEvidenceLoopResult { updates }
+    }
+}

@@ -41,9 +41,10 @@
     "crates/athlesia_recursive/tests/recursive_recognition.rs": "904492c0bc40b19ab34651cd417ed2f0340918fa2be5c6627b1611664c484389",
     "crates/athlesia_recursive_revision/Cargo.lock": "367fa1516dba773da707a866f7dd67c6fa01f96480c3f22c486d2aad27da198a",
     "crates/athlesia_recursive_revision/Cargo.toml": "c699dc95992ce1b3853bbe27f7a2e13b99247474db120edae9b0a9acb6120f2e",
-    "crates/athlesia_recursive_revision/src/lib.rs": "d8fd05db4e67fb8ea2b31ec3eef4ead52b001ef008740b764b3e047cf1788eee",
+    "crates/athlesia_recursive_revision/src/lib.rs": "9de15111a47f1317bca2feebe3f8bf708008ae0b3cb8d88025e1ae80aba98580",
     "crates/athlesia_recursive_revision/tests/recursive_competing_models.rs": "8c71eed98d5b12dae1a0585ab7865b6160e88966e1534a845a0c5b75e72d9477",
     "crates/athlesia_recursive_revision/tests/recursive_discriminative_experiments.rs": "eba1e1c53f618a049df8c5c8aa9fdf905228d7f06c8d19eb79c3038fa191fdb6",
+    "crates/athlesia_recursive_revision/tests/recursive_evidence_loop.rs": "676c388afef13737a959cec87043c5f972974e1ab1be6df241226790104e302d",
     "crates/athlesia_recursive_revision/tests/recursive_revision_foundation.rs": "a860367d099441081f343953c566352ba2cae41385d93706a5aa331bf2bb83a9",
     "crates/athlesia_recursive_revision/tests/recursive_revision_policy.rs": "7a4607b5bc0a0eb02ec9cfa6cb391a148d73f27010875cf3b4dcf79a73ed162b",
     "crates/athlesia_revision/Cargo.toml": "5d86f3c6ebd51f093e03c171df1520526f4e9da298cb07cd04123191f4b0f814",
@@ -152,7 +153,8 @@
       "module_28_recursive_revision_foundation",
       "module_28_recursive_revision_policy",
       "module_28_recursive_competing_models",
-      "module_28_recursive_discriminative_experiments"
+      "module_28_recursive_discriminative_experiments",
+      "module_28_recursive_evidence_loop"
     ],
     "module_23_integrity": {
       "status": "pass",
@@ -165,8 +167,8 @@
       "status": "frozen",
       "verifier": "tools/verify_module_23_parity.py"
     },
-    "next_layer": "module_28_recursive_evidence_loop",
-    "stage": "module_28_recursive_discriminative_experiments",
+    "next_layer": "module_28_recursive_revision_cycle",
+    "stage": "module_28_recursive_evidence_loop",
     "status": "validated"
   },
   "validated_invariants": [
@@ -550,6 +552,15 @@
     "recursive_discriminative_identity_tie_break",
     "recursive_discriminative_status_independence",
     "recursive_discriminative_determinism",
-    "recursive_discriminative_non_mutation"
+    "recursive_discriminative_non_mutation",
+    "recursive_evidence_present_confirmation",
+    "recursive_evidence_absent_violation",
+    "recursive_evidence_non_supporter_neutrality",
+    "recursive_evidence_all_supporters_updated",
+    "recursive_evidence_before_after_snapshot",
+    "recursive_evidence_recursive_target",
+    "recursive_evidence_depth_preservation",
+    "recursive_evidence_repeated_accumulation",
+    "recursive_evidence_determinism"
   ]
 }
