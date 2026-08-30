@@ -178,3 +178,75 @@ impl Default for HierarchyDiscovery {
         Self::new(2)
     }
 }
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct HierarchyMatch {
+    concept: HierarchicalConcept,
+    matched_children: usize,
+    observation_size: usize,
+}
+
+impl HierarchyMatch {
+    pub fn concept(&self) -> &HierarchicalConcept {
+        &self.concept
+    }
+
+    pub const fn matched_children(&self) -> usize {
+        self.matched_children
+    }
+
+    pub const fn observation_size(&self) -> usize {
+        self.observation_size
+    }
+
+    pub fn is_exact_context(&self) -> bool {
+        self.matched_children == self.observation_size
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct HierarchyRecognizer;
+
+impl HierarchyRecognizer {
+    pub const fn new() -> Self {
+        Self
+    }
+
+    pub fn recognizes(
+        &self,
+        concept: &HierarchicalConcept,
+        observation: &HierarchyObservation,
+    ) -> bool {
+        concept
+            .children()
+            .iter()
+            .all(|child| observation.concepts().binary_search(child).is_ok())
+    }
+
+    pub fn recognize(
+        &self,
+        concept: &HierarchicalConcept,
+        observation: &HierarchyObservation,
+    ) -> Option<HierarchyMatch> {
+        if !self.recognizes(concept, observation) {
+            return None;
+        }
+
+        Some(HierarchyMatch {
+            concept: concept.clone(),
+            matched_children: concept.arity(),
+            observation_size: observation.len(),
+        })
+    }
+
+    pub fn recognize_memory(
+        &self,
+        memory: &HierarchicalMemory,
+        observation: &HierarchyObservation,
+    ) -> Vec<HierarchyMatch> {
+        memory
+            .concepts()
+            .filter_map(|concept| self.recognize(concept, observation))
+            .collect()
+    }
+}
