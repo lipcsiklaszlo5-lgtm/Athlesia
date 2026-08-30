@@ -1,10 +1,12 @@
 pub mod encoder;
+pub mod hypothesis;
 pub mod primitive;
 pub mod relation;
 pub mod role;
 pub mod structure;
 
 pub use encoder::Encoder;
+pub use hypothesis::{HypothesisInducer, PrimitiveSignature, StructuralHypothesis};
 pub use primitive::{PrimitiveDiscovery, PrimitiveOccurrence, StructuralPrimitive};
 pub use relation::{RelationKind, RelationalStructure, StructuralRelation};
 pub use role::Role;
