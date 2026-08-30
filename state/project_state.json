@@ -11,12 +11,14 @@
   "implementation_sha256": {
     "Cargo.toml": "e852faab0d9dff23b09e1ee2323d0998955f837450c70ea015382ffe5ec52bff",
     "src/encoder.rs": "99f1a0999307c67f2d79bd84141fd0df79c9ed9226fce4878902afc34b43cfcd",
-    "src/lib.rs": "f601daaf65ed615ac922d575a449e1cc55af4b0a79b71f9b930df1d139c1d821",
+    "src/lib.rs": "078c676cbce0cc7011b9893e01effa4e13063838c85eabfc2d89b6bf9cca0c40",
     "src/main.rs": "b65d3afa4b3c1dcd522e8490a15a7d2862f5962a4452bfe6a8dfe4161dcda531",
+    "src/primitive.rs": "bff0f97054096b284324858dd6251baf08f979db8fa383978f2c39459d157d8c",
     "src/relation.rs": "64518eb7420f647bde9e00e665031be17f4b25ed7ca131403c56380657efff14",
     "src/role.rs": "23ce51691e64c3166cf3515ab969d101a35787859e0ab09270d128e7190fd0ad",
     "src/structure.rs": "9f016a78ecdeabc9a7c2fc3ebedaf1d7e0f4d471f347b120d83b5fcf76f5bc28",
     "tests/module_23_encoder.rs": "9e4937f018fc4472f3e2bf63ab8049d9813123b367e5c93e382674caad3edcf3",
+    "tests/module_23_primitive.rs": "ac9a727f21130e4bda1951f516201bc78e3b10337b3c1f184e5baf201036aeef",
     "tests/module_23_relation.rs": "a92a47ee29c550c28ac3735db3163d4caf9f42743ce05093342f2c8fd6ed31f1",
     "tests/module_23_structure.rs": "3cad4520dff4b9b6f95bd3a360fe236133347a9a93ac464b35ee49b1dc8afa8e"
   },
@@ -31,10 +33,11 @@
       "typed_role",
       "structural_sequence",
       "value_independent_encoder",
-      "equality_relational_structure"
+      "equality_relational_structure",
+      "primitive_discovery"
     ],
-    "next_layer": "primitive_discovery",
-    "stage": "relational_structure",
+    "next_layer": "structural_hypothesis_induction",
+    "stage": "primitive_discovery",
     "status": "validated"
   },
   "validated_invariants": [
@@ -57,6 +60,13 @@
     "relation_value_invariance",
     "relation_determinism",
     "relation_order_stability",
-    "relation_api_structural_only"
+    "relation_api_structural_only",
+    "repeated_relation_primitive_induction",
+    "primitive_support_threshold",
+    "primitive_value_invariance",
+    "primitive_determinism",
+    "primitive_span_separation",
+    "primitive_position_independent_identity",
+    "primitive_structural_evidence_only"
   ]
 }

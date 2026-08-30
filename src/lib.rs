@@ -1,9 +1,11 @@
 pub mod encoder;
+pub mod primitive;
 pub mod relation;
 pub mod role;
 pub mod structure;
 
 pub use encoder::Encoder;
+pub use primitive::{PrimitiveDiscovery, PrimitiveOccurrence, StructuralPrimitive};
 pub use relation::{RelationKind, RelationalStructure, StructuralRelation};
 pub use role::Role;
 pub use structure::StructuralSequence;
