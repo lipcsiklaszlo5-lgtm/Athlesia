@@ -11,8 +11,9 @@
   "implementation_sha256": {
     "Cargo.toml": "e852faab0d9dff23b09e1ee2323d0998955f837450c70ea015382ffe5ec52bff",
     "crates/athlesia_revision/Cargo.toml": "5d86f3c6ebd51f093e03c171df1520526f4e9da298cb07cd04123191f4b0f814",
-    "crates/athlesia_revision/src/lib.rs": "fb4a7037b47b2d05a654feb1354d440ae586780d38e68888159e0efa9f002d7c",
+    "crates/athlesia_revision/src/lib.rs": "a653b0c24d420c55e9dd5234c4e6ed5e2ec3d63e5a1607dfcb81f79788048579",
     "crates/athlesia_revision/tests/revision_foundation.rs": "32827637fa01b5dc4a5a41a15b0112fdbb99208cf5f3ff9634d8d264b51cb073",
+    "crates/athlesia_revision/tests/revision_policy.rs": "6378aee538bf205e5fd65a1fa7f1413b109f34f4b6f9858015dfb8d046c99773",
     "src/concept.rs": "8b0b0e8417354c20abedc2ae4f6d4e7d173333fc4ed8626694c1ddc90c788d4f",
     "src/encoder.rs": "99f1a0999307c67f2d79bd84141fd0df79c9ed9226fce4878902afc34b43cfcd",
     "src/evaluation.rs": "4d2ea28bc2582163226f0035100f8c7d3df6cd581f868c805ca965418d4ad4e6",
@@ -69,7 +70,8 @@
       "exact_structural_extent",
       "module_23_integrity_suite",
       "module_23_parity_freeze",
-      "module_24_revision_foundation"
+      "module_24_revision_foundation",
+      "module_24_revision_policy"
     ],
     "module_23_integrity": {
       "status": "pass",
@@ -82,8 +84,8 @@
       "status": "frozen",
       "verifier": "tools/verify_module_23_parity.py"
     },
-    "next_layer": "module_24_revision_policy",
-    "stage": "module_24_revision_foundation",
+    "next_layer": "module_24_competing_models",
+    "stage": "module_24_revision_policy",
     "status": "validated"
   },
   "validated_invariants": [
@@ -204,6 +206,13 @@
     "revision_value_invariance",
     "revision_extent_separation",
     "revision_determinism",
-    "violation_non_destructive"
+    "violation_non_destructive",
+    "revision_support_threshold",
+    "revision_contested_state",
+    "revision_weakening_margin",
+    "revision_non_immediate_rejection",
+    "revision_policy_determinism",
+    "revision_policy_order_independence",
+    "revision_status_identity_separation"
   ]
 }

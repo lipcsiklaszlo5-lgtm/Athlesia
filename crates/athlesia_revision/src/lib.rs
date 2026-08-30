@@ -100,3 +100,63 @@ impl RevisionMemory {
             .map(|(concept, evidence)| (concept, *evidence))
     }
 }
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum RevisionStatus {
+    Unsupported,
+    Supported,
+    Contested,
+    Weakened,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct RevisionPolicy {
+    minimum_support: u64,
+    weakening_margin: u64,
+}
+
+impl RevisionPolicy {
+    pub const fn new(minimum_support: u64, weakening_margin: u64) -> Self {
+        Self {
+            minimum_support,
+            weakening_margin,
+        }
+    }
+
+    pub const fn minimum_support(self) -> u64 {
+        self.minimum_support
+    }
+
+    pub const fn weakening_margin(self) -> u64 {
+        self.weakening_margin
+    }
+
+    pub fn classify(self, evidence: EvidenceState) -> RevisionStatus {
+        let confirmations = evidence.confirmations();
+        let violations = evidence.violations();
+
+        if confirmations == 0 && violations == 0 {
+            return RevisionStatus::Unsupported;
+        }
+
+        if violations >= confirmations.saturating_add(self.weakening_margin) && violations > 0 {
+            return RevisionStatus::Weakened;
+        }
+
+        if confirmations > 0 && violations > 0 {
+            return RevisionStatus::Contested;
+        }
+
+        if confirmations >= self.minimum_support && violations == 0 {
+            return RevisionStatus::Supported;
+        }
+
+        RevisionStatus::Unsupported
+    }
+}
+
+impl Default for RevisionPolicy {
+    fn default() -> Self {
+        Self::new(2, 2)
+    }
+}
