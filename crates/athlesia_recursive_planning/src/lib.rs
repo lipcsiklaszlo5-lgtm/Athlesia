@@ -478,3 +478,93 @@ impl RecursivePlanningExecution {
         self.status
     }
 }
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum RecursiveReplanningOutcome {
+    PlanPreserved,
+    Replanned,
+    GoalReached,
+    Unreachable,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct RecursiveReplanningResult {
+    outcome: RecursiveReplanningOutcome,
+    observed_state: RecursivePlanningState,
+    execution: Option<RecursivePlanningExecution>,
+}
+
+impl RecursiveReplanningResult {
+    pub const fn outcome(&self) -> RecursiveReplanningOutcome {
+        self.outcome
+    }
+
+    pub fn observed_state(&self) -> &RecursivePlanningState {
+        &self.observed_state
+    }
+
+    pub fn execution(&self) -> Option<&RecursivePlanningExecution> {
+        self.execution.as_ref()
+    }
+
+    pub fn into_execution(self) -> Option<RecursivePlanningExecution> {
+        self.execution
+    }
+
+    pub fn has_plan(&self) -> bool {
+        self.execution.is_some()
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct RecursivePlanningReplanner;
+
+impl RecursivePlanningReplanner {
+    pub const fn new() -> Self {
+        Self
+    }
+
+    pub fn reconcile(
+        &self,
+        memory: &RecursivePlanningMemory,
+        execution: &RecursivePlanningExecution,
+        observed_state: RecursivePlanningState,
+    ) -> RecursiveReplanningResult {
+        let goal = execution.plan().goal();
+
+        if goal.is_satisfied_by(&observed_state) {
+            let plan = memory
+                .find_plan(&observed_state, goal)
+                .expect("already-satisfied goals always yield zero-step plans");
+
+            return RecursiveReplanningResult {
+                outcome: RecursiveReplanningOutcome::GoalReached,
+                observed_state,
+                execution: Some(RecursivePlanningExecution::new(plan)),
+            };
+        }
+
+        if execution.status() == RecursivePlanningExecutionStatus::Running
+            && execution.current_state() == &observed_state
+        {
+            return RecursiveReplanningResult {
+                outcome: RecursiveReplanningOutcome::PlanPreserved,
+                observed_state,
+                execution: Some(execution.clone()),
+            };
+        }
+
+        match memory.find_plan(&observed_state, goal) {
+            Some(plan) => RecursiveReplanningResult {
+                outcome: RecursiveReplanningOutcome::Replanned,
+                observed_state,
+                execution: Some(RecursivePlanningExecution::new(plan)),
+            },
+            None => RecursiveReplanningResult {
+                outcome: RecursiveReplanningOutcome::Unreachable,
+                observed_state,
+                execution: None,
+            },
+        }
+    }
+}

@@ -41,9 +41,10 @@
     "crates/athlesia_recursive/tests/recursive_recognition.rs": "904492c0bc40b19ab34651cd417ed2f0340918fa2be5c6627b1611664c484389",
     "crates/athlesia_recursive_planning/Cargo.lock": "1b98847a561bf7d6003a8f8eb1894cdfe3ccd0d72104644c6da315fcc4119a8b",
     "crates/athlesia_recursive_planning/Cargo.toml": "b5253078a43da960d98859a7b0d28827d02df8f22d0d878bcc657741e219188b",
-    "crates/athlesia_recursive_planning/src/lib.rs": "bf34279683346efdddd633f9394b0064354d604dcd2527c9bd8d5cdafcf72a1c",
+    "crates/athlesia_recursive_planning/src/lib.rs": "e296d0aa3180f8f8603c35227f6e6fba99196eba8c7b19dbd5b192524d4ad32f",
     "crates/athlesia_recursive_planning/tests/recursive_planning_execution.rs": "971433955148ab44857aea2bab9f0e251d3f90541c037f0dbc617fc714cb2985",
     "crates/athlesia_recursive_planning/tests/recursive_planning_foundation.rs": "c528f4bf43977833ad632a774d5b97a97a64ba410185a6211db26bc464cc680c",
+    "crates/athlesia_recursive_planning/tests/recursive_planning_replanning.rs": "a01813d434e985194fc93977b694e731a9de10376978c0526aa1252cedd99ada",
     "crates/athlesia_recursive_planning/tests/recursive_planning_search.rs": "c862d7020cde8d0b81f6c95f96947e47670f91ba7ad6766bc01518d9cbb0da53",
     "crates/athlesia_recursive_planning/tests/recursive_planning_successors.rs": "13bd18607ba09861bf3fd5423204e50395dd019fa4e6cb84785f82ddea4610b6",
     "crates/athlesia_recursive_revision/Cargo.lock": "367fa1516dba773da707a866f7dd67c6fa01f96480c3f22c486d2aad27da198a",
@@ -170,7 +171,8 @@
       "module_29_recursive_planning_foundation",
       "module_29_recursive_planning_successors",
       "module_29_recursive_planning_search",
-      "module_29_recursive_planning_execution"
+      "module_29_recursive_planning_execution",
+      "module_29_recursive_planning_replanning"
     ],
     "module_23_integrity": {
       "status": "pass",
@@ -183,8 +185,8 @@
       "status": "frozen",
       "verifier": "tools/verify_module_23_parity.py"
     },
-    "next_layer": "module_29_recursive_planning_replanning",
-    "stage": "module_29_recursive_planning_execution",
+    "next_layer": "module_29_recursive_planning_active_cycle",
+    "stage": "module_29_recursive_planning_replanning",
     "status": "validated"
   },
   "validated_invariants": [
@@ -634,6 +636,17 @@
     "recursive_planning_execution_transition_validation",
     "recursive_planning_execution_depth_preservation",
     "recursive_planning_execution_plan_preservation",
-    "recursive_planning_execution_determinism"
+    "recursive_planning_execution_determinism",
+    "recursive_planning_replan_divergence_detection",
+    "recursive_planning_replan_plan_preservation",
+    "recursive_planning_replan_goal_preservation",
+    "recursive_planning_replan_cost_optimality",
+    "recursive_planning_replan_goal_stop",
+    "recursive_planning_replan_unreachable",
+    "recursive_planning_replan_observation_identity",
+    "recursive_planning_replan_execution_continuation",
+    "recursive_planning_replan_depth_preservation",
+    "recursive_planning_replan_non_mutation",
+    "recursive_planning_replan_determinism"
   ]
 }
