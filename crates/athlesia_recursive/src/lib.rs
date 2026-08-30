@@ -511,3 +511,84 @@ impl RecursiveCompletionSelector {
         self.generate(memory, observation).into_iter().next()
     }
 }
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum RecursiveCompletionOutcome {
+    Confirmed,
+    Violated,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct RecursiveCompletionEvaluation {
+    target: RecursiveUnit,
+    outcome: RecursiveCompletionOutcome,
+    supporting_concepts: usize,
+    single_step_support: usize,
+}
+
+impl RecursiveCompletionEvaluation {
+    pub fn target(&self) -> &RecursiveUnit {
+        &self.target
+    }
+
+    pub const fn outcome(&self) -> RecursiveCompletionOutcome {
+        self.outcome
+    }
+
+    pub const fn supporting_concepts(&self) -> usize {
+        self.supporting_concepts
+    }
+
+    pub const fn single_step_support(&self) -> usize {
+        self.single_step_support
+    }
+
+    pub const fn is_confirmed(&self) -> bool {
+        matches!(self.outcome, RecursiveCompletionOutcome::Confirmed)
+    }
+
+    pub const fn is_violated(&self) -> bool {
+        matches!(self.outcome, RecursiveCompletionOutcome::Violated)
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct RecursiveCompletionEvaluator;
+
+impl RecursiveCompletionEvaluator {
+    pub const fn new() -> Self {
+        Self
+    }
+
+    pub fn evaluate(
+        &self,
+        candidate: &RecursiveCompletionCandidate,
+        observation: &RecursiveObservation,
+    ) -> RecursiveCompletionEvaluation {
+        let outcome = if observation.units().binary_search(candidate.unit()).is_ok() {
+            RecursiveCompletionOutcome::Confirmed
+        } else {
+            RecursiveCompletionOutcome::Violated
+        };
+
+        RecursiveCompletionEvaluation {
+            target: candidate.unit().clone(),
+            outcome,
+            supporting_concepts: candidate.supporting_concepts(),
+            single_step_support: candidate.single_step_support(),
+        }
+    }
+
+    pub fn select_and_evaluate(
+        &self,
+        memory: &RecursiveMemory,
+        prior_observation: &RecursiveObservation,
+        next_observation: &RecursiveObservation,
+    ) -> Option<(RecursiveCompletionCandidate, RecursiveCompletionEvaluation)> {
+        let candidate = RecursiveCompletionSelector::new().select(memory, prior_observation)?;
+
+        let evaluation = self.evaluate(&candidate, next_observation);
+
+        Some((candidate, evaluation))
+    }
+}

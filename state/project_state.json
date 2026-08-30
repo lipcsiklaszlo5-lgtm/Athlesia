@@ -31,7 +31,8 @@
     "crates/athlesia_hierarchy/tests/hierarchy_recognition.rs": "bc7fe6ac289f8697e65b2ebe9aab179ae0cdb2db655fed18afae454bf2132841",
     "crates/athlesia_recursive/Cargo.lock": "eb3234330b5d1f01b30b6d9f1be64743a933ea15a7f5ff2057ba8dc943f7bf44",
     "crates/athlesia_recursive/Cargo.toml": "3aaaefa8e4d7f79d56f15e0a1f789b913bc3c3c45f422151356c0e560e182ae2",
-    "crates/athlesia_recursive/src/lib.rs": "8d2b2054c83d9118dca96aaf996b0a95f54ff550640cb9ef6a4a3082e21423a3",
+    "crates/athlesia_recursive/src/lib.rs": "4333622abc6af58b5da2d9e1df70f740314ab2b0361681346ef2f58b4cad30fe",
+    "crates/athlesia_recursive/tests/recursive_completion_evaluation.rs": "0d65cf7aded7771cd58302e5f3ce470d9b64183d164520de31ed752db2a0ace6",
     "crates/athlesia_recursive/tests/recursive_completion_selection.rs": "65dfaced7d7ae5229d200d60aab30843854352058b47521db2a49b12ecfdd517",
     "crates/athlesia_recursive/tests/recursive_discovery.rs": "6913a0d79aa9b8b6ef1b341af3fdd71605b315d9ed50d8e19480ea788d0e8f22",
     "crates/athlesia_recursive/tests/recursive_foundation.rs": "f69160108e8dbe3a8e678f11b00e0ee5e27e002250897b79cffb5e8ca0be89b3",
@@ -134,7 +135,8 @@
       "module_27_recursive_discovery",
       "module_27_recursive_recognition",
       "module_27_recursive_prediction",
-      "module_27_recursive_completion_selection"
+      "module_27_recursive_completion_selection",
+      "module_27_recursive_completion_evaluation"
     ],
     "module_23_integrity": {
       "status": "pass",
@@ -147,8 +149,8 @@
       "status": "frozen",
       "verifier": "tools/verify_module_23_parity.py"
     },
-    "next_layer": "module_27_recursive_completion_evaluation",
-    "stage": "module_27_recursive_completion_selection",
+    "next_layer": "module_27_recursive_active_cycle",
+    "stage": "module_27_recursive_completion_evaluation",
     "status": "validated"
   },
   "validated_invariants": [
@@ -467,6 +469,18 @@
     "recursive_completion_structural_tie_break",
     "recursive_completion_depth_preservation",
     "recursive_completion_determinism",
-    "recursive_completion_non_mutation"
+    "recursive_completion_non_mutation",
+    "recursive_completion_confirmation",
+    "recursive_completion_violation",
+    "recursive_evaluation_base_target",
+    "recursive_evaluation_cross_level_target",
+    "recursive_evaluation_recursive_target",
+    "recursive_evaluation_target_identity",
+    "recursive_evaluation_support_snapshot",
+    "recursive_evaluation_context_tolerance",
+    "recursive_evaluation_cross_level_identity_preservation",
+    "recursive_evaluation_depth_preservation",
+    "recursive_evaluation_determinism",
+    "recursive_evaluation_non_mutation"
   ]
 }
