@@ -259,3 +259,75 @@ impl Default for RecursiveDiscovery {
         Self::new(2)
     }
 }
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct RecursiveMatch {
+    concept: RecursiveConcept,
+    matched_units: usize,
+    observation_size: usize,
+}
+
+impl RecursiveMatch {
+    pub fn concept(&self) -> &RecursiveConcept {
+        &self.concept
+    }
+
+    pub const fn matched_units(&self) -> usize {
+        self.matched_units
+    }
+
+    pub const fn observation_size(&self) -> usize {
+        self.observation_size
+    }
+
+    pub fn is_exact_context(&self) -> bool {
+        self.matched_units == self.observation_size
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct RecursiveRecognizer;
+
+impl RecursiveRecognizer {
+    pub const fn new() -> Self {
+        Self
+    }
+
+    pub fn recognizes(
+        &self,
+        concept: &RecursiveConcept,
+        observation: &RecursiveObservation,
+    ) -> bool {
+        concept
+            .units()
+            .iter()
+            .all(|unit| observation.units().binary_search(unit).is_ok())
+    }
+
+    pub fn recognize(
+        &self,
+        concept: &RecursiveConcept,
+        observation: &RecursiveObservation,
+    ) -> Option<RecursiveMatch> {
+        if !self.recognizes(concept, observation) {
+            return None;
+        }
+
+        Some(RecursiveMatch {
+            concept: concept.clone(),
+            matched_units: concept.len(),
+            observation_size: observation.len(),
+        })
+    }
+
+    pub fn recognize_memory(
+        &self,
+        memory: &RecursiveMemory,
+        observation: &RecursiveObservation,
+    ) -> Vec<RecursiveMatch> {
+        memory
+            .concepts()
+            .filter_map(|concept| self.recognize(concept, observation))
+            .collect()
+    }
+}
