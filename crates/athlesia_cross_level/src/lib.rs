@@ -408,3 +408,88 @@ impl CrossLevelPredictor {
         self.predict_memory(memory, observation).into_iter().next()
     }
 }
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct CrossLevelCompletionCandidate {
+    unit: AbstractionUnit,
+    supporting_concepts: usize,
+    single_step_support: usize,
+}
+
+impl CrossLevelCompletionCandidate {
+    pub fn unit(&self) -> &AbstractionUnit {
+        &self.unit
+    }
+
+    pub const fn supporting_concepts(&self) -> usize {
+        self.supporting_concepts
+    }
+
+    pub const fn single_step_support(&self) -> usize {
+        self.single_step_support
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct CrossLevelCompletionSelector;
+
+impl CrossLevelCompletionSelector {
+    pub const fn new() -> Self {
+        Self
+    }
+
+    pub fn generate(
+        &self,
+        memory: &CrossLevelMemory,
+        observation: &CrossLevelObservation,
+    ) -> Vec<CrossLevelCompletionCandidate> {
+        use std::collections::BTreeMap;
+
+        let predictions = CrossLevelPredictor::new().predict_memory(memory, observation);
+
+        let mut support: BTreeMap<AbstractionUnit, (usize, usize)> = BTreeMap::new();
+
+        for prediction in predictions {
+            let single_step = prediction.is_single_step_completion();
+
+            for unit in prediction.missing_units() {
+                let entry = support.entry(unit.clone()).or_insert((0, 0));
+
+                entry.0 += 1;
+
+                if single_step {
+                    entry.1 += 1;
+                }
+            }
+        }
+
+        let mut candidates: Vec<CrossLevelCompletionCandidate> = support
+            .into_iter()
+            .map(|(unit, (supporting_concepts, single_step_support))| {
+                CrossLevelCompletionCandidate {
+                    unit,
+                    supporting_concepts,
+                    single_step_support,
+                }
+            })
+            .collect();
+
+        candidates.sort_by(|left, right| {
+            right
+                .supporting_concepts()
+                .cmp(&left.supporting_concepts())
+                .then_with(|| right.single_step_support().cmp(&left.single_step_support()))
+                .then_with(|| left.unit().cmp(right.unit()))
+        });
+
+        candidates
+    }
+
+    pub fn select(
+        &self,
+        memory: &CrossLevelMemory,
+        observation: &CrossLevelObservation,
+    ) -> Option<CrossLevelCompletionCandidate> {
+        self.generate(memory, observation).into_iter().next()
+    }
+}
