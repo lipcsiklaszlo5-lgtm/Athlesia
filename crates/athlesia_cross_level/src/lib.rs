@@ -241,3 +241,75 @@ impl Default for CrossLevelDiscovery {
         Self::new(2)
     }
 }
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct CrossLevelMatch {
+    concept: CrossLevelConcept,
+    matched_units: usize,
+    observation_size: usize,
+}
+
+impl CrossLevelMatch {
+    pub fn concept(&self) -> &CrossLevelConcept {
+        &self.concept
+    }
+
+    pub const fn matched_units(&self) -> usize {
+        self.matched_units
+    }
+
+    pub const fn observation_size(&self) -> usize {
+        self.observation_size
+    }
+
+    pub fn is_exact_context(&self) -> bool {
+        self.matched_units == self.observation_size
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct CrossLevelRecognizer;
+
+impl CrossLevelRecognizer {
+    pub const fn new() -> Self {
+        Self
+    }
+
+    pub fn recognizes(
+        &self,
+        concept: &CrossLevelConcept,
+        observation: &CrossLevelObservation,
+    ) -> bool {
+        concept
+            .units()
+            .iter()
+            .all(|unit| observation.units().binary_search(unit).is_ok())
+    }
+
+    pub fn recognize(
+        &self,
+        concept: &CrossLevelConcept,
+        observation: &CrossLevelObservation,
+    ) -> Option<CrossLevelMatch> {
+        if !self.recognizes(concept, observation) {
+            return None;
+        }
+
+        Some(CrossLevelMatch {
+            concept: concept.clone(),
+            matched_units: concept.len(),
+            observation_size: observation.len(),
+        })
+    }
+
+    pub fn recognize_memory(
+        &self,
+        memory: &CrossLevelMemory,
+        observation: &CrossLevelObservation,
+    ) -> Vec<CrossLevelMatch> {
+        memory
+            .concepts()
+            .filter_map(|concept| self.recognize(concept, observation))
+            .collect()
+    }
+}
