@@ -160,3 +160,114 @@ impl Default for RevisionPolicy {
         Self::new(2, 2)
     }
 }
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ModelAssessment {
+    concept: StructuralConcept,
+    evidence: EvidenceState,
+    status: RevisionStatus,
+}
+
+impl ModelAssessment {
+    pub fn concept(&self) -> &StructuralConcept {
+        &self.concept
+    }
+
+    pub const fn evidence(&self) -> EvidenceState {
+        self.evidence
+    }
+
+    pub const fn status(&self) -> RevisionStatus {
+        self.status
+    }
+
+    pub fn net_support(&self) -> i128 {
+        i128::from(self.evidence.confirmations()) - i128::from(self.evidence.violations())
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct CompetingModels {
+    memory: RevisionMemory,
+    policy: RevisionPolicy,
+}
+
+impl CompetingModels {
+    pub fn new(policy: RevisionPolicy) -> Self {
+        Self {
+            memory: RevisionMemory::new(),
+            policy,
+        }
+    }
+
+    pub fn with_default_policy() -> Self {
+        Self::new(RevisionPolicy::default())
+    }
+
+    pub fn len(&self) -> usize {
+        self.memory.len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.memory.is_empty()
+    }
+
+    pub fn record(
+        &mut self,
+        concept: StructuralConcept,
+        observation: RevisionObservation,
+    ) -> EvidenceState {
+        self.memory.record(concept, observation)
+    }
+
+    pub fn assess(&self, concept: &StructuralConcept) -> Option<ModelAssessment> {
+        let evidence = self.memory.evidence_for(concept)?;
+
+        Some(ModelAssessment {
+            concept: concept.clone(),
+            evidence,
+            status: self.policy.classify(evidence),
+        })
+    }
+
+    pub fn assessments(&self) -> Vec<ModelAssessment> {
+        let mut result: Vec<ModelAssessment> = self
+            .memory
+            .concepts()
+            .map(|(concept, evidence)| ModelAssessment {
+                concept: concept.clone(),
+                evidence,
+                status: self.policy.classify(evidence),
+            })
+            .collect();
+
+        result.sort_by(|left, right| {
+            status_rank(left.status)
+                .cmp(&status_rank(right.status))
+                .then_with(|| right.net_support().cmp(&left.net_support()))
+                .then_with(|| right.evidence.total().cmp(&left.evidence.total()))
+                .then_with(|| left.concept.cmp(&right.concept))
+        });
+
+        result
+    }
+
+    pub fn best(&self) -> Option<ModelAssessment> {
+        self.assessments().into_iter().next()
+    }
+}
+
+impl Default for CompetingModels {
+    fn default() -> Self {
+        Self::with_default_policy()
+    }
+}
+
+const fn status_rank(status: RevisionStatus) -> u8 {
+    match status {
+        RevisionStatus::Supported => 0,
+        RevisionStatus::Contested => 1,
+        RevisionStatus::Unsupported => 2,
+        RevisionStatus::Weakened => 3,
+    }
+}
