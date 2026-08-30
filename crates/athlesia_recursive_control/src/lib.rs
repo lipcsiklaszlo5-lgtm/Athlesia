@@ -246,3 +246,91 @@ impl RecursiveControlUncertaintyPolicy {
             .unwrap_or(RecursiveControlUncertaintyDecision::NoDecision)
     }
 }
+
+use athlesia_recursive_revision::{
+    RecursiveExperimentObservation, RecursiveRevisionCycle, RecursiveRevisionMemory,
+    RecursiveRevisionTransition,
+};
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct RecursiveControlExperimentTransition {
+    before_models: RecursiveCompetingModels,
+    before_decision: RecursiveControlUncertaintyDecision,
+    revision: RecursiveRevisionTransition,
+    after_models: RecursiveCompetingModels,
+    next_decision: RecursiveControlUncertaintyDecision,
+}
+
+impl RecursiveControlExperimentTransition {
+    pub fn before_models(&self) -> &RecursiveCompetingModels {
+        &self.before_models
+    }
+
+    pub fn before_decision(&self) -> &RecursiveControlUncertaintyDecision {
+        &self.before_decision
+    }
+
+    pub fn revision(&self) -> &RecursiveRevisionTransition {
+        &self.revision
+    }
+
+    pub fn after_models(&self) -> &RecursiveCompetingModels {
+        &self.after_models
+    }
+
+    pub fn next_decision(&self) -> &RecursiveControlUncertaintyDecision {
+        &self.next_decision
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct RecursiveControlExperimentLoop;
+
+impl RecursiveControlExperimentLoop {
+    pub const fn new() -> Self {
+        Self
+    }
+
+    pub fn observe(
+        &self,
+        planning_memory: &RecursivePlanningMemory,
+        revision_memory: &mut RecursiveRevisionMemory,
+        start: &RecursivePlanningState,
+        objectives: &[RecursiveControlObjective],
+        observation: RecursiveExperimentObservation,
+    ) -> Option<RecursiveControlExperimentTransition> {
+        let before_models = RecursiveCompetingModels::from_memory(revision_memory);
+
+        let before_decision = RecursiveControlUncertaintyPolicy::new().decide(
+            planning_memory,
+            &before_models,
+            start,
+            objectives,
+        );
+
+        let expected_experiment = before_decision.experiment()?.clone();
+
+        let revision = RecursiveRevisionCycle::new().step(revision_memory, observation)?;
+
+        if revision.experiment() != &expected_experiment {
+            return None;
+        }
+
+        let after_models = revision.after().clone();
+
+        let next_decision = RecursiveControlUncertaintyPolicy::new().decide(
+            planning_memory,
+            &after_models,
+            start,
+            objectives,
+        );
+
+        Some(RecursiveControlExperimentTransition {
+            before_models,
+            before_decision,
+            revision,
+            after_models,
+            next_decision,
+        })
+    }
+}

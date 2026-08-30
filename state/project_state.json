@@ -41,7 +41,8 @@
     "crates/athlesia_recursive/tests/recursive_recognition.rs": "904492c0bc40b19ab34651cd417ed2f0340918fa2be5c6627b1611664c484389",
     "crates/athlesia_recursive_control/Cargo.lock": "770807cb2d8881bc73b9dc01f64f2bb621b03b8730fa7918a834847146c431f7",
     "crates/athlesia_recursive_control/Cargo.toml": "e419ce35592c0cc759ee800a61a48564c0f8be397aaca8bfe4297e84e520ad73",
-    "crates/athlesia_recursive_control/src/lib.rs": "2ae96a1af321ea15ccdb0ba14653d32d945bbbdf7f5f90bff9ca789e03fe635d",
+    "crates/athlesia_recursive_control/src/lib.rs": "8edbbd5a666419b6fcd85f795e0956ded5cf5db561db7531fb2ddf4bbd4662b6",
+    "crates/athlesia_recursive_control/tests/recursive_control_experiment_loop.rs": "68f16da4daec94e5afcc033f62e98c853062df0e54808c67bbe44a4a3fce6806",
     "crates/athlesia_recursive_control/tests/recursive_control_foundation.rs": "d06e5595290e2c17459c09e9f14d918c5294be93e96c052144d904660808adad",
     "crates/athlesia_recursive_control/tests/recursive_control_model_policy.rs": "b4bf0a98e2e6ab20213e91aa8e0c018548969cb5780b933aa3f11d9b8dc0242d",
     "crates/athlesia_recursive_control/tests/recursive_control_uncertainty_policy.rs": "d19436e2881c44d091435015f1420512c1f7492ac9d8491cb97f25d5603342ec",
@@ -186,7 +187,8 @@
       "module_29_recursive_planning_freeze",
       "module_30_recursive_control_foundation",
       "module_30_recursive_control_model_policy",
-      "module_30_recursive_control_uncertainty_policy"
+      "module_30_recursive_control_uncertainty_policy",
+      "module_30_recursive_control_experiment_loop"
     ],
     "module_23_integrity": {
       "status": "pass",
@@ -199,8 +201,8 @@
       "status": "frozen",
       "verifier": "tools/verify_module_23_parity.py"
     },
-    "next_layer": "module_30_recursive_control_experiment_loop",
-    "stage": "module_30_recursive_control_uncertainty_policy",
+    "next_layer": "module_30_recursive_control_active_cycle",
+    "stage": "module_30_recursive_control_experiment_loop",
     "status": "validated"
   },
   "validated_invariants": [
@@ -708,6 +710,18 @@
     "recursive_control_uncertainty_revision_reactivity",
     "recursive_control_uncertainty_experiment_determinism",
     "recursive_control_uncertainty_non_mutation",
-    "recursive_control_uncertainty_depth_identity"
+    "recursive_control_uncertainty_depth_identity",
+    "recursive_control_experiment_requires_uncertainty",
+    "recursive_control_experiment_present_observation",
+    "recursive_control_experiment_absent_observation",
+    "recursive_control_experiment_selector_alignment",
+    "recursive_control_experiment_before_snapshot",
+    "recursive_control_experiment_after_snapshot",
+    "recursive_control_experiment_evidence_mutation",
+    "recursive_control_experiment_policy_recompute",
+    "recursive_control_experiment_reranking",
+    "recursive_control_experiment_depth_identity",
+    "recursive_control_experiment_planning_non_mutation",
+    "recursive_control_experiment_determinism"
   ]
 }
