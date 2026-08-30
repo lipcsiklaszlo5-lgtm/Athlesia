@@ -298,3 +298,93 @@ impl RecursiveCompetingModels {
             .count()
     }
 }
+
+use athlesia_recursive::RecursiveUnit;
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct RecursiveDiscriminativeExperiment {
+    target: RecursiveUnit,
+    supporters: usize,
+    opponents: usize,
+    discrimination_score: usize,
+}
+
+impl RecursiveDiscriminativeExperiment {
+    pub fn target(&self) -> &RecursiveUnit {
+        &self.target
+    }
+
+    pub const fn supporters(&self) -> usize {
+        self.supporters
+    }
+
+    pub const fn opponents(&self) -> usize {
+        self.opponents
+    }
+
+    pub const fn discrimination_score(&self) -> usize {
+        self.discrimination_score
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct RecursiveDiscriminativeExperimentSelector;
+
+impl RecursiveDiscriminativeExperimentSelector {
+    pub const fn new() -> Self {
+        Self
+    }
+
+    pub fn generate(
+        &self,
+        models: &RecursiveCompetingModels,
+    ) -> Vec<RecursiveDiscriminativeExperiment> {
+        use std::collections::BTreeMap;
+
+        let mut support: BTreeMap<RecursiveUnit, usize> = BTreeMap::new();
+
+        let model_count = models.len();
+
+        for model in models.models() {
+            for unit in model.concept().units() {
+                *support.entry(unit.clone()).or_insert(0) += 1;
+            }
+        }
+
+        let mut experiments = Vec::new();
+
+        for (target, supporters) in support {
+            let opponents = model_count.saturating_sub(supporters);
+
+            if supporters == 0 || opponents == 0 {
+                continue;
+            }
+
+            let discrimination_score = supporters.min(opponents);
+
+            experiments.push(RecursiveDiscriminativeExperiment {
+                target,
+                supporters,
+                opponents,
+                discrimination_score,
+            });
+        }
+
+        experiments.sort_by(|left, right| {
+            right
+                .discrimination_score()
+                .cmp(&left.discrimination_score())
+                .then_with(|| right.supporters().cmp(&left.supporters()))
+                .then_with(|| left.target().cmp(right.target()))
+        });
+
+        experiments
+    }
+
+    pub fn select(
+        &self,
+        models: &RecursiveCompetingModels,
+    ) -> Option<RecursiveDiscriminativeExperiment> {
+        self.generate(models).into_iter().next()
+    }
+}
