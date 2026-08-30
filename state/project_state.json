@@ -31,7 +31,8 @@
     "crates/athlesia_hierarchy/tests/hierarchy_recognition.rs": "bc7fe6ac289f8697e65b2ebe9aab179ae0cdb2db655fed18afae454bf2132841",
     "crates/athlesia_recursive/Cargo.lock": "eb3234330b5d1f01b30b6d9f1be64743a933ea15a7f5ff2057ba8dc943f7bf44",
     "crates/athlesia_recursive/Cargo.toml": "3aaaefa8e4d7f79d56f15e0a1f789b913bc3c3c45f422151356c0e560e182ae2",
-    "crates/athlesia_recursive/src/lib.rs": "4333622abc6af58b5da2d9e1df70f740314ab2b0361681346ef2f58b4cad30fe",
+    "crates/athlesia_recursive/src/lib.rs": "a51021e5b2a92dd56b0f7f57a6efe8b782c4dc086b8c287966a4ac786c9ee329",
+    "crates/athlesia_recursive/tests/recursive_active_cycle.rs": "423ab8512a7b7b04a000b11000bd06f121d2518045bc63c365f89d5744577680",
     "crates/athlesia_recursive/tests/recursive_completion_evaluation.rs": "0d65cf7aded7771cd58302e5f3ce470d9b64183d164520de31ed752db2a0ace6",
     "crates/athlesia_recursive/tests/recursive_completion_selection.rs": "65dfaced7d7ae5229d200d60aab30843854352058b47521db2a49b12ecfdd517",
     "crates/athlesia_recursive/tests/recursive_discovery.rs": "6913a0d79aa9b8b6ef1b341af3fdd71605b315d9ed50d8e19480ea788d0e8f22",
@@ -136,7 +137,8 @@
       "module_27_recursive_recognition",
       "module_27_recursive_prediction",
       "module_27_recursive_completion_selection",
-      "module_27_recursive_completion_evaluation"
+      "module_27_recursive_completion_evaluation",
+      "module_27_recursive_active_cycle"
     ],
     "module_23_integrity": {
       "status": "pass",
@@ -149,8 +151,8 @@
       "status": "frozen",
       "verifier": "tools/verify_module_23_parity.py"
     },
-    "next_layer": "module_27_recursive_active_cycle",
-    "stage": "module_27_recursive_completion_evaluation",
+    "next_layer": "module_27_recursive_freeze",
+    "stage": "module_27_recursive_active_cycle",
     "status": "validated"
   },
   "validated_invariants": [
@@ -481,6 +483,18 @@
     "recursive_evaluation_cross_level_identity_preservation",
     "recursive_evaluation_depth_preservation",
     "recursive_evaluation_determinism",
-    "recursive_evaluation_non_mutation"
+    "recursive_evaluation_non_mutation",
+    "recursive_active_transition",
+    "recursive_active_base_completion",
+    "recursive_active_cross_level_completion",
+    "recursive_active_recursive_completion",
+    "recursive_active_confirmation",
+    "recursive_active_violation",
+    "recursive_active_observation_snapshot",
+    "recursive_active_stop_condition",
+    "recursive_active_cross_level_identity_preservation",
+    "recursive_active_depth_preservation",
+    "recursive_active_determinism",
+    "recursive_active_non_mutation"
   ]
 }

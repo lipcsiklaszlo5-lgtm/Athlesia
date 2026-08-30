@@ -592,3 +592,68 @@ impl RecursiveCompletionEvaluator {
         Some((candidate, evaluation))
     }
 }
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct RecursiveActiveTransition {
+    candidate: RecursiveCompletionCandidate,
+    evaluation: RecursiveCompletionEvaluation,
+    prior_observation: RecursiveObservation,
+    next_observation: RecursiveObservation,
+}
+
+impl RecursiveActiveTransition {
+    pub fn candidate(&self) -> &RecursiveCompletionCandidate {
+        &self.candidate
+    }
+
+    pub fn evaluation(&self) -> &RecursiveCompletionEvaluation {
+        &self.evaluation
+    }
+
+    pub fn prior_observation(&self) -> &RecursiveObservation {
+        &self.prior_observation
+    }
+
+    pub fn next_observation(&self) -> &RecursiveObservation {
+        &self.next_observation
+    }
+
+    pub const fn outcome(&self) -> RecursiveCompletionOutcome {
+        self.evaluation.outcome()
+    }
+
+    pub const fn is_confirmed(&self) -> bool {
+        self.evaluation.is_confirmed()
+    }
+
+    pub const fn is_violated(&self) -> bool {
+        self.evaluation.is_violated()
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct RecursiveActiveCycle;
+
+impl RecursiveActiveCycle {
+    pub const fn new() -> Self {
+        Self
+    }
+
+    pub fn step(
+        &self,
+        memory: &RecursiveMemory,
+        prior_observation: &RecursiveObservation,
+        next_observation: &RecursiveObservation,
+    ) -> Option<RecursiveActiveTransition> {
+        let candidate = RecursiveCompletionSelector::new().select(memory, prior_observation)?;
+
+        let evaluation = RecursiveCompletionEvaluator::new().evaluate(&candidate, next_observation);
+
+        Some(RecursiveActiveTransition {
+            candidate,
+            evaluation,
+            prior_observation: prior_observation.clone(),
+            next_observation: next_observation.clone(),
+        })
+    }
+}
