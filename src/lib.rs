@@ -3,6 +3,7 @@ pub mod encoder;
 pub mod evaluation;
 pub mod experiment;
 pub mod hypothesis;
+pub mod inference;
 pub mod prediction;
 pub mod primitive;
 pub mod recognition;
@@ -16,6 +17,7 @@ pub use encoder::Encoder;
 pub use evaluation::{PredictionEvaluation, PredictionEvaluator, PredictionOutcome};
 pub use experiment::{ExperimentCandidate, ExperimentGenerator};
 pub use hypothesis::{HypothesisInducer, PrimitiveSignature, StructuralHypothesis};
+pub use inference::{ActiveInferenceEngine, ActiveInferenceError, ActiveInferenceTransition};
 pub use prediction::{
     PartialStructuralState, PredictionEngine, PredictionError, PredictionRule,
     PredictiveStructuralModel,

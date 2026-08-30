@@ -135,6 +135,21 @@ impl PartialStructuralState {
     pub fn is_observed(&self, position: usize) -> Option<bool> {
         self.observed.get(position).copied()
     }
+
+    pub fn observe(&mut self, position: usize) -> bool {
+        match self.observed.get_mut(position) {
+            Some(slot) => {
+                let changed = !*slot;
+                *slot = true;
+                changed
+            }
+            None => false,
+        }
+    }
+
+    pub fn observed_count(&self) -> usize {
+        self.observed.iter().filter(|observed| **observed).count()
+    }
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
