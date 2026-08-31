@@ -192,3 +192,109 @@ impl RecursiveWorldRevisionGenerationProposalBridgeBuilder {
         RecursiveWorldRevisionGenerationProposalBridge::new(candidates)
     }
 }
+
+use athlesia_recursive_world_model::RecursiveWorldModel;
+
+use athlesia_recursive_world_model_revision_proposal::{
+    RecursiveWorldRejectedRevisionProposal, RecursiveWorldRevisionProposalValidationSet,
+    RecursiveWorldRevisionProposalValidator, RecursiveWorldValidatedRevisionProposal,
+};
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct RecursiveWorldRevisionGenerationValidation {
+    bridge: RecursiveWorldRevisionGenerationProposalBridge,
+    validations: RecursiveWorldRevisionProposalValidationSet,
+}
+
+impl RecursiveWorldRevisionGenerationValidation {
+    pub fn new(
+        model: &RecursiveWorldModel,
+        candidates: RecursiveWorldRevisionGenerationCandidateSet,
+    ) -> Self {
+        let bridge = RecursiveWorldRevisionGenerationProposalBridge::new(candidates);
+
+        let validations =
+            RecursiveWorldRevisionProposalValidator::validate_set(model, bridge.proposals());
+
+        Self {
+            bridge,
+            validations,
+        }
+    }
+
+    pub fn bridge(&self) -> &RecursiveWorldRevisionGenerationProposalBridge {
+        &self.bridge
+    }
+
+    pub fn validations(&self) -> &RecursiveWorldRevisionProposalValidationSet {
+        &self.validations
+    }
+
+    pub fn accepted(&self) -> &[RecursiveWorldValidatedRevisionProposal] {
+        self.validations.accepted()
+    }
+
+    pub fn rejected(&self) -> &[RecursiveWorldRejectedRevisionProposal] {
+        self.validations.rejected()
+    }
+
+    pub fn accepted_count(&self) -> usize {
+        self.validations.accepted_count()
+    }
+
+    pub fn rejected_count(&self) -> usize {
+        self.validations.rejected_count()
+    }
+
+    pub fn candidates_for_accepted(
+        &self,
+        accepted: &RecursiveWorldValidatedRevisionProposal,
+    ) -> Vec<RecursiveWorldRevisionGenerationCandidate> {
+        self.bridge.candidates_for_proposal(accepted.proposal())
+    }
+
+    pub fn candidates_for_rejected(
+        &self,
+        rejected: &RecursiveWorldRejectedRevisionProposal,
+    ) -> Vec<RecursiveWorldRevisionGenerationCandidate> {
+        self.bridge.candidates_for_proposal(rejected.proposal())
+    }
+
+    pub fn accepted_candidates(&self) -> Vec<RecursiveWorldRevisionGenerationCandidate> {
+        let mut candidates = self
+            .accepted()
+            .iter()
+            .flat_map(|accepted| self.candidates_for_accepted(accepted))
+            .collect::<Vec<_>>();
+
+        candidates.sort();
+        candidates.dedup();
+
+        candidates
+    }
+
+    pub fn rejected_candidates(&self) -> Vec<RecursiveWorldRevisionGenerationCandidate> {
+        let mut candidates = self
+            .rejected()
+            .iter()
+            .flat_map(|rejected| self.candidates_for_rejected(rejected))
+            .collect::<Vec<_>>();
+
+        candidates.sort();
+        candidates.dedup();
+
+        candidates
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct RecursiveWorldRevisionGenerationValidator;
+
+impl RecursiveWorldRevisionGenerationValidator {
+    pub fn validate(
+        model: &RecursiveWorldModel,
+        candidates: RecursiveWorldRevisionGenerationCandidateSet,
+    ) -> RecursiveWorldRevisionGenerationValidation {
+        RecursiveWorldRevisionGenerationValidation::new(model, candidates)
+    }
+}
