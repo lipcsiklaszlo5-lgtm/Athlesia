@@ -936,3 +936,168 @@ impl RecursiveWorldRevisionAbstractionEvidenceScoper {
         )
     }
 }
+
+use athlesia_recursive_world_model::{RecursiveWorldMinimalRevision, RecursiveWorldRevisionBudget};
+
+use athlesia_recursive_world_model_revision_discovery::{
+    RecursiveWorldRevisionDiscoveryCycle, RecursiveWorldRevisionDiscoveryCycleResult,
+};
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd)]
+pub enum RecursiveWorldRevisionAbstractionCycleStatus {
+    DiscoveryUnavailable,
+    Rejected,
+    Inactive,
+    ActiveNoRevision,
+    Revised,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct RecursiveWorldRevisionAbstractionCycleResult {
+    scope: RecursiveWorldRevisionAbstractionEvidenceScope,
+    discovery_cycle: Option<RecursiveWorldRevisionDiscoveryCycleResult>,
+    status: RecursiveWorldRevisionAbstractionCycleStatus,
+}
+
+impl RecursiveWorldRevisionAbstractionCycleResult {
+    pub fn scope(&self) -> &RecursiveWorldRevisionAbstractionEvidenceScope {
+        &self.scope
+    }
+
+    pub fn discovery_cycle(&self) -> Option<&RecursiveWorldRevisionDiscoveryCycleResult> {
+        self.discovery_cycle.as_ref()
+    }
+
+    pub fn status(&self) -> RecursiveWorldRevisionAbstractionCycleStatus {
+        self.status
+    }
+
+    pub fn pressured_rule(&self) -> Option<&RecursiveWorldRule> {
+        self.scope.pressured_rule()
+    }
+
+    pub fn selected_revision(&self) -> Option<&RecursiveWorldMinimalRevision> {
+        self.discovery_cycle
+            .as_ref()
+            .and_then(|cycle| cycle.selected_revision())
+    }
+
+    pub fn revised_world(&self) -> Option<&RecursiveWorldModel> {
+        self.discovery_cycle
+            .as_ref()
+            .and_then(|cycle| cycle.revised_world())
+    }
+
+    pub fn has_revision(&self) -> bool {
+        self.selected_revision().is_some()
+    }
+
+    pub fn selected_hypothesis(&self) -> Option<&RecursiveWorldRevisionDiscoveryHypothesis> {
+        self.discovery_cycle
+            .as_ref()
+            .and_then(|cycle| cycle.selected_hypotheses().into_iter().next())
+            .and_then(|selected| {
+                self.scope
+                    .validation()
+                    .accepted_hypothesis()
+                    .filter(|hypothesis| **hypothesis == selected)
+            })
+    }
+
+    pub fn target(&self) -> &RecursiveWorldRule {
+        self.scope.target()
+    }
+
+    pub fn realization(&self) -> &RecursiveWorldRevisionAbstractionRealization {
+        self.scope.realization()
+    }
+
+    pub fn source_observations(&self) -> &RecursiveWorldRevisionInductionObservationSet {
+        self.scope.source_observations()
+    }
+
+    pub fn observation_count(&self) -> usize {
+        self.scope.observation_count()
+    }
+
+    pub fn vocabulary(&self) -> &RecursiveWorldRevisionAbstractionVocabulary {
+        self.scope.vocabulary()
+    }
+
+    pub fn premise_witnesses(
+        &self,
+        class: &RecursiveWorldRevisionAbstractionClass,
+    ) -> &[RecursiveUnit] {
+        self.scope.premise_witnesses(class)
+    }
+
+    pub fn conclusion_witnesses(
+        &self,
+        class: &RecursiveWorldRevisionAbstractionClass,
+    ) -> &[RecursiveUnit] {
+        self.scope.conclusion_witnesses(class)
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct RecursiveWorldRevisionAbstractionCycle;
+
+impl RecursiveWorldRevisionAbstractionCycle {
+    pub fn evaluate(
+        model: &RecursiveWorldModel,
+        evidence_state: &RecursiveWorldEvidenceState,
+        target: RecursiveWorldRule,
+        realization: RecursiveWorldRevisionAbstractionRealization,
+        budget: RecursiveWorldRevisionBudget,
+    ) -> RecursiveWorldRevisionAbstractionCycleResult {
+        let scope = RecursiveWorldRevisionAbstractionEvidenceScope::new(
+            model,
+            evidence_state,
+            target,
+            realization,
+        );
+
+        if scope.is_discovery_unavailable() {
+            return RecursiveWorldRevisionAbstractionCycleResult {
+                scope,
+                discovery_cycle: None,
+                status: RecursiveWorldRevisionAbstractionCycleStatus::DiscoveryUnavailable,
+            };
+        }
+
+        if scope.is_rejected() {
+            return RecursiveWorldRevisionAbstractionCycleResult {
+                scope,
+                discovery_cycle: None,
+                status: RecursiveWorldRevisionAbstractionCycleStatus::Rejected,
+            };
+        }
+
+        let hypothesis = scope
+            .validation()
+            .accepted_hypothesis()
+            .expect("accepted abstraction must expose one discovery hypothesis")
+            .clone();
+
+        let discovery_cycle = RecursiveWorldRevisionDiscoveryCycle::evaluate(
+            model,
+            evidence_state,
+            RecursiveWorldRevisionDiscoveryHypothesisSet::new(vec![hypothesis]),
+            budget,
+        );
+
+        let status = if scope.is_inactive() {
+            RecursiveWorldRevisionAbstractionCycleStatus::Inactive
+        } else if discovery_cycle.has_revision() {
+            RecursiveWorldRevisionAbstractionCycleStatus::Revised
+        } else {
+            RecursiveWorldRevisionAbstractionCycleStatus::ActiveNoRevision
+        };
+
+        RecursiveWorldRevisionAbstractionCycleResult {
+            scope,
+            discovery_cycle: Some(discovery_cycle),
+            status,
+        }
+    }
+}
