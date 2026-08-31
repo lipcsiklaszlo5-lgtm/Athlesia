@@ -577,3 +577,126 @@ impl RecursiveWorldRevisionAbstractionCompositionPathSupportDeriver {
         RecursiveWorldRevisionAbstractionCompositionPathSupportSet::derive(source)
     }
 }
+
+#[derive(Clone, Debug, Eq, PartialEq, Ord, PartialOrd)]
+pub struct RecursiveWorldRevisionAbstractionCompositionPathSelection {
+    from: RecursiveWorldRevisionAbstractionClass,
+    to: RecursiveWorldRevisionAbstractionClass,
+    selected: RecursiveWorldRevisionAbstractionCompositionPathSupport,
+}
+
+impl RecursiveWorldRevisionAbstractionCompositionPathSelection {
+    pub fn from(&self) -> &RecursiveWorldRevisionAbstractionClass {
+        &self.from
+    }
+
+    pub fn to(&self) -> &RecursiveWorldRevisionAbstractionClass {
+        &self.to
+    }
+
+    pub fn selected(&self) -> &RecursiveWorldRevisionAbstractionCompositionPathSupport {
+        &self.selected
+    }
+
+    pub fn path(&self) -> &RecursiveWorldRevisionAbstractionCompositionPath {
+        self.selected.path()
+    }
+
+    pub fn minimum_support(&self) -> usize {
+        self.selected.minimum_support()
+    }
+
+    pub fn edge_count(&self) -> usize {
+        self.selected.edge_count()
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct RecursiveWorldRevisionAbstractionCompositionPathSelectionSet {
+    source: RecursiveWorldRevisionAbstractionCompositionPathSupportSet,
+    selections: Vec<RecursiveWorldRevisionAbstractionCompositionPathSelection>,
+}
+
+impl RecursiveWorldRevisionAbstractionCompositionPathSelectionSet {
+    pub fn select(source: RecursiveWorldRevisionAbstractionCompositionPathSupportSet) -> Self {
+        let mut grouped: BTreeMap<
+            (
+                RecursiveWorldRevisionAbstractionClass,
+                RecursiveWorldRevisionAbstractionClass,
+            ),
+            Vec<RecursiveWorldRevisionAbstractionCompositionPathSupport>,
+        > = BTreeMap::new();
+
+        for support in source.supports() {
+            grouped
+                .entry((support.start().clone(), support.end().clone()))
+                .or_default()
+                .push(support.clone());
+        }
+
+        let mut selections = Vec::new();
+
+        for ((from, to), mut candidates) in grouped {
+            candidates.sort_by(|left, right| {
+                right
+                    .minimum_support()
+                    .cmp(&left.minimum_support())
+                    .then_with(|| left.edge_count().cmp(&right.edge_count()))
+                    .then_with(|| left.path().cmp(right.path()))
+            });
+
+            let selected = candidates
+                .into_iter()
+                .next()
+                .expect("grouped composition endpoint pair has candidate");
+
+            selections.push(RecursiveWorldRevisionAbstractionCompositionPathSelection {
+                from,
+                to,
+                selected,
+            });
+        }
+
+        selections.sort();
+        selections.dedup();
+
+        Self { source, selections }
+    }
+
+    pub fn source(&self) -> &RecursiveWorldRevisionAbstractionCompositionPathSupportSet {
+        &self.source
+    }
+
+    pub fn selections(&self) -> &[RecursiveWorldRevisionAbstractionCompositionPathSelection] {
+        &self.selections
+    }
+
+    pub fn len(&self) -> usize {
+        self.selections.len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.selections.is_empty()
+    }
+
+    pub fn selection_for(
+        &self,
+        from: &RecursiveWorldRevisionAbstractionClass,
+        to: &RecursiveWorldRevisionAbstractionClass,
+    ) -> Option<&RecursiveWorldRevisionAbstractionCompositionPathSelection> {
+        self.selections
+            .iter()
+            .find(|selection| selection.from() == from && selection.to() == to)
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct RecursiveWorldRevisionAbstractionCompositionPathSelector;
+
+impl RecursiveWorldRevisionAbstractionCompositionPathSelector {
+    pub fn select(
+        source: RecursiveWorldRevisionAbstractionCompositionPathSupportSet,
+    ) -> RecursiveWorldRevisionAbstractionCompositionPathSelectionSet {
+        RecursiveWorldRevisionAbstractionCompositionPathSelectionSet::select(source)
+    }
+}

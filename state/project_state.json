@@ -116,9 +116,10 @@
     "crates/athlesia_recursive_world_model_revision_abstraction/tests/recursive_world_model_revision_abstraction_validation.rs": "93bfb5e3ae39b4514c50713133de0980eb577dfb2bc6ac2c224f1b0f5eb095a0",
     "crates/athlesia_recursive_world_model_revision_abstraction_composition/Cargo.lock": "43b25457c15911d39d74808c62df14c8f78ce487e377ecdb6611f98cb00e44c1",
     "crates/athlesia_recursive_world_model_revision_abstraction_composition/Cargo.toml": "04d550a41e3a2de622dd62307d6741aef1e6059a23935115516c57563c8d39fe",
-    "crates/athlesia_recursive_world_model_revision_abstraction_composition/src/lib.rs": "66aacb341e5ba6951fe16a8de0ebcb7994ca2459ab540056a6f09cfc70e0b1f0",
+    "crates/athlesia_recursive_world_model_revision_abstraction_composition/src/lib.rs": "5de10db21e6132bea897dcd0505df3bfe6a3cbd0b6d25ae52438b426f1ab9919",
     "crates/athlesia_recursive_world_model_revision_abstraction_composition/tests/recursive_world_model_revision_abstraction_composition_foundation.rs": "fc396cb0c77254ccafb8197e9e86aef9ad9fd16396bdda83bfd32f34644a0084",
     "crates/athlesia_recursive_world_model_revision_abstraction_composition/tests/recursive_world_model_revision_abstraction_composition_path_induction.rs": "75501cc0bf7fccfdf2bc46d75bdb133c7bc2fb9db1e3716032a3c20404c133b9",
+    "crates/athlesia_recursive_world_model_revision_abstraction_composition/tests/recursive_world_model_revision_abstraction_composition_path_selection.rs": "a23458bccf512cc191d5a35a835ba21ea175c9df4b857aa8dcb196d9b4edf8cd",
     "crates/athlesia_recursive_world_model_revision_abstraction_composition/tests/recursive_world_model_revision_abstraction_composition_path_support.rs": "48820dbbb784c146055acfcd7f03b9d349a1cb9089c5be18ae1aeee6033e94f7",
     "crates/athlesia_recursive_world_model_revision_abstraction_generalization/Cargo.lock": "4daa6b1e3bc97f08ac971266ce5af4ac9f1451e26dc2250355506f4ae33cbef6",
     "crates/athlesia_recursive_world_model_revision_abstraction_generalization/Cargo.toml": "ed1a1f6b7c983e328c84686926bb091c096e1b22d789b6157f5ebc7e66e3df56",
@@ -429,7 +430,8 @@
       "module_42_recursive_world_model_revision_abstraction_generalization_freeze",
       "module_43_recursive_world_model_revision_abstraction_composition_foundation",
       "module_43_recursive_world_model_revision_abstraction_composition_path_induction",
-      "module_43_recursive_world_model_revision_abstraction_composition_path_support"
+      "module_43_recursive_world_model_revision_abstraction_composition_path_support",
+      "module_43_recursive_world_model_revision_abstraction_composition_path_selection"
     ],
     "module_23_integrity": {
       "status": "pass",
@@ -442,8 +444,8 @@
       "status": "frozen",
       "verifier": "tools/verify_module_23_parity.py"
     },
-    "next_layer": "module_43_recursive_world_model_revision_abstraction_composition_path_selection",
-    "stage": "module_43_recursive_world_model_revision_abstraction_composition_path_support",
+    "next_layer": "module_43_recursive_world_model_revision_abstraction_composition_path_realization",
+    "stage": "module_43_recursive_world_model_revision_abstraction_composition_path_selection",
     "status": "validated"
   },
   "validated_invariants": [
@@ -1972,6 +1974,18 @@
     "recursive_world_revision_abstraction_composition_path_support_endpoint_identity",
     "recursive_world_revision_abstraction_composition_path_support_source_identity",
     "recursive_world_revision_abstraction_composition_path_support_facade_equivalence",
-    "recursive_world_revision_abstraction_composition_path_support_determinism_non_mutation"
+    "recursive_world_revision_abstraction_composition_path_support_determinism_non_mutation",
+    "recursive_world_revision_abstraction_composition_path_selection_support_priority",
+    "recursive_world_revision_abstraction_composition_path_selection_weakest_link_priority",
+    "recursive_world_revision_abstraction_composition_path_selection_length_tiebreak",
+    "recursive_world_revision_abstraction_composition_path_selection_support_before_length",
+    "recursive_world_revision_abstraction_composition_path_selection_identity_tiebreak",
+    "recursive_world_revision_abstraction_composition_path_selection_endpoint_isolation",
+    "recursive_world_revision_abstraction_composition_path_selection_single_candidate",
+    "recursive_world_revision_abstraction_composition_path_selection_support_identity",
+    "recursive_world_revision_abstraction_composition_path_selection_no_edge_materialization",
+    "recursive_world_revision_abstraction_composition_path_selection_source_identity",
+    "recursive_world_revision_abstraction_composition_path_selection_facade_equivalence",
+    "recursive_world_revision_abstraction_composition_path_selection_determinism_non_mutation"
   ]
 }
