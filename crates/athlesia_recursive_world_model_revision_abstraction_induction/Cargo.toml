@@ -4,6 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+athlesia_recursive_world_model = { path = "../athlesia_recursive_world_model" }
 athlesia = { path = "../.." }
 athlesia_cross_level = { path = "../athlesia_cross_level" }
 athlesia_recursive = { path = "../athlesia_recursive" }

@@ -1210,3 +1210,126 @@ impl RecursiveWorldRevisionAbstractionTransferEngine {
         )
     }
 }
+
+use athlesia_recursive_world_model::RecursiveWorldRule;
+
+use athlesia_recursive_world_model_revision_discovery::RecursiveWorldRevisionDiscoveryHypothesis;
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd)]
+pub enum RecursiveWorldRevisionAbstractionTransferDiscoveryStatus {
+    TransferUnavailable,
+    DiscoveryUnavailable,
+    Discovered,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct RecursiveWorldRevisionAbstractionTransferDiscoveryBridge {
+    target: RecursiveWorldRule,
+    transfer: RecursiveWorldRevisionAbstractionTransfer,
+    hypothesis: Option<RecursiveWorldRevisionDiscoveryHypothesis>,
+    status: RecursiveWorldRevisionAbstractionTransferDiscoveryStatus,
+}
+
+impl RecursiveWorldRevisionAbstractionTransferDiscoveryBridge {
+    pub fn discover(
+        target: RecursiveWorldRule,
+        induction_observations: RecursiveWorldRevisionInductionObservationSet,
+        transfer_observations: RecursiveWorldRevisionInductionObservationSet,
+    ) -> Self {
+        let transfer = RecursiveWorldRevisionAbstractionTransfer::transfer(
+            induction_observations,
+            transfer_observations,
+        );
+
+        let Some(realized_observation) = transfer.realized_observation().cloned() else {
+            return Self {
+                target,
+                transfer,
+                hypothesis: None,
+                status:
+                    RecursiveWorldRevisionAbstractionTransferDiscoveryStatus::TransferUnavailable,
+            };
+        };
+
+        let hypothesis = RecursiveWorldRevisionDiscoveryHypothesis::discover(
+            target.clone(),
+            realized_observation,
+        );
+
+        let status = if hypothesis.is_some() {
+            RecursiveWorldRevisionAbstractionTransferDiscoveryStatus::Discovered
+        } else {
+            RecursiveWorldRevisionAbstractionTransferDiscoveryStatus::DiscoveryUnavailable
+        };
+
+        Self {
+            target,
+            transfer,
+            hypothesis,
+            status,
+        }
+    }
+
+    pub fn target(&self) -> &RecursiveWorldRule {
+        &self.target
+    }
+
+    pub fn transfer(&self) -> &RecursiveWorldRevisionAbstractionTransfer {
+        &self.transfer
+    }
+
+    pub fn hypothesis(&self) -> Option<&RecursiveWorldRevisionDiscoveryHypothesis> {
+        self.hypothesis.as_ref()
+    }
+
+    pub fn status(&self) -> RecursiveWorldRevisionAbstractionTransferDiscoveryStatus {
+        self.status
+    }
+
+    pub fn is_discovered(&self) -> bool {
+        self.status == RecursiveWorldRevisionAbstractionTransferDiscoveryStatus::Discovered
+    }
+
+    pub fn realized_observation(&self) -> Option<&RecursiveWorldRevisionDiscoveryObservation> {
+        self.transfer.realized_observation()
+    }
+
+    pub fn replacement(&self) -> Option<&RecursiveWorldRule> {
+        self.hypothesis
+            .as_ref()
+            .map(|hypothesis| hypothesis.replacement())
+    }
+
+    pub fn induction_observations(&self) -> &RecursiveWorldRevisionInductionObservationSet {
+        self.transfer.induction_observations()
+    }
+
+    pub fn transfer_observations(&self) -> &RecursiveWorldRevisionInductionObservationSet {
+        self.transfer.transfer_observations()
+    }
+
+    pub fn consensus(&self) -> Option<&RecursiveWorldRevisionAbstractionConsensus> {
+        self.transfer.consensus()
+    }
+
+    pub fn vocabulary(&self) -> Option<&RecursiveWorldRevisionAbstractionVocabulary> {
+        self.transfer.vocabulary()
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct RecursiveWorldRevisionAbstractionTransferDiscoveryBuilder;
+
+impl RecursiveWorldRevisionAbstractionTransferDiscoveryBuilder {
+    pub fn discover(
+        target: RecursiveWorldRule,
+        induction_observations: RecursiveWorldRevisionInductionObservationSet,
+        transfer_observations: RecursiveWorldRevisionInductionObservationSet,
+    ) -> RecursiveWorldRevisionAbstractionTransferDiscoveryBridge {
+        RecursiveWorldRevisionAbstractionTransferDiscoveryBridge::discover(
+            target,
+            induction_observations,
+            transfer_observations,
+        )
+    }
+}
