@@ -126,3 +126,96 @@ impl RecursiveDeliberationFoundation {
         RecursiveDeliberationControlBridge::new(request)
     }
 }
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd)]
+pub enum RecursiveDeliberationChoiceKind {
+    Act,
+    Experiment,
+    Counterfactual,
+    NoDecision,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct RecursiveDeliberationChoice {
+    kind: RecursiveDeliberationChoiceKind,
+    bridge: RecursiveDeliberationControlBridge,
+    counterfactual: Option<RecursiveCounterfactualInformationValue>,
+}
+
+impl RecursiveDeliberationChoice {
+    pub const fn kind(&self) -> RecursiveDeliberationChoiceKind {
+        self.kind
+    }
+
+    pub fn bridge(&self) -> &RecursiveDeliberationControlBridge {
+        &self.bridge
+    }
+
+    pub fn control(&self) -> &RecursiveControlUncertaintyDecision {
+        self.bridge.control()
+    }
+
+    pub fn counterfactual(&self) -> Option<&RecursiveCounterfactualInformationValue> {
+        self.counterfactual.as_ref()
+    }
+
+    pub fn is_action(&self) -> bool {
+        self.kind == RecursiveDeliberationChoiceKind::Act
+    }
+
+    pub fn is_experiment(&self) -> bool {
+        self.kind == RecursiveDeliberationChoiceKind::Experiment
+    }
+
+    pub fn is_counterfactual(&self) -> bool {
+        self.kind == RecursiveDeliberationChoiceKind::Counterfactual
+    }
+
+    pub fn is_no_decision(&self) -> bool {
+        self.kind == RecursiveDeliberationChoiceKind::NoDecision
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct RecursiveDeliberationChoicePolicy;
+
+impl RecursiveDeliberationChoicePolicy {
+    pub fn resolve_kind(
+        mode: RecursiveDeliberationControlMode,
+        has_informative_counterfactual: bool,
+    ) -> RecursiveDeliberationChoiceKind {
+        match mode {
+            RecursiveDeliberationControlMode::Act => RecursiveDeliberationChoiceKind::Act,
+            RecursiveDeliberationControlMode::Experiment => {
+                RecursiveDeliberationChoiceKind::Experiment
+            }
+            RecursiveDeliberationControlMode::NoDecision => {
+                if has_informative_counterfactual {
+                    RecursiveDeliberationChoiceKind::Counterfactual
+                } else {
+                    RecursiveDeliberationChoiceKind::NoDecision
+                }
+            }
+        }
+    }
+
+    pub fn choose(bridge: RecursiveDeliberationControlBridge) -> RecursiveDeliberationChoice {
+        let informative = bridge
+            .best_counterfactual()
+            .is_some_and(RecursiveCounterfactualInformationValue::is_informative);
+
+        let kind = Self::resolve_kind(bridge.mode(), informative);
+
+        let counterfactual = if kind == RecursiveDeliberationChoiceKind::Counterfactual {
+            bridge.best_counterfactual().cloned()
+        } else {
+            None
+        };
+
+        RecursiveDeliberationChoice {
+            kind,
+            bridge,
+            counterfactual,
+        }
+    }
+}
