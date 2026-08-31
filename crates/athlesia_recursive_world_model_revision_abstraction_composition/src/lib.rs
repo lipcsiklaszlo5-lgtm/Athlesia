@@ -240,3 +240,181 @@ impl RecursiveWorldRevisionAbstractionComposer {
         RecursiveWorldRevisionAbstractionComposition::compose(source, threshold)
     }
 }
+
+#[derive(Clone, Debug, Eq, PartialEq, Ord, PartialOrd)]
+pub struct RecursiveWorldRevisionAbstractionCompositionPath {
+    edges: Vec<RecursiveWorldRevisionAbstractionCompositionEdge>,
+    classes: Vec<RecursiveWorldRevisionAbstractionClass>,
+}
+
+impl RecursiveWorldRevisionAbstractionCompositionPath {
+    pub fn new(edges: Vec<RecursiveWorldRevisionAbstractionCompositionEdge>) -> Option<Self> {
+        if edges.len() < 2 {
+            return None;
+        }
+
+        for pair in edges.windows(2) {
+            if pair[0].to() != pair[1].from() {
+                return None;
+            }
+        }
+
+        let mut classes = Vec::with_capacity(edges.len() + 1);
+
+        classes.push(edges[0].from().clone());
+
+        for edge in &edges {
+            classes.push(edge.to().clone());
+        }
+
+        let distinct: BTreeSet<RecursiveWorldRevisionAbstractionClass> =
+            classes.iter().cloned().collect();
+
+        if distinct.len() != classes.len() {
+            return None;
+        }
+
+        Some(Self { edges, classes })
+    }
+
+    pub fn edges(&self) -> &[RecursiveWorldRevisionAbstractionCompositionEdge] {
+        &self.edges
+    }
+
+    pub fn classes(&self) -> &[RecursiveWorldRevisionAbstractionClass] {
+        &self.classes
+    }
+
+    pub fn start(&self) -> &RecursiveWorldRevisionAbstractionClass {
+        self.classes
+            .first()
+            .expect("composition path always has start class")
+    }
+
+    pub fn end(&self) -> &RecursiveWorldRevisionAbstractionClass {
+        self.classes
+            .last()
+            .expect("composition path always has end class")
+    }
+
+    pub fn edge_count(&self) -> usize {
+        self.edges.len()
+    }
+
+    pub fn class_count(&self) -> usize {
+        self.classes.len()
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct RecursiveWorldRevisionAbstractionCompositionPathSet {
+    source: RecursiveWorldRevisionAbstractionComposition,
+    paths: Vec<RecursiveWorldRevisionAbstractionCompositionPath>,
+}
+
+impl RecursiveWorldRevisionAbstractionCompositionPathSet {
+    pub fn induce(source: RecursiveWorldRevisionAbstractionComposition) -> Option<Self> {
+        let mut paths: BTreeSet<RecursiveWorldRevisionAbstractionCompositionPath> = BTreeSet::new();
+
+        for edge in source.edges() {
+            let mut current_edges = vec![edge.clone()];
+
+            let mut visited: BTreeSet<RecursiveWorldRevisionAbstractionClass> = BTreeSet::new();
+
+            visited.insert(edge.from().clone());
+
+            visited.insert(edge.to().clone());
+
+            Self::extend_paths(
+                &source,
+                edge.to(),
+                &mut current_edges,
+                &mut visited,
+                &mut paths,
+            );
+        }
+
+        if paths.is_empty() {
+            return None;
+        }
+
+        Some(Self {
+            source,
+            paths: paths.into_iter().collect(),
+        })
+    }
+
+    fn extend_paths(
+        source: &RecursiveWorldRevisionAbstractionComposition,
+        current: &RecursiveWorldRevisionAbstractionClass,
+        current_edges: &mut Vec<RecursiveWorldRevisionAbstractionCompositionEdge>,
+        visited: &mut BTreeSet<RecursiveWorldRevisionAbstractionClass>,
+        paths: &mut BTreeSet<RecursiveWorldRevisionAbstractionCompositionPath>,
+    ) {
+        for next_edge in source.edges() {
+            if next_edge.from() != current {
+                continue;
+            }
+
+            if visited.contains(next_edge.to()) {
+                continue;
+            }
+
+            current_edges.push(next_edge.clone());
+
+            visited.insert(next_edge.to().clone());
+
+            if current_edges.len() >= 2 {
+                if let Some(path) =
+                    RecursiveWorldRevisionAbstractionCompositionPath::new(current_edges.clone())
+                {
+                    paths.insert(path);
+                }
+            }
+
+            Self::extend_paths(source, next_edge.to(), current_edges, visited, paths);
+
+            visited.remove(next_edge.to());
+
+            current_edges.pop();
+        }
+    }
+
+    pub fn source(&self) -> &RecursiveWorldRevisionAbstractionComposition {
+        &self.source
+    }
+
+    pub fn paths(&self) -> &[RecursiveWorldRevisionAbstractionCompositionPath] {
+        &self.paths
+    }
+
+    pub fn len(&self) -> usize {
+        self.paths.len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.paths.is_empty()
+    }
+
+    pub fn paths_from_to(
+        &self,
+        from: &RecursiveWorldRevisionAbstractionClass,
+        to: &RecursiveWorldRevisionAbstractionClass,
+    ) -> Vec<&RecursiveWorldRevisionAbstractionCompositionPath> {
+        self.paths
+            .iter()
+            .filter(|path| path.start() == from && path.end() == to)
+            .collect()
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct RecursiveWorldRevisionAbstractionCompositionPathInducer;
+
+impl RecursiveWorldRevisionAbstractionCompositionPathInducer {
+    pub fn induce(
+        source: RecursiveWorldRevisionAbstractionComposition,
+    ) -> Option<RecursiveWorldRevisionAbstractionCompositionPathSet> {
+        RecursiveWorldRevisionAbstractionCompositionPathSet::induce(source)
+    }
+}
