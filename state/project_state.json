@@ -83,6 +83,10 @@
     "crates/athlesia_recursive_revision/tests/recursive_revision_cycle.rs": "405465b71790edded26e7250ba2da2c306f147578d1aba766e4d3134fb98d33b",
     "crates/athlesia_recursive_revision/tests/recursive_revision_foundation.rs": "a860367d099441081f343953c566352ba2cae41385d93706a5aa331bf2bb83a9",
     "crates/athlesia_recursive_revision/tests/recursive_revision_policy.rs": "7a4607b5bc0a0eb02ec9cfa6cb391a148d73f27010875cf3b4dcf79a73ed162b",
+    "crates/athlesia_recursive_world_model/Cargo.lock": "fe0d547bc93f412a90840316fb2456f19b92514e5f94c5d4cca847bda72376e1",
+    "crates/athlesia_recursive_world_model/Cargo.toml": "5ce3bb56735c79a2c235299f37472d61972244e5576acf841b79cac7a5d50b5c",
+    "crates/athlesia_recursive_world_model/src/lib.rs": "81cbc6ff5dbb75f84e8d25bc91f4a2aa361838b7f4cca456ddb6f39faab3e2bd",
+    "crates/athlesia_recursive_world_model/tests/recursive_world_model_foundation.rs": "08b5f5dbcb24ad629b09aead67e18ef2ad26289a3af4b3e87762bba82bf630af",
     "crates/athlesia_revision/Cargo.toml": "5d86f3c6ebd51f093e03c171df1520526f4e9da298cb07cd04123191f4b0f814",
     "crates/athlesia_revision/src/lib.rs": "a688ddd7a219ab78fb699658cf16c7a52b39fffb81a2b7f11f26f8083a0e9a2d",
     "crates/athlesia_revision/tests/competing_models.rs": "3bba71b5e7d33259583e409cd54100cca885f472aded81f3da1f5bab1e3e75c9",
@@ -229,7 +233,8 @@
       "module_32_recursive_deliberation_risk_gate",
       "module_32_recursive_deliberation_bounded_action_policy",
       "module_32_recursive_deliberation_active_cycle",
-      "module_32_recursive_deliberation_freeze"
+      "module_32_recursive_deliberation_freeze",
+      "module_33_recursive_world_model_foundation"
     ],
     "module_23_integrity": {
       "status": "pass",
@@ -242,8 +247,8 @@
       "status": "frozen",
       "verifier": "tools/verify_module_23_parity.py"
     },
-    "next_layer": "module_33_recursive_world_model_foundation",
-    "stage": "module_32_recursive_deliberation_freeze",
+    "next_layer": "module_33_recursive_world_model_contradiction_detection",
+    "stage": "module_33_recursive_world_model_foundation",
     "status": "validated"
   },
   "validated_invariants": [
@@ -922,6 +927,18 @@
     "recursive_deliberation_active_risk_limit_identity",
     "recursive_deliberation_active_determinism",
     "recursive_deliberation_active_non_mutation",
-    "recursive_deliberation_freeze_integrity"
+    "recursive_deliberation_freeze_integrity",
+    "recursive_world_model_nonempty_premises",
+    "recursive_world_model_nonempty_conclusions",
+    "recursive_world_model_premise_identity",
+    "recursive_world_model_conclusion_identity",
+    "recursive_world_model_premise_deduplication",
+    "recursive_world_model_conclusion_deduplication",
+    "recursive_world_model_rule_canonicalization",
+    "recursive_world_model_empty_identity",
+    "recursive_world_model_distinct_rule_preservation",
+    "recursive_world_model_rule_deduplication",
+    "recursive_world_model_rule_order_determinism",
+    "recursive_world_model_non_mutation"
   ]
 }

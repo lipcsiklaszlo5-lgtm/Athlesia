@@ -1,0 +1,9 @@
+[package]
+name = "athlesia_recursive_world_model"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+athlesia = { path = "../.." }
+athlesia_cross_level = { path = "../athlesia_cross_level" }
+athlesia_recursive = { path = "../athlesia_recursive" }
