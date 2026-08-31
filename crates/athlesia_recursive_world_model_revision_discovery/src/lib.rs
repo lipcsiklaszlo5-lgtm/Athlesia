@@ -235,3 +235,100 @@ impl RecursiveWorldRevisionDiscoveryGenerationBridgeBuilder {
         RecursiveWorldRevisionDiscoveryGenerationBridge::new(hypotheses)
     }
 }
+
+use athlesia_recursive_world_model::RecursiveWorldModel;
+
+use athlesia_recursive_world_model_revision_generation::{
+    RecursiveWorldRevisionGenerationValidation, RecursiveWorldRevisionGenerationValidator,
+};
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct RecursiveWorldRevisionDiscoveryValidation {
+    bridge: RecursiveWorldRevisionDiscoveryGenerationBridge,
+    generation_validation: RecursiveWorldRevisionGenerationValidation,
+    accepted_hypotheses: Vec<RecursiveWorldRevisionDiscoveryHypothesis>,
+    rejected_hypotheses: Vec<RecursiveWorldRevisionDiscoveryHypothesis>,
+}
+
+impl RecursiveWorldRevisionDiscoveryValidation {
+    pub fn new(
+        model: &RecursiveWorldModel,
+        hypotheses: RecursiveWorldRevisionDiscoveryHypothesisSet,
+    ) -> Self {
+        let bridge = RecursiveWorldRevisionDiscoveryGenerationBridge::new(hypotheses);
+
+        let generation_validation =
+            RecursiveWorldRevisionGenerationValidator::validate(model, bridge.candidates().clone());
+
+        let accepted_candidates = generation_validation.accepted_candidates();
+
+        let rejected_candidates = generation_validation.rejected_candidates();
+
+        let mut accepted_hypotheses = accepted_candidates
+            .iter()
+            .flat_map(|candidate| bridge.hypotheses_for_candidate(candidate))
+            .collect::<Vec<_>>();
+
+        let mut rejected_hypotheses = rejected_candidates
+            .iter()
+            .flat_map(|candidate| bridge.hypotheses_for_candidate(candidate))
+            .collect::<Vec<_>>();
+
+        accepted_hypotheses.sort();
+        accepted_hypotheses.dedup();
+
+        rejected_hypotheses.sort();
+        rejected_hypotheses.dedup();
+
+        Self {
+            bridge,
+            generation_validation,
+            accepted_hypotheses,
+            rejected_hypotheses,
+        }
+    }
+
+    pub fn bridge(&self) -> &RecursiveWorldRevisionDiscoveryGenerationBridge {
+        &self.bridge
+    }
+
+    pub fn generation_validation(&self) -> &RecursiveWorldRevisionGenerationValidation {
+        &self.generation_validation
+    }
+
+    pub fn accepted_hypotheses(&self) -> &[RecursiveWorldRevisionDiscoveryHypothesis] {
+        &self.accepted_hypotheses
+    }
+
+    pub fn rejected_hypotheses(&self) -> &[RecursiveWorldRevisionDiscoveryHypothesis] {
+        &self.rejected_hypotheses
+    }
+
+    pub fn accepted_count(&self) -> usize {
+        self.accepted_hypotheses.len()
+    }
+
+    pub fn rejected_count(&self) -> usize {
+        self.rejected_hypotheses.len()
+    }
+
+    pub fn candidate_count(&self) -> usize {
+        self.bridge.candidate_count()
+    }
+
+    pub fn hypothesis_count(&self) -> usize {
+        self.bridge.hypothesis_count()
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct RecursiveWorldRevisionDiscoveryValidator;
+
+impl RecursiveWorldRevisionDiscoveryValidator {
+    pub fn validate(
+        model: &RecursiveWorldModel,
+        hypotheses: RecursiveWorldRevisionDiscoveryHypothesisSet,
+    ) -> RecursiveWorldRevisionDiscoveryValidation {
+        RecursiveWorldRevisionDiscoveryValidation::new(model, hypotheses)
+    }
+}
