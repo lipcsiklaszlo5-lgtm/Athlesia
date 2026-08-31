@@ -1000,3 +1000,127 @@ impl RecursiveWorldRevisionAbstractionGeneralizationRealizer {
         )
     }
 }
+
+use athlesia_recursive_world_model::RecursiveWorldRule;
+
+use athlesia_recursive_world_model_revision_discovery::RecursiveWorldRevisionDiscoveryHypothesis;
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd)]
+pub enum RecursiveWorldRevisionAbstractionGeneralizationDiscoveryStatus {
+    RealizationUnavailable,
+    DiscoveryUnavailable,
+    Discovered,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct RecursiveWorldRevisionAbstractionGeneralizationDiscoveryBridge {
+    target: RecursiveWorldRule,
+    realization: RecursiveWorldRevisionAbstractionGeneralizationRealizationBridge,
+    hypothesis: Option<RecursiveWorldRevisionDiscoveryHypothesis>,
+    status: RecursiveWorldRevisionAbstractionGeneralizationDiscoveryStatus,
+}
+
+impl RecursiveWorldRevisionAbstractionGeneralizationDiscoveryBridge {
+    pub fn discover(
+        target: RecursiveWorldRule,
+        source: RecursiveWorldRevisionAbstractionGeneralizedClassSet,
+        application_observations: RecursiveWorldRevisionInductionObservationSet,
+    ) -> Self {
+        let realization = RecursiveWorldRevisionAbstractionGeneralizationRealizationBridge::realize(
+            source,
+            application_observations,
+        );
+
+        let Some(realized_observation) = realization.realized_observation().cloned() else {
+            return Self {
+                target,
+                realization,
+                hypothesis: None,
+                status:
+                    RecursiveWorldRevisionAbstractionGeneralizationDiscoveryStatus::
+                        RealizationUnavailable,
+            };
+        };
+
+        let hypothesis = RecursiveWorldRevisionDiscoveryHypothesis::discover(
+            target.clone(),
+            realized_observation,
+        );
+
+        let status = if hypothesis.is_some() {
+            RecursiveWorldRevisionAbstractionGeneralizationDiscoveryStatus::Discovered
+        } else {
+            RecursiveWorldRevisionAbstractionGeneralizationDiscoveryStatus::DiscoveryUnavailable
+        };
+
+        Self {
+            target,
+            realization,
+            hypothesis,
+            status,
+        }
+    }
+
+    pub fn target(&self) -> &RecursiveWorldRule {
+        &self.target
+    }
+
+    pub fn realization(&self) -> &RecursiveWorldRevisionAbstractionGeneralizationRealizationBridge {
+        &self.realization
+    }
+
+    pub fn hypothesis(&self) -> Option<&RecursiveWorldRevisionDiscoveryHypothesis> {
+        self.hypothesis.as_ref()
+    }
+
+    pub fn status(&self) -> RecursiveWorldRevisionAbstractionGeneralizationDiscoveryStatus {
+        self.status
+    }
+
+    pub fn is_discovered(&self) -> bool {
+        self.status == RecursiveWorldRevisionAbstractionGeneralizationDiscoveryStatus::Discovered
+    }
+
+    pub fn realized_observation(&self) -> Option<&RecursiveWorldRevisionDiscoveryObservation> {
+        self.realization.realized_observation()
+    }
+
+    pub fn replacement(&self) -> Option<&RecursiveWorldRule> {
+        self.hypothesis
+            .as_ref()
+            .map(RecursiveWorldRevisionDiscoveryHypothesis::replacement)
+    }
+
+    pub fn generalized_source(&self) -> &RecursiveWorldRevisionAbstractionGeneralizedClassSet {
+        self.realization.generalized_source()
+    }
+
+    pub fn application_observations(&self) -> &RecursiveWorldRevisionInductionObservationSet {
+        self.realization.application_observations()
+    }
+
+    pub fn consensus(&self) -> Option<&RecursiveWorldRevisionAbstractionConsensus> {
+        self.realization.consensus()
+    }
+
+    pub fn vocabulary(&self) -> Option<&RecursiveWorldRevisionAbstractionVocabulary> {
+        self.realization.vocabulary()
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct RecursiveWorldRevisionAbstractionGeneralizationDiscoveryBuilder;
+
+impl RecursiveWorldRevisionAbstractionGeneralizationDiscoveryBuilder {
+    pub fn discover(
+        target: RecursiveWorldRule,
+        source: RecursiveWorldRevisionAbstractionGeneralizedClassSet,
+        application_observations: RecursiveWorldRevisionInductionObservationSet,
+    ) -> RecursiveWorldRevisionAbstractionGeneralizationDiscoveryBridge {
+        RecursiveWorldRevisionAbstractionGeneralizationDiscoveryBridge::discover(
+            target,
+            source,
+            application_observations,
+        )
+    }
+}
