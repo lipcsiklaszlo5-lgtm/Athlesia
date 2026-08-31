@@ -269,3 +269,91 @@ impl RecursiveCounterfactualInformationRanking {
         self.values.is_empty()
     }
 }
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct RecursiveCounterfactualBudget {
+    max_interaction_cost: usize,
+    max_outcomes: usize,
+    max_discrimination_capacity: usize,
+}
+
+impl RecursiveCounterfactualBudget {
+    pub fn new(
+        max_interaction_cost: usize,
+        max_outcomes: usize,
+        max_discrimination_capacity: usize,
+    ) -> Option<Self> {
+        if max_interaction_cost == 0 || max_outcomes == 0 {
+            return None;
+        }
+
+        Some(Self {
+            max_interaction_cost,
+            max_outcomes,
+            max_discrimination_capacity,
+        })
+    }
+
+    pub const fn max_interaction_cost(&self) -> usize {
+        self.max_interaction_cost
+    }
+
+    pub const fn max_outcomes(&self) -> usize {
+        self.max_outcomes
+    }
+
+    pub const fn max_discrimination_capacity(&self) -> usize {
+        self.max_discrimination_capacity
+    }
+
+    pub fn allows(&self, value: &RecursiveCounterfactualInformationValue) -> bool {
+        value.interaction_cost() <= self.max_interaction_cost
+            && value.projection().outcome_count() <= self.max_outcomes
+            && value.discrimination_capacity() <= self.max_discrimination_capacity
+    }
+
+    pub fn apply(
+        &self,
+        ranking: &RecursiveCounterfactualInformationRanking,
+    ) -> RecursiveCounterfactualBudgetedRanking {
+        let values = ranking
+            .values()
+            .iter()
+            .filter(|value| self.allows(value))
+            .cloned()
+            .collect();
+
+        RecursiveCounterfactualBudgetedRanking {
+            budget: *self,
+            values,
+        }
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct RecursiveCounterfactualBudgetedRanking {
+    budget: RecursiveCounterfactualBudget,
+    values: Vec<RecursiveCounterfactualInformationValue>,
+}
+
+impl RecursiveCounterfactualBudgetedRanking {
+    pub const fn budget(&self) -> RecursiveCounterfactualBudget {
+        self.budget
+    }
+
+    pub fn values(&self) -> &[RecursiveCounterfactualInformationValue] {
+        &self.values
+    }
+
+    pub fn best(&self) -> Option<&RecursiveCounterfactualInformationValue> {
+        self.values.first()
+    }
+
+    pub fn len(&self) -> usize {
+        self.values.len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.values.is_empty()
+    }
+}
