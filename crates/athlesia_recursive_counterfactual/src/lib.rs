@@ -431,3 +431,58 @@ impl RecursiveCounterfactualSelection {
         self.selected.len() == self.policy.beam_width()
     }
 }
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct RecursiveCounterfactualActiveCycleResult {
+    ranking: RecursiveCounterfactualInformationRanking,
+    budgeted: RecursiveCounterfactualBudgetedRanking,
+    selection: RecursiveCounterfactualSelection,
+}
+
+impl RecursiveCounterfactualActiveCycleResult {
+    pub fn ranking(&self) -> &RecursiveCounterfactualInformationRanking {
+        &self.ranking
+    }
+
+    pub fn budgeted(&self) -> &RecursiveCounterfactualBudgetedRanking {
+        &self.budgeted
+    }
+
+    pub fn selection(&self) -> &RecursiveCounterfactualSelection {
+        &self.selection
+    }
+
+    pub fn best(&self) -> Option<&RecursiveCounterfactualInformationValue> {
+        self.selection.best()
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct RecursiveCounterfactualActiveCycle;
+
+impl RecursiveCounterfactualActiveCycle {
+    pub fn evaluate(
+        projections: &RecursiveCounterfactualProjectionSet,
+        budget: RecursiveCounterfactualBudget,
+        policy: RecursiveCounterfactualSelectionPolicy,
+    ) -> RecursiveCounterfactualActiveCycleResult {
+        let values = projections
+            .projections()
+            .iter()
+            .cloned()
+            .map(RecursiveCounterfactualInformationValue::evaluate)
+            .collect();
+
+        let ranking = RecursiveCounterfactualInformationRanking::new(values);
+
+        let budgeted = budget.apply(&ranking);
+
+        let selection = policy.select(&budgeted);
+
+        RecursiveCounterfactualActiveCycleResult {
+            ranking,
+            budgeted,
+            selection,
+        }
+    }
+}
