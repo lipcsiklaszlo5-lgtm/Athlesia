@@ -663,3 +663,256 @@ impl RecursiveWorldRevisionAbstractionCompositionGeneralizationProjector {
         )
     }
 }
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd)]
+pub enum RecursiveWorldRevisionAbstractionCompositionGeneralizationRealizationStatus {
+    Unavailable,
+    Ambiguous,
+    Deterministic,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct RecursiveWorldRevisionAbstractionCompositionGeneralizationRealization {
+    projected_motif:
+        RecursiveWorldRevisionAbstractionCompositionGeneralizationProjectedMotif,
+    application_observations:
+        Vec<
+            athlesia_recursive_world_model_revision_discovery::
+                RecursiveWorldRevisionDiscoveryObservation,
+        >,
+    premise_witnesses:
+        Vec<
+            athlesia_recursive::RecursiveUnit,
+        >,
+    conclusion_witnesses:
+        Vec<
+            athlesia_recursive::RecursiveUnit,
+        >,
+    realized_observation:
+        Option<
+            athlesia_recursive_world_model_revision_discovery::
+                RecursiveWorldRevisionDiscoveryObservation,
+        >,
+    status:
+        RecursiveWorldRevisionAbstractionCompositionGeneralizationRealizationStatus,
+}
+
+impl RecursiveWorldRevisionAbstractionCompositionGeneralizationRealization {
+    pub fn realize(
+        projected_motif: RecursiveWorldRevisionAbstractionCompositionGeneralizationProjectedMotif,
+        mut application_observations:
+            Vec<
+                athlesia_recursive_world_model_revision_discovery::
+                    RecursiveWorldRevisionDiscoveryObservation,
+            >,
+    ) -> Self {
+        application_observations.sort();
+        application_observations.dedup();
+
+        let start_class = projected_motif
+            .classes()
+            .first()
+            .expect("generalized composition motif must have start class");
+
+        let end_class = projected_motif
+            .classes()
+            .last()
+            .expect("generalized composition motif must have end class");
+
+        let mut premise_witnesses: BTreeSet<athlesia_recursive::RecursiveUnit> = BTreeSet::new();
+
+        let mut conclusion_witnesses: BTreeSet<athlesia_recursive::RecursiveUnit> = BTreeSet::new();
+
+        for observation in &application_observations {
+            for unit in observation.premises() {
+                if start_class.contains(unit) {
+                    premise_witnesses.insert(unit.clone());
+                }
+            }
+
+            for unit in observation.conclusions() {
+                if end_class.contains(unit) {
+                    conclusion_witnesses.insert(unit.clone());
+                }
+            }
+        }
+
+        let premise_witnesses: Vec<athlesia_recursive::RecursiveUnit> =
+            premise_witnesses.into_iter().collect();
+
+        let conclusion_witnesses: Vec<athlesia_recursive::RecursiveUnit> =
+            conclusion_witnesses.into_iter().collect();
+
+        let (realized_observation, status) = if premise_witnesses.is_empty()
+            || conclusion_witnesses.is_empty()
+        {
+            (
+                    None,
+                    RecursiveWorldRevisionAbstractionCompositionGeneralizationRealizationStatus::
+                        Unavailable,
+                )
+        } else if premise_witnesses.len() == 1 && conclusion_witnesses.len() == 1 {
+            let realized =
+                    athlesia_recursive_world_model_revision_discovery::
+                        RecursiveWorldRevisionDiscoveryObservation::new(
+                            vec![
+                                premise_witnesses[
+                                    0
+                                ]
+                                .clone(),
+                            ],
+                            vec![
+                                conclusion_witnesses[
+                                    0
+                                ]
+                                .clone(),
+                            ],
+                        );
+
+            match realized {
+                    Some(
+                        observation,
+                    ) =>
+                    {
+                        (
+                            Some(
+                                observation,
+                            ),
+                            RecursiveWorldRevisionAbstractionCompositionGeneralizationRealizationStatus::
+                                Deterministic,
+                        )
+                    }
+
+                    None =>
+                    {
+                        (
+                            None,
+                            RecursiveWorldRevisionAbstractionCompositionGeneralizationRealizationStatus::
+                                Unavailable,
+                        )
+                    }
+                }
+        } else {
+            (
+                    None,
+                    RecursiveWorldRevisionAbstractionCompositionGeneralizationRealizationStatus::
+                        Ambiguous,
+                )
+        };
+
+        Self {
+            projected_motif,
+            application_observations,
+            premise_witnesses,
+            conclusion_witnesses,
+            realized_observation,
+            status,
+        }
+    }
+
+    pub fn projected_motif(
+        &self,
+    ) -> &RecursiveWorldRevisionAbstractionCompositionGeneralizationProjectedMotif {
+        &self.projected_motif
+    }
+
+    pub fn motif(&self) -> &RecursiveWorldRevisionAbstractionCompositionGeneralizedMotif {
+        self.projected_motif.motif()
+    }
+
+    pub fn classes(&self) -> &[RecursiveWorldRevisionAbstractionClass] {
+        self.projected_motif.classes()
+    }
+
+    pub fn application_observations(
+        &self,
+    ) -> &[
+        athlesia_recursive_world_model_revision_discovery::
+            RecursiveWorldRevisionDiscoveryObservation
+    ]{
+        &self.application_observations
+    }
+
+    pub fn premise_witnesses(&self) -> &[athlesia_recursive::RecursiveUnit] {
+        &self.premise_witnesses
+    }
+
+    pub fn conclusion_witnesses(&self) -> &[athlesia_recursive::RecursiveUnit] {
+        &self.conclusion_witnesses
+    }
+
+    pub fn realized_observation(
+        &self,
+    ) -> Option<
+        &athlesia_recursive_world_model_revision_discovery::
+            RecursiveWorldRevisionDiscoveryObservation,
+    >{
+        self.realized_observation.as_ref()
+    }
+
+    pub fn status(
+        &self,
+    ) -> RecursiveWorldRevisionAbstractionCompositionGeneralizationRealizationStatus {
+        self.status
+    }
+
+    pub fn is_deterministic(&self) -> bool {
+        self.status
+            == RecursiveWorldRevisionAbstractionCompositionGeneralizationRealizationStatus::
+                Deterministic
+    }
+
+    pub fn is_ambiguous(&self) -> bool {
+        self.status
+            == RecursiveWorldRevisionAbstractionCompositionGeneralizationRealizationStatus::
+                Ambiguous
+    }
+
+    pub fn start_class(&self) -> &RecursiveWorldRevisionAbstractionClass {
+        self.classes()
+            .first()
+            .expect("generalized composition motif must have start class")
+    }
+
+    pub fn middle_class(&self) -> &RecursiveWorldRevisionAbstractionClass {
+        &self.classes()[1]
+    }
+
+    pub fn end_class(&self) -> &RecursiveWorldRevisionAbstractionClass {
+        self.classes()
+            .last()
+            .expect("generalized composition motif must have end class")
+    }
+
+    pub fn support_count(&self) -> usize {
+        self.motif().support_count()
+    }
+
+    pub fn matching_selections(
+        &self,
+    ) -> &[
+        athlesia_recursive_world_model_revision_abstraction_composition::
+            RecursiveWorldRevisionAbstractionCompositionPathSelection
+    ]{
+        self.projected_motif.matching_selections()
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct RecursiveWorldRevisionAbstractionCompositionGeneralizationRealizer;
+
+impl RecursiveWorldRevisionAbstractionCompositionGeneralizationRealizer {
+    pub fn realize(
+        projected_motif: RecursiveWorldRevisionAbstractionCompositionGeneralizationProjectedMotif,
+        application_observations:
+            Vec<
+                athlesia_recursive_world_model_revision_discovery::
+                    RecursiveWorldRevisionDiscoveryObservation,
+            >,
+    ) -> RecursiveWorldRevisionAbstractionCompositionGeneralizationRealization {
+        RecursiveWorldRevisionAbstractionCompositionGeneralizationRealization::realize(
+            projected_motif,
+            application_observations,
+        )
+    }
+}
