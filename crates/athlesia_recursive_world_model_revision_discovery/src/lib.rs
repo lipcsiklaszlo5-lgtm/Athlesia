@@ -136,3 +136,102 @@ impl RecursiveWorldRevisionDiscoveryHypothesisSet {
             .collect()
     }
 }
+
+use athlesia_recursive_world_model_revision_generation::{
+    RecursiveWorldRevisionGenerationCandidate, RecursiveWorldRevisionGenerationCandidateSet,
+};
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct RecursiveWorldRevisionDiscoveryGenerationBridge {
+    hypotheses: RecursiveWorldRevisionDiscoveryHypothesisSet,
+    candidates: RecursiveWorldRevisionGenerationCandidateSet,
+}
+
+impl RecursiveWorldRevisionDiscoveryGenerationBridge {
+    pub fn new(hypotheses: RecursiveWorldRevisionDiscoveryHypothesisSet) -> Self {
+        let candidates = RecursiveWorldRevisionGenerationCandidateSet::new(
+            hypotheses
+                .hypotheses()
+                .iter()
+                .filter_map(|hypothesis| {
+                    let mut basis = hypothesis.observation().premises().to_vec();
+
+                    basis.extend(hypothesis.observation().conclusions().iter().cloned());
+
+                    basis.sort();
+                    basis.dedup();
+
+                    RecursiveWorldRevisionGenerationCandidate::new(
+                        hypothesis.target().clone(),
+                        hypothesis.replacement().clone(),
+                        basis,
+                    )
+                })
+                .collect(),
+        );
+
+        Self {
+            hypotheses,
+            candidates,
+        }
+    }
+
+    pub fn hypotheses(&self) -> &RecursiveWorldRevisionDiscoveryHypothesisSet {
+        &self.hypotheses
+    }
+
+    pub fn candidates(&self) -> &RecursiveWorldRevisionGenerationCandidateSet {
+        &self.candidates
+    }
+
+    pub fn hypothesis_count(&self) -> usize {
+        self.hypotheses.len()
+    }
+
+    pub fn candidate_count(&self) -> usize {
+        self.candidates.len()
+    }
+
+    pub fn candidate_for_hypothesis(
+        &self,
+        hypothesis: &RecursiveWorldRevisionDiscoveryHypothesis,
+    ) -> Option<RecursiveWorldRevisionGenerationCandidate> {
+        let mut basis = hypothesis.observation().premises().to_vec();
+
+        basis.extend(hypothesis.observation().conclusions().iter().cloned());
+
+        basis.sort();
+        basis.dedup();
+
+        RecursiveWorldRevisionGenerationCandidate::new(
+            hypothesis.target().clone(),
+            hypothesis.replacement().clone(),
+            basis,
+        )
+    }
+
+    pub fn hypotheses_for_candidate(
+        &self,
+        candidate: &RecursiveWorldRevisionGenerationCandidate,
+    ) -> Vec<RecursiveWorldRevisionDiscoveryHypothesis> {
+        self.hypotheses
+            .hypotheses()
+            .iter()
+            .filter(|hypothesis| {
+                self.candidate_for_hypothesis(hypothesis).as_ref() == Some(candidate)
+            })
+            .cloned()
+            .collect()
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct RecursiveWorldRevisionDiscoveryGenerationBridgeBuilder;
+
+impl RecursiveWorldRevisionDiscoveryGenerationBridgeBuilder {
+    pub fn build(
+        hypotheses: RecursiveWorldRevisionDiscoveryHypothesisSet,
+    ) -> RecursiveWorldRevisionDiscoveryGenerationBridge {
+        RecursiveWorldRevisionDiscoveryGenerationBridge::new(hypotheses)
+    }
+}

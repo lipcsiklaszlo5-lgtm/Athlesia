@@ -106,8 +106,9 @@
     "crates/athlesia_recursive_world_model_evidence/tests/recursive_world_model_evidence_revision_cycle.rs": "5da0afe2450fcb247a1ca4a9a0706b4472b841f42541a95a7b6fa596a0227089",
     "crates/athlesia_recursive_world_model_revision_discovery/Cargo.lock": "7829c907ef35c8603add0a12162e8d9e4e4cadd7513d769a13dbeea2af851df8",
     "crates/athlesia_recursive_world_model_revision_discovery/Cargo.toml": "f9fd7cae8febaaf2464408da6b71a1c007e7f6a820b020f98604153cccfb1368",
-    "crates/athlesia_recursive_world_model_revision_discovery/src/lib.rs": "5318c7a65d85a3a1f2dbd4a669961f38ceea31a06475d6a8cb867389aa0cc640",
+    "crates/athlesia_recursive_world_model_revision_discovery/src/lib.rs": "a3d9fe4cef9097f512ec11ced5c9c12dadc0fb23d789f0120262cc6b9ffdda8a",
     "crates/athlesia_recursive_world_model_revision_discovery/tests/recursive_world_model_revision_discovery_foundation.rs": "b621926c8f8b20c210439b3f8e56fa8c8d520ee47b6b48f6c85364d32ee4645a",
+    "crates/athlesia_recursive_world_model_revision_discovery/tests/recursive_world_model_revision_discovery_generation_bridge.rs": "ea33506009d0ad3098b62103e911b11f6f1897150f1dd8045756ccd00777ed0f",
     "crates/athlesia_recursive_world_model_revision_generation/Cargo.lock": "e13dca42f13645eccbaf6d14eca13efb5e58ff610574574b0c8757bfb475ee09",
     "crates/athlesia_recursive_world_model_revision_generation/Cargo.toml": "dae9cdb1130e0f7fca6750ca89b32ca264f9409a18f08c1c5ab5d6bd9b938b3c",
     "crates/athlesia_recursive_world_model_revision_generation/src/lib.rs": "265e9e19160def591dcfad6cd3c16a84a58bd92c686a45e9c83dde60e5c50dd0",
@@ -308,7 +309,8 @@
       "module_36_recursive_world_model_revision_generation_evidence_scope",
       "module_36_recursive_world_model_revision_generation_revision_cycle",
       "module_36_recursive_world_model_revision_generation_freeze",
-      "module_37_recursive_world_model_revision_discovery_foundation"
+      "module_37_recursive_world_model_revision_discovery_foundation",
+      "module_37_recursive_world_model_revision_discovery_generation_bridge"
     ],
     "module_23_integrity": {
       "status": "pass",
@@ -321,8 +323,8 @@
       "status": "frozen",
       "verifier": "tools/verify_module_23_parity.py"
     },
-    "next_layer": "module_37_recursive_world_model_revision_discovery_generation_bridge",
-    "stage": "module_37_recursive_world_model_revision_discovery_foundation",
+    "next_layer": "module_37_recursive_world_model_revision_discovery_validation",
+    "stage": "module_37_recursive_world_model_revision_discovery_generation_bridge",
     "status": "validated"
   },
   "validated_invariants": [
@@ -1317,6 +1319,18 @@
     "recursive_world_revision_discovery_structural_change_identity",
     "recursive_world_revision_discovery_exact_deduplication",
     "recursive_world_revision_discovery_target_scope",
-    "recursive_world_revision_discovery_determinism_non_mutation"
+    "recursive_world_revision_discovery_determinism_non_mutation",
+    "recursive_world_revision_discovery_bridge_empty_identity",
+    "recursive_world_revision_discovery_bridge_single_materialization",
+    "recursive_world_revision_discovery_bridge_target_identity",
+    "recursive_world_revision_discovery_bridge_replacement_identity",
+    "recursive_world_revision_discovery_bridge_basis_materialization",
+    "recursive_world_revision_discovery_bridge_basis_deduplication",
+    "recursive_world_revision_discovery_bridge_distinct_preservation",
+    "recursive_world_revision_discovery_bridge_forward_identity",
+    "recursive_world_revision_discovery_bridge_reverse_provenance",
+    "recursive_world_revision_discovery_bridge_provenance_scope",
+    "recursive_world_revision_discovery_bridge_builder_equivalence",
+    "recursive_world_revision_discovery_bridge_determinism_non_mutation"
   ]
 }
