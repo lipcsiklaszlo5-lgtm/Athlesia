@@ -523,3 +523,95 @@ impl RecursiveWorldRevisionAbstractionRealizer {
         RecursiveWorldRevisionAbstractionRealization::realize(consensus)
     }
 }
+
+use athlesia_recursive_world_model::RecursiveWorldRule;
+use athlesia_recursive_world_model_revision_discovery::RecursiveWorldRevisionDiscoveryHypothesis;
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct RecursiveWorldRevisionAbstractionDiscoveryBridge {
+    target: RecursiveWorldRule,
+    realization: RecursiveWorldRevisionAbstractionRealization,
+    hypothesis: RecursiveWorldRevisionDiscoveryHypothesis,
+}
+
+impl RecursiveWorldRevisionAbstractionDiscoveryBridge {
+    pub fn new(
+        target: RecursiveWorldRule,
+        realization: RecursiveWorldRevisionAbstractionRealization,
+    ) -> Option<Self> {
+        if !realization.is_deterministic() {
+            return None;
+        }
+
+        let realized_observation = realization.realized_observation()?.clone();
+
+        let hypothesis = RecursiveWorldRevisionDiscoveryHypothesis::discover(
+            target.clone(),
+            realized_observation,
+        )?;
+
+        Some(Self {
+            target,
+            realization,
+            hypothesis,
+        })
+    }
+
+    pub fn target(&self) -> &RecursiveWorldRule {
+        &self.target
+    }
+
+    pub fn realization(&self) -> &RecursiveWorldRevisionAbstractionRealization {
+        &self.realization
+    }
+
+    pub fn hypothesis(&self) -> &RecursiveWorldRevisionDiscoveryHypothesis {
+        &self.hypothesis
+    }
+
+    pub fn replacement(&self) -> &RecursiveWorldRule {
+        self.hypothesis.replacement()
+    }
+
+    pub fn realized_observation(&self) -> &RecursiveWorldRevisionDiscoveryObservation {
+        self.hypothesis.observation()
+    }
+
+    pub fn source_observations(&self) -> &RecursiveWorldRevisionInductionObservationSet {
+        self.realization.source_observations()
+    }
+
+    pub fn observation_count(&self) -> usize {
+        self.realization.observation_count()
+    }
+
+    pub fn vocabulary(&self) -> &RecursiveWorldRevisionAbstractionVocabulary {
+        self.realization.vocabulary()
+    }
+
+    pub fn premise_witnesses(
+        &self,
+        class: &RecursiveWorldRevisionAbstractionClass,
+    ) -> &[RecursiveUnit] {
+        self.realization.premise_witnesses(class)
+    }
+
+    pub fn conclusion_witnesses(
+        &self,
+        class: &RecursiveWorldRevisionAbstractionClass,
+    ) -> &[RecursiveUnit] {
+        self.realization.conclusion_witnesses(class)
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct RecursiveWorldRevisionAbstractionDiscoveryBridgeBuilder;
+
+impl RecursiveWorldRevisionAbstractionDiscoveryBridgeBuilder {
+    pub fn build(
+        target: RecursiveWorldRule,
+        realization: RecursiveWorldRevisionAbstractionRealization,
+    ) -> Option<RecursiveWorldRevisionAbstractionDiscoveryBridge> {
+        RecursiveWorldRevisionAbstractionDiscoveryBridge::new(target, realization)
+    }
+}

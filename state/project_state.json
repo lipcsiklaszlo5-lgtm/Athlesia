@@ -106,8 +106,9 @@
     "crates/athlesia_recursive_world_model_evidence/tests/recursive_world_model_evidence_revision_cycle.rs": "5da0afe2450fcb247a1ca4a9a0706b4472b841f42541a95a7b6fa596a0227089",
     "crates/athlesia_recursive_world_model_revision_abstraction/Cargo.lock": "78e18a999fc0a40cb1ddb5d2ae382afd21178c0fe8b1ce905bf49fa56cfb5e02",
     "crates/athlesia_recursive_world_model_revision_abstraction/Cargo.toml": "47d5d3e33365205506f748f1d3c7b7da6d1982876b3fc28f8b4a9e17ea431988",
-    "crates/athlesia_recursive_world_model_revision_abstraction/src/lib.rs": "e181c2277f8c04d95b1c24a14ab7c98af313eb71d85d31492d02b3fe88828a34",
+    "crates/athlesia_recursive_world_model_revision_abstraction/src/lib.rs": "7c82d8c305f3654a7b56765b6a7b12816e7867217771c3187b65c86cc1e96079",
     "crates/athlesia_recursive_world_model_revision_abstraction/tests/recursive_world_model_revision_abstraction_consensus.rs": "8c43bd051dedc1cab89de028a88f2853ec26f4ae5bb243d66be706c273d97bb3",
+    "crates/athlesia_recursive_world_model_revision_abstraction/tests/recursive_world_model_revision_abstraction_discovery_bridge.rs": "c732e580a9de89233181596ce5ff1a5849b23598548c68b61b4a0d42b0bdd45e",
     "crates/athlesia_recursive_world_model_revision_abstraction/tests/recursive_world_model_revision_abstraction_foundation.rs": "80d84e1357534eb2de7074f11507a31e93da9db5808380a1a8e8789804dc5f00",
     "crates/athlesia_recursive_world_model_revision_abstraction/tests/recursive_world_model_revision_abstraction_realization.rs": "e4d579055f64b3d1bd9da8b3be38836b92af0f4984fe1c9ca3e56c54bdfe177c",
     "crates/athlesia_recursive_world_model_revision_discovery/Cargo.lock": "7829c907ef35c8603add0a12162e8d9e4e4cadd7513d769a13dbeea2af851df8",
@@ -360,7 +361,8 @@
       "module_39_recursive_world_model_revision_generalization_freeze",
       "module_40_recursive_world_model_revision_abstraction_foundation",
       "module_40_recursive_world_model_revision_abstraction_consensus",
-      "module_40_recursive_world_model_revision_abstraction_realization"
+      "module_40_recursive_world_model_revision_abstraction_realization",
+      "module_40_recursive_world_model_revision_abstraction_discovery_bridge"
     ],
     "module_23_integrity": {
       "status": "pass",
@@ -373,8 +375,8 @@
       "status": "frozen",
       "verifier": "tools/verify_module_23_parity.py"
     },
-    "next_layer": "module_40_recursive_world_model_revision_abstraction_discovery_bridge",
-    "stage": "module_40_recursive_world_model_revision_abstraction_realization",
+    "next_layer": "module_40_recursive_world_model_revision_abstraction_validation",
+    "stage": "module_40_recursive_world_model_revision_abstraction_discovery_bridge",
     "status": "validated"
   },
   "validated_invariants": [
@@ -1576,6 +1578,18 @@
     "recursive_world_revision_abstraction_realization_source_provenance",
     "recursive_world_revision_abstraction_realization_vocabulary_identity",
     "recursive_world_revision_abstraction_realization_facade_equivalence",
-    "recursive_world_revision_abstraction_realization_determinism_non_mutation"
+    "recursive_world_revision_abstraction_realization_determinism_non_mutation",
+    "recursive_world_revision_abstraction_discovery_ambiguity_guard",
+    "recursive_world_revision_abstraction_discovery_noop_guard",
+    "recursive_world_revision_abstraction_discovery_hypothesis_materialization",
+    "recursive_world_revision_abstraction_discovery_target_identity",
+    "recursive_world_revision_abstraction_discovery_observation_identity",
+    "recursive_world_revision_abstraction_discovery_replacement_identity",
+    "recursive_world_revision_abstraction_discovery_realization_identity",
+    "recursive_world_revision_abstraction_discovery_source_provenance",
+    "recursive_world_revision_abstraction_discovery_vocabulary_identity",
+    "recursive_world_revision_abstraction_discovery_witness_identity",
+    "recursive_world_revision_abstraction_discovery_builder_equivalence",
+    "recursive_world_revision_abstraction_discovery_determinism_non_mutation"
   ]
 }
