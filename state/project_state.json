@@ -147,6 +147,7 @@
     "state/module_32_recursive_deliberation_freeze.json": "2ea41011d30a49ceeaaab353f5012c4a7fee65f853f12d3ffe7dcf0fd3db8ac5",
     "state/module_33_recursive_world_model_freeze.json": "dd6858f7faa68c9fba57c2b26c61a9229b3caef4b3087db55dd55f7e1b58167c",
     "state/module_34_recursive_world_model_evidence_freeze.json": "67e7e16950c8f1975a49947dea37960983c9f8e7aad16d08e9d7c69ebb6b5025",
+    "state/module_35_recursive_world_model_revision_proposal_freeze.json": "b589dec4038086a79a266847fd56ed475714b31ff4cee5da94a7a173126bf20a",
     "tests/module_23_concept.rs": "5462517fe36bb9653e926c096d5ca44acd6a4d10fb58aba23e5965e19d153dfa",
     "tests/module_23_encoder.rs": "9e4937f018fc4472f3e2bf63ab8049d9813123b367e5c93e382674caad3edcf3",
     "tests/module_23_evaluation.rs": "f128e24f15e9015019ee5d7af9901ac4434a2b600b7ab8f8650850d88bee3ed6",
@@ -172,7 +173,8 @@
     "tools/verify_module_31_recursive_counterfactual.py": "96d736eb43a5d37ec143f69c3edbfa84e5b1dca924fcc3c25b417fc91fd76043",
     "tools/verify_module_32_recursive_deliberation.py": "c3421b3944e29c87791fb94d12ebc3fa458bf2c15aea2a27e2fe9fb15f709fe5",
     "tools/verify_module_33_recursive_world_model.py": "53add8b3237c96aac8eabd7f7591f8f9705c6cf1b4f02d2c368c86a182a2cc46",
-    "tools/verify_module_34_recursive_world_model_evidence.py": "9564d12ba5270aab4c354d5a419f7aa5bd817e8dfd57008852304fc6ac82cb5a"
+    "tools/verify_module_34_recursive_world_model_evidence.py": "9564d12ba5270aab4c354d5a419f7aa5bd817e8dfd57008852304fc6ac82cb5a",
+    "tools/verify_module_35_recursive_world_model_revision_proposal.py": "9f07d9810364bb701a2a5aed6bb32beede2f67b54a97f0690bf337e810a5815d"
   },
   "project": "Athlesia",
   "research_baseline": {
@@ -284,7 +286,8 @@
       "module_35_recursive_world_model_revision_proposal_validation",
       "module_35_recursive_world_model_revision_proposal_validation_set",
       "module_35_recursive_world_model_revision_proposal_evidence_scope",
-      "module_35_recursive_world_model_revision_proposal_revision_cycle"
+      "module_35_recursive_world_model_revision_proposal_revision_cycle",
+      "module_35_recursive_world_model_revision_proposal_freeze"
     ],
     "module_23_integrity": {
       "status": "pass",
@@ -297,8 +300,8 @@
       "status": "frozen",
       "verifier": "tools/verify_module_23_parity.py"
     },
-    "next_layer": "module_35_recursive_world_model_revision_proposal_freeze",
-    "stage": "module_35_recursive_world_model_revision_proposal_revision_cycle",
+    "next_layer": "module_36_recursive_world_model_revision_generation_foundation",
+    "stage": "module_35_recursive_world_model_revision_proposal_freeze",
     "status": "validated"
   },
   "validated_invariants": [
@@ -1219,6 +1222,7 @@
     "recursive_world_revision_proposal_cycle_budget_guard",
     "recursive_world_revision_proposal_cycle_m33_identity",
     "recursive_world_revision_proposal_cycle_determinism",
-    "recursive_world_revision_proposal_cycle_non_mutation"
+    "recursive_world_revision_proposal_cycle_non_mutation",
+    "recursive_world_revision_proposal_freeze_integrity"
   ]
 }
