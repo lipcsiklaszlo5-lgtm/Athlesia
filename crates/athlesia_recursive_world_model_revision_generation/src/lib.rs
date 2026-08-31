@@ -298,3 +298,135 @@ impl RecursiveWorldRevisionGenerationValidator {
         RecursiveWorldRevisionGenerationValidation::new(model, candidates)
     }
 }
+
+use athlesia_recursive_world_model_evidence::{
+    RecursiveWorldEvidenceAssessor, RecursiveWorldEvidenceRanking, RecursiveWorldEvidenceState,
+};
+
+use athlesia_recursive_world_model_revision_proposal::{
+    RecursiveWorldRevisionProposalEvidenceScope, RecursiveWorldRevisionProposalEvidenceScoper,
+};
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct RecursiveWorldRevisionGenerationEvidenceScope {
+    validation: RecursiveWorldRevisionGenerationValidation,
+    evidence_ranking: RecursiveWorldEvidenceRanking,
+    proposal_scope: RecursiveWorldRevisionProposalEvidenceScope,
+    active_candidates: Vec<RecursiveWorldRevisionGenerationCandidate>,
+    inactive_candidates: Vec<RecursiveWorldRevisionGenerationCandidate>,
+    rejected_candidates: Vec<RecursiveWorldRevisionGenerationCandidate>,
+}
+
+impl RecursiveWorldRevisionGenerationEvidenceScope {
+    pub fn new(
+        model: &RecursiveWorldModel,
+        evidence_state: &RecursiveWorldEvidenceState,
+        candidates: RecursiveWorldRevisionGenerationCandidateSet,
+    ) -> Self {
+        let validation = RecursiveWorldRevisionGenerationValidation::new(model, candidates);
+
+        let evidence_ranking = RecursiveWorldEvidenceRanking::new(
+            RecursiveWorldEvidenceAssessor::assess_many(evidence_state, model.rules().to_vec()),
+        );
+
+        let proposal_scope = RecursiveWorldRevisionProposalEvidenceScoper::scope(
+            &evidence_ranking,
+            validation.validations(),
+        );
+
+        let mut active_candidates = proposal_scope
+            .active()
+            .iter()
+            .flat_map(|accepted| validation.candidates_for_accepted(accepted))
+            .collect::<Vec<_>>();
+
+        let mut inactive_candidates = proposal_scope
+            .inactive()
+            .iter()
+            .flat_map(|accepted| validation.candidates_for_accepted(accepted))
+            .collect::<Vec<_>>();
+
+        let mut rejected_candidates = validation.rejected_candidates();
+
+        active_candidates.sort();
+        active_candidates.dedup();
+
+        inactive_candidates.sort();
+        inactive_candidates.dedup();
+
+        rejected_candidates.sort();
+        rejected_candidates.dedup();
+
+        Self {
+            validation,
+            evidence_ranking,
+            proposal_scope,
+            active_candidates,
+            inactive_candidates,
+            rejected_candidates,
+        }
+    }
+
+    pub fn validation(&self) -> &RecursiveWorldRevisionGenerationValidation {
+        &self.validation
+    }
+
+    pub fn evidence_ranking(&self) -> &RecursiveWorldEvidenceRanking {
+        &self.evidence_ranking
+    }
+
+    pub fn proposal_scope(&self) -> &RecursiveWorldRevisionProposalEvidenceScope {
+        &self.proposal_scope
+    }
+
+    pub fn pressured_rule(&self) -> Option<&RecursiveWorldRule> {
+        self.proposal_scope.pressured_rule()
+    }
+
+    pub fn has_negative_pressure(&self) -> bool {
+        self.proposal_scope.has_negative_pressure()
+    }
+
+    pub fn active_candidates(&self) -> &[RecursiveWorldRevisionGenerationCandidate] {
+        &self.active_candidates
+    }
+
+    pub fn inactive_candidates(&self) -> &[RecursiveWorldRevisionGenerationCandidate] {
+        &self.inactive_candidates
+    }
+
+    pub fn rejected_candidates(&self) -> &[RecursiveWorldRevisionGenerationCandidate] {
+        &self.rejected_candidates
+    }
+
+    pub fn active_candidate_count(&self) -> usize {
+        self.active_candidates.len()
+    }
+
+    pub fn inactive_candidate_count(&self) -> usize {
+        self.inactive_candidates.len()
+    }
+
+    pub fn rejected_candidate_count(&self) -> usize {
+        self.rejected_candidates.len()
+    }
+
+    pub fn accepted_candidate_count(&self) -> usize {
+        self.active_candidates
+            .len()
+            .saturating_add(self.inactive_candidates.len())
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct RecursiveWorldRevisionGenerationEvidenceScoper;
+
+impl RecursiveWorldRevisionGenerationEvidenceScoper {
+    pub fn scope(
+        model: &RecursiveWorldModel,
+        evidence_state: &RecursiveWorldEvidenceState,
+        candidates: RecursiveWorldRevisionGenerationCandidateSet,
+    ) -> RecursiveWorldRevisionGenerationEvidenceScope {
+        RecursiveWorldRevisionGenerationEvidenceScope::new(model, evidence_state, candidates)
+    }
+}
