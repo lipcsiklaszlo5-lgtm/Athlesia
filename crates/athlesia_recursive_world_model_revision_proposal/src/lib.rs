@@ -75,3 +75,132 @@ impl RecursiveWorldRevisionProposalSet {
             .collect()
     }
 }
+
+use athlesia_recursive_world_model::{RecursiveWorldMinimalRevision, RecursiveWorldModel};
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd)]
+pub enum RecursiveWorldRevisionProposalRejection {
+    TargetMissing,
+    ReplacementCollision,
+    RevisionUnavailable,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct RecursiveWorldValidatedRevisionProposal {
+    proposal: RecursiveWorldRevisionProposal,
+    revision: RecursiveWorldMinimalRevision,
+}
+
+impl RecursiveWorldValidatedRevisionProposal {
+    pub fn proposal(&self) -> &RecursiveWorldRevisionProposal {
+        &self.proposal
+    }
+
+    pub fn target(&self) -> &RecursiveWorldRule {
+        self.proposal.target()
+    }
+
+    pub fn replacement(&self) -> &RecursiveWorldRule {
+        self.proposal.replacement()
+    }
+
+    pub fn revision(&self) -> &RecursiveWorldMinimalRevision {
+        &self.revision
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum RecursiveWorldRevisionProposalValidation {
+    Accepted(Box<RecursiveWorldValidatedRevisionProposal>),
+    Rejected {
+        proposal: RecursiveWorldRevisionProposal,
+        reason: RecursiveWorldRevisionProposalRejection,
+    },
+}
+
+impl RecursiveWorldRevisionProposalValidation {
+    pub fn proposal(&self) -> &RecursiveWorldRevisionProposal {
+        match self {
+            Self::Accepted(validated) => validated.proposal(),
+
+            Self::Rejected { proposal, .. } => proposal,
+        }
+    }
+
+    pub fn validated(&self) -> Option<&RecursiveWorldValidatedRevisionProposal> {
+        match self {
+            Self::Accepted(validated) => Some(validated.as_ref()),
+
+            Self::Rejected { .. } => None,
+        }
+    }
+
+    pub const fn rejection_reason(&self) -> Option<RecursiveWorldRevisionProposalRejection> {
+        match self {
+            Self::Accepted(_) => None,
+
+            Self::Rejected { reason, .. } => Some(*reason),
+        }
+    }
+
+    pub fn is_accepted(&self) -> bool {
+        matches!(self, Self::Accepted(_,))
+    }
+
+    pub fn is_rejected(&self) -> bool {
+        !self.is_accepted()
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct RecursiveWorldRevisionProposalValidator;
+
+impl RecursiveWorldRevisionProposalValidator {
+    pub fn validate(
+        model: &RecursiveWorldModel,
+        proposal: RecursiveWorldRevisionProposal,
+    ) -> RecursiveWorldRevisionProposalValidation {
+        if !model.contains(proposal.target()) {
+            return RecursiveWorldRevisionProposalValidation::Rejected {
+                proposal,
+                reason: RecursiveWorldRevisionProposalRejection::TargetMissing,
+            };
+        }
+
+        if model.contains(proposal.replacement()) {
+            return RecursiveWorldRevisionProposalValidation::Rejected {
+                proposal,
+                reason: RecursiveWorldRevisionProposalRejection::ReplacementCollision,
+            };
+        }
+
+        let revision = RecursiveWorldMinimalRevision::apply(
+            model,
+            proposal.target().clone(),
+            proposal.replacement().clone(),
+        );
+
+        match revision {
+            Some(revision) => RecursiveWorldRevisionProposalValidation::Accepted(Box::new(
+                RecursiveWorldValidatedRevisionProposal { proposal, revision },
+            )),
+
+            None => RecursiveWorldRevisionProposalValidation::Rejected {
+                proposal,
+                reason: RecursiveWorldRevisionProposalRejection::RevisionUnavailable,
+            },
+        }
+    }
+
+    pub fn validate_many(
+        model: &RecursiveWorldModel,
+        proposals: &RecursiveWorldRevisionProposalSet,
+    ) -> Vec<RecursiveWorldRevisionProposalValidation> {
+        proposals
+            .proposals()
+            .iter()
+            .cloned()
+            .map(|proposal| Self::validate(model, proposal))
+            .collect()
+    }
+}
