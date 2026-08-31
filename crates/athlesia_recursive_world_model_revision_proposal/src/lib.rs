@@ -437,3 +437,96 @@ impl RecursiveWorldRevisionProposalEvidenceScoper {
         RecursiveWorldRevisionProposalEvidenceScope::new(ranking, validations)
     }
 }
+
+use athlesia_recursive_world_model::{
+    RecursiveWorldRevisionActiveCycle, RecursiveWorldRevisionActiveCycleResult,
+    RecursiveWorldRevisionBudget,
+};
+
+use athlesia_recursive_world_model_evidence::{
+    RecursiveWorldEvidenceAssessor, RecursiveWorldEvidenceState,
+};
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct RecursiveWorldRevisionProposalCycleResult {
+    validations: RecursiveWorldRevisionProposalValidationSet,
+    evidence_ranking: RecursiveWorldEvidenceRanking,
+    evidence_scope: RecursiveWorldRevisionProposalEvidenceScope,
+    revision_cycle: RecursiveWorldRevisionActiveCycleResult,
+}
+
+impl RecursiveWorldRevisionProposalCycleResult {
+    pub fn validations(&self) -> &RecursiveWorldRevisionProposalValidationSet {
+        &self.validations
+    }
+
+    pub fn evidence_ranking(&self) -> &RecursiveWorldEvidenceRanking {
+        &self.evidence_ranking
+    }
+
+    pub fn evidence_scope(&self) -> &RecursiveWorldRevisionProposalEvidenceScope {
+        &self.evidence_scope
+    }
+
+    pub fn revision_cycle(&self) -> &RecursiveWorldRevisionActiveCycleResult {
+        &self.revision_cycle
+    }
+
+    pub fn pressured_rule(&self) -> Option<&RecursiveWorldRule> {
+        self.evidence_scope.pressured_rule()
+    }
+
+    pub fn active_proposal_count(&self) -> usize {
+        self.evidence_scope.active_count()
+    }
+
+    pub fn rejected_proposal_count(&self) -> usize {
+        self.validations.rejected_count()
+    }
+
+    pub fn selected_revision(&self) -> Option<&RecursiveWorldMinimalRevision> {
+        self.revision_cycle
+            .selected()
+            .map(|costed| costed.revision())
+    }
+
+    pub fn revised_world(&self) -> Option<&RecursiveWorldModel> {
+        self.revision_cycle.revised_world()
+    }
+
+    pub fn has_revision(&self) -> bool {
+        self.revision_cycle.has_revision()
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct RecursiveWorldRevisionProposalCycle;
+
+impl RecursiveWorldRevisionProposalCycle {
+    pub fn evaluate(
+        model: &RecursiveWorldModel,
+        evidence_state: &RecursiveWorldEvidenceState,
+        proposals: &RecursiveWorldRevisionProposalSet,
+        budget: RecursiveWorldRevisionBudget,
+    ) -> RecursiveWorldRevisionProposalCycleResult {
+        let validations = RecursiveWorldRevisionProposalValidator::validate_set(model, proposals);
+
+        let assessments =
+            RecursiveWorldEvidenceAssessor::assess_many(evidence_state, model.rules().to_vec());
+
+        let evidence_ranking = RecursiveWorldEvidenceRanking::new(assessments);
+
+        let evidence_scope =
+            RecursiveWorldRevisionProposalEvidenceScope::new(&evidence_ranking, &validations);
+
+        let revision_cycle =
+            RecursiveWorldRevisionActiveCycle::evaluate(evidence_scope.active_revisions(), budget);
+
+        RecursiveWorldRevisionProposalCycleResult {
+            validations,
+            evidence_ranking,
+            evidence_scope,
+            revision_cycle,
+        }
+    }
+}

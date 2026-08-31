@@ -106,9 +106,10 @@
     "crates/athlesia_recursive_world_model_evidence/tests/recursive_world_model_evidence_revision_cycle.rs": "5da0afe2450fcb247a1ca4a9a0706b4472b841f42541a95a7b6fa596a0227089",
     "crates/athlesia_recursive_world_model_revision_proposal/Cargo.lock": "7a143f55d393de72d4d446609c7447c8729f352477aa91df0e02b80228396133",
     "crates/athlesia_recursive_world_model_revision_proposal/Cargo.toml": "235b06e6de3bc721dd5462fb912f90766e1c3d448a0cfe4b7d35018249f30641",
-    "crates/athlesia_recursive_world_model_revision_proposal/src/lib.rs": "2b51c99c568945ffdcfc9920f232869a26036b6f0856ec37d6436eac7781fd11",
+    "crates/athlesia_recursive_world_model_revision_proposal/src/lib.rs": "471ed7cefe47eb7060c5fff022928b4a8dfdaf7854837b9c0694a6b7e249298d",
     "crates/athlesia_recursive_world_model_revision_proposal/tests/recursive_world_model_revision_proposal_evidence_scope.rs": "c1794b5ac8a1ad49356171766f31bd61e8a087f167c9adb58993b90760bd5137",
     "crates/athlesia_recursive_world_model_revision_proposal/tests/recursive_world_model_revision_proposal_foundation.rs": "766ef79c2e8ed68394ab8d0fbe9194412a7143286d8c90021080be4e471c200b",
+    "crates/athlesia_recursive_world_model_revision_proposal/tests/recursive_world_model_revision_proposal_revision_cycle.rs": "835aaf7ebcdcfa8b75dfa18c061489913f722db1614cc6e39416479f4015a135",
     "crates/athlesia_recursive_world_model_revision_proposal/tests/recursive_world_model_revision_proposal_validation.rs": "c7c83dbc4541a9046340c5e0a92ceffdc468482772c861bc94c6b3743c4169f4",
     "crates/athlesia_recursive_world_model_revision_proposal/tests/recursive_world_model_revision_proposal_validation_set.rs": "4e0dc006368b84e54b36e9531f92601f50fd3c0809676913a47680f36ea6fff0",
     "crates/athlesia_revision/Cargo.toml": "5d86f3c6ebd51f093e03c171df1520526f4e9da298cb07cd04123191f4b0f814",
@@ -282,7 +283,8 @@
       "module_35_recursive_world_model_revision_proposal_foundation",
       "module_35_recursive_world_model_revision_proposal_validation",
       "module_35_recursive_world_model_revision_proposal_validation_set",
-      "module_35_recursive_world_model_revision_proposal_evidence_scope"
+      "module_35_recursive_world_model_revision_proposal_evidence_scope",
+      "module_35_recursive_world_model_revision_proposal_revision_cycle"
     ],
     "module_23_integrity": {
       "status": "pass",
@@ -295,8 +297,8 @@
       "status": "frozen",
       "verifier": "tools/verify_module_23_parity.py"
     },
-    "next_layer": "module_35_recursive_world_model_revision_proposal_revision_cycle",
-    "stage": "module_35_recursive_world_model_revision_proposal_evidence_scope",
+    "next_layer": "module_35_recursive_world_model_revision_proposal_freeze",
+    "stage": "module_35_recursive_world_model_revision_proposal_revision_cycle",
     "status": "validated"
   },
   "validated_invariants": [
@@ -1205,6 +1207,18 @@
     "recursive_world_revision_proposal_evidence_scope_partition_cardinality",
     "recursive_world_revision_proposal_evidence_scope_m33_identity",
     "recursive_world_revision_proposal_evidence_scope_scoper_equivalence",
-    "recursive_world_revision_proposal_evidence_scope_non_mutation"
+    "recursive_world_revision_proposal_evidence_scope_non_mutation",
+    "recursive_world_revision_proposal_cycle_empty_identity",
+    "recursive_world_revision_proposal_cycle_no_evidence_guard",
+    "recursive_world_revision_proposal_cycle_confirming_guard",
+    "recursive_world_revision_proposal_cycle_balanced_guard",
+    "recursive_world_revision_proposal_cycle_negative_revision",
+    "recursive_world_revision_proposal_cycle_validation_guard",
+    "recursive_world_revision_proposal_cycle_pressure_scope",
+    "recursive_world_revision_proposal_cycle_cost_priority",
+    "recursive_world_revision_proposal_cycle_budget_guard",
+    "recursive_world_revision_proposal_cycle_m33_identity",
+    "recursive_world_revision_proposal_cycle_determinism",
+    "recursive_world_revision_proposal_cycle_non_mutation"
   ]
 }
