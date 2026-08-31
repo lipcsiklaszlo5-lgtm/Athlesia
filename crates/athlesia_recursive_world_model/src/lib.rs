@@ -666,3 +666,52 @@ impl RecursiveWorldRevisionSelector {
         RecursiveWorldRevisionSelection { budget, selected }
     }
 }
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct RecursiveWorldRevisionActiveCycleResult {
+    ranking: RecursiveWorldRevisionRanking,
+    selection: RecursiveWorldRevisionSelection,
+}
+
+impl RecursiveWorldRevisionActiveCycleResult {
+    pub fn ranking(&self) -> &RecursiveWorldRevisionRanking {
+        &self.ranking
+    }
+
+    pub fn selection(&self) -> &RecursiveWorldRevisionSelection {
+        &self.selection
+    }
+
+    pub fn selected(&self) -> Option<&RecursiveWorldCostedRevision> {
+        self.selection.selected()
+    }
+
+    pub fn revised_world(&self) -> Option<&RecursiveWorldModel> {
+        self.selected().map(|revision| revision.revision().after())
+    }
+
+    pub fn has_revision(&self) -> bool {
+        self.selection.is_selected()
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct RecursiveWorldRevisionActiveCycle;
+
+impl RecursiveWorldRevisionActiveCycle {
+    pub fn evaluate(
+        revisions: Vec<RecursiveWorldMinimalRevision>,
+        budget: RecursiveWorldRevisionBudget,
+    ) -> RecursiveWorldRevisionActiveCycleResult {
+        let costed = revisions
+            .into_iter()
+            .map(RecursiveWorldCostedRevision::evaluate)
+            .collect();
+
+        let ranking = RecursiveWorldRevisionRanking::new(costed);
+
+        let selection = RecursiveWorldRevisionSelector::select(&ranking, budget);
+
+        RecursiveWorldRevisionActiveCycleResult { ranking, selection }
+    }
+}
