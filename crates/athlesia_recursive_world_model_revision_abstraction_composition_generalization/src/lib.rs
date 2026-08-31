@@ -265,3 +265,214 @@ impl RecursiveWorldRevisionAbstractionCompositionGeneralizer {
         )
     }
 }
+
+#[derive(Clone, Debug, Eq, PartialEq, Ord, PartialOrd)]
+pub struct RecursiveWorldRevisionAbstractionCompositionGeneralizationMotifConflict {
+    first: RecursiveWorldRevisionAbstractionCompositionGeneralizationMotif,
+    second: RecursiveWorldRevisionAbstractionCompositionGeneralizationMotif,
+    shared_positions: Vec<usize>,
+}
+
+impl RecursiveWorldRevisionAbstractionCompositionGeneralizationMotifConflict {
+    pub fn between(
+        first: RecursiveWorldRevisionAbstractionCompositionGeneralizationMotif,
+        second: RecursiveWorldRevisionAbstractionCompositionGeneralizationMotif,
+    ) -> Option<Self> {
+        if first == second {
+            return None;
+        }
+
+        let shared_positions: Vec<usize> = first
+            .classes()
+            .iter()
+            .zip(second.classes().iter())
+            .enumerate()
+            .filter_map(
+                |(index, (left, right))| {
+                    if left == right {
+                        Some(index)
+                    } else {
+                        None
+                    }
+                },
+            )
+            .collect();
+
+        if shared_positions.len() != 2 {
+            return None;
+        }
+
+        let (first, second) = if first <= second {
+            (first, second)
+        } else {
+            (second, first)
+        };
+
+        Some(Self {
+            first,
+            second,
+            shared_positions,
+        })
+    }
+
+    pub fn first(&self) -> &RecursiveWorldRevisionAbstractionCompositionGeneralizationMotif {
+        &self.first
+    }
+
+    pub fn second(&self) -> &RecursiveWorldRevisionAbstractionCompositionGeneralizationMotif {
+        &self.second
+    }
+
+    pub fn shared_positions(&self) -> &[usize] {
+        &self.shared_positions
+    }
+
+    pub fn shares_start_middle(&self) -> bool {
+        self.shared_positions == [0, 1]
+    }
+
+    pub fn shares_middle_end(&self) -> bool {
+        self.shared_positions == [1, 2]
+    }
+
+    pub fn shares_start_end(&self) -> bool {
+        self.shared_positions == [0, 2]
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct RecursiveWorldRevisionAbstractionCompositionGeneralizationResolution {
+    source: RecursiveWorldRevisionAbstractionCompositionGeneralizedMotifSet,
+    resolved_motifs: Vec<RecursiveWorldRevisionAbstractionCompositionGeneralizedMotif>,
+    conflicted_motifs: Vec<RecursiveWorldRevisionAbstractionCompositionGeneralizedMotif>,
+    conflicts: Vec<RecursiveWorldRevisionAbstractionCompositionGeneralizationMotifConflict>,
+}
+
+impl RecursiveWorldRevisionAbstractionCompositionGeneralizationResolution {
+    pub fn resolve(
+        source: RecursiveWorldRevisionAbstractionCompositionGeneralizedMotifSet,
+    ) -> Self {
+        let motifs = source.motifs();
+
+        let mut conflicts: BTreeSet<
+            RecursiveWorldRevisionAbstractionCompositionGeneralizationMotifConflict,
+        > = BTreeSet::new();
+
+        let mut conflicted_identities: BTreeSet<
+            RecursiveWorldRevisionAbstractionCompositionGeneralizationMotif,
+        > = BTreeSet::new();
+
+        for first_index in 0..motifs.len() {
+            for second_index in (first_index + 1)..motifs.len() {
+                let first = motifs[first_index].motif().clone();
+
+                let second = motifs[second_index].motif().clone();
+
+                if let Some(conflict) =
+                    RecursiveWorldRevisionAbstractionCompositionGeneralizationMotifConflict::between(
+                        first.clone(),
+                        second.clone(),
+                    )
+                {
+                    conflicted_identities.insert(first);
+
+                    conflicted_identities.insert(second);
+
+                    conflicts.insert(conflict);
+                }
+            }
+        }
+
+        let mut resolved_motifs = Vec::new();
+
+        let mut conflicted_motifs = Vec::new();
+
+        for motif in motifs {
+            if conflicted_identities.contains(motif.motif()) {
+                conflicted_motifs.push(motif.clone());
+            } else {
+                resolved_motifs.push(motif.clone());
+            }
+        }
+
+        resolved_motifs.sort();
+        resolved_motifs.dedup();
+
+        conflicted_motifs.sort();
+        conflicted_motifs.dedup();
+
+        Self {
+            source,
+            resolved_motifs,
+            conflicted_motifs,
+            conflicts: conflicts.into_iter().collect(),
+        }
+    }
+
+    pub fn source(&self) -> &RecursiveWorldRevisionAbstractionCompositionGeneralizedMotifSet {
+        &self.source
+    }
+
+    pub fn resolved_motifs(
+        &self,
+    ) -> &[RecursiveWorldRevisionAbstractionCompositionGeneralizedMotif] {
+        &self.resolved_motifs
+    }
+
+    pub fn conflicted_motifs(
+        &self,
+    ) -> &[RecursiveWorldRevisionAbstractionCompositionGeneralizedMotif] {
+        &self.conflicted_motifs
+    }
+
+    pub fn conflicts(
+        &self,
+    ) -> &[RecursiveWorldRevisionAbstractionCompositionGeneralizationMotifConflict] {
+        &self.conflicts
+    }
+
+    pub fn resolved_len(&self) -> usize {
+        self.resolved_motifs.len()
+    }
+
+    pub fn conflicted_len(&self) -> usize {
+        self.conflicted_motifs.len()
+    }
+
+    pub fn conflict_len(&self) -> usize {
+        self.conflicts.len()
+    }
+
+    pub fn has_conflicts(&self) -> bool {
+        !self.conflicts.is_empty()
+    }
+
+    pub fn resolved_motif(
+        &self,
+        classes: &[RecursiveWorldRevisionAbstractionClass],
+    ) -> Option<&RecursiveWorldRevisionAbstractionCompositionGeneralizedMotif> {
+        self.resolved_motifs
+            .iter()
+            .find(|motif| motif.classes() == classes)
+    }
+
+    pub fn conflicted_motif(
+        &self,
+        classes: &[RecursiveWorldRevisionAbstractionClass],
+    ) -> Option<&RecursiveWorldRevisionAbstractionCompositionGeneralizedMotif> {
+        self.conflicted_motifs
+            .iter()
+            .find(|motif| motif.classes() == classes)
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct RecursiveWorldRevisionAbstractionCompositionGeneralizationResolver;
+
+impl RecursiveWorldRevisionAbstractionCompositionGeneralizationResolver {
+    pub fn resolve(
+        source: RecursiveWorldRevisionAbstractionCompositionGeneralizedMotifSet,
+    ) -> RecursiveWorldRevisionAbstractionCompositionGeneralizationResolution {
+        RecursiveWorldRevisionAbstractionCompositionGeneralizationResolution::resolve(source)
+    }
+}
