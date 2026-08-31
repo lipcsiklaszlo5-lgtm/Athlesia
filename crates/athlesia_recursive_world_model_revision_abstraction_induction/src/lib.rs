@@ -1660,3 +1660,176 @@ impl RecursiveWorldRevisionAbstractionTransferEvidenceScoper {
         )
     }
 }
+
+use athlesia_recursive_world_model::RecursiveWorldRevisionBudget;
+
+use athlesia_recursive_world_model_revision_discovery::{
+    RecursiveWorldRevisionDiscoveryCycle, RecursiveWorldRevisionDiscoveryCycleResult,
+};
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd)]
+pub enum RecursiveWorldRevisionAbstractionTransferCycleStatus {
+    DiscoveryUnavailable,
+    Rejected,
+    Inactive,
+    ActiveNoRevision,
+    Revised,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct RecursiveWorldRevisionAbstractionTransferCycleResult {
+    scope: RecursiveWorldRevisionAbstractionTransferEvidenceScope,
+    cycle: Option<RecursiveWorldRevisionDiscoveryCycleResult>,
+    status: RecursiveWorldRevisionAbstractionTransferCycleStatus,
+}
+
+impl RecursiveWorldRevisionAbstractionTransferCycleResult {
+    pub fn evaluate(
+        model: RecursiveWorldModel,
+        evidence_state: RecursiveWorldEvidenceState,
+        target: RecursiveWorldRule,
+        induction_observations: RecursiveWorldRevisionInductionObservationSet,
+        transfer_observations: RecursiveWorldRevisionInductionObservationSet,
+        budget: RecursiveWorldRevisionBudget,
+    ) -> Self {
+        let scope = RecursiveWorldRevisionAbstractionTransferEvidenceScope::scope(
+            model.clone(),
+            evidence_state.clone(),
+            target,
+            induction_observations,
+            transfer_observations,
+        );
+
+        match scope.status() {
+            RecursiveWorldRevisionAbstractionTransferEvidenceScopeStatus::DiscoveryUnavailable => {
+                return Self {
+                    scope,
+                    cycle: None,
+                    status:
+                        RecursiveWorldRevisionAbstractionTransferCycleStatus::DiscoveryUnavailable,
+                };
+            }
+
+            RecursiveWorldRevisionAbstractionTransferEvidenceScopeStatus::Rejected => {
+                return Self {
+                    scope,
+                    cycle: None,
+                    status: RecursiveWorldRevisionAbstractionTransferCycleStatus::Rejected,
+                };
+            }
+
+            RecursiveWorldRevisionAbstractionTransferEvidenceScopeStatus::Inactive
+            | RecursiveWorldRevisionAbstractionTransferEvidenceScopeStatus::Active => {}
+        }
+
+        let hypothesis = scope
+            .validation()
+            .accepted_hypothesis()
+            .cloned()
+            .expect("validated transfer scope contains exactly one accepted hypothesis");
+
+        let hypothesis_set = RecursiveWorldRevisionDiscoveryHypothesisSet::new(vec![hypothesis]);
+
+        let cycle = RecursiveWorldRevisionDiscoveryCycle::evaluate(
+            &model,
+            &evidence_state,
+            hypothesis_set,
+            budget,
+        );
+
+        let status = match scope.status() {
+            RecursiveWorldRevisionAbstractionTransferEvidenceScopeStatus::Inactive => {
+                RecursiveWorldRevisionAbstractionTransferCycleStatus::Inactive
+            }
+
+            RecursiveWorldRevisionAbstractionTransferEvidenceScopeStatus::Active => {
+                if cycle.has_revision() {
+                    RecursiveWorldRevisionAbstractionTransferCycleStatus::Revised
+                } else {
+                    RecursiveWorldRevisionAbstractionTransferCycleStatus::ActiveNoRevision
+                }
+            }
+
+            RecursiveWorldRevisionAbstractionTransferEvidenceScopeStatus::DiscoveryUnavailable
+            | RecursiveWorldRevisionAbstractionTransferEvidenceScopeStatus::Rejected => {
+                unreachable!("terminal transfer scope status returned before cycle evaluation")
+            }
+        };
+
+        Self {
+            scope,
+            cycle: Some(cycle),
+            status,
+        }
+    }
+
+    pub fn scope(&self) -> &RecursiveWorldRevisionAbstractionTransferEvidenceScope {
+        &self.scope
+    }
+
+    pub fn cycle(&self) -> Option<&RecursiveWorldRevisionDiscoveryCycleResult> {
+        self.cycle.as_ref()
+    }
+
+    pub fn status(&self) -> RecursiveWorldRevisionAbstractionTransferCycleStatus {
+        self.status
+    }
+
+    pub fn has_revision(&self) -> bool {
+        self.cycle
+            .as_ref()
+            .map(RecursiveWorldRevisionDiscoveryCycleResult::has_revision)
+            .unwrap_or(false)
+    }
+
+    pub fn target(&self) -> &RecursiveWorldRule {
+        self.scope.target()
+    }
+
+    pub fn hypothesis(&self) -> Option<&RecursiveWorldRevisionDiscoveryHypothesis> {
+        self.scope.hypothesis()
+    }
+
+    pub fn realized_observation(&self) -> Option<&RecursiveWorldRevisionDiscoveryObservation> {
+        self.scope.realized_observation()
+    }
+
+    pub fn induction_observations(&self) -> &RecursiveWorldRevisionInductionObservationSet {
+        self.scope.induction_observations()
+    }
+
+    pub fn transfer_observations(&self) -> &RecursiveWorldRevisionInductionObservationSet {
+        self.scope.transfer_observations()
+    }
+
+    pub fn consensus(&self) -> Option<&RecursiveWorldRevisionAbstractionConsensus> {
+        self.scope.consensus()
+    }
+
+    pub fn vocabulary(&self) -> Option<&RecursiveWorldRevisionAbstractionVocabulary> {
+        self.scope.vocabulary()
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct RecursiveWorldRevisionAbstractionTransferCycle;
+
+impl RecursiveWorldRevisionAbstractionTransferCycle {
+    pub fn evaluate(
+        model: RecursiveWorldModel,
+        evidence_state: RecursiveWorldEvidenceState,
+        target: RecursiveWorldRule,
+        induction_observations: RecursiveWorldRevisionInductionObservationSet,
+        transfer_observations: RecursiveWorldRevisionInductionObservationSet,
+        budget: RecursiveWorldRevisionBudget,
+    ) -> RecursiveWorldRevisionAbstractionTransferCycleResult {
+        RecursiveWorldRevisionAbstractionTransferCycleResult::evaluate(
+            model,
+            evidence_state,
+            target,
+            induction_observations,
+            transfer_observations,
+            budget,
+        )
+    }
+}
