@@ -453,3 +453,96 @@ impl RecursiveWorldRevisionDiscoveryEvidenceScoper {
         RecursiveWorldRevisionDiscoveryEvidenceScope::new(model, evidence_state, hypotheses)
     }
 }
+
+use athlesia_recursive_world_model::{RecursiveWorldMinimalRevision, RecursiveWorldRevisionBudget};
+
+use athlesia_recursive_world_model_revision_generation::{
+    RecursiveWorldRevisionGenerationCycle, RecursiveWorldRevisionGenerationCycleResult,
+};
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct RecursiveWorldRevisionDiscoveryCycleResult {
+    scope: RecursiveWorldRevisionDiscoveryEvidenceScope,
+    generation_cycle: RecursiveWorldRevisionGenerationCycleResult,
+}
+
+impl RecursiveWorldRevisionDiscoveryCycleResult {
+    pub fn scope(&self) -> &RecursiveWorldRevisionDiscoveryEvidenceScope {
+        &self.scope
+    }
+
+    pub fn generation_cycle(&self) -> &RecursiveWorldRevisionGenerationCycleResult {
+        &self.generation_cycle
+    }
+
+    pub fn pressured_rule(&self) -> Option<&RecursiveWorldRule> {
+        self.scope.pressured_rule()
+    }
+
+    pub fn active_hypotheses(&self) -> &[RecursiveWorldRevisionDiscoveryHypothesis] {
+        self.scope.active_hypotheses()
+    }
+
+    pub fn inactive_hypotheses(&self) -> &[RecursiveWorldRevisionDiscoveryHypothesis] {
+        self.scope.inactive_hypotheses()
+    }
+
+    pub fn rejected_hypotheses(&self) -> &[RecursiveWorldRevisionDiscoveryHypothesis] {
+        self.scope.rejected_hypotheses()
+    }
+
+    pub fn selected_revision(&self) -> Option<&RecursiveWorldMinimalRevision> {
+        self.generation_cycle.selected_revision()
+    }
+
+    pub fn revised_world(&self) -> Option<&RecursiveWorldModel> {
+        self.generation_cycle.revised_world()
+    }
+
+    pub fn has_revision(&self) -> bool {
+        self.generation_cycle.has_revision()
+    }
+
+    pub fn selected_hypotheses(&self) -> Vec<RecursiveWorldRevisionDiscoveryHypothesis> {
+        let Some(selected) = self.selected_revision() else {
+            return Vec::new();
+        };
+
+        self.scope
+            .active_hypotheses()
+            .iter()
+            .filter(|hypothesis| {
+                hypothesis.target() == selected.target()
+                    && hypothesis.replacement() == selected.replacement()
+            })
+            .cloned()
+            .collect()
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct RecursiveWorldRevisionDiscoveryCycle;
+
+impl RecursiveWorldRevisionDiscoveryCycle {
+    pub fn evaluate(
+        model: &RecursiveWorldModel,
+        evidence_state: &RecursiveWorldEvidenceState,
+        hypotheses: RecursiveWorldRevisionDiscoveryHypothesisSet,
+        budget: RecursiveWorldRevisionBudget,
+    ) -> RecursiveWorldRevisionDiscoveryCycleResult {
+        let scope =
+            RecursiveWorldRevisionDiscoveryEvidenceScope::new(model, evidence_state, hypotheses);
+
+        let generation_cycle = RecursiveWorldRevisionGenerationCycle::evaluate(
+            model,
+            evidence_state,
+            scope.validation().bridge().candidates().clone(),
+            budget,
+        );
+
+        RecursiveWorldRevisionDiscoveryCycleResult {
+            scope,
+            generation_cycle,
+        }
+    }
+}

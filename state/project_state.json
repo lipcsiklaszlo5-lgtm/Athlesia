@@ -106,10 +106,11 @@
     "crates/athlesia_recursive_world_model_evidence/tests/recursive_world_model_evidence_revision_cycle.rs": "5da0afe2450fcb247a1ca4a9a0706b4472b841f42541a95a7b6fa596a0227089",
     "crates/athlesia_recursive_world_model_revision_discovery/Cargo.lock": "7829c907ef35c8603add0a12162e8d9e4e4cadd7513d769a13dbeea2af851df8",
     "crates/athlesia_recursive_world_model_revision_discovery/Cargo.toml": "f9fd7cae8febaaf2464408da6b71a1c007e7f6a820b020f98604153cccfb1368",
-    "crates/athlesia_recursive_world_model_revision_discovery/src/lib.rs": "5b2c9cd8833158c68d495429b79ea15d5b8373a25c6ca08cbfcfef7c08351912",
+    "crates/athlesia_recursive_world_model_revision_discovery/src/lib.rs": "0a85774cc1f911ec45a39559eadcfd6c80db1e3e353c742720bca2e0360d9e83",
     "crates/athlesia_recursive_world_model_revision_discovery/tests/recursive_world_model_revision_discovery_evidence_scope.rs": "98978b2879d038afc67e0a61ee975e30dd38c61e46a2506e543e7565b91d9fc6",
     "crates/athlesia_recursive_world_model_revision_discovery/tests/recursive_world_model_revision_discovery_foundation.rs": "b621926c8f8b20c210439b3f8e56fa8c8d520ee47b6b48f6c85364d32ee4645a",
     "crates/athlesia_recursive_world_model_revision_discovery/tests/recursive_world_model_revision_discovery_generation_bridge.rs": "ea33506009d0ad3098b62103e911b11f6f1897150f1dd8045756ccd00777ed0f",
+    "crates/athlesia_recursive_world_model_revision_discovery/tests/recursive_world_model_revision_discovery_revision_cycle.rs": "fd8eb6dc04b10fc0394d5b55bbd1c1072aabb0705d410b98cdaddc37c6b9db4b",
     "crates/athlesia_recursive_world_model_revision_discovery/tests/recursive_world_model_revision_discovery_validation.rs": "91b3d3c978bfdca3039abcb5d4e4e17542f1291fd2bba26fbb797475213e7a50",
     "crates/athlesia_recursive_world_model_revision_generation/Cargo.lock": "e13dca42f13645eccbaf6d14eca13efb5e58ff610574574b0c8757bfb475ee09",
     "crates/athlesia_recursive_world_model_revision_generation/Cargo.toml": "dae9cdb1130e0f7fca6750ca89b32ca264f9409a18f08c1c5ab5d6bd9b938b3c",
@@ -314,7 +315,8 @@
       "module_37_recursive_world_model_revision_discovery_foundation",
       "module_37_recursive_world_model_revision_discovery_generation_bridge",
       "module_37_recursive_world_model_revision_discovery_validation",
-      "module_37_recursive_world_model_revision_discovery_evidence_scope"
+      "module_37_recursive_world_model_revision_discovery_evidence_scope",
+      "module_37_recursive_world_model_revision_discovery_revision_cycle"
     ],
     "module_23_integrity": {
       "status": "pass",
@@ -327,8 +329,8 @@
       "status": "frozen",
       "verifier": "tools/verify_module_23_parity.py"
     },
-    "next_layer": "module_37_recursive_world_model_revision_discovery_revision_cycle",
-    "stage": "module_37_recursive_world_model_revision_discovery_evidence_scope",
+    "next_layer": "module_37_recursive_world_model_revision_discovery_freeze",
+    "stage": "module_37_recursive_world_model_revision_discovery_revision_cycle",
     "status": "validated"
   },
   "validated_invariants": [
@@ -1359,6 +1361,18 @@
     "recursive_world_revision_discovery_evidence_scope_partition_identity",
     "recursive_world_revision_discovery_evidence_scope_pressure_priority",
     "recursive_world_revision_discovery_evidence_scope_generation_identity",
-    "recursive_world_revision_discovery_evidence_scope_determinism_non_mutation"
+    "recursive_world_revision_discovery_evidence_scope_determinism_non_mutation",
+    "recursive_world_revision_discovery_cycle_empty_identity",
+    "recursive_world_revision_discovery_cycle_no_evidence_guard",
+    "recursive_world_revision_discovery_cycle_confirming_guard",
+    "recursive_world_revision_discovery_cycle_balanced_guard",
+    "recursive_world_revision_discovery_cycle_negative_revision",
+    "recursive_world_revision_discovery_cycle_rejection_guard",
+    "recursive_world_revision_discovery_cycle_pressure_scope",
+    "recursive_world_revision_discovery_cycle_cost_priority",
+    "recursive_world_revision_discovery_cycle_budget_guard",
+    "recursive_world_revision_discovery_cycle_provenance_identity",
+    "recursive_world_revision_discovery_cycle_generation_identity",
+    "recursive_world_revision_discovery_cycle_determinism_non_mutation"
   ]
 }
