@@ -204,3 +204,116 @@ impl RecursiveWorldRevisionProposalValidator {
             .collect()
     }
 }
+
+#[derive(Clone, Debug, Eq, PartialEq, Ord, PartialOrd)]
+pub struct RecursiveWorldRejectedRevisionProposal {
+    proposal: RecursiveWorldRevisionProposal,
+    reason: RecursiveWorldRevisionProposalRejection,
+}
+
+impl RecursiveWorldRejectedRevisionProposal {
+    pub fn proposal(&self) -> &RecursiveWorldRevisionProposal {
+        &self.proposal
+    }
+
+    pub const fn reason(&self) -> RecursiveWorldRevisionProposalRejection {
+        self.reason
+    }
+}
+
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
+pub struct RecursiveWorldRevisionProposalValidationSet {
+    accepted: Vec<RecursiveWorldValidatedRevisionProposal>,
+    rejected: Vec<RecursiveWorldRejectedRevisionProposal>,
+}
+
+impl RecursiveWorldRevisionProposalValidationSet {
+    pub fn new(validations: Vec<RecursiveWorldRevisionProposalValidation>) -> Self {
+        let mut accepted = Vec::new();
+
+        let mut rejected = Vec::new();
+
+        for validation in validations {
+            match validation {
+                RecursiveWorldRevisionProposalValidation::Accepted(validated) => {
+                    accepted.push(*validated);
+                }
+
+                RecursiveWorldRevisionProposalValidation::Rejected { proposal, reason } => {
+                    rejected.push(RecursiveWorldRejectedRevisionProposal { proposal, reason });
+                }
+            }
+        }
+
+        accepted.sort_by(|left, right| left.proposal().cmp(right.proposal()));
+
+        accepted.dedup_by(|left, right| left.proposal() == right.proposal());
+
+        rejected.sort();
+        rejected.dedup();
+
+        Self { accepted, rejected }
+    }
+
+    pub fn accepted(&self) -> &[RecursiveWorldValidatedRevisionProposal] {
+        &self.accepted
+    }
+
+    pub fn rejected(&self) -> &[RecursiveWorldRejectedRevisionProposal] {
+        &self.rejected
+    }
+
+    pub fn accepted_count(&self) -> usize {
+        self.accepted.len()
+    }
+
+    pub fn rejected_count(&self) -> usize {
+        self.rejected.len()
+    }
+
+    pub fn len(&self) -> usize {
+        self.accepted.len().saturating_add(self.rejected.len())
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.accepted.is_empty() && self.rejected.is_empty()
+    }
+
+    pub fn revisions(&self) -> Vec<RecursiveWorldMinimalRevision> {
+        self.accepted
+            .iter()
+            .map(|validated| validated.revision().clone())
+            .collect()
+    }
+
+    pub fn accepted_for_target(
+        &self,
+        target: &RecursiveWorldRule,
+    ) -> Vec<RecursiveWorldValidatedRevisionProposal> {
+        self.accepted
+            .iter()
+            .filter(|validated| validated.target() == target)
+            .cloned()
+            .collect()
+    }
+
+    pub fn rejected_for_target(
+        &self,
+        target: &RecursiveWorldRule,
+    ) -> Vec<RecursiveWorldRejectedRevisionProposal> {
+        self.rejected
+            .iter()
+            .filter(|rejected| rejected.proposal().target() == target)
+            .cloned()
+            .collect()
+    }
+}
+
+impl RecursiveWorldRevisionProposalValidator {
+    pub fn validate_set(
+        model: &RecursiveWorldModel,
+        proposals: &RecursiveWorldRevisionProposalSet,
+    ) -> RecursiveWorldRevisionProposalValidationSet {
+        RecursiveWorldRevisionProposalValidationSet::new(Self::validate_many(model, proposals))
+    }
+}
