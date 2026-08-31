@@ -246,3 +246,135 @@ impl RecursiveWorldRevisionGeneralizationDiscoveryBridgeBuilder {
         RecursiveWorldRevisionGeneralizationDiscoveryBridge::new(generalized)
     }
 }
+
+use athlesia_recursive_world_model::RecursiveWorldModel;
+
+use athlesia_recursive_world_model_revision_discovery::{
+    RecursiveWorldRevisionDiscoveryHypothesisSet, RecursiveWorldRevisionDiscoveryValidation,
+    RecursiveWorldRevisionDiscoveryValidator,
+};
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd)]
+pub enum RecursiveWorldRevisionGeneralizationValidationStatus {
+    DiscoveryUnavailable,
+    Rejected,
+    Accepted,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct RecursiveWorldRevisionGeneralizationValidation {
+    generalized: RecursiveWorldRevisionGeneralizedStructure,
+    bridge: Option<RecursiveWorldRevisionGeneralizationDiscoveryBridge>,
+    discovery_validation: Option<RecursiveWorldRevisionDiscoveryValidation>,
+    status: RecursiveWorldRevisionGeneralizationValidationStatus,
+}
+
+impl RecursiveWorldRevisionGeneralizationValidation {
+    pub fn new(
+        model: &RecursiveWorldModel,
+        generalized: RecursiveWorldRevisionGeneralizedStructure,
+    ) -> Self {
+        let bridge = RecursiveWorldRevisionGeneralizationDiscoveryBridge::new(generalized.clone());
+
+        let Some(bridge_value) = bridge.clone() else {
+            return Self {
+                generalized,
+                bridge: None,
+                discovery_validation: None,
+                status: RecursiveWorldRevisionGeneralizationValidationStatus::DiscoveryUnavailable,
+            };
+        };
+
+        let discovery_validation = RecursiveWorldRevisionDiscoveryValidator::validate(
+            model,
+            RecursiveWorldRevisionDiscoveryHypothesisSet::new(vec![bridge_value
+                .hypothesis()
+                .clone()]),
+        );
+
+        let status = if discovery_validation.accepted_count() == 1 {
+            RecursiveWorldRevisionGeneralizationValidationStatus::Accepted
+        } else {
+            RecursiveWorldRevisionGeneralizationValidationStatus::Rejected
+        };
+
+        Self {
+            generalized,
+            bridge,
+            discovery_validation: Some(discovery_validation),
+            status,
+        }
+    }
+
+    pub fn generalized(&self) -> &RecursiveWorldRevisionGeneralizedStructure {
+        &self.generalized
+    }
+
+    pub fn bridge(&self) -> Option<&RecursiveWorldRevisionGeneralizationDiscoveryBridge> {
+        self.bridge.as_ref()
+    }
+
+    pub fn discovery_validation(&self) -> Option<&RecursiveWorldRevisionDiscoveryValidation> {
+        self.discovery_validation.as_ref()
+    }
+
+    pub fn status(&self) -> RecursiveWorldRevisionGeneralizationValidationStatus {
+        self.status
+    }
+
+    pub fn is_accepted(&self) -> bool {
+        self.status == RecursiveWorldRevisionGeneralizationValidationStatus::Accepted
+    }
+
+    pub fn is_rejected(&self) -> bool {
+        self.status == RecursiveWorldRevisionGeneralizationValidationStatus::Rejected
+    }
+
+    pub fn is_discovery_unavailable(&self) -> bool {
+        self.status == RecursiveWorldRevisionGeneralizationValidationStatus::DiscoveryUnavailable
+    }
+
+    pub fn accepted_hypothesis(&self) -> Option<&RecursiveWorldRevisionDiscoveryHypothesis> {
+        self.discovery_validation
+            .as_ref()
+            .and_then(|validation| validation.accepted_hypotheses().first())
+    }
+
+    pub fn rejected_hypothesis(&self) -> Option<&RecursiveWorldRevisionDiscoveryHypothesis> {
+        self.discovery_validation
+            .as_ref()
+            .and_then(|validation| validation.rejected_hypotheses().first())
+    }
+
+    pub fn threshold(&self) -> RecursiveWorldRevisionGeneralizationThreshold {
+        self.generalized.threshold()
+    }
+
+    pub fn support_count(&self) -> usize {
+        self.generalized.support_count()
+    }
+
+    pub fn source_observations(&self) -> &RecursiveWorldRevisionInductionObservationSet {
+        self.generalized.observations()
+    }
+
+    pub fn premise_support(&self, unit: &RecursiveUnit) -> usize {
+        self.generalized.premise_support(unit)
+    }
+
+    pub fn conclusion_support(&self, unit: &RecursiveUnit) -> usize {
+        self.generalized.conclusion_support(unit)
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct RecursiveWorldRevisionGeneralizationValidator;
+
+impl RecursiveWorldRevisionGeneralizationValidator {
+    pub fn validate(
+        model: &RecursiveWorldModel,
+        generalized: RecursiveWorldRevisionGeneralizedStructure,
+    ) -> RecursiveWorldRevisionGeneralizationValidation {
+        RecursiveWorldRevisionGeneralizationValidation::new(model, generalized)
+    }
+}
