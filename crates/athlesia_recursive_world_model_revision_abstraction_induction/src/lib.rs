@@ -1333,3 +1333,154 @@ impl RecursiveWorldRevisionAbstractionTransferDiscoveryBuilder {
         )
     }
 }
+
+use athlesia_recursive_world_model::RecursiveWorldModel;
+
+use athlesia_recursive_world_model_revision_discovery::{
+    RecursiveWorldRevisionDiscoveryHypothesisSet, RecursiveWorldRevisionDiscoveryValidation,
+    RecursiveWorldRevisionDiscoveryValidator,
+};
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd)]
+pub enum RecursiveWorldRevisionAbstractionTransferValidationStatus {
+    DiscoveryUnavailable,
+    Rejected,
+    Accepted,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct RecursiveWorldRevisionAbstractionTransferValidation {
+    model: RecursiveWorldModel,
+    discovery: RecursiveWorldRevisionAbstractionTransferDiscoveryBridge,
+    validation: Option<RecursiveWorldRevisionDiscoveryValidation>,
+    status: RecursiveWorldRevisionAbstractionTransferValidationStatus,
+}
+
+impl RecursiveWorldRevisionAbstractionTransferValidation {
+    pub fn validate(
+        model: RecursiveWorldModel,
+        target: RecursiveWorldRule,
+        induction_observations: RecursiveWorldRevisionInductionObservationSet,
+        transfer_observations: RecursiveWorldRevisionInductionObservationSet,
+    ) -> Self {
+        let discovery = RecursiveWorldRevisionAbstractionTransferDiscoveryBridge::discover(
+            target,
+            induction_observations,
+            transfer_observations,
+        );
+
+        let Some(hypothesis) = discovery.hypothesis().cloned() else {
+            return Self {
+                model,
+                discovery,
+                validation: None,
+                status:
+                    RecursiveWorldRevisionAbstractionTransferValidationStatus::DiscoveryUnavailable,
+            };
+        };
+
+        let hypothesis_set = RecursiveWorldRevisionDiscoveryHypothesisSet::new(vec![hypothesis]);
+
+        let validation = RecursiveWorldRevisionDiscoveryValidator::validate(&model, hypothesis_set);
+
+        let status = if validation.accepted_count() == 1 {
+            RecursiveWorldRevisionAbstractionTransferValidationStatus::Accepted
+        } else {
+            RecursiveWorldRevisionAbstractionTransferValidationStatus::Rejected
+        };
+
+        Self {
+            model,
+            discovery,
+            validation: Some(validation),
+            status,
+        }
+    }
+
+    pub fn model(&self) -> &RecursiveWorldModel {
+        &self.model
+    }
+
+    pub fn discovery(&self) -> &RecursiveWorldRevisionAbstractionTransferDiscoveryBridge {
+        &self.discovery
+    }
+
+    pub fn validation(&self) -> Option<&RecursiveWorldRevisionDiscoveryValidation> {
+        self.validation.as_ref()
+    }
+
+    pub fn status(&self) -> RecursiveWorldRevisionAbstractionTransferValidationStatus {
+        self.status
+    }
+
+    pub fn is_accepted(&self) -> bool {
+        self.status == RecursiveWorldRevisionAbstractionTransferValidationStatus::Accepted
+    }
+
+    pub fn is_rejected(&self) -> bool {
+        self.status == RecursiveWorldRevisionAbstractionTransferValidationStatus::Rejected
+    }
+
+    pub fn accepted_hypothesis(&self) -> Option<&RecursiveWorldRevisionDiscoveryHypothesis> {
+        self.validation
+            .as_ref()
+            .and_then(|validation| validation.accepted_hypotheses().first())
+    }
+
+    pub fn rejected_hypothesis(&self) -> Option<&RecursiveWorldRevisionDiscoveryHypothesis> {
+        self.validation
+            .as_ref()
+            .and_then(|validation| validation.rejected_hypotheses().first())
+    }
+
+    pub fn target(&self) -> &RecursiveWorldRule {
+        self.discovery.target()
+    }
+
+    pub fn hypothesis(&self) -> Option<&RecursiveWorldRevisionDiscoveryHypothesis> {
+        self.discovery.hypothesis()
+    }
+
+    pub fn replacement(&self) -> Option<&RecursiveWorldRule> {
+        self.discovery.replacement()
+    }
+
+    pub fn realized_observation(&self) -> Option<&RecursiveWorldRevisionDiscoveryObservation> {
+        self.discovery.realized_observation()
+    }
+
+    pub fn induction_observations(&self) -> &RecursiveWorldRevisionInductionObservationSet {
+        self.discovery.induction_observations()
+    }
+
+    pub fn transfer_observations(&self) -> &RecursiveWorldRevisionInductionObservationSet {
+        self.discovery.transfer_observations()
+    }
+
+    pub fn consensus(&self) -> Option<&RecursiveWorldRevisionAbstractionConsensus> {
+        self.discovery.consensus()
+    }
+
+    pub fn vocabulary(&self) -> Option<&RecursiveWorldRevisionAbstractionVocabulary> {
+        self.discovery.vocabulary()
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct RecursiveWorldRevisionAbstractionTransferValidator;
+
+impl RecursiveWorldRevisionAbstractionTransferValidator {
+    pub fn validate(
+        model: RecursiveWorldModel,
+        target: RecursiveWorldRule,
+        induction_observations: RecursiveWorldRevisionInductionObservationSet,
+        transfer_observations: RecursiveWorldRevisionInductionObservationSet,
+    ) -> RecursiveWorldRevisionAbstractionTransferValidation {
+        RecursiveWorldRevisionAbstractionTransferValidation::validate(
+            model,
+            target,
+            induction_observations,
+            transfer_observations,
+        )
+    }
+}
