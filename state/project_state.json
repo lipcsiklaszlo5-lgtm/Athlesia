@@ -47,6 +47,10 @@
     "crates/athlesia_recursive_control/tests/recursive_control_foundation.rs": "d06e5595290e2c17459c09e9f14d918c5294be93e96c052144d904660808adad",
     "crates/athlesia_recursive_control/tests/recursive_control_model_policy.rs": "b4bf0a98e2e6ab20213e91aa8e0c018548969cb5780b933aa3f11d9b8dc0242d",
     "crates/athlesia_recursive_control/tests/recursive_control_uncertainty_policy.rs": "d19436e2881c44d091435015f1420512c1f7492ac9d8491cb97f25d5603342ec",
+    "crates/athlesia_recursive_counterfactual/Cargo.lock": "f2d0be32b71c9dd6cc04d3af14e282ce8a2fb656af718d3b986c61af53d7bddd",
+    "crates/athlesia_recursive_counterfactual/Cargo.toml": "4fb933024e10e98a785802c1a003a8aee5c9935fc27de12ace57f2a6cd02fac3",
+    "crates/athlesia_recursive_counterfactual/src/lib.rs": "214f80545f0a9055c920a7428280080e7fda935b46002ca3c4c48c94867436ca",
+    "crates/athlesia_recursive_counterfactual/tests/recursive_counterfactual_foundation.rs": "7eeb9dae6b8ecb8ccfde87f5fdf07e09f5f368a2dd3afc2f843ce77c3d4cf389",
     "crates/athlesia_recursive_planning/Cargo.lock": "1b98847a561bf7d6003a8f8eb1894cdfe3ccd0d72104644c6da315fcc4119a8b",
     "crates/athlesia_recursive_planning/Cargo.toml": "b5253078a43da960d98859a7b0d28827d02df8f22d0d878bcc657741e219188b",
     "crates/athlesia_recursive_planning/src/lib.rs": "d9a86f6f834ddb82b284d9b887995f721dd4f5c1183d13babfbefdf4c432fcf5",
@@ -193,7 +197,8 @@
       "module_30_recursive_control_uncertainty_policy",
       "module_30_recursive_control_experiment_loop",
       "module_30_recursive_control_active_cycle",
-      "module_30_recursive_control_freeze"
+      "module_30_recursive_control_freeze",
+      "module_31_recursive_counterfactual_foundation"
     ],
     "module_23_integrity": {
       "status": "pass",
@@ -206,8 +211,8 @@
       "status": "frozen",
       "verifier": "tools/verify_module_23_parity.py"
     },
-    "next_layer": "module_31_recursive_counterfactual_foundation",
-    "stage": "module_30_recursive_control_freeze",
+    "next_layer": "module_31_recursive_counterfactual_outcomes",
+    "stage": "module_31_recursive_counterfactual_foundation",
     "status": "validated"
   },
   "validated_invariants": [
@@ -740,6 +745,18 @@
     "recursive_control_active_empty_stop",
     "recursive_control_active_depth_identity",
     "recursive_control_active_determinism",
-    "recursive_control_freeze_integrity"
+    "recursive_control_freeze_integrity",
+    "recursive_counterfactual_positive_interaction_cost",
+    "recursive_counterfactual_zero_cost_rejection",
+    "recursive_counterfactual_transition_identity",
+    "recursive_counterfactual_cost_preservation",
+    "recursive_counterfactual_empty_set",
+    "recursive_counterfactual_distinct_transition_preservation",
+    "recursive_counterfactual_cheapest_duplicate",
+    "recursive_counterfactual_canonical_order",
+    "recursive_counterfactual_exact_membership",
+    "recursive_counterfactual_depth_identity",
+    "recursive_counterfactual_non_mutation",
+    "recursive_counterfactual_clone_identity"
   ]
 }
