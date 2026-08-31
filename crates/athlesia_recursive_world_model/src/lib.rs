@@ -363,3 +363,92 @@ impl RecursiveWorldDependencyCone {
         self.contains(&self.root)
     }
 }
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct RecursiveWorldMinimalRevision {
+    before: RecursiveWorldModel,
+    target: RecursiveWorldRule,
+    replacement: RecursiveWorldRule,
+    affected_before: RecursiveWorldDependencyCone,
+    after: RecursiveWorldModel,
+}
+
+impl RecursiveWorldMinimalRevision {
+    pub fn apply(
+        model: &RecursiveWorldModel,
+        target: RecursiveWorldRule,
+        replacement: RecursiveWorldRule,
+    ) -> Option<Self> {
+        if target == replacement {
+            return None;
+        }
+
+        if !model.contains(&target) {
+            return None;
+        }
+
+        if model.contains(&replacement) {
+            return None;
+        }
+
+        let graph = RecursiveWorldDependencyGraph::detect(model);
+
+        let affected_before = RecursiveWorldDependencyCone::compute(&graph, target.clone());
+
+        let mut revised_rules = Vec::with_capacity(model.len());
+
+        for rule in model.rules() {
+            if rule == &target {
+                revised_rules.push(replacement.clone());
+            } else {
+                revised_rules.push(rule.clone());
+            }
+        }
+
+        let after = RecursiveWorldModel::new(revised_rules);
+
+        if after.len() != model.len() {
+            return None;
+        }
+
+        Some(Self {
+            before: model.clone(),
+            target,
+            replacement,
+            affected_before,
+            after,
+        })
+    }
+
+    pub fn before(&self) -> &RecursiveWorldModel {
+        &self.before
+    }
+
+    pub fn target(&self) -> &RecursiveWorldRule {
+        &self.target
+    }
+
+    pub fn replacement(&self) -> &RecursiveWorldRule {
+        &self.replacement
+    }
+
+    pub fn affected_before(&self) -> &RecursiveWorldDependencyCone {
+        &self.affected_before
+    }
+
+    pub fn after(&self) -> &RecursiveWorldModel {
+        &self.after
+    }
+
+    pub fn changed_rule_count(&self) -> usize {
+        1
+    }
+
+    pub fn unaffected_rule_count(&self) -> usize {
+        self.before.len().saturating_sub(1)
+    }
+
+    pub fn preserves_rule_count(&self) -> bool {
+        self.before.len() == self.after.len()
+    }
+}
