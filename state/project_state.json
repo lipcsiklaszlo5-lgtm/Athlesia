@@ -97,8 +97,9 @@
     "crates/athlesia_recursive_world_model/tests/recursive_world_model_revision_selector.rs": "9263011d84bcdd60ee4d61efa7d9958d19e5cb9bf7dc2008c20aa316ee907527",
     "crates/athlesia_recursive_world_model_evidence/Cargo.lock": "467ab7114eee94512f6c1322ed4230426c9efecc01b5d90c1abc3e217d7d2f20",
     "crates/athlesia_recursive_world_model_evidence/Cargo.toml": "ffabce234476619916659a68e8e178b581e24b26d5f9d710e063a3febaa4bac7",
-    "crates/athlesia_recursive_world_model_evidence/src/lib.rs": "acbeac616cd2d800168383702aae53dca25c1bbb8b8d12c43021f8d34c2774de",
+    "crates/athlesia_recursive_world_model_evidence/src/lib.rs": "de3acdb5884823a5b303b923c9811c06b5d50a0bad81a2382567ca1e892d5532",
     "crates/athlesia_recursive_world_model_evidence/tests/recursive_world_model_evidence_accumulation.rs": "5dda11e3551196cfff137c832339c0b67908657a9916194a5d65ace12c5eb5c4",
+    "crates/athlesia_recursive_world_model_evidence/tests/recursive_world_model_evidence_assessment.rs": "36f7d38d264615a5afb103be72e3083ae0dcb5230586683f48e6416ee2dd1423",
     "crates/athlesia_recursive_world_model_evidence/tests/recursive_world_model_evidence_foundation.rs": "860a9678cc6587ca5cbcd799329074b68adb50670ca52b7d1ff8e8b6d52d2c1d",
     "crates/athlesia_revision/Cargo.toml": "5d86f3c6ebd51f093e03c171df1520526f4e9da298cb07cd04123191f4b0f814",
     "crates/athlesia_revision/src/lib.rs": "a688ddd7a219ab78fb699658cf16c7a52b39fffb81a2b7f11f26f8083a0e9a2d",
@@ -260,7 +261,8 @@
       "module_33_recursive_world_model_revision_active_cycle",
       "module_33_recursive_world_model_freeze",
       "module_34_recursive_world_model_evidence_foundation",
-      "module_34_recursive_world_model_evidence_accumulation"
+      "module_34_recursive_world_model_evidence_accumulation",
+      "module_34_recursive_world_model_evidence_assessment"
     ],
     "module_23_integrity": {
       "status": "pass",
@@ -273,8 +275,8 @@
       "status": "frozen",
       "verifier": "tools/verify_module_23_parity.py"
     },
-    "next_layer": "module_34_recursive_world_model_evidence_assessment",
-    "stage": "module_34_recursive_world_model_evidence_accumulation",
+    "next_layer": "module_34_recursive_world_model_evidence_ranking",
+    "stage": "module_34_recursive_world_model_evidence_assessment",
     "status": "validated"
   },
   "validated_invariants": [
@@ -1086,6 +1088,18 @@
     "recursive_world_evidence_accumulation_rule_scope",
     "recursive_world_evidence_accumulator_equivalence",
     "recursive_world_evidence_accumulation_determinism",
-    "recursive_world_evidence_accumulation_non_mutation"
+    "recursive_world_evidence_accumulation_non_mutation",
+    "recursive_world_evidence_assessment_none_profile",
+    "recursive_world_evidence_assessment_confirming_profile",
+    "recursive_world_evidence_assessment_violating_profile",
+    "recursive_world_evidence_assessment_mixed_profile",
+    "recursive_world_evidence_assessment_positive_balance",
+    "recursive_world_evidence_assessment_negative_balance",
+    "recursive_world_evidence_assessment_zero_balance",
+    "recursive_world_evidence_assessment_rule_scope",
+    "recursive_world_evidence_assessment_rule_identity",
+    "recursive_world_evidence_assessor_equivalence",
+    "recursive_world_evidence_assess_many_canonicalization",
+    "recursive_world_evidence_assessment_non_mutation"
   ]
 }

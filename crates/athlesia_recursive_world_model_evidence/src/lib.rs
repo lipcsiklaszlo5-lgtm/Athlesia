@@ -181,3 +181,115 @@ impl RecursiveWorldEvidenceAccumulator {
         state.accumulate_many(records)
     }
 }
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd)]
+pub enum RecursiveWorldEvidenceProfile {
+    None,
+    ViolatingOnly,
+    Mixed,
+    ConfirmingOnly,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct RecursiveWorldEvidenceAssessment {
+    rule: RecursiveWorldRule,
+    confirming_count: usize,
+    violating_count: usize,
+    balance: i128,
+    profile: RecursiveWorldEvidenceProfile,
+}
+
+impl RecursiveWorldEvidenceAssessment {
+    pub fn evaluate(state: &RecursiveWorldEvidenceState, rule: RecursiveWorldRule) -> Self {
+        let records = state.records_for_rule(&rule);
+
+        let confirming_count = records
+            .iter()
+            .filter(|record| record.is_confirming())
+            .count();
+
+        let violating_count = records
+            .iter()
+            .filter(|record| record.is_violating())
+            .count();
+
+        let balance = confirming_count as i128 - violating_count as i128;
+
+        let profile = match (confirming_count > 0, violating_count > 0) {
+            (false, false) => RecursiveWorldEvidenceProfile::None,
+
+            (true, false) => RecursiveWorldEvidenceProfile::ConfirmingOnly,
+
+            (false, true) => RecursiveWorldEvidenceProfile::ViolatingOnly,
+
+            (true, true) => RecursiveWorldEvidenceProfile::Mixed,
+        };
+
+        Self {
+            rule,
+            confirming_count,
+            violating_count,
+            balance,
+            profile,
+        }
+    }
+
+    pub fn rule(&self) -> &RecursiveWorldRule {
+        &self.rule
+    }
+
+    pub const fn confirming_count(&self) -> usize {
+        self.confirming_count
+    }
+
+    pub const fn violating_count(&self) -> usize {
+        self.violating_count
+    }
+
+    pub const fn evidence_count(&self) -> usize {
+        self.confirming_count.saturating_add(self.violating_count)
+    }
+
+    pub const fn balance(&self) -> i128 {
+        self.balance
+    }
+
+    pub const fn profile(&self) -> RecursiveWorldEvidenceProfile {
+        self.profile
+    }
+
+    pub fn has_evidence(&self) -> bool {
+        self.evidence_count() > 0
+    }
+
+    pub fn is_mixed(&self) -> bool {
+        self.profile == RecursiveWorldEvidenceProfile::Mixed
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct RecursiveWorldEvidenceAssessor;
+
+impl RecursiveWorldEvidenceAssessor {
+    pub fn assess(
+        state: &RecursiveWorldEvidenceState,
+        rule: RecursiveWorldRule,
+    ) -> RecursiveWorldEvidenceAssessment {
+        RecursiveWorldEvidenceAssessment::evaluate(state, rule)
+    }
+
+    pub fn assess_many(
+        state: &RecursiveWorldEvidenceState,
+        rules: Vec<RecursiveWorldRule>,
+    ) -> Vec<RecursiveWorldEvidenceAssessment> {
+        let mut rules = rules;
+
+        rules.sort();
+        rules.dedup();
+
+        rules
+            .into_iter()
+            .map(|rule| Self::assess(state, rule))
+            .collect()
+    }
+}
