@@ -1,0 +1,13 @@
+[package]
+name = "athlesia_recursive_world_model_revision_discovery"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+athlesia = { path = "../.." }
+athlesia_cross_level = { path = "../athlesia_cross_level" }
+athlesia_recursive = { path = "../athlesia_recursive" }
+athlesia_recursive_world_model = { path = "../athlesia_recursive_world_model" }
+athlesia_recursive_world_model_evidence = { path = "../athlesia_recursive_world_model_evidence" }
+athlesia_recursive_world_model_revision_generation = { path = "../athlesia_recursive_world_model_revision_generation" }
+athlesia_recursive_world_model_revision_proposal = { path = "../athlesia_recursive_world_model_revision_proposal" }
