@@ -1276,3 +1276,212 @@ impl RecursiveWorldRevisionAbstractionGeneralizationValidator {
         )
     }
 }
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd)]
+pub enum RecursiveWorldRevisionAbstractionGeneralizationEvidenceScopeStatus {
+    DiscoveryUnavailable,
+    Rejected,
+    Inactive,
+    Active,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct RecursiveWorldRevisionAbstractionGeneralizationEvidenceScope {
+    validation:
+        RecursiveWorldRevisionAbstractionGeneralizationValidation,
+    evidence_state:
+        athlesia_recursive_world_model_evidence::RecursiveWorldEvidenceState,
+    scope:
+        Option<
+            athlesia_recursive_world_model_revision_discovery::
+                RecursiveWorldRevisionDiscoveryEvidenceScope,
+        >,
+    status:
+        RecursiveWorldRevisionAbstractionGeneralizationEvidenceScopeStatus,
+}
+
+impl RecursiveWorldRevisionAbstractionGeneralizationEvidenceScope {
+    pub fn scope(
+        model: RecursiveWorldModel,
+        evidence_state: athlesia_recursive_world_model_evidence::RecursiveWorldEvidenceState,
+        target: RecursiveWorldRule,
+        source: RecursiveWorldRevisionAbstractionGeneralizedClassSet,
+        application_observations: RecursiveWorldRevisionInductionObservationSet,
+    ) -> Self {
+        let validation = RecursiveWorldRevisionAbstractionGeneralizationValidation::validate(
+            model.clone(),
+            target,
+            source,
+            application_observations,
+        );
+
+        match validation.status() {
+            RecursiveWorldRevisionAbstractionGeneralizationValidationStatus::
+                DiscoveryUnavailable =>
+            {
+                Self {
+                    validation,
+                    evidence_state,
+                    scope: None,
+                    status:
+                        RecursiveWorldRevisionAbstractionGeneralizationEvidenceScopeStatus::
+                            DiscoveryUnavailable,
+                }
+            }
+
+            RecursiveWorldRevisionAbstractionGeneralizationValidationStatus::
+                Rejected =>
+            {
+                Self {
+                    validation,
+                    evidence_state,
+                    scope: None,
+                    status:
+                        RecursiveWorldRevisionAbstractionGeneralizationEvidenceScopeStatus::
+                            Rejected,
+                }
+            }
+
+            RecursiveWorldRevisionAbstractionGeneralizationValidationStatus::
+                Accepted =>
+            {
+                let hypothesis =
+                    validation
+                        .accepted_hypothesis()
+                        .cloned()
+                        .expect(
+                            "accepted generalized abstraction validation must contain hypothesis"
+                        );
+
+                let hypothesis_set =
+                    athlesia_recursive_world_model_revision_discovery::
+                        RecursiveWorldRevisionDiscoveryHypothesisSet::new(
+                            vec![
+                                hypothesis,
+                            ],
+                        );
+
+                let scope =
+                    athlesia_recursive_world_model_revision_discovery::
+                        RecursiveWorldRevisionDiscoveryEvidenceScoper::scope(
+                            &model,
+                            &evidence_state,
+                            hypothesis_set,
+                        );
+
+                let status =
+                    if scope.active_count() == 1 {
+                        RecursiveWorldRevisionAbstractionGeneralizationEvidenceScopeStatus::
+                            Active
+                    } else {
+                        RecursiveWorldRevisionAbstractionGeneralizationEvidenceScopeStatus::
+                            Inactive
+                    };
+
+                Self {
+                    validation,
+                    evidence_state,
+                    scope:
+                        Some(
+                            scope,
+                        ),
+                    status,
+                }
+            }
+        }
+    }
+
+    pub fn validation(&self) -> &RecursiveWorldRevisionAbstractionGeneralizationValidation {
+        &self.validation
+    }
+
+    pub fn evidence_state(
+        &self,
+    ) -> &athlesia_recursive_world_model_evidence::RecursiveWorldEvidenceState {
+        &self.evidence_state
+    }
+
+    pub fn scope_result(
+        &self,
+    ) -> Option<
+        &athlesia_recursive_world_model_revision_discovery::
+            RecursiveWorldRevisionDiscoveryEvidenceScope,
+    >{
+        self.scope.as_ref()
+    }
+
+    pub fn status(&self) -> RecursiveWorldRevisionAbstractionGeneralizationEvidenceScopeStatus {
+        self.status
+    }
+
+    pub fn is_active(&self) -> bool {
+        self.status == RecursiveWorldRevisionAbstractionGeneralizationEvidenceScopeStatus::Active
+    }
+
+    pub fn is_inactive(&self) -> bool {
+        self.status == RecursiveWorldRevisionAbstractionGeneralizationEvidenceScopeStatus::Inactive
+    }
+
+    pub fn active_hypothesis(&self) -> Option<&RecursiveWorldRevisionDiscoveryHypothesis> {
+        self.scope
+            .as_ref()
+            .and_then(|scope| scope.active_hypotheses().first())
+    }
+
+    pub fn pressured_rule(&self) -> Option<&RecursiveWorldRule> {
+        self.scope.as_ref().and_then(|scope| scope.pressured_rule())
+    }
+
+    pub fn target(&self) -> &RecursiveWorldRule {
+        self.validation.target()
+    }
+
+    pub fn hypothesis(&self) -> Option<&RecursiveWorldRevisionDiscoveryHypothesis> {
+        self.validation.hypothesis()
+    }
+
+    pub fn replacement(&self) -> Option<&RecursiveWorldRule> {
+        self.validation.replacement()
+    }
+
+    pub fn realized_observation(&self) -> Option<&RecursiveWorldRevisionDiscoveryObservation> {
+        self.validation.realized_observation()
+    }
+
+    pub fn generalized_source(&self) -> &RecursiveWorldRevisionAbstractionGeneralizedClassSet {
+        self.validation.generalized_source()
+    }
+
+    pub fn application_observations(&self) -> &RecursiveWorldRevisionInductionObservationSet {
+        self.validation.application_observations()
+    }
+
+    pub fn consensus(&self) -> Option<&RecursiveWorldRevisionAbstractionConsensus> {
+        self.validation.consensus()
+    }
+
+    pub fn vocabulary(&self) -> Option<&RecursiveWorldRevisionAbstractionVocabulary> {
+        self.validation.vocabulary()
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct RecursiveWorldRevisionAbstractionGeneralizationEvidenceScoper;
+
+impl RecursiveWorldRevisionAbstractionGeneralizationEvidenceScoper {
+    pub fn scope(
+        model: RecursiveWorldModel,
+        evidence_state: athlesia_recursive_world_model_evidence::RecursiveWorldEvidenceState,
+        target: RecursiveWorldRule,
+        source: RecursiveWorldRevisionAbstractionGeneralizedClassSet,
+        application_observations: RecursiveWorldRevisionInductionObservationSet,
+    ) -> RecursiveWorldRevisionAbstractionGeneralizationEvidenceScope {
+        RecursiveWorldRevisionAbstractionGeneralizationEvidenceScope::scope(
+            model,
+            evidence_state,
+            target,
+            source,
+            application_observations,
+        )
+    }
+}
