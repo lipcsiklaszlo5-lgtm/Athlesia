@@ -743,3 +743,114 @@ impl RecursiveWorldRevisionAbstractionGeneralizationProjector {
         )
     }
 }
+
+use athlesia_recursive_world_model_revision_abstraction::RecursiveWorldRevisionAbstractionConsensus;
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd)]
+pub enum RecursiveWorldRevisionAbstractionGeneralizationConsensusStatus {
+    ProjectionUnavailable,
+    ConsensusUnavailable,
+    ConsensusDerived,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct RecursiveWorldRevisionAbstractionGeneralizationConsensusBridge {
+    projection_bridge: RecursiveWorldRevisionAbstractionGeneralizationProjectionBridge,
+    consensus: Option<RecursiveWorldRevisionAbstractionConsensus>,
+    status: RecursiveWorldRevisionAbstractionGeneralizationConsensusStatus,
+}
+
+impl RecursiveWorldRevisionAbstractionGeneralizationConsensusBridge {
+    pub fn derive(
+        source: RecursiveWorldRevisionAbstractionGeneralizedClassSet,
+        application_observations: RecursiveWorldRevisionInductionObservationSet,
+    ) -> Self {
+        let projection_bridge =
+            RecursiveWorldRevisionAbstractionGeneralizationProjectionBridge::project(
+                source,
+                application_observations,
+            );
+
+        let Some(projection) = projection_bridge.projection().cloned() else {
+            return Self {
+                projection_bridge,
+                consensus: None,
+                status:
+                    RecursiveWorldRevisionAbstractionGeneralizationConsensusStatus::
+                        ProjectionUnavailable,
+            };
+        };
+
+        let consensus = RecursiveWorldRevisionAbstractionConsensus::derive(projection);
+
+        let status = if consensus.is_some() {
+            RecursiveWorldRevisionAbstractionGeneralizationConsensusStatus::ConsensusDerived
+        } else {
+            RecursiveWorldRevisionAbstractionGeneralizationConsensusStatus::ConsensusUnavailable
+        };
+
+        Self {
+            projection_bridge,
+            consensus,
+            status,
+        }
+    }
+
+    pub fn projection_bridge(
+        &self,
+    ) -> &RecursiveWorldRevisionAbstractionGeneralizationProjectionBridge {
+        &self.projection_bridge
+    }
+
+    pub fn consensus(&self) -> Option<&RecursiveWorldRevisionAbstractionConsensus> {
+        self.consensus.as_ref()
+    }
+
+    pub fn status(&self) -> RecursiveWorldRevisionAbstractionGeneralizationConsensusStatus {
+        self.status
+    }
+
+    pub fn is_consensus_derived(&self) -> bool {
+        self.status
+            == RecursiveWorldRevisionAbstractionGeneralizationConsensusStatus::ConsensusDerived
+    }
+
+    pub fn generalized_source(&self) -> &RecursiveWorldRevisionAbstractionGeneralizedClassSet {
+        self.projection_bridge.generalized_source()
+    }
+
+    pub fn application_observations(&self) -> &RecursiveWorldRevisionInductionObservationSet {
+        self.projection_bridge.application_observations()
+    }
+
+    pub fn resolution(&self) -> &RecursiveWorldRevisionAbstractionGeneralizationResolution {
+        self.projection_bridge.resolution()
+    }
+
+    pub fn vocabulary(&self) -> Option<&RecursiveWorldRevisionAbstractionVocabulary> {
+        self.projection_bridge.vocabulary()
+    }
+
+    pub fn projection(&self) -> Option<&RecursiveWorldRevisionAbstractionProjection> {
+        self.projection_bridge.projection()
+    }
+
+    pub fn conflicts(&self) -> &[RecursiveWorldRevisionAbstractionGeneralizationConflict] {
+        self.projection_bridge.conflicts()
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct RecursiveWorldRevisionAbstractionGeneralizationConsensusBuilder;
+
+impl RecursiveWorldRevisionAbstractionGeneralizationConsensusBuilder {
+    pub fn derive(
+        source: RecursiveWorldRevisionAbstractionGeneralizedClassSet,
+        application_observations: RecursiveWorldRevisionInductionObservationSet,
+    ) -> RecursiveWorldRevisionAbstractionGeneralizationConsensusBridge {
+        RecursiveWorldRevisionAbstractionGeneralizationConsensusBridge::derive(
+            source,
+            application_observations,
+        )
+    }
+}
