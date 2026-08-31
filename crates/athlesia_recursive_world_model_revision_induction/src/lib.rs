@@ -132,3 +132,60 @@ impl RecursiveWorldRevisionInducer {
         RecursiveWorldRevisionInducedStructure::induce(input)
     }
 }
+
+use athlesia_recursive_world_model_revision_discovery::RecursiveWorldRevisionDiscoveryHypothesis;
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct RecursiveWorldRevisionInductionDiscoveryBridge {
+    induced: RecursiveWorldRevisionInducedStructure,
+    hypothesis: RecursiveWorldRevisionDiscoveryHypothesis,
+}
+
+impl RecursiveWorldRevisionInductionDiscoveryBridge {
+    pub fn new(induced: RecursiveWorldRevisionInducedStructure) -> Option<Self> {
+        let hypothesis = RecursiveWorldRevisionDiscoveryHypothesis::discover(
+            induced.target().clone(),
+            induced.induced_observation().clone(),
+        )?;
+
+        Some(Self {
+            induced,
+            hypothesis,
+        })
+    }
+
+    pub fn induced(&self) -> &RecursiveWorldRevisionInducedStructure {
+        &self.induced
+    }
+
+    pub fn hypothesis(&self) -> &RecursiveWorldRevisionDiscoveryHypothesis {
+        &self.hypothesis
+    }
+
+    pub fn target(&self) -> &RecursiveWorldRule {
+        self.hypothesis.target()
+    }
+
+    pub fn replacement(&self) -> &RecursiveWorldRule {
+        self.hypothesis.replacement()
+    }
+
+    pub fn support_count(&self) -> usize {
+        self.induced.support_count()
+    }
+
+    pub fn source_observations(&self) -> &RecursiveWorldRevisionInductionObservationSet {
+        self.induced.observations()
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct RecursiveWorldRevisionInductionDiscoveryBridgeBuilder;
+
+impl RecursiveWorldRevisionInductionDiscoveryBridgeBuilder {
+    pub fn build(
+        induced: RecursiveWorldRevisionInducedStructure,
+    ) -> Option<RecursiveWorldRevisionInductionDiscoveryBridge> {
+        RecursiveWorldRevisionInductionDiscoveryBridge::new(induced)
+    }
+}
