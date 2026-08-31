@@ -916,3 +916,178 @@ impl RecursiveWorldRevisionAbstractionCompositionGeneralizationRealizer {
         )
     }
 }
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd)]
+pub enum RecursiveWorldRevisionAbstractionCompositionGeneralizationDiscoveryStatus {
+    RealizationUnavailable,
+    DiscoveryUnavailable,
+    Discovered,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct RecursiveWorldRevisionAbstractionCompositionGeneralizationDiscoveryBridge {
+    target:
+        athlesia_recursive_world_model::RecursiveWorldRule,
+    realization:
+        RecursiveWorldRevisionAbstractionCompositionGeneralizationRealization,
+    hypothesis:
+        Option<
+            athlesia_recursive_world_model_revision_discovery::
+                RecursiveWorldRevisionDiscoveryHypothesis,
+        >,
+    status:
+        RecursiveWorldRevisionAbstractionCompositionGeneralizationDiscoveryStatus,
+}
+
+impl RecursiveWorldRevisionAbstractionCompositionGeneralizationDiscoveryBridge {
+    pub fn discover(
+        target: athlesia_recursive_world_model::RecursiveWorldRule,
+        projected_motif: RecursiveWorldRevisionAbstractionCompositionGeneralizationProjectedMotif,
+        application_observations:
+            Vec<
+                athlesia_recursive_world_model_revision_discovery::
+                    RecursiveWorldRevisionDiscoveryObservation,
+            >,
+    ) -> Self {
+        let realization =
+            RecursiveWorldRevisionAbstractionCompositionGeneralizationRealization::realize(
+                projected_motif,
+                application_observations,
+            );
+
+        let Some(realized_observation) = realization.realized_observation().cloned() else {
+            return Self {
+                target,
+                realization,
+                hypothesis: None,
+                status:
+                    RecursiveWorldRevisionAbstractionCompositionGeneralizationDiscoveryStatus::
+                        RealizationUnavailable,
+            };
+        };
+
+        let hypothesis =
+            athlesia_recursive_world_model_revision_discovery::
+                RecursiveWorldRevisionDiscoveryHypothesis::
+                    discover(
+                        target.clone(),
+                        realized_observation,
+                    );
+
+        let status = if hypothesis.is_some() {
+            RecursiveWorldRevisionAbstractionCompositionGeneralizationDiscoveryStatus::Discovered
+        } else {
+            RecursiveWorldRevisionAbstractionCompositionGeneralizationDiscoveryStatus::
+                    DiscoveryUnavailable
+        };
+
+        Self {
+            target,
+            realization,
+            hypothesis,
+            status,
+        }
+    }
+
+    pub fn target(&self) -> &athlesia_recursive_world_model::RecursiveWorldRule {
+        &self.target
+    }
+
+    pub fn realization(
+        &self,
+    ) -> &RecursiveWorldRevisionAbstractionCompositionGeneralizationRealization {
+        &self.realization
+    }
+
+    pub fn hypothesis(
+        &self,
+    ) -> Option<
+        &athlesia_recursive_world_model_revision_discovery::
+            RecursiveWorldRevisionDiscoveryHypothesis,
+    >{
+        self.hypothesis.as_ref()
+    }
+
+    pub fn status(
+        &self,
+    ) -> RecursiveWorldRevisionAbstractionCompositionGeneralizationDiscoveryStatus {
+        self.status
+    }
+
+    pub fn is_discovered(&self) -> bool {
+        self.status
+            == RecursiveWorldRevisionAbstractionCompositionGeneralizationDiscoveryStatus::Discovered
+    }
+
+    pub fn realized_observation(
+        &self,
+    ) -> Option<
+        &athlesia_recursive_world_model_revision_discovery::
+            RecursiveWorldRevisionDiscoveryObservation,
+    >{
+        self.realization.realized_observation()
+    }
+
+    pub fn replacement(&self) -> Option<&athlesia_recursive_world_model::RecursiveWorldRule> {
+        self.hypothesis
+            .as_ref()
+            .map(|hypothesis| hypothesis.replacement())
+    }
+
+    pub fn projected_motif(
+        &self,
+    ) -> &RecursiveWorldRevisionAbstractionCompositionGeneralizationProjectedMotif {
+        self.realization.projected_motif()
+    }
+
+    pub fn motif(&self) -> &RecursiveWorldRevisionAbstractionCompositionGeneralizedMotif {
+        self.realization.motif()
+    }
+
+    pub fn classes(&self) -> &[RecursiveWorldRevisionAbstractionClass] {
+        self.realization.classes()
+    }
+
+    pub fn support_count(&self) -> usize {
+        self.realization.support_count()
+    }
+
+    pub fn matching_selections(
+        &self,
+    ) -> &[
+        athlesia_recursive_world_model_revision_abstraction_composition::
+            RecursiveWorldRevisionAbstractionCompositionPathSelection
+    ]{
+        self.realization.matching_selections()
+    }
+
+    pub fn application_observations(
+        &self,
+    ) -> &[
+        athlesia_recursive_world_model_revision_discovery::
+            RecursiveWorldRevisionDiscoveryObservation
+    ]{
+        self.realization.application_observations()
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct RecursiveWorldRevisionAbstractionCompositionGeneralizationDiscoveryBuilder;
+
+impl RecursiveWorldRevisionAbstractionCompositionGeneralizationDiscoveryBuilder {
+    pub fn discover(
+        target: athlesia_recursive_world_model::RecursiveWorldRule,
+        projected_motif: RecursiveWorldRevisionAbstractionCompositionGeneralizationProjectedMotif,
+        application_observations:
+            Vec<
+                athlesia_recursive_world_model_revision_discovery::
+                    RecursiveWorldRevisionDiscoveryObservation,
+            >,
+    ) -> RecursiveWorldRevisionAbstractionCompositionGeneralizationDiscoveryBridge {
+        RecursiveWorldRevisionAbstractionCompositionGeneralizationDiscoveryBridge::discover(
+            target,
+            projected_motif,
+            application_observations,
+        )
+    }
+}
