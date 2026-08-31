@@ -452,3 +452,103 @@ impl RecursiveWorldMinimalRevision {
         self.before.len() == self.after.len()
     }
 }
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd)]
+pub struct RecursiveWorldRevisionCost {
+    rule_change_cost: usize,
+    dependency_impact_cost: usize,
+    premise_delta_cost: usize,
+    conclusion_delta_cost: usize,
+}
+
+impl RecursiveWorldRevisionCost {
+    pub fn evaluate(revision: &RecursiveWorldMinimalRevision) -> Self {
+        let rule_change_cost = revision.changed_rule_count();
+
+        let dependency_impact_cost = revision.affected_before().len();
+
+        let premise_delta_cost = Self::symmetric_difference_count(
+            revision.target().premises(),
+            revision.replacement().premises(),
+        );
+
+        let conclusion_delta_cost = Self::symmetric_difference_count(
+            revision.target().conclusions(),
+            revision.replacement().conclusions(),
+        );
+
+        Self {
+            rule_change_cost,
+            dependency_impact_cost,
+            premise_delta_cost,
+            conclusion_delta_cost,
+        }
+    }
+
+    fn symmetric_difference_count(left: &[RecursiveUnit], right: &[RecursiveUnit]) -> usize {
+        let left_only = left
+            .iter()
+            .filter(|unit| right.binary_search(unit).is_err())
+            .count();
+
+        let right_only = right
+            .iter()
+            .filter(|unit| left.binary_search(unit).is_err())
+            .count();
+
+        left_only.saturating_add(right_only)
+    }
+
+    pub const fn rule_change_cost(&self) -> usize {
+        self.rule_change_cost
+    }
+
+    pub const fn dependency_impact_cost(&self) -> usize {
+        self.dependency_impact_cost
+    }
+
+    pub const fn premise_delta_cost(&self) -> usize {
+        self.premise_delta_cost
+    }
+
+    pub const fn conclusion_delta_cost(&self) -> usize {
+        self.conclusion_delta_cost
+    }
+
+    pub fn structural_delta_cost(&self) -> usize {
+        self.premise_delta_cost
+            .saturating_add(self.conclusion_delta_cost)
+    }
+
+    pub fn total(&self) -> usize {
+        self.rule_change_cost
+            .saturating_add(self.dependency_impact_cost)
+            .saturating_add(self.structural_delta_cost())
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct RecursiveWorldCostedRevision {
+    revision: RecursiveWorldMinimalRevision,
+    cost: RecursiveWorldRevisionCost,
+}
+
+impl RecursiveWorldCostedRevision {
+    pub fn evaluate(revision: RecursiveWorldMinimalRevision) -> Self {
+        let cost = RecursiveWorldRevisionCost::evaluate(&revision);
+
+        Self { revision, cost }
+    }
+
+    pub fn revision(&self) -> &RecursiveWorldMinimalRevision {
+        &self.revision
+    }
+
+    pub const fn cost(&self) -> RecursiveWorldRevisionCost {
+        self.cost
+    }
+
+    pub fn total_cost(&self) -> usize {
+        self.cost.total()
+    }
+}
