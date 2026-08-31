@@ -177,3 +177,72 @@ impl RecursiveWorldRevisionGeneralizer {
         RecursiveWorldRevisionGeneralizedStructure::generalize(input)
     }
 }
+
+use athlesia_recursive_world_model_revision_discovery::RecursiveWorldRevisionDiscoveryHypothesis;
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct RecursiveWorldRevisionGeneralizationDiscoveryBridge {
+    generalized: RecursiveWorldRevisionGeneralizedStructure,
+    hypothesis: RecursiveWorldRevisionDiscoveryHypothesis,
+}
+
+impl RecursiveWorldRevisionGeneralizationDiscoveryBridge {
+    pub fn new(generalized: RecursiveWorldRevisionGeneralizedStructure) -> Option<Self> {
+        let hypothesis = RecursiveWorldRevisionDiscoveryHypothesis::discover(
+            generalized.target().clone(),
+            generalized.generalized_observation().clone(),
+        )?;
+
+        Some(Self {
+            generalized,
+            hypothesis,
+        })
+    }
+
+    pub fn generalized(&self) -> &RecursiveWorldRevisionGeneralizedStructure {
+        &self.generalized
+    }
+
+    pub fn hypothesis(&self) -> &RecursiveWorldRevisionDiscoveryHypothesis {
+        &self.hypothesis
+    }
+
+    pub fn target(&self) -> &RecursiveWorldRule {
+        self.hypothesis.target()
+    }
+
+    pub fn replacement(&self) -> &RecursiveWorldRule {
+        self.hypothesis.replacement()
+    }
+
+    pub fn threshold(&self) -> RecursiveWorldRevisionGeneralizationThreshold {
+        self.generalized.threshold()
+    }
+
+    pub fn support_count(&self) -> usize {
+        self.generalized.support_count()
+    }
+
+    pub fn source_observations(&self) -> &RecursiveWorldRevisionInductionObservationSet {
+        self.generalized.observations()
+    }
+
+    pub fn premise_support(&self, unit: &RecursiveUnit) -> usize {
+        self.generalized.premise_support(unit)
+    }
+
+    pub fn conclusion_support(&self, unit: &RecursiveUnit) -> usize {
+        self.generalized.conclusion_support(unit)
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct RecursiveWorldRevisionGeneralizationDiscoveryBridgeBuilder;
+
+impl RecursiveWorldRevisionGeneralizationDiscoveryBridgeBuilder {
+    pub fn build(
+        generalized: RecursiveWorldRevisionGeneralizedStructure,
+    ) -> Option<RecursiveWorldRevisionGeneralizationDiscoveryBridge> {
+        RecursiveWorldRevisionGeneralizationDiscoveryBridge::new(generalized)
+    }
+}
