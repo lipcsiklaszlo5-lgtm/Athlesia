@@ -106,7 +106,8 @@
     "crates/athlesia_recursive_world_model_evidence/tests/recursive_world_model_evidence_revision_cycle.rs": "5da0afe2450fcb247a1ca4a9a0706b4472b841f42541a95a7b6fa596a0227089",
     "crates/athlesia_recursive_world_model_revision_abstraction/Cargo.lock": "78e18a999fc0a40cb1ddb5d2ae382afd21178c0fe8b1ce905bf49fa56cfb5e02",
     "crates/athlesia_recursive_world_model_revision_abstraction/Cargo.toml": "47d5d3e33365205506f748f1d3c7b7da6d1982876b3fc28f8b4a9e17ea431988",
-    "crates/athlesia_recursive_world_model_revision_abstraction/src/lib.rs": "8723b784ec121b97bf18e55c4d71ecde79ddf1c30c725ac62b18594e0228a88d",
+    "crates/athlesia_recursive_world_model_revision_abstraction/src/lib.rs": "0206d62f363b1532e98006a3eb5280dd4b462ab6ec0e3ca2f2859cc2925259c0",
+    "crates/athlesia_recursive_world_model_revision_abstraction/tests/recursive_world_model_revision_abstraction_consensus.rs": "8c43bd051dedc1cab89de028a88f2853ec26f4ae5bb243d66be706c273d97bb3",
     "crates/athlesia_recursive_world_model_revision_abstraction/tests/recursive_world_model_revision_abstraction_foundation.rs": "80d84e1357534eb2de7074f11507a31e93da9db5808380a1a8e8789804dc5f00",
     "crates/athlesia_recursive_world_model_revision_discovery/Cargo.lock": "7829c907ef35c8603add0a12162e8d9e4e4cadd7513d769a13dbeea2af851df8",
     "crates/athlesia_recursive_world_model_revision_discovery/Cargo.toml": "f9fd7cae8febaaf2464408da6b71a1c007e7f6a820b020f98604153cccfb1368",
@@ -356,7 +357,8 @@
       "module_39_recursive_world_model_revision_generalization_evidence_scope",
       "module_39_recursive_world_model_revision_generalization_revision_cycle",
       "module_39_recursive_world_model_revision_generalization_freeze",
-      "module_40_recursive_world_model_revision_abstraction_foundation"
+      "module_40_recursive_world_model_revision_abstraction_foundation",
+      "module_40_recursive_world_model_revision_abstraction_consensus"
     ],
     "module_23_integrity": {
       "status": "pass",
@@ -369,8 +371,8 @@
       "status": "frozen",
       "verifier": "tools/verify_module_23_parity.py"
     },
-    "next_layer": "module_40_recursive_world_model_revision_abstraction_consensus",
-    "stage": "module_40_recursive_world_model_revision_abstraction_foundation",
+    "next_layer": "module_40_recursive_world_model_revision_abstraction_realization",
+    "stage": "module_40_recursive_world_model_revision_abstraction_consensus",
     "status": "validated"
   },
   "validated_invariants": [
@@ -1548,6 +1550,18 @@
     "recursive_world_revision_abstraction_premise_coverage_guard",
     "recursive_world_revision_abstraction_conclusion_coverage_guard",
     "recursive_world_revision_abstraction_facade_equivalence",
-    "recursive_world_revision_abstraction_determinism_provenance"
+    "recursive_world_revision_abstraction_determinism_provenance",
+    "recursive_world_revision_abstraction_consensus_cross_concrete_premise",
+    "recursive_world_revision_abstraction_consensus_cross_concrete_conclusion",
+    "recursive_world_revision_abstraction_consensus_premise_intersection",
+    "recursive_world_revision_abstraction_consensus_conclusion_intersection",
+    "recursive_world_revision_abstraction_consensus_empty_premise_guard",
+    "recursive_world_revision_abstraction_consensus_empty_conclusion_guard",
+    "recursive_world_revision_abstraction_consensus_exact_support",
+    "recursive_world_revision_abstraction_consensus_observation_count",
+    "recursive_world_revision_abstraction_consensus_source_provenance",
+    "recursive_world_revision_abstraction_consensus_vocabulary_identity",
+    "recursive_world_revision_abstraction_consensus_facade_equivalence",
+    "recursive_world_revision_abstraction_consensus_determinism_non_mutation"
   ]
 }

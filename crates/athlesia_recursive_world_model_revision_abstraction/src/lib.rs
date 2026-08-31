@@ -250,3 +250,114 @@ impl RecursiveWorldRevisionAbstractionProjector {
         RecursiveWorldRevisionAbstractionProjection::project(vocabulary, source_observations)
     }
 }
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct RecursiveWorldRevisionAbstractionConsensus {
+    projection: RecursiveWorldRevisionAbstractionProjection,
+    premise_classes: Vec<RecursiveWorldRevisionAbstractionClass>,
+    conclusion_classes: Vec<RecursiveWorldRevisionAbstractionClass>,
+    premise_support: BTreeMap<RecursiveWorldRevisionAbstractionClass, usize>,
+    conclusion_support: BTreeMap<RecursiveWorldRevisionAbstractionClass, usize>,
+}
+
+impl RecursiveWorldRevisionAbstractionConsensus {
+    pub fn derive(projection: RecursiveWorldRevisionAbstractionProjection) -> Option<Self> {
+        let observation_count = projection.len();
+
+        let mut premise_support = BTreeMap::<RecursiveWorldRevisionAbstractionClass, usize>::new();
+
+        let mut conclusion_support =
+            BTreeMap::<RecursiveWorldRevisionAbstractionClass, usize>::new();
+
+        for (_, abstract_observation) in projection.projected() {
+            for class in abstract_observation.premise_classes() {
+                let count = premise_support.entry(class.clone()).or_insert(0);
+
+                *count = count.saturating_add(1);
+            }
+
+            for class in abstract_observation.conclusion_classes() {
+                let count = conclusion_support.entry(class.clone()).or_insert(0);
+
+                *count = count.saturating_add(1);
+            }
+        }
+
+        let premise_classes = premise_support
+            .iter()
+            .filter_map(|(class, support)| {
+                if *support == observation_count {
+                    Some(class.clone())
+                } else {
+                    None
+                }
+            })
+            .collect::<Vec<_>>();
+
+        let conclusion_classes = conclusion_support
+            .iter()
+            .filter_map(|(class, support)| {
+                if *support == observation_count {
+                    Some(class.clone())
+                } else {
+                    None
+                }
+            })
+            .collect::<Vec<_>>();
+
+        if premise_classes.is_empty() || conclusion_classes.is_empty() {
+            return None;
+        }
+
+        Some(Self {
+            projection,
+            premise_classes,
+            conclusion_classes,
+            premise_support,
+            conclusion_support,
+        })
+    }
+
+    pub fn projection(&self) -> &RecursiveWorldRevisionAbstractionProjection {
+        &self.projection
+    }
+
+    pub fn premise_classes(&self) -> &[RecursiveWorldRevisionAbstractionClass] {
+        &self.premise_classes
+    }
+
+    pub fn conclusion_classes(&self) -> &[RecursiveWorldRevisionAbstractionClass] {
+        &self.conclusion_classes
+    }
+
+    pub fn premise_support(&self, class: &RecursiveWorldRevisionAbstractionClass) -> usize {
+        self.premise_support.get(class).copied().unwrap_or(0)
+    }
+
+    pub fn conclusion_support(&self, class: &RecursiveWorldRevisionAbstractionClass) -> usize {
+        self.conclusion_support.get(class).copied().unwrap_or(0)
+    }
+
+    pub fn observation_count(&self) -> usize {
+        self.projection.len()
+    }
+
+    pub fn source_observations(&self) -> &RecursiveWorldRevisionInductionObservationSet {
+        self.projection.source_observations()
+    }
+
+    pub fn vocabulary(&self) -> &RecursiveWorldRevisionAbstractionVocabulary {
+        self.projection.vocabulary()
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct RecursiveWorldRevisionAbstractionConsensusBuilder;
+
+impl RecursiveWorldRevisionAbstractionConsensusBuilder {
+    pub fn derive(
+        projection: RecursiveWorldRevisionAbstractionProjection,
+    ) -> Option<RecursiveWorldRevisionAbstractionConsensus> {
+        RecursiveWorldRevisionAbstractionConsensus::derive(projection)
+    }
+}
