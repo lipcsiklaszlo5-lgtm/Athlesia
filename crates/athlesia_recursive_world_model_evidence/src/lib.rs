@@ -293,3 +293,41 @@ impl RecursiveWorldEvidenceAssessor {
             .collect()
     }
 }
+
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
+pub struct RecursiveWorldEvidenceRanking {
+    assessments: Vec<RecursiveWorldEvidenceAssessment>,
+}
+
+impl RecursiveWorldEvidenceRanking {
+    pub fn new(mut assessments: Vec<RecursiveWorldEvidenceAssessment>) -> Self {
+        assessments.sort_by(|left, right| {
+            right
+                .violating_count()
+                .cmp(&left.violating_count())
+                .then_with(|| left.balance().cmp(&right.balance()))
+                .then_with(|| right.evidence_count().cmp(&left.evidence_count()))
+                .then_with(|| left.rule().cmp(right.rule()))
+        });
+
+        assessments.dedup();
+
+        Self { assessments }
+    }
+
+    pub fn assessments(&self) -> &[RecursiveWorldEvidenceAssessment] {
+        &self.assessments
+    }
+
+    pub fn len(&self) -> usize {
+        self.assessments.len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.assessments.is_empty()
+    }
+
+    pub fn highest_revision_pressure(&self) -> Option<&RecursiveWorldEvidenceAssessment> {
+        self.assessments.first()
+    }
+}
