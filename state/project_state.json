@@ -116,9 +116,10 @@
     "crates/athlesia_recursive_world_model_revision_abstraction/tests/recursive_world_model_revision_abstraction_validation.rs": "93bfb5e3ae39b4514c50713133de0980eb577dfb2bc6ac2c224f1b0f5eb095a0",
     "crates/athlesia_recursive_world_model_revision_abstraction_induction/Cargo.lock": "90d1a8416d4a86333a54f486a68a9682416d79367a5c190d60a21c73cdfb251f",
     "crates/athlesia_recursive_world_model_revision_abstraction_induction/Cargo.toml": "d0e599a35ef46c273428632e48c2baed59a6c765d02b91a79d2b6e9e2a210cbb",
-    "crates/athlesia_recursive_world_model_revision_abstraction_induction/src/lib.rs": "3eb8f705101f5ba253ce6c98dcb198e6948569db3689c8e82c527d8901ff3226",
+    "crates/athlesia_recursive_world_model_revision_abstraction_induction/src/lib.rs": "aa4280b8bd7eb414abf15f579b3c76441e6b24ad77dd76ca6ea312a64c01ff90",
     "crates/athlesia_recursive_world_model_revision_abstraction_induction/tests/recursive_world_model_revision_abstraction_induction_class_induction.rs": "cc3cb123534a74d49c0342bfdf1d11569623a4f50392d9e730f50040cb847b95",
     "crates/athlesia_recursive_world_model_revision_abstraction_induction/tests/recursive_world_model_revision_abstraction_induction_foundation.rs": "c8358e01f8e9fec94a39e90db31be70bd9a06d32180b887852fa33d2151f14f8",
+    "crates/athlesia_recursive_world_model_revision_abstraction_induction/tests/recursive_world_model_revision_abstraction_induction_vocabulary_resolution.rs": "02f1ae01a42784088d8abbbaf1eef37542609d757b0cc7b44337892bb0627141",
     "crates/athlesia_recursive_world_model_revision_discovery/Cargo.lock": "7829c907ef35c8603add0a12162e8d9e4e4cadd7513d769a13dbeea2af851df8",
     "crates/athlesia_recursive_world_model_revision_discovery/Cargo.toml": "f9fd7cae8febaaf2464408da6b71a1c007e7f6a820b020f98604153cccfb1368",
     "crates/athlesia_recursive_world_model_revision_discovery/src/lib.rs": "0a85774cc1f911ec45a39559eadcfd6c80db1e3e353c742720bca2e0360d9e83",
@@ -378,7 +379,8 @@
       "module_40_recursive_world_model_revision_abstraction_revision_cycle",
       "module_40_recursive_world_model_revision_abstraction_freeze",
       "module_41_recursive_world_model_revision_abstraction_induction_foundation",
-      "module_41_recursive_world_model_revision_abstraction_induction_class_induction"
+      "module_41_recursive_world_model_revision_abstraction_induction_class_induction",
+      "module_41_recursive_world_model_revision_abstraction_induction_vocabulary_resolution"
     ],
     "module_23_integrity": {
       "status": "pass",
@@ -391,8 +393,8 @@
       "status": "frozen",
       "verifier": "tools/verify_module_23_parity.py"
     },
-    "next_layer": "module_41_recursive_world_model_revision_abstraction_induction_vocabulary_resolution",
-    "stage": "module_41_recursive_world_model_revision_abstraction_induction_class_induction",
+    "next_layer": "module_41_recursive_world_model_revision_abstraction_induction_projection_bridge",
+    "stage": "module_41_recursive_world_model_revision_abstraction_induction_vocabulary_resolution",
     "status": "validated"
   },
   "validated_invariants": [
@@ -1667,6 +1669,18 @@
     "recursive_world_revision_abstraction_induction_witness_provenance",
     "recursive_world_revision_abstraction_induction_side_separation",
     "recursive_world_revision_abstraction_induction_class_facade_equivalence",
-    "recursive_world_revision_abstraction_induction_class_determinism"
+    "recursive_world_revision_abstraction_induction_class_determinism",
+    "recursive_world_revision_abstraction_induction_vocabulary_single_class",
+    "recursive_world_revision_abstraction_induction_vocabulary_disjoint_classes",
+    "recursive_world_revision_abstraction_induction_vocabulary_identical_merge",
+    "recursive_world_revision_abstraction_induction_vocabulary_provenance_merge",
+    "recursive_world_revision_abstraction_induction_vocabulary_overlap_conflict",
+    "recursive_world_revision_abstraction_induction_vocabulary_overlap_identity",
+    "recursive_world_revision_abstraction_induction_vocabulary_no_arbitrary_selection",
+    "recursive_world_revision_abstraction_induction_vocabulary_independent_survival",
+    "recursive_world_revision_abstraction_induction_vocabulary_m40_non_overlap",
+    "recursive_world_revision_abstraction_induction_vocabulary_source_identity",
+    "recursive_world_revision_abstraction_induction_vocabulary_facade_equivalence",
+    "recursive_world_revision_abstraction_induction_vocabulary_determinism"
   ]
 }

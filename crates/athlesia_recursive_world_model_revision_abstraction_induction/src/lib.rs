@@ -435,3 +435,212 @@ impl RecursiveWorldRevisionAbstractionClassInducer {
         RecursiveWorldRevisionAbstractionInducedClassSet::induce(witness_set)
     }
 }
+
+use athlesia_recursive_world_model_revision_abstraction::RecursiveWorldRevisionAbstractionVocabulary;
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct RecursiveWorldRevisionAbstractionResolvedClass {
+    abstraction_class: RecursiveWorldRevisionAbstractionClass,
+    contexts: Vec<RecursiveWorldRevisionAbstractionInductionContext>,
+    witnesses: Vec<RecursiveWorldRevisionAbstractionSubstitutionWitness>,
+}
+
+impl RecursiveWorldRevisionAbstractionResolvedClass {
+    pub fn abstraction_class(&self) -> &RecursiveWorldRevisionAbstractionClass {
+        &self.abstraction_class
+    }
+
+    pub fn contexts(&self) -> &[RecursiveWorldRevisionAbstractionInductionContext] {
+        &self.contexts
+    }
+
+    pub fn witnesses(&self) -> &[RecursiveWorldRevisionAbstractionSubstitutionWitness] {
+        &self.witnesses
+    }
+
+    pub fn context_count(&self) -> usize {
+        self.contexts.len()
+    }
+
+    pub fn witness_count(&self) -> usize {
+        self.witnesses.len()
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct RecursiveWorldRevisionAbstractionVocabularyConflict {
+    first: RecursiveWorldRevisionAbstractionClass,
+    second: RecursiveWorldRevisionAbstractionClass,
+    overlap: Vec<RecursiveUnit>,
+}
+
+impl RecursiveWorldRevisionAbstractionVocabularyConflict {
+    pub fn first(&self) -> &RecursiveWorldRevisionAbstractionClass {
+        &self.first
+    }
+
+    pub fn second(&self) -> &RecursiveWorldRevisionAbstractionClass {
+        &self.second
+    }
+
+    pub fn overlap(&self) -> &[RecursiveUnit] {
+        &self.overlap
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct RecursiveWorldRevisionAbstractionVocabularyResolution {
+    source: RecursiveWorldRevisionAbstractionInducedClassSet,
+    resolved_classes: Vec<RecursiveWorldRevisionAbstractionResolvedClass>,
+    conflicted_classes: Vec<RecursiveWorldRevisionAbstractionClass>,
+    conflicts: Vec<RecursiveWorldRevisionAbstractionVocabularyConflict>,
+    vocabulary: Option<RecursiveWorldRevisionAbstractionVocabulary>,
+}
+
+impl RecursiveWorldRevisionAbstractionVocabularyResolution {
+    pub fn resolve(source: RecursiveWorldRevisionAbstractionInducedClassSet) -> Self {
+        let mut by_identity = BTreeMap::<
+            RecursiveWorldRevisionAbstractionClass,
+            (
+                BTreeSet<RecursiveWorldRevisionAbstractionInductionContext>,
+                BTreeSet<RecursiveWorldRevisionAbstractionSubstitutionWitness>,
+            ),
+        >::new();
+
+        for induced in source.classes() {
+            let entry = by_identity
+                .entry(induced.abstraction_class().clone())
+                .or_insert_with(|| (BTreeSet::new(), BTreeSet::new()));
+
+            entry.0.insert(induced.context().clone());
+
+            for witness in induced.witnesses() {
+                entry.1.insert(witness.clone());
+            }
+        }
+
+        let identities = by_identity.keys().cloned().collect::<Vec<_>>();
+
+        let mut conflicted = BTreeSet::<RecursiveWorldRevisionAbstractionClass>::new();
+
+        let mut conflicts = Vec::<RecursiveWorldRevisionAbstractionVocabularyConflict>::new();
+
+        for left_index in 0..identities.len() {
+            for right_index in (left_index + 1)..identities.len() {
+                let left = &identities[left_index];
+
+                let right = &identities[right_index];
+
+                let right_members = right.members().iter().cloned().collect::<BTreeSet<_>>();
+
+                let overlap = left
+                    .members()
+                    .iter()
+                    .filter(|unit| right_members.contains(*unit))
+                    .cloned()
+                    .collect::<Vec<_>>();
+
+                if overlap.is_empty() {
+                    continue;
+                }
+
+                conflicted.insert(left.clone());
+
+                conflicted.insert(right.clone());
+
+                conflicts.push(RecursiveWorldRevisionAbstractionVocabularyConflict {
+                    first: left.clone(),
+                    second: right.clone(),
+                    overlap,
+                });
+            }
+        }
+
+        conflicts.sort_by(|left, right| {
+            left.first
+                .cmp(&right.first)
+                .then_with(|| left.second.cmp(&right.second))
+        });
+
+        let mut resolved_classes = Vec::<RecursiveWorldRevisionAbstractionResolvedClass>::new();
+
+        for (abstraction_class, (contexts, witnesses)) in by_identity {
+            if conflicted.contains(&abstraction_class) {
+                continue;
+            }
+
+            resolved_classes.push(RecursiveWorldRevisionAbstractionResolvedClass {
+                abstraction_class,
+                contexts: contexts.into_iter().collect(),
+                witnesses: witnesses.into_iter().collect(),
+            });
+        }
+
+        resolved_classes
+            .sort_by(|left, right| left.abstraction_class.cmp(&right.abstraction_class));
+
+        let conflicted_classes = conflicted.into_iter().collect::<Vec<_>>();
+
+        let vocabulary = if resolved_classes.is_empty() {
+            None
+        } else {
+            RecursiveWorldRevisionAbstractionVocabulary::new(
+                resolved_classes
+                    .iter()
+                    .map(|resolved| resolved.abstraction_class().clone())
+                    .collect(),
+            )
+        };
+
+        Self {
+            source,
+            resolved_classes,
+            conflicted_classes,
+            conflicts,
+            vocabulary,
+        }
+    }
+
+    pub fn source(&self) -> &RecursiveWorldRevisionAbstractionInducedClassSet {
+        &self.source
+    }
+
+    pub fn resolved_classes(&self) -> &[RecursiveWorldRevisionAbstractionResolvedClass] {
+        &self.resolved_classes
+    }
+
+    pub fn conflicted_classes(&self) -> &[RecursiveWorldRevisionAbstractionClass] {
+        &self.conflicted_classes
+    }
+
+    pub fn conflicts(&self) -> &[RecursiveWorldRevisionAbstractionVocabularyConflict] {
+        &self.conflicts
+    }
+
+    pub fn vocabulary(&self) -> Option<&RecursiveWorldRevisionAbstractionVocabulary> {
+        self.vocabulary.as_ref()
+    }
+
+    pub fn has_conflicts(&self) -> bool {
+        !self.conflicts.is_empty()
+    }
+
+    pub fn resolved_count(&self) -> usize {
+        self.resolved_classes.len()
+    }
+
+    pub fn conflicted_count(&self) -> usize {
+        self.conflicted_classes.len()
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct RecursiveWorldRevisionAbstractionVocabularyResolver;
+
+impl RecursiveWorldRevisionAbstractionVocabularyResolver {
+    pub fn resolve(
+        source: RecursiveWorldRevisionAbstractionInducedClassSet,
+    ) -> RecursiveWorldRevisionAbstractionVocabularyResolution {
+        RecursiveWorldRevisionAbstractionVocabularyResolution::resolve(source)
+    }
+}
