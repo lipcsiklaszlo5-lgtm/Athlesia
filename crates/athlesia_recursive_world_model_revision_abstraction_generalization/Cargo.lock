@@ -74,6 +74,7 @@ dependencies = [
  "athlesia_recursive_world_model_revision_abstraction",
  "athlesia_recursive_world_model_revision_abstraction_induction",
  "athlesia_recursive_world_model_revision_discovery",
+ "athlesia_recursive_world_model_revision_induction",
 ]
 
 [[package]]

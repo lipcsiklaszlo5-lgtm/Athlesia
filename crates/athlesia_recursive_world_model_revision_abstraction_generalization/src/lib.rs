@@ -639,3 +639,107 @@ impl RecursiveWorldRevisionAbstractionGeneralizationResolver {
         RecursiveWorldRevisionAbstractionGeneralizationResolution::resolve(source)
     }
 }
+
+use athlesia_recursive_world_model_revision_abstraction::RecursiveWorldRevisionAbstractionProjection;
+
+use athlesia_recursive_world_model_revision_induction::RecursiveWorldRevisionInductionObservationSet;
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd)]
+pub enum RecursiveWorldRevisionAbstractionGeneralizationProjectionStatus {
+    VocabularyUnavailable,
+    ProjectionUnavailable,
+    Projected,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct RecursiveWorldRevisionAbstractionGeneralizationProjectionBridge {
+    resolution: RecursiveWorldRevisionAbstractionGeneralizationResolution,
+    application_observations: RecursiveWorldRevisionInductionObservationSet,
+    projection: Option<RecursiveWorldRevisionAbstractionProjection>,
+    status: RecursiveWorldRevisionAbstractionGeneralizationProjectionStatus,
+}
+
+impl RecursiveWorldRevisionAbstractionGeneralizationProjectionBridge {
+    pub fn project(
+        source: RecursiveWorldRevisionAbstractionGeneralizedClassSet,
+        application_observations: RecursiveWorldRevisionInductionObservationSet,
+    ) -> Self {
+        let resolution = RecursiveWorldRevisionAbstractionGeneralizationResolution::resolve(source);
+
+        let Some(vocabulary) = resolution.vocabulary().cloned() else {
+            return Self {
+                resolution,
+                application_observations,
+                projection: None,
+                status:
+                    RecursiveWorldRevisionAbstractionGeneralizationProjectionStatus::
+                        VocabularyUnavailable,
+            };
+        };
+
+        let projection = RecursiveWorldRevisionAbstractionProjection::project(
+            vocabulary,
+            application_observations.clone(),
+        );
+
+        let status = if projection.is_some() {
+            RecursiveWorldRevisionAbstractionGeneralizationProjectionStatus::Projected
+        } else {
+            RecursiveWorldRevisionAbstractionGeneralizationProjectionStatus::ProjectionUnavailable
+        };
+
+        Self {
+            resolution,
+            application_observations,
+            projection,
+            status,
+        }
+    }
+
+    pub fn resolution(&self) -> &RecursiveWorldRevisionAbstractionGeneralizationResolution {
+        &self.resolution
+    }
+
+    pub fn generalized_source(&self) -> &RecursiveWorldRevisionAbstractionGeneralizedClassSet {
+        self.resolution.source()
+    }
+
+    pub fn application_observations(&self) -> &RecursiveWorldRevisionInductionObservationSet {
+        &self.application_observations
+    }
+
+    pub fn projection(&self) -> Option<&RecursiveWorldRevisionAbstractionProjection> {
+        self.projection.as_ref()
+    }
+
+    pub fn status(&self) -> RecursiveWorldRevisionAbstractionGeneralizationProjectionStatus {
+        self.status
+    }
+
+    pub fn is_projected(&self) -> bool {
+        self.status == RecursiveWorldRevisionAbstractionGeneralizationProjectionStatus::Projected
+    }
+
+    pub fn vocabulary(&self) -> Option<&RecursiveWorldRevisionAbstractionVocabulary> {
+        self.resolution.vocabulary()
+    }
+
+    pub fn conflicts(&self) -> &[RecursiveWorldRevisionAbstractionGeneralizationConflict] {
+        self.resolution.conflicts()
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct RecursiveWorldRevisionAbstractionGeneralizationProjector;
+
+impl RecursiveWorldRevisionAbstractionGeneralizationProjector {
+    pub fn project(
+        source: RecursiveWorldRevisionAbstractionGeneralizedClassSet,
+        application_observations: RecursiveWorldRevisionInductionObservationSet,
+    ) -> RecursiveWorldRevisionAbstractionGeneralizationProjectionBridge {
+        RecursiveWorldRevisionAbstractionGeneralizationProjectionBridge::project(
+            source,
+            application_observations,
+        )
+    }
+}
