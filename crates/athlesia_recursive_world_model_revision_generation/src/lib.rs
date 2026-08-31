@@ -108,3 +108,87 @@ impl RecursiveWorldRevisionGenerationCandidateSet {
             .collect()
     }
 }
+
+use athlesia_recursive_world_model_revision_proposal::{
+    RecursiveWorldRevisionProposal, RecursiveWorldRevisionProposalSet,
+};
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct RecursiveWorldRevisionGenerationProposalBridge {
+    candidates: RecursiveWorldRevisionGenerationCandidateSet,
+    proposals: RecursiveWorldRevisionProposalSet,
+}
+
+impl RecursiveWorldRevisionGenerationProposalBridge {
+    pub fn new(candidates: RecursiveWorldRevisionGenerationCandidateSet) -> Self {
+        let proposals = RecursiveWorldRevisionProposalSet::new(
+            candidates
+                .candidates()
+                .iter()
+                .filter_map(|candidate| {
+                    RecursiveWorldRevisionProposal::new(
+                        candidate.target().clone(),
+                        candidate.replacement().clone(),
+                    )
+                })
+                .collect(),
+        );
+
+        Self {
+            candidates,
+            proposals,
+        }
+    }
+
+    pub fn candidates(&self) -> &RecursiveWorldRevisionGenerationCandidateSet {
+        &self.candidates
+    }
+
+    pub fn proposals(&self) -> &RecursiveWorldRevisionProposalSet {
+        &self.proposals
+    }
+
+    pub fn proposal_count(&self) -> usize {
+        self.proposals.len()
+    }
+
+    pub fn candidate_count(&self) -> usize {
+        self.candidates.len()
+    }
+
+    pub fn candidates_for_proposal(
+        &self,
+        proposal: &RecursiveWorldRevisionProposal,
+    ) -> Vec<RecursiveWorldRevisionGenerationCandidate> {
+        self.candidates
+            .candidates()
+            .iter()
+            .filter(|candidate| {
+                candidate.target() == proposal.target()
+                    && candidate.replacement() == proposal.replacement()
+            })
+            .cloned()
+            .collect()
+    }
+
+    pub fn proposal_for_candidate(
+        &self,
+        candidate: &RecursiveWorldRevisionGenerationCandidate,
+    ) -> Option<RecursiveWorldRevisionProposal> {
+        RecursiveWorldRevisionProposal::new(
+            candidate.target().clone(),
+            candidate.replacement().clone(),
+        )
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct RecursiveWorldRevisionGenerationProposalBridgeBuilder;
+
+impl RecursiveWorldRevisionGenerationProposalBridgeBuilder {
+    pub fn build(
+        candidates: RecursiveWorldRevisionGenerationCandidateSet,
+    ) -> RecursiveWorldRevisionGenerationProposalBridge {
+        RecursiveWorldRevisionGenerationProposalBridge::new(candidates)
+    }
+}
