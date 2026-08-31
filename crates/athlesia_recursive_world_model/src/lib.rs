@@ -602,3 +602,67 @@ impl RecursiveWorldRevisionRanking {
         self.revisions.first()
     }
 }
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct RecursiveWorldRevisionBudget {
+    max_total_cost: usize,
+}
+
+impl RecursiveWorldRevisionBudget {
+    pub fn new(max_total_cost: usize) -> Option<Self> {
+        if max_total_cost == 0 {
+            return None;
+        }
+
+        Some(Self { max_total_cost })
+    }
+
+    pub const fn max_total_cost(&self) -> usize {
+        self.max_total_cost
+    }
+
+    pub fn allows(&self, revision: &RecursiveWorldCostedRevision) -> bool {
+        revision.total_cost() <= self.max_total_cost
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct RecursiveWorldRevisionSelection {
+    budget: RecursiveWorldRevisionBudget,
+    selected: Option<RecursiveWorldCostedRevision>,
+}
+
+impl RecursiveWorldRevisionSelection {
+    pub const fn budget(&self) -> RecursiveWorldRevisionBudget {
+        self.budget
+    }
+
+    pub fn selected(&self) -> Option<&RecursiveWorldCostedRevision> {
+        self.selected.as_ref()
+    }
+
+    pub fn is_selected(&self) -> bool {
+        self.selected.is_some()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.selected.is_none()
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct RecursiveWorldRevisionSelector;
+
+impl RecursiveWorldRevisionSelector {
+    pub fn select(
+        ranking: &RecursiveWorldRevisionRanking,
+        budget: RecursiveWorldRevisionBudget,
+    ) -> RecursiveWorldRevisionSelection {
+        let selected = ranking
+            .best()
+            .filter(|revision| budget.allows(revision))
+            .cloned();
+
+        RecursiveWorldRevisionSelection { budget, selected }
+    }
+}
