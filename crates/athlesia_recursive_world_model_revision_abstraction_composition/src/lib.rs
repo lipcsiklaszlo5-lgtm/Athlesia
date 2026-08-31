@@ -700,3 +700,169 @@ impl RecursiveWorldRevisionAbstractionCompositionPathSelector {
         RecursiveWorldRevisionAbstractionCompositionPathSelectionSet::select(source)
     }
 }
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd)]
+pub enum RecursiveWorldRevisionAbstractionCompositionPathRealizationStatus {
+    Unavailable,
+    Ambiguous,
+    Deterministic,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct RecursiveWorldRevisionAbstractionCompositionPathRealization {
+    selection: RecursiveWorldRevisionAbstractionCompositionPathSelection,
+    application_observations: Vec<RecursiveWorldRevisionDiscoveryObservation>,
+    premise_witnesses: Vec<athlesia_recursive::RecursiveUnit>,
+    conclusion_witnesses: Vec<athlesia_recursive::RecursiveUnit>,
+    realized_observation: Option<RecursiveWorldRevisionDiscoveryObservation>,
+    status: RecursiveWorldRevisionAbstractionCompositionPathRealizationStatus,
+}
+
+impl RecursiveWorldRevisionAbstractionCompositionPathRealization {
+    pub fn realize(
+        selection: RecursiveWorldRevisionAbstractionCompositionPathSelection,
+        mut application_observations: Vec<RecursiveWorldRevisionDiscoveryObservation>,
+    ) -> Self {
+        application_observations.sort();
+        application_observations.dedup();
+
+        let mut premise_witnesses: BTreeSet<athlesia_recursive::RecursiveUnit> = BTreeSet::new();
+
+        let mut conclusion_witnesses: BTreeSet<athlesia_recursive::RecursiveUnit> = BTreeSet::new();
+
+        for observation in &application_observations {
+            for unit in observation.premises() {
+                if selection.from().contains(unit) {
+                    premise_witnesses.insert(unit.clone());
+                }
+            }
+
+            for unit in observation.conclusions() {
+                if selection.to().contains(unit) {
+                    conclusion_witnesses.insert(unit.clone());
+                }
+            }
+        }
+
+        let premise_witnesses: Vec<athlesia_recursive::RecursiveUnit> =
+            premise_witnesses.into_iter().collect();
+
+        let conclusion_witnesses: Vec<athlesia_recursive::RecursiveUnit> =
+            conclusion_witnesses.into_iter().collect();
+
+        let (realized_observation, status) =
+            match (premise_witnesses.len(), conclusion_witnesses.len()) {
+                (1, 1) => {
+                    let realized = RecursiveWorldRevisionDiscoveryObservation::new(
+                        vec![premise_witnesses[0].clone()],
+                        vec![conclusion_witnesses[0].clone()],
+                    );
+
+                    match realized {
+                        Some(
+                            observation,
+                        ) => {
+                            (
+                                Some(
+                                    observation,
+                                ),
+                                RecursiveWorldRevisionAbstractionCompositionPathRealizationStatus::
+                                    Deterministic,
+                            )
+                        }
+
+                        None => {
+                            (
+                                None,
+                                RecursiveWorldRevisionAbstractionCompositionPathRealizationStatus::
+                                    Unavailable,
+                            )
+                        }
+                    }
+                }
+
+                (0, _) | (_, 0) => (
+                    None,
+                    RecursiveWorldRevisionAbstractionCompositionPathRealizationStatus::Unavailable,
+                ),
+
+                _ => (
+                    None,
+                    RecursiveWorldRevisionAbstractionCompositionPathRealizationStatus::Ambiguous,
+                ),
+            };
+
+        Self {
+            selection,
+            application_observations,
+            premise_witnesses,
+            conclusion_witnesses,
+            realized_observation,
+            status,
+        }
+    }
+
+    pub fn selection(&self) -> &RecursiveWorldRevisionAbstractionCompositionPathSelection {
+        &self.selection
+    }
+
+    pub fn application_observations(&self) -> &[RecursiveWorldRevisionDiscoveryObservation] {
+        &self.application_observations
+    }
+
+    pub fn premise_witnesses(&self) -> &[athlesia_recursive::RecursiveUnit] {
+        &self.premise_witnesses
+    }
+
+    pub fn conclusion_witnesses(&self) -> &[athlesia_recursive::RecursiveUnit] {
+        &self.conclusion_witnesses
+    }
+
+    pub fn realized_observation(&self) -> Option<&RecursiveWorldRevisionDiscoveryObservation> {
+        self.realized_observation.as_ref()
+    }
+
+    pub fn status(&self) -> RecursiveWorldRevisionAbstractionCompositionPathRealizationStatus {
+        self.status
+    }
+
+    pub fn is_deterministic(&self) -> bool {
+        self.status
+            == RecursiveWorldRevisionAbstractionCompositionPathRealizationStatus::Deterministic
+    }
+
+    pub fn is_ambiguous(&self) -> bool {
+        self.status == RecursiveWorldRevisionAbstractionCompositionPathRealizationStatus::Ambiguous
+    }
+
+    pub fn from(&self) -> &RecursiveWorldRevisionAbstractionClass {
+        self.selection.from()
+    }
+
+    pub fn to(&self) -> &RecursiveWorldRevisionAbstractionClass {
+        self.selection.to()
+    }
+
+    pub fn path(&self) -> &RecursiveWorldRevisionAbstractionCompositionPath {
+        self.selection.path()
+    }
+
+    pub fn minimum_support(&self) -> usize {
+        self.selection.minimum_support()
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct RecursiveWorldRevisionAbstractionCompositionPathRealizer;
+
+impl RecursiveWorldRevisionAbstractionCompositionPathRealizer {
+    pub fn realize(
+        selection: RecursiveWorldRevisionAbstractionCompositionPathSelection,
+        application_observations: Vec<RecursiveWorldRevisionDiscoveryObservation>,
+    ) -> RecursiveWorldRevisionAbstractionCompositionPathRealization {
+        RecursiveWorldRevisionAbstractionCompositionPathRealization::realize(
+            selection,
+            application_observations,
+        )
+    }
+}
