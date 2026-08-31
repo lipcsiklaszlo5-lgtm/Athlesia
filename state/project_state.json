@@ -85,7 +85,8 @@
     "crates/athlesia_recursive_revision/tests/recursive_revision_policy.rs": "7a4607b5bc0a0eb02ec9cfa6cb391a148d73f27010875cf3b4dcf79a73ed162b",
     "crates/athlesia_recursive_world_model/Cargo.lock": "fe0d547bc93f412a90840316fb2456f19b92514e5f94c5d4cca847bda72376e1",
     "crates/athlesia_recursive_world_model/Cargo.toml": "5ce3bb56735c79a2c235299f37472d61972244e5576acf841b79cac7a5d50b5c",
-    "crates/athlesia_recursive_world_model/src/lib.rs": "81cbc6ff5dbb75f84e8d25bc91f4a2aa361838b7f4cca456ddb6f39faab3e2bd",
+    "crates/athlesia_recursive_world_model/src/lib.rs": "97a444bab7555c1bee6108ffae59cc8cbd30eb68a94a53e1384dafdee34adce1",
+    "crates/athlesia_recursive_world_model/tests/recursive_world_model_contradiction_detection.rs": "225c4cf4bb9422968c3ba338d7835a1246c8b7c459b7e9e5a78753b7986ba448",
     "crates/athlesia_recursive_world_model/tests/recursive_world_model_foundation.rs": "08b5f5dbcb24ad629b09aead67e18ef2ad26289a3af4b3e87762bba82bf630af",
     "crates/athlesia_revision/Cargo.toml": "5d86f3c6ebd51f093e03c171df1520526f4e9da298cb07cd04123191f4b0f814",
     "crates/athlesia_revision/src/lib.rs": "a688ddd7a219ab78fb699658cf16c7a52b39fffb81a2b7f11f26f8083a0e9a2d",
@@ -234,7 +235,8 @@
       "module_32_recursive_deliberation_bounded_action_policy",
       "module_32_recursive_deliberation_active_cycle",
       "module_32_recursive_deliberation_freeze",
-      "module_33_recursive_world_model_foundation"
+      "module_33_recursive_world_model_foundation",
+      "module_33_recursive_world_model_contradiction_detection"
     ],
     "module_23_integrity": {
       "status": "pass",
@@ -247,8 +249,8 @@
       "status": "frozen",
       "verifier": "tools/verify_module_23_parity.py"
     },
-    "next_layer": "module_33_recursive_world_model_contradiction_detection",
-    "stage": "module_33_recursive_world_model_foundation",
+    "next_layer": "module_33_recursive_world_model_dependency_graph",
+    "stage": "module_33_recursive_world_model_contradiction_detection",
     "status": "validated"
   },
   "validated_invariants": [
@@ -939,6 +941,18 @@
     "recursive_world_model_distinct_rule_preservation",
     "recursive_world_model_rule_deduplication",
     "recursive_world_model_rule_order_determinism",
-    "recursive_world_model_non_mutation"
+    "recursive_world_model_non_mutation",
+    "recursive_world_model_contradiction_exact_rule_guard",
+    "recursive_world_model_contradiction_premise_scope",
+    "recursive_world_model_contradiction_equal_conclusion_guard",
+    "recursive_world_model_contradiction_divergent_candidate",
+    "recursive_world_model_contradiction_premise_identity",
+    "recursive_world_model_contradiction_pair_canonicalization",
+    "recursive_world_model_contradiction_disjoint_detection",
+    "recursive_world_model_contradiction_overlap_detection",
+    "recursive_world_model_contradiction_empty_model",
+    "recursive_world_model_contradiction_complete_pair_detection",
+    "recursive_world_model_contradiction_determinism",
+    "recursive_world_model_contradiction_non_mutation"
   ]
 }
