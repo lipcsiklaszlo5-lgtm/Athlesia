@@ -789,3 +789,105 @@ impl RecursiveWorldRevisionAbstractionInductionProjector {
         RecursiveWorldRevisionAbstractionInductionProjectionBridge::project(source_observations)
     }
 }
+
+use athlesia_recursive_world_model_revision_abstraction::RecursiveWorldRevisionAbstractionConsensus;
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd)]
+pub enum RecursiveWorldRevisionAbstractionInductionConsensusStatus {
+    ProjectionUnavailable,
+    ConsensusUnavailable,
+    ConsensusDerived,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct RecursiveWorldRevisionAbstractionInductionConsensusBridge {
+    projection_bridge: RecursiveWorldRevisionAbstractionInductionProjectionBridge,
+    consensus: Option<RecursiveWorldRevisionAbstractionConsensus>,
+    status: RecursiveWorldRevisionAbstractionInductionConsensusStatus,
+}
+
+impl RecursiveWorldRevisionAbstractionInductionConsensusBridge {
+    pub fn derive(source_observations: RecursiveWorldRevisionInductionObservationSet) -> Self {
+        let projection_bridge = RecursiveWorldRevisionAbstractionInductionProjectionBridge::project(
+            source_observations,
+        );
+
+        let Some(projection) = projection_bridge.projection().cloned() else {
+            return Self {
+                projection_bridge,
+                consensus: None,
+                status:
+                    RecursiveWorldRevisionAbstractionInductionConsensusStatus::ProjectionUnavailable,
+            };
+        };
+
+        let consensus = RecursiveWorldRevisionAbstractionConsensus::derive(projection);
+
+        let status = if consensus.is_some() {
+            RecursiveWorldRevisionAbstractionInductionConsensusStatus::ConsensusDerived
+        } else {
+            RecursiveWorldRevisionAbstractionInductionConsensusStatus::ConsensusUnavailable
+        };
+
+        Self {
+            projection_bridge,
+            consensus,
+            status,
+        }
+    }
+
+    pub fn projection_bridge(&self) -> &RecursiveWorldRevisionAbstractionInductionProjectionBridge {
+        &self.projection_bridge
+    }
+
+    pub fn consensus(&self) -> Option<&RecursiveWorldRevisionAbstractionConsensus> {
+        self.consensus.as_ref()
+    }
+
+    pub fn status(&self) -> RecursiveWorldRevisionAbstractionInductionConsensusStatus {
+        self.status
+    }
+
+    pub fn is_consensus_derived(&self) -> bool {
+        self.status == RecursiveWorldRevisionAbstractionInductionConsensusStatus::ConsensusDerived
+    }
+
+    pub fn source_observations(&self) -> &RecursiveWorldRevisionInductionObservationSet {
+        self.projection_bridge.source_observations()
+    }
+
+    pub fn witness_set(&self) -> Option<&RecursiveWorldRevisionAbstractionSubstitutionWitnessSet> {
+        self.projection_bridge.witness_set()
+    }
+
+    pub fn induced_classes(&self) -> Option<&RecursiveWorldRevisionAbstractionInducedClassSet> {
+        self.projection_bridge.induced_classes()
+    }
+
+    pub fn resolution(&self) -> Option<&RecursiveWorldRevisionAbstractionVocabularyResolution> {
+        self.projection_bridge.resolution()
+    }
+
+    pub fn vocabulary(&self) -> Option<&RecursiveWorldRevisionAbstractionVocabulary> {
+        self.projection_bridge.vocabulary()
+    }
+
+    pub fn projection(&self) -> Option<&RecursiveWorldRevisionAbstractionProjection> {
+        self.projection_bridge.projection()
+    }
+
+    pub fn conflicts(&self) -> &[RecursiveWorldRevisionAbstractionVocabularyConflict] {
+        self.projection_bridge.conflicts()
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct RecursiveWorldRevisionAbstractionInductionConsensusBuilder;
+
+impl RecursiveWorldRevisionAbstractionInductionConsensusBuilder {
+    pub fn derive(
+        source_observations: RecursiveWorldRevisionInductionObservationSet,
+    ) -> RecursiveWorldRevisionAbstractionInductionConsensusBridge {
+        RecursiveWorldRevisionAbstractionInductionConsensusBridge::derive(source_observations)
+    }
+}
