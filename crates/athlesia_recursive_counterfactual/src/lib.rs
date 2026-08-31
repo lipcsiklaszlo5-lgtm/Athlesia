@@ -357,3 +357,77 @@ impl RecursiveCounterfactualBudgetedRanking {
         self.values.is_empty()
     }
 }
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct RecursiveCounterfactualSelectionPolicy {
+    beam_width: usize,
+}
+
+impl RecursiveCounterfactualSelectionPolicy {
+    pub fn new(beam_width: usize) -> Option<Self> {
+        if beam_width == 0 {
+            return None;
+        }
+
+        Some(Self { beam_width })
+    }
+
+    pub const fn beam_width(&self) -> usize {
+        self.beam_width
+    }
+
+    pub fn select(
+        &self,
+        ranking: &RecursiveCounterfactualBudgetedRanking,
+    ) -> RecursiveCounterfactualSelection {
+        let selected = ranking
+            .values()
+            .iter()
+            .take(self.beam_width)
+            .cloned()
+            .collect();
+
+        RecursiveCounterfactualSelection {
+            policy: *self,
+            budget: ranking.budget(),
+            selected,
+        }
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct RecursiveCounterfactualSelection {
+    policy: RecursiveCounterfactualSelectionPolicy,
+    budget: RecursiveCounterfactualBudget,
+    selected: Vec<RecursiveCounterfactualInformationValue>,
+}
+
+impl RecursiveCounterfactualSelection {
+    pub const fn policy(&self) -> RecursiveCounterfactualSelectionPolicy {
+        self.policy
+    }
+
+    pub const fn budget(&self) -> RecursiveCounterfactualBudget {
+        self.budget
+    }
+
+    pub fn selected(&self) -> &[RecursiveCounterfactualInformationValue] {
+        &self.selected
+    }
+
+    pub fn best(&self) -> Option<&RecursiveCounterfactualInformationValue> {
+        self.selected.first()
+    }
+
+    pub fn len(&self) -> usize {
+        self.selected.len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.selected.is_empty()
+    }
+
+    pub fn is_full(&self) -> bool {
+        self.selected.len() == self.policy.beam_width()
+    }
+}
