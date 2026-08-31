@@ -114,15 +114,16 @@
     "crates/athlesia_recursive_world_model_revision_abstraction/tests/recursive_world_model_revision_abstraction_realization.rs": "e4d579055f64b3d1bd9da8b3be38836b92af0f4984fe1c9ca3e56c54bdfe177c",
     "crates/athlesia_recursive_world_model_revision_abstraction/tests/recursive_world_model_revision_abstraction_revision_cycle.rs": "f7c0d164dbb8a42705b255b64d15971af664497fcda19fbbc272a6d0e22de55b",
     "crates/athlesia_recursive_world_model_revision_abstraction/tests/recursive_world_model_revision_abstraction_validation.rs": "93bfb5e3ae39b4514c50713133de0980eb577dfb2bc6ac2c224f1b0f5eb095a0",
-    "crates/athlesia_recursive_world_model_revision_abstraction_induction/Cargo.lock": "fb1cf336ddd6d6b606ce6373c594bb46790a443294ae8f80a5fe2c28a2105a8e",
-    "crates/athlesia_recursive_world_model_revision_abstraction_induction/Cargo.toml": "ccd4eb7ffc25269d34fa638ebb9e3492c3beb09fa1192372aac25d0d5f635043",
-    "crates/athlesia_recursive_world_model_revision_abstraction_induction/src/lib.rs": "32a2d3e2da1407c38e6582b9e8f10eff78fa94d4e4e7a000a491e3b1166e4172",
+    "crates/athlesia_recursive_world_model_revision_abstraction_induction/Cargo.lock": "9131345c2c87a894fea318816403cf2c978bfa0945bbaba8491d407a4d3c3a32",
+    "crates/athlesia_recursive_world_model_revision_abstraction_induction/Cargo.toml": "7b6bba28a88564bd150f262d30a98080bc6cbd0280f0d0406312230e1b1d99a1",
+    "crates/athlesia_recursive_world_model_revision_abstraction_induction/src/lib.rs": "2d963d55ed40310fc6203425bd9a5e537e68e32d21fbbeb62406c791a829c74d",
     "crates/athlesia_recursive_world_model_revision_abstraction_induction/tests/recursive_world_model_revision_abstraction_induction_class_induction.rs": "cc3cb123534a74d49c0342bfdf1d11569623a4f50392d9e730f50040cb847b95",
     "crates/athlesia_recursive_world_model_revision_abstraction_induction/tests/recursive_world_model_revision_abstraction_induction_consensus_bridge.rs": "ce8eb94c4f42a7ce19ac22d3a4a56a798ca212e7bd3fb50cc0ac4f4d60f9ca35",
     "crates/athlesia_recursive_world_model_revision_abstraction_induction/tests/recursive_world_model_revision_abstraction_induction_foundation.rs": "c8358e01f8e9fec94a39e90db31be70bd9a06d32180b887852fa33d2151f14f8",
     "crates/athlesia_recursive_world_model_revision_abstraction_induction/tests/recursive_world_model_revision_abstraction_induction_projection_bridge.rs": "cd8c5c1d43efae7271417c318e50ebad69af4783488c0e97f5ad5d6c10209a5d",
     "crates/athlesia_recursive_world_model_revision_abstraction_induction/tests/recursive_world_model_revision_abstraction_induction_realization_bridge.rs": "752488bf26a84b948212e377684d84695b7af233f5ad20f4fb94b6cd7eebe517",
     "crates/athlesia_recursive_world_model_revision_abstraction_induction/tests/recursive_world_model_revision_abstraction_induction_transfer_discovery_bridge.rs": "d2d613326bd652f5072879161ddb9bfab8bc95de810511778b78691ddcbea4ce",
+    "crates/athlesia_recursive_world_model_revision_abstraction_induction/tests/recursive_world_model_revision_abstraction_induction_transfer_evidence_scope.rs": "b65953a595050254aee774c495fc1bdef1011323898e50afd661603b09f84b10",
     "crates/athlesia_recursive_world_model_revision_abstraction_induction/tests/recursive_world_model_revision_abstraction_induction_transfer_foundation.rs": "f7e6acc692787a1e2ad9cd4acdaea84954957fd34fff23d4ec0be4e61f9529fa",
     "crates/athlesia_recursive_world_model_revision_abstraction_induction/tests/recursive_world_model_revision_abstraction_induction_transfer_validation.rs": "8c4db704ff6a767b5ff73b98550607363dfd25cf153f6dde7c930ff721f4d964",
     "crates/athlesia_recursive_world_model_revision_abstraction_induction/tests/recursive_world_model_revision_abstraction_induction_vocabulary_resolution.rs": "02f1ae01a42784088d8abbbaf1eef37542609d757b0cc7b44337892bb0627141",
@@ -392,7 +393,8 @@
       "module_41_recursive_world_model_revision_abstraction_induction_realization_bridge",
       "module_41_recursive_world_model_revision_abstraction_induction_transfer_foundation",
       "module_41_recursive_world_model_revision_abstraction_induction_transfer_discovery_bridge",
-      "module_41_recursive_world_model_revision_abstraction_induction_transfer_validation"
+      "module_41_recursive_world_model_revision_abstraction_induction_transfer_validation",
+      "module_41_recursive_world_model_revision_abstraction_induction_transfer_evidence_scope"
     ],
     "module_23_integrity": {
       "status": "pass",
@@ -405,8 +407,8 @@
       "status": "frozen",
       "verifier": "tools/verify_module_23_parity.py"
     },
-    "next_layer": "module_41_recursive_world_model_revision_abstraction_induction_transfer_evidence_scope",
-    "stage": "module_41_recursive_world_model_revision_abstraction_induction_transfer_validation",
+    "next_layer": "module_41_recursive_world_model_revision_abstraction_induction_transfer_revision_cycle",
+    "stage": "module_41_recursive_world_model_revision_abstraction_induction_transfer_evidence_scope",
     "status": "validated"
   },
   "validated_invariants": [
@@ -1765,6 +1767,18 @@
     "recursive_world_revision_abstraction_induction_transfer_validation_realization_provenance",
     "recursive_world_revision_abstraction_induction_transfer_validation_learning_application_provenance",
     "recursive_world_revision_abstraction_induction_transfer_validation_facade_equivalence",
-    "recursive_world_revision_abstraction_induction_transfer_validation_determinism_non_mutation"
+    "recursive_world_revision_abstraction_induction_transfer_validation_determinism_non_mutation",
+    "recursive_world_revision_abstraction_induction_transfer_scope_discovery_guard",
+    "recursive_world_revision_abstraction_induction_transfer_scope_rejection_guard",
+    "recursive_world_revision_abstraction_induction_transfer_scope_no_evidence_inactive",
+    "recursive_world_revision_abstraction_induction_transfer_scope_confirming_inactive",
+    "recursive_world_revision_abstraction_induction_transfer_scope_violating_active",
+    "recursive_world_revision_abstraction_induction_transfer_scope_other_target_guard",
+    "recursive_world_revision_abstraction_induction_transfer_scope_pressure_identity",
+    "recursive_world_revision_abstraction_induction_transfer_scope_hypothesis_identity",
+    "recursive_world_revision_abstraction_induction_transfer_scope_realization_identity",
+    "recursive_world_revision_abstraction_induction_transfer_scope_provenance_identity",
+    "recursive_world_revision_abstraction_induction_transfer_scope_facade_equivalence",
+    "recursive_world_revision_abstraction_induction_transfer_scope_determinism_non_mutation"
   ]
 }

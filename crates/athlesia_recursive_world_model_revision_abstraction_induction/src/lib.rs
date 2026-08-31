@@ -1484,3 +1484,179 @@ impl RecursiveWorldRevisionAbstractionTransferValidator {
         )
     }
 }
+
+use athlesia_recursive_world_model_evidence::RecursiveWorldEvidenceState;
+
+use athlesia_recursive_world_model_revision_discovery::{
+    RecursiveWorldRevisionDiscoveryEvidenceScope, RecursiveWorldRevisionDiscoveryEvidenceScoper,
+};
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd)]
+pub enum RecursiveWorldRevisionAbstractionTransferEvidenceScopeStatus {
+    DiscoveryUnavailable,
+    Rejected,
+    Inactive,
+    Active,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct RecursiveWorldRevisionAbstractionTransferEvidenceScope {
+    validation: RecursiveWorldRevisionAbstractionTransferValidation,
+    evidence_state: RecursiveWorldEvidenceState,
+    scope: Option<RecursiveWorldRevisionDiscoveryEvidenceScope>,
+    status: RecursiveWorldRevisionAbstractionTransferEvidenceScopeStatus,
+}
+
+impl RecursiveWorldRevisionAbstractionTransferEvidenceScope {
+    pub fn scope(
+        model: RecursiveWorldModel,
+        evidence_state: RecursiveWorldEvidenceState,
+        target: RecursiveWorldRule,
+        induction_observations: RecursiveWorldRevisionInductionObservationSet,
+        transfer_observations: RecursiveWorldRevisionInductionObservationSet,
+    ) -> Self {
+        let validation = RecursiveWorldRevisionAbstractionTransferValidation::validate(
+            model.clone(),
+            target,
+            induction_observations,
+            transfer_observations,
+        );
+
+        match validation.status() {
+            RecursiveWorldRevisionAbstractionTransferValidationStatus::DiscoveryUnavailable => {
+                return Self {
+                    validation,
+                    evidence_state,
+                    scope: None,
+                    status:
+                        RecursiveWorldRevisionAbstractionTransferEvidenceScopeStatus::
+                            DiscoveryUnavailable,
+                };
+            }
+
+            RecursiveWorldRevisionAbstractionTransferValidationStatus::Rejected => {
+                return Self {
+                    validation,
+                    evidence_state,
+                    scope: None,
+                    status: RecursiveWorldRevisionAbstractionTransferEvidenceScopeStatus::Rejected,
+                };
+            }
+
+            RecursiveWorldRevisionAbstractionTransferValidationStatus::Accepted => {}
+        }
+
+        let hypothesis = validation
+            .accepted_hypothesis()
+            .cloned()
+            .expect("accepted transfer validation contains exactly one accepted hypothesis");
+
+        let hypothesis_set = RecursiveWorldRevisionDiscoveryHypothesisSet::new(vec![hypothesis]);
+
+        let scope = RecursiveWorldRevisionDiscoveryEvidenceScoper::scope(
+            &model,
+            &evidence_state,
+            hypothesis_set,
+        );
+
+        let status = if scope.active_count() == 1 {
+            RecursiveWorldRevisionAbstractionTransferEvidenceScopeStatus::Active
+        } else {
+            RecursiveWorldRevisionAbstractionTransferEvidenceScopeStatus::Inactive
+        };
+
+        Self {
+            validation,
+            evidence_state,
+            scope: Some(scope),
+            status,
+        }
+    }
+
+    pub fn validation(&self) -> &RecursiveWorldRevisionAbstractionTransferValidation {
+        &self.validation
+    }
+
+    pub fn evidence_state(&self) -> &RecursiveWorldEvidenceState {
+        &self.evidence_state
+    }
+
+    pub fn scope_result(&self) -> Option<&RecursiveWorldRevisionDiscoveryEvidenceScope> {
+        self.scope.as_ref()
+    }
+
+    pub fn status(&self) -> RecursiveWorldRevisionAbstractionTransferEvidenceScopeStatus {
+        self.status
+    }
+
+    pub fn is_active(&self) -> bool {
+        self.status == RecursiveWorldRevisionAbstractionTransferEvidenceScopeStatus::Active
+    }
+
+    pub fn is_inactive(&self) -> bool {
+        self.status == RecursiveWorldRevisionAbstractionTransferEvidenceScopeStatus::Inactive
+    }
+
+    pub fn active_hypothesis(&self) -> Option<&RecursiveWorldRevisionDiscoveryHypothesis> {
+        self.scope
+            .as_ref()
+            .and_then(|scope| scope.active_hypotheses().first())
+    }
+
+    pub fn pressured_rule(&self) -> Option<&RecursiveWorldRule> {
+        self.scope.as_ref().and_then(|scope| scope.pressured_rule())
+    }
+
+    pub fn target(&self) -> &RecursiveWorldRule {
+        self.validation.target()
+    }
+
+    pub fn hypothesis(&self) -> Option<&RecursiveWorldRevisionDiscoveryHypothesis> {
+        self.validation.hypothesis()
+    }
+
+    pub fn replacement(&self) -> Option<&RecursiveWorldRule> {
+        self.validation.replacement()
+    }
+
+    pub fn realized_observation(&self) -> Option<&RecursiveWorldRevisionDiscoveryObservation> {
+        self.validation.realized_observation()
+    }
+
+    pub fn induction_observations(&self) -> &RecursiveWorldRevisionInductionObservationSet {
+        self.validation.induction_observations()
+    }
+
+    pub fn transfer_observations(&self) -> &RecursiveWorldRevisionInductionObservationSet {
+        self.validation.transfer_observations()
+    }
+
+    pub fn consensus(&self) -> Option<&RecursiveWorldRevisionAbstractionConsensus> {
+        self.validation.consensus()
+    }
+
+    pub fn vocabulary(&self) -> Option<&RecursiveWorldRevisionAbstractionVocabulary> {
+        self.validation.vocabulary()
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct RecursiveWorldRevisionAbstractionTransferEvidenceScoper;
+
+impl RecursiveWorldRevisionAbstractionTransferEvidenceScoper {
+    pub fn scope(
+        model: RecursiveWorldModel,
+        evidence_state: RecursiveWorldEvidenceState,
+        target: RecursiveWorldRule,
+        induction_observations: RecursiveWorldRevisionInductionObservationSet,
+        transfer_observations: RecursiveWorldRevisionInductionObservationSet,
+    ) -> RecursiveWorldRevisionAbstractionTransferEvidenceScope {
+        RecursiveWorldRevisionAbstractionTransferEvidenceScope::scope(
+            model,
+            evidence_state,
+            target,
+            induction_observations,
+            transfer_observations,
+        )
+    }
+}
