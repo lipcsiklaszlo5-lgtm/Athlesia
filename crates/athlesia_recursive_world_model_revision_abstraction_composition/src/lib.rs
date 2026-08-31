@@ -866,3 +866,139 @@ impl RecursiveWorldRevisionAbstractionCompositionPathRealizer {
         )
     }
 }
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd)]
+pub enum RecursiveWorldRevisionAbstractionCompositionDiscoveryStatus {
+    RealizationUnavailable,
+    DiscoveryUnavailable,
+    Discovered,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct RecursiveWorldRevisionAbstractionCompositionDiscoveryBridge {
+    target:
+        athlesia_recursive_world_model::RecursiveWorldRule,
+    realization:
+        RecursiveWorldRevisionAbstractionCompositionPathRealization,
+    hypothesis:
+        Option<
+            athlesia_recursive_world_model_revision_discovery::
+                RecursiveWorldRevisionDiscoveryHypothesis,
+        >,
+    status:
+        RecursiveWorldRevisionAbstractionCompositionDiscoveryStatus,
+}
+
+impl RecursiveWorldRevisionAbstractionCompositionDiscoveryBridge {
+    pub fn discover(
+        target: athlesia_recursive_world_model::RecursiveWorldRule,
+        selection: RecursiveWorldRevisionAbstractionCompositionPathSelection,
+        application_observations: Vec<RecursiveWorldRevisionDiscoveryObservation>,
+    ) -> Self {
+        let realization = RecursiveWorldRevisionAbstractionCompositionPathRealization::realize(
+            selection,
+            application_observations,
+        );
+
+        let realized_observation = realization.realized_observation().cloned();
+
+        let Some(realized_observation) = realized_observation else {
+            return Self {
+                target,
+                realization,
+                hypothesis: None,
+                status:
+                    RecursiveWorldRevisionAbstractionCompositionDiscoveryStatus::
+                        RealizationUnavailable,
+            };
+        };
+
+        let hypothesis =
+            athlesia_recursive_world_model_revision_discovery::
+                RecursiveWorldRevisionDiscoveryHypothesis::discover(
+                    target.clone(),
+                    realized_observation,
+                );
+
+        let status = if hypothesis.is_some() {
+            RecursiveWorldRevisionAbstractionCompositionDiscoveryStatus::Discovered
+        } else {
+            RecursiveWorldRevisionAbstractionCompositionDiscoveryStatus::DiscoveryUnavailable
+        };
+
+        Self {
+            target,
+            realization,
+            hypothesis,
+            status,
+        }
+    }
+
+    pub fn target(&self) -> &athlesia_recursive_world_model::RecursiveWorldRule {
+        &self.target
+    }
+
+    pub fn realization(&self) -> &RecursiveWorldRevisionAbstractionCompositionPathRealization {
+        &self.realization
+    }
+
+    pub fn hypothesis(
+        &self,
+    ) -> Option<
+        &athlesia_recursive_world_model_revision_discovery::
+            RecursiveWorldRevisionDiscoveryHypothesis,
+    >{
+        self.hypothesis.as_ref()
+    }
+
+    pub fn status(&self) -> RecursiveWorldRevisionAbstractionCompositionDiscoveryStatus {
+        self.status
+    }
+
+    pub fn is_discovered(&self) -> bool {
+        self.status == RecursiveWorldRevisionAbstractionCompositionDiscoveryStatus::Discovered
+    }
+
+    pub fn realized_observation(&self) -> Option<&RecursiveWorldRevisionDiscoveryObservation> {
+        self.realization.realized_observation()
+    }
+
+    pub fn replacement(&self) -> Option<&athlesia_recursive_world_model::RecursiveWorldRule> {
+        self.hypothesis
+            .as_ref()
+            .map(|hypothesis| hypothesis.replacement())
+    }
+
+    pub fn selection(&self) -> &RecursiveWorldRevisionAbstractionCompositionPathSelection {
+        self.realization.selection()
+    }
+
+    pub fn path(&self) -> &RecursiveWorldRevisionAbstractionCompositionPath {
+        self.realization.path()
+    }
+
+    pub fn minimum_support(&self) -> usize {
+        self.realization.minimum_support()
+    }
+
+    pub fn application_observations(&self) -> &[RecursiveWorldRevisionDiscoveryObservation] {
+        self.realization.application_observations()
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct RecursiveWorldRevisionAbstractionCompositionDiscoveryBuilder;
+
+impl RecursiveWorldRevisionAbstractionCompositionDiscoveryBuilder {
+    pub fn discover(
+        target: athlesia_recursive_world_model::RecursiveWorldRule,
+        selection: RecursiveWorldRevisionAbstractionCompositionPathSelection,
+        application_observations: Vec<RecursiveWorldRevisionDiscoveryObservation>,
+    ) -> RecursiveWorldRevisionAbstractionCompositionDiscoveryBridge {
+        RecursiveWorldRevisionAbstractionCompositionDiscoveryBridge::discover(
+            target,
+            selection,
+            application_observations,
+        )
+    }
+}
