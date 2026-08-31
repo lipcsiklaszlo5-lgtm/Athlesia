@@ -114,10 +114,11 @@
     "crates/athlesia_recursive_world_model_revision_discovery/tests/recursive_world_model_revision_discovery_validation.rs": "91b3d3c978bfdca3039abcb5d4e4e17542f1291fd2bba26fbb797475213e7a50",
     "crates/athlesia_recursive_world_model_revision_generalization/Cargo.lock": "21a1996dfc07540c7e57293be140f5b8e9c84b857a636bf065f3aeafbe0f561a",
     "crates/athlesia_recursive_world_model_revision_generalization/Cargo.toml": "798af1902974776e2c2664de39fbe0f828ad7ef2c9c5071e133ef092afa36cd1",
-    "crates/athlesia_recursive_world_model_revision_generalization/src/lib.rs": "7be0b30286b26984ff2614f63856ca328143cfe45d146f9068b3b540fb195443",
+    "crates/athlesia_recursive_world_model_revision_generalization/src/lib.rs": "91fafbd5279d1c456ebee21df5fbd6c32136476c4b78b0e8b7df2f5889911688",
     "crates/athlesia_recursive_world_model_revision_generalization/tests/recursive_world_model_revision_generalization_discovery_bridge.rs": "c4b581fe4df08758030d386aae242d74072e4045d1e868598dcc56d263c9fb0f",
     "crates/athlesia_recursive_world_model_revision_generalization/tests/recursive_world_model_revision_generalization_evidence_scope.rs": "9d7c3493ad02cbdd018b3aa22dc1e528b41b55bf48974a0df502c261d33ee0e8",
     "crates/athlesia_recursive_world_model_revision_generalization/tests/recursive_world_model_revision_generalization_foundation.rs": "990da5b00da0f807d3728895cfdf5414811dbae9d0dedc32bc6a790ebbb55284",
+    "crates/athlesia_recursive_world_model_revision_generalization/tests/recursive_world_model_revision_generalization_revision_cycle.rs": "795ca4e001192476dc49b90df64417806948f476dd6c7612298735a48325be58",
     "crates/athlesia_recursive_world_model_revision_generalization/tests/recursive_world_model_revision_generalization_validation.rs": "d9b8ad475326e921f87a1fe99889ff855fc3d85b1da1c1f475843b11179c6714",
     "crates/athlesia_recursive_world_model_revision_generation/Cargo.lock": "e13dca42f13645eccbaf6d14eca13efb5e58ff610574574b0c8757bfb475ee09",
     "crates/athlesia_recursive_world_model_revision_generation/Cargo.toml": "dae9cdb1130e0f7fca6750ca89b32ca264f9409a18f08c1c5ab5d6bd9b938b3c",
@@ -346,7 +347,8 @@
       "module_39_recursive_world_model_revision_generalization_foundation",
       "module_39_recursive_world_model_revision_generalization_discovery_bridge",
       "module_39_recursive_world_model_revision_generalization_validation",
-      "module_39_recursive_world_model_revision_generalization_evidence_scope"
+      "module_39_recursive_world_model_revision_generalization_evidence_scope",
+      "module_39_recursive_world_model_revision_generalization_revision_cycle"
     ],
     "module_23_integrity": {
       "status": "pass",
@@ -359,8 +361,8 @@
       "status": "frozen",
       "verifier": "tools/verify_module_23_parity.py"
     },
-    "next_layer": "module_39_recursive_world_model_revision_generalization_revision_cycle",
-    "stage": "module_39_recursive_world_model_revision_generalization_evidence_scope",
+    "next_layer": "module_39_recursive_world_model_revision_generalization_freeze",
+    "stage": "module_39_recursive_world_model_revision_generalization_revision_cycle",
     "status": "validated"
   },
   "validated_invariants": [
@@ -1513,6 +1515,18 @@
     "recursive_world_revision_generalization_evidence_scope_support_provenance",
     "recursive_world_revision_generalization_evidence_scope_unit_support_identity",
     "recursive_world_revision_generalization_evidence_scope_m37_identity",
-    "recursive_world_revision_generalization_evidence_scope_determinism_non_mutation"
+    "recursive_world_revision_generalization_evidence_scope_determinism_non_mutation",
+    "recursive_world_revision_generalization_cycle_discovery_unavailable_guard",
+    "recursive_world_revision_generalization_cycle_rejection_guard",
+    "recursive_world_revision_generalization_cycle_no_evidence_guard",
+    "recursive_world_revision_generalization_cycle_confirming_guard",
+    "recursive_world_revision_generalization_cycle_balanced_guard",
+    "recursive_world_revision_generalization_cycle_negative_revision",
+    "recursive_world_revision_generalization_cycle_budget_guard",
+    "recursive_world_revision_generalization_cycle_target_pressure_guard",
+    "recursive_world_revision_generalization_cycle_hypothesis_identity",
+    "recursive_world_revision_generalization_cycle_threshold_support_identity",
+    "recursive_world_revision_generalization_cycle_support_provenance",
+    "recursive_world_revision_generalization_cycle_determinism_non_mutation"
   ]
 }
