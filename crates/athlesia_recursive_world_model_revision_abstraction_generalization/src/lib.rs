@@ -854,3 +854,149 @@ impl RecursiveWorldRevisionAbstractionGeneralizationConsensusBuilder {
         )
     }
 }
+
+use athlesia_recursive_world_model_revision_abstraction::{
+    RecursiveWorldRevisionAbstractionRealization,
+    RecursiveWorldRevisionAbstractionRealizationStatus,
+};
+
+use athlesia_recursive_world_model_revision_discovery::RecursiveWorldRevisionDiscoveryObservation;
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd)]
+pub enum RecursiveWorldRevisionAbstractionGeneralizationRealizationStatus {
+    ConsensusUnavailable,
+    Ambiguous,
+    Deterministic,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct RecursiveWorldRevisionAbstractionGeneralizationRealizationBridge {
+    consensus_bridge: RecursiveWorldRevisionAbstractionGeneralizationConsensusBridge,
+    realization: Option<RecursiveWorldRevisionAbstractionRealization>,
+    status: RecursiveWorldRevisionAbstractionGeneralizationRealizationStatus,
+}
+
+impl RecursiveWorldRevisionAbstractionGeneralizationRealizationBridge {
+    pub fn realize(
+        source: RecursiveWorldRevisionAbstractionGeneralizedClassSet,
+        application_observations: RecursiveWorldRevisionInductionObservationSet,
+    ) -> Self {
+        let consensus_bridge =
+            RecursiveWorldRevisionAbstractionGeneralizationConsensusBridge::derive(
+                source,
+                application_observations,
+            );
+
+        let Some(consensus) = consensus_bridge.consensus().cloned() else {
+            return Self {
+                consensus_bridge,
+                realization: None,
+                status:
+                    RecursiveWorldRevisionAbstractionGeneralizationRealizationStatus::
+                        ConsensusUnavailable,
+            };
+        };
+
+        let realization = RecursiveWorldRevisionAbstractionRealization::realize(consensus);
+
+        let status = match realization.status() {
+            RecursiveWorldRevisionAbstractionRealizationStatus::Ambiguous => {
+                RecursiveWorldRevisionAbstractionGeneralizationRealizationStatus::Ambiguous
+            }
+
+            RecursiveWorldRevisionAbstractionRealizationStatus::Deterministic => {
+                RecursiveWorldRevisionAbstractionGeneralizationRealizationStatus::Deterministic
+            }
+        };
+
+        Self {
+            consensus_bridge,
+            realization: Some(realization),
+            status,
+        }
+    }
+
+    pub fn consensus_bridge(
+        &self,
+    ) -> &RecursiveWorldRevisionAbstractionGeneralizationConsensusBridge {
+        &self.consensus_bridge
+    }
+
+    pub fn realization(&self) -> Option<&RecursiveWorldRevisionAbstractionRealization> {
+        self.realization.as_ref()
+    }
+
+    pub fn status(&self) -> RecursiveWorldRevisionAbstractionGeneralizationRealizationStatus {
+        self.status
+    }
+
+    pub fn is_ambiguous(&self) -> bool {
+        self.status == RecursiveWorldRevisionAbstractionGeneralizationRealizationStatus::Ambiguous
+    }
+
+    pub fn is_deterministic(&self) -> bool {
+        self.status
+            == RecursiveWorldRevisionAbstractionGeneralizationRealizationStatus::Deterministic
+    }
+
+    pub fn realized_observation(&self) -> Option<&RecursiveWorldRevisionDiscoveryObservation> {
+        self.realization
+            .as_ref()
+            .and_then(RecursiveWorldRevisionAbstractionRealization::realized_observation)
+    }
+
+    pub fn consensus(&self) -> Option<&RecursiveWorldRevisionAbstractionConsensus> {
+        self.consensus_bridge.consensus()
+    }
+
+    pub fn generalized_source(&self) -> &RecursiveWorldRevisionAbstractionGeneralizedClassSet {
+        self.consensus_bridge.generalized_source()
+    }
+
+    pub fn application_observations(&self) -> &RecursiveWorldRevisionInductionObservationSet {
+        self.consensus_bridge.application_observations()
+    }
+
+    pub fn vocabulary(&self) -> Option<&RecursiveWorldRevisionAbstractionVocabulary> {
+        self.consensus_bridge.vocabulary()
+    }
+
+    pub fn premise_witnesses(
+        &self,
+        class: &RecursiveWorldRevisionAbstractionClass,
+    ) -> &[RecursiveUnit] {
+        self.realization
+            .as_ref()
+            .map(|realization| realization.premise_witnesses(class))
+            .unwrap_or(&[])
+    }
+
+    pub fn conclusion_witnesses(
+        &self,
+        class: &RecursiveWorldRevisionAbstractionClass,
+    ) -> &[RecursiveUnit] {
+        self.realization
+            .as_ref()
+            .map(|realization| realization.conclusion_witnesses(class))
+            .unwrap_or(&[])
+    }
+
+    pub fn conflicts(&self) -> &[RecursiveWorldRevisionAbstractionGeneralizationConflict] {
+        self.consensus_bridge.conflicts()
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct RecursiveWorldRevisionAbstractionGeneralizationRealizer;
+
+impl RecursiveWorldRevisionAbstractionGeneralizationRealizer {
+    pub fn realize(
+        source: RecursiveWorldRevisionAbstractionGeneralizedClassSet,
+        application_observations: RecursiveWorldRevisionInductionObservationSet,
+    ) -> RecursiveWorldRevisionAbstractionGeneralizationRealizationBridge {
+        RecursiveWorldRevisionAbstractionGeneralizationRealizationBridge::realize(
+            source,
+            application_observations,
+        )
+    }
+}
