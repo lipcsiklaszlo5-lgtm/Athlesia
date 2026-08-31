@@ -1485,3 +1485,233 @@ impl RecursiveWorldRevisionAbstractionGeneralizationEvidenceScoper {
         )
     }
 }
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd)]
+pub enum RecursiveWorldRevisionAbstractionGeneralizationRevisionCycleStatus {
+    DiscoveryUnavailable,
+    Rejected,
+    Inactive,
+    ActiveNoRevision,
+    Revised,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct RecursiveWorldRevisionAbstractionGeneralizationRevisionCycle {
+    evidence_scope:
+        RecursiveWorldRevisionAbstractionGeneralizationEvidenceScope,
+    budget:
+        athlesia_recursive_world_model::RecursiveWorldRevisionBudget,
+    cycle:
+        Option<
+            athlesia_recursive_world_model_revision_discovery::
+                RecursiveWorldRevisionDiscoveryCycleResult,
+        >,
+    status:
+        RecursiveWorldRevisionAbstractionGeneralizationRevisionCycleStatus,
+}
+
+impl RecursiveWorldRevisionAbstractionGeneralizationRevisionCycle {
+    pub fn evaluate(
+        model: RecursiveWorldModel,
+        evidence_state: athlesia_recursive_world_model_evidence::RecursiveWorldEvidenceState,
+        target: RecursiveWorldRule,
+        source: RecursiveWorldRevisionAbstractionGeneralizedClassSet,
+        application_observations: RecursiveWorldRevisionInductionObservationSet,
+        budget: athlesia_recursive_world_model::RecursiveWorldRevisionBudget,
+    ) -> Self {
+        let evidence_scope = RecursiveWorldRevisionAbstractionGeneralizationEvidenceScope::scope(
+            model.clone(),
+            evidence_state.clone(),
+            target,
+            source,
+            application_observations,
+        );
+
+        match evidence_scope.status() {
+            RecursiveWorldRevisionAbstractionGeneralizationEvidenceScopeStatus::
+                DiscoveryUnavailable =>
+            {
+                Self {
+                    evidence_scope,
+                    budget,
+                    cycle: None,
+                    status:
+                        RecursiveWorldRevisionAbstractionGeneralizationRevisionCycleStatus::
+                            DiscoveryUnavailable,
+                }
+            }
+
+            RecursiveWorldRevisionAbstractionGeneralizationEvidenceScopeStatus::
+                Rejected =>
+            {
+                Self {
+                    evidence_scope,
+                    budget,
+                    cycle: None,
+                    status:
+                        RecursiveWorldRevisionAbstractionGeneralizationRevisionCycleStatus::
+                            Rejected,
+                }
+            }
+
+            RecursiveWorldRevisionAbstractionGeneralizationEvidenceScopeStatus::
+                Inactive
+            |
+            RecursiveWorldRevisionAbstractionGeneralizationEvidenceScopeStatus::
+                Active =>
+            {
+                let hypothesis =
+                    evidence_scope
+                        .validation()
+                        .accepted_hypothesis()
+                        .cloned()
+                        .expect(
+                            "accepted generalized abstraction evidence scope must preserve hypothesis"
+                        );
+
+                let hypothesis_set =
+                    athlesia_recursive_world_model_revision_discovery::
+                        RecursiveWorldRevisionDiscoveryHypothesisSet::new(
+                            vec![
+                                hypothesis,
+                            ],
+                        );
+
+                let cycle =
+                    athlesia_recursive_world_model_revision_discovery::RecursiveWorldRevisionDiscoveryCycle::evaluate(
+                    &model,
+                    &evidence_state,
+                    hypothesis_set,
+                    budget,
+                );
+
+                let status =
+                    match evidence_scope.status() {
+                        RecursiveWorldRevisionAbstractionGeneralizationEvidenceScopeStatus::
+                            Inactive =>
+                        {
+                            RecursiveWorldRevisionAbstractionGeneralizationRevisionCycleStatus::
+                                Inactive
+                        }
+
+                        RecursiveWorldRevisionAbstractionGeneralizationEvidenceScopeStatus::
+                            Active =>
+                        {
+                            if cycle.has_revision() {
+                                RecursiveWorldRevisionAbstractionGeneralizationRevisionCycleStatus::
+                                    Revised
+                            } else {
+                                RecursiveWorldRevisionAbstractionGeneralizationRevisionCycleStatus::
+                                    ActiveNoRevision
+                            }
+                        }
+
+                        RecursiveWorldRevisionAbstractionGeneralizationEvidenceScopeStatus::
+                            DiscoveryUnavailable
+                        |
+                        RecursiveWorldRevisionAbstractionGeneralizationEvidenceScopeStatus::
+                            Rejected =>
+                        {
+                            unreachable!(
+                                "generalized abstraction evidence scope changed during cycle evaluation"
+                            )
+                        }
+                    };
+
+                Self {
+                    evidence_scope,
+                    budget,
+                    cycle:
+                        Some(
+                            cycle,
+                        ),
+                    status,
+                }
+            }
+        }
+    }
+
+    pub fn evidence_scope(&self) -> &RecursiveWorldRevisionAbstractionGeneralizationEvidenceScope {
+        &self.evidence_scope
+    }
+
+    pub fn budget(&self) -> &athlesia_recursive_world_model::RecursiveWorldRevisionBudget {
+        &self.budget
+    }
+
+    pub fn cycle_result(
+        &self,
+    ) -> Option<
+        &athlesia_recursive_world_model_revision_discovery::
+            RecursiveWorldRevisionDiscoveryCycleResult,
+    >{
+        self.cycle.as_ref()
+    }
+
+    pub fn status(&self) -> RecursiveWorldRevisionAbstractionGeneralizationRevisionCycleStatus {
+        self.status
+    }
+
+    pub fn has_revision(&self) -> bool {
+        self.cycle
+            .as_ref()
+            .is_some_and(|cycle| cycle.has_revision())
+    }
+
+    pub fn is_revised(&self) -> bool {
+        self.status == RecursiveWorldRevisionAbstractionGeneralizationRevisionCycleStatus::Revised
+    }
+
+    pub fn revised_world(&self) -> Option<&RecursiveWorldModel> {
+        self.cycle.as_ref().and_then(|cycle| cycle.revised_world())
+    }
+
+    pub fn target(&self) -> &RecursiveWorldRule {
+        self.evidence_scope.target()
+    }
+
+    pub fn hypothesis(&self) -> Option<&RecursiveWorldRevisionDiscoveryHypothesis> {
+        self.evidence_scope.hypothesis()
+    }
+
+    pub fn replacement(&self) -> Option<&RecursiveWorldRule> {
+        self.evidence_scope.replacement()
+    }
+
+    pub fn generalized_source(&self) -> &RecursiveWorldRevisionAbstractionGeneralizedClassSet {
+        self.evidence_scope.generalized_source()
+    }
+
+    pub fn application_observations(&self) -> &RecursiveWorldRevisionInductionObservationSet {
+        self.evidence_scope.application_observations()
+    }
+
+    pub fn evidence_state(
+        &self,
+    ) -> &athlesia_recursive_world_model_evidence::RecursiveWorldEvidenceState {
+        self.evidence_scope.evidence_state()
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct RecursiveWorldRevisionAbstractionGeneralizationRevisionCycler;
+
+impl RecursiveWorldRevisionAbstractionGeneralizationRevisionCycler {
+    pub fn evaluate(
+        model: RecursiveWorldModel,
+        evidence_state: athlesia_recursive_world_model_evidence::RecursiveWorldEvidenceState,
+        target: RecursiveWorldRule,
+        source: RecursiveWorldRevisionAbstractionGeneralizedClassSet,
+        application_observations: RecursiveWorldRevisionInductionObservationSet,
+        budget: athlesia_recursive_world_model::RecursiveWorldRevisionBudget,
+    ) -> RecursiveWorldRevisionAbstractionGeneralizationRevisionCycle {
+        RecursiveWorldRevisionAbstractionGeneralizationRevisionCycle::evaluate(
+            model,
+            evidence_state,
+            target,
+            source,
+            application_observations,
+            budget,
+        )
+    }
+}
