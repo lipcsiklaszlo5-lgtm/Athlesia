@@ -331,3 +331,83 @@ impl RecursiveWorldEvidenceRanking {
         self.assessments.first()
     }
 }
+
+use athlesia_recursive_world_model::RecursiveWorldMinimalRevision;
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct RecursiveWorldEvidenceRevisionBridge {
+    pressure: Option<RecursiveWorldEvidenceAssessment>,
+    candidates: Vec<RecursiveWorldMinimalRevision>,
+}
+
+impl RecursiveWorldEvidenceRevisionBridge {
+    pub fn new(
+        ranking: &RecursiveWorldEvidenceRanking,
+        revisions: Vec<RecursiveWorldMinimalRevision>,
+    ) -> Self {
+        let pressure = ranking
+            .highest_revision_pressure()
+            .filter(|assessment| assessment.balance() < 0)
+            .cloned();
+
+        let mut candidates = match pressure.as_ref() {
+            Some(assessment) => revisions
+                .into_iter()
+                .filter(|revision| revision.target() == assessment.rule())
+                .collect(),
+
+            None => Vec::new(),
+        };
+
+        candidates.sort_by(|left, right| {
+            left.target()
+                .cmp(right.target())
+                .then_with(|| left.replacement().cmp(right.replacement()))
+        });
+
+        candidates.dedup();
+
+        Self {
+            pressure,
+            candidates,
+        }
+    }
+
+    pub fn pressure(&self) -> Option<&RecursiveWorldEvidenceAssessment> {
+        self.pressure.as_ref()
+    }
+
+    pub fn pressured_rule(&self) -> Option<&RecursiveWorldRule> {
+        self.pressure().map(|assessment| assessment.rule())
+    }
+
+    pub fn candidates(&self) -> &[RecursiveWorldMinimalRevision] {
+        &self.candidates
+    }
+
+    pub fn len(&self) -> usize {
+        self.candidates.len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.candidates.is_empty()
+    }
+
+    pub fn has_negative_pressure(&self) -> bool {
+        self.pressure
+            .as_ref()
+            .is_some_and(|assessment| assessment.balance() < 0)
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct RecursiveWorldEvidenceRevisionBridgeBuilder;
+
+impl RecursiveWorldEvidenceRevisionBridgeBuilder {
+    pub fn build(
+        ranking: &RecursiveWorldEvidenceRanking,
+        revisions: Vec<RecursiveWorldMinimalRevision>,
+    ) -> RecursiveWorldEvidenceRevisionBridge {
+        RecursiveWorldEvidenceRevisionBridge::new(ranking, revisions)
+    }
+}
