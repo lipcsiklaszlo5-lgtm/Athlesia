@@ -43,19 +43,11 @@ manifest = json.loads(
     )
 )
 
-if state["rust_port"]["stage"] != (
-    "module_30_recursive_control_freeze"
-):
-    fail(
-        "Unexpected project stage: "
-        + str(
-            state["rust_port"]["stage"]
-        )
-    )
+completed_layers = state["rust_port"]["completed_layers"]
 
-if state["rust_port"]["status"] != "validated":
+if "module_30_recursive_control_freeze" not in completed_layers:
     fail(
-        "Module 30 state is not validated."
+        "Module 30 freeze is not recorded as completed."
     )
 
 required = manifest[

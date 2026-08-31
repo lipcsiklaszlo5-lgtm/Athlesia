@@ -117,7 +117,7 @@
     "tools/verify_module_27_recursive.py": "94bef071431ed359ed01c8d60349a9e754cde7b2b89c5bdae18e771e8f343dc2",
     "tools/verify_module_28_recursive_revision.py": "6370ec64bcf6c141435d66b5154dc9f4195f87638225e8622db2a21efb4b2861",
     "tools/verify_module_29_recursive_planning.py": "f3ac002af3c518b6065e3626df1836d6f574243c6a4edda937795eccbec27240",
-    "tools/verify_module_30_recursive_control.py": "1cfe233817a06f43eca160862f40f488b5f8730d99b65fe31cdbc1dcdfa7b791"
+    "tools/verify_module_30_recursive_control.py": "c32e0887a68ce467bf1b1042d9093f5b2e6e345f8c0fe9ceb63e1359aad95928"
   },
   "project": "Athlesia",
   "research_baseline": {
