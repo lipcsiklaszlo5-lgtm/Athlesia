@@ -183,3 +183,116 @@ impl RecursiveWorldContradictionSet {
             .count()
     }
 }
+
+#[derive(Clone, Debug, Eq, PartialEq, Ord, PartialOrd)]
+pub struct RecursiveWorldDependencyEdge {
+    source: RecursiveWorldRule,
+    target: RecursiveWorldRule,
+}
+
+impl RecursiveWorldDependencyEdge {
+    pub fn new(source: RecursiveWorldRule, target: RecursiveWorldRule) -> Option<Self> {
+        if source == target {
+            return None;
+        }
+
+        let depends = source
+            .conclusions()
+            .iter()
+            .any(|unit| target.contains_premise(unit));
+
+        if !depends {
+            return None;
+        }
+
+        Some(Self { source, target })
+    }
+
+    pub fn source(&self) -> &RecursiveWorldRule {
+        &self.source
+    }
+
+    pub fn target(&self) -> &RecursiveWorldRule {
+        &self.target
+    }
+
+    pub fn shared_units(&self) -> Vec<RecursiveUnit> {
+        self.source
+            .conclusions()
+            .iter()
+            .filter(|unit| self.target.contains_premise(unit))
+            .cloned()
+            .collect()
+    }
+}
+
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
+pub struct RecursiveWorldDependencyGraph {
+    edges: Vec<RecursiveWorldDependencyEdge>,
+}
+
+impl RecursiveWorldDependencyGraph {
+    pub fn detect(model: &RecursiveWorldModel) -> Self {
+        let rules = model.rules();
+
+        let mut edges = Vec::new();
+
+        for source_index in 0..rules.len() {
+            for target_index in 0..rules.len() {
+                if source_index == target_index {
+                    continue;
+                }
+
+                if let Some(edge) = RecursiveWorldDependencyEdge::new(
+                    rules[source_index].clone(),
+                    rules[target_index].clone(),
+                ) {
+                    edges.push(edge);
+                }
+            }
+        }
+
+        edges.sort();
+        edges.dedup();
+
+        Self { edges }
+    }
+
+    pub fn edges(&self) -> &[RecursiveWorldDependencyEdge] {
+        &self.edges
+    }
+
+    pub fn len(&self) -> usize {
+        self.edges.len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.edges.is_empty()
+    }
+
+    pub fn contains(&self, edge: &RecursiveWorldDependencyEdge) -> bool {
+        self.edges.binary_search(edge).is_ok()
+    }
+
+    pub fn outgoing_count(&self, rule: &RecursiveWorldRule) -> usize {
+        self.edges
+            .iter()
+            .filter(|edge| edge.source() == rule)
+            .count()
+    }
+
+    pub fn incoming_count(&self, rule: &RecursiveWorldRule) -> usize {
+        self.edges
+            .iter()
+            .filter(|edge| edge.target() == rule)
+            .count()
+    }
+
+    pub fn direct_dependents(&self, rule: &RecursiveWorldRule) -> Vec<RecursiveWorldRule> {
+        self.edges
+            .iter()
+            .filter(|edge| edge.source() == rule)
+            .map(|edge| edge.target().clone())
+            .collect()
+    }
+}
