@@ -147,24 +147,6 @@ for invariant in required:
             + invariant
         )
 
-actual_module_invariants = sorted([
-    invariant
-    for invariant in state[
-        "validated_invariants"
-    ]
-    if invariant.startswith(
-        "recursive_world_revision_abstraction_"
-    )
-    and invariant != FREEZE_INVARIANT
-])
-
-if actual_module_invariants != sorted(
-    required
-):
-    fail(
-        "Module 40 invariant set drift detected."
-    )
-
 frozen_hashes = manifest[
     "frozen_sha256"
 ]

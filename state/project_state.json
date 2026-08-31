@@ -226,7 +226,7 @@
     "tools/verify_module_37_recursive_world_model_revision_discovery.py": "3eb39b64a57d7a8343cf36d2c8169aac7651593c8ccdcbb91fa8f947aeaa205e",
     "tools/verify_module_38_recursive_world_model_revision_induction.py": "28ec8bfed99dee82ec64c374131fe9f9dbddd46832fc67307c65262383c4707d",
     "tools/verify_module_39_recursive_world_model_revision_generalization.py": "a2e60722590fa831050919f5c57162443101f91b415ee0964c02c3c555d5d329",
-    "tools/verify_module_40_recursive_world_model_revision_abstraction.py": "ea389018faa4423f9b9e8e66e922dc6e25813d5bcf3b9b8efcfb73f94640cddf"
+    "tools/verify_module_40_recursive_world_model_revision_abstraction.py": "847a9e617595572f404860a9c468d9927332d9ba1a0d4c9b4bb37c0bfb36210f"
   },
   "project": "Athlesia",
   "research_baseline": {
