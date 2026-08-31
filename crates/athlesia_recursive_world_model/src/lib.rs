@@ -552,3 +552,53 @@ impl RecursiveWorldCostedRevision {
         self.cost.total()
     }
 }
+
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
+pub struct RecursiveWorldRevisionRanking {
+    revisions: Vec<RecursiveWorldCostedRevision>,
+}
+
+impl RecursiveWorldRevisionRanking {
+    pub fn new(mut revisions: Vec<RecursiveWorldCostedRevision>) -> Self {
+        revisions.sort_by(|left, right| {
+            left.total_cost()
+                .cmp(&right.total_cost())
+                .then_with(|| {
+                    left.cost()
+                        .dependency_impact_cost()
+                        .cmp(&right.cost().dependency_impact_cost())
+                })
+                .then_with(|| {
+                    left.cost()
+                        .structural_delta_cost()
+                        .cmp(&right.cost().structural_delta_cost())
+                })
+                .then_with(|| left.revision().target().cmp(right.revision().target()))
+                .then_with(|| {
+                    left.revision()
+                        .replacement()
+                        .cmp(right.revision().replacement())
+                })
+        });
+
+        revisions.dedup();
+
+        Self { revisions }
+    }
+
+    pub fn revisions(&self) -> &[RecursiveWorldCostedRevision] {
+        &self.revisions
+    }
+
+    pub fn len(&self) -> usize {
+        self.revisions.len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.revisions.is_empty()
+    }
+
+    pub fn best(&self) -> Option<&RecursiveWorldCostedRevision> {
+        self.revisions.first()
+    }
+}

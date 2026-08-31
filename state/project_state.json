@@ -85,13 +85,14 @@
     "crates/athlesia_recursive_revision/tests/recursive_revision_policy.rs": "7a4607b5bc0a0eb02ec9cfa6cb391a148d73f27010875cf3b4dcf79a73ed162b",
     "crates/athlesia_recursive_world_model/Cargo.lock": "fe0d547bc93f412a90840316fb2456f19b92514e5f94c5d4cca847bda72376e1",
     "crates/athlesia_recursive_world_model/Cargo.toml": "5ce3bb56735c79a2c235299f37472d61972244e5576acf841b79cac7a5d50b5c",
-    "crates/athlesia_recursive_world_model/src/lib.rs": "e08d00539ee82719ac9554d24ce0d45ca2832714dfa2598fa5311c27e3d1fe45",
+    "crates/athlesia_recursive_world_model/src/lib.rs": "1b0ffc1e939f9040513574f498c0c1634babe381fb358b753b6d4bf3e9452365",
     "crates/athlesia_recursive_world_model/tests/recursive_world_model_contradiction_detection.rs": "225c4cf4bb9422968c3ba338d7835a1246c8b7c459b7e9e5a78753b7986ba448",
     "crates/athlesia_recursive_world_model/tests/recursive_world_model_dependency_cone.rs": "3b955208e4560a4c5097d69b56070a648cdabcf356e9d3ad082fcd3afb666273",
     "crates/athlesia_recursive_world_model/tests/recursive_world_model_dependency_graph.rs": "5f78664e5c2257ea3f3d920304e218c2df0ca4151ea091bd29236ff191aa405c",
     "crates/athlesia_recursive_world_model/tests/recursive_world_model_foundation.rs": "08b5f5dbcb24ad629b09aead67e18ef2ad26289a3af4b3e87762bba82bf630af",
     "crates/athlesia_recursive_world_model/tests/recursive_world_model_minimal_revision.rs": "1b680e30c40b1a796c25a62399ad4b9ab98c1ed1ae5831994e3fc03c854852b7",
     "crates/athlesia_recursive_world_model/tests/recursive_world_model_revision_cost.rs": "74e25722ad0501ea8bacc93f3c9d70f43a5ef5e366678e6882780093129750ce",
+    "crates/athlesia_recursive_world_model/tests/recursive_world_model_revision_ranking.rs": "6fc4b8a1dc3c46a356106321a34b8efb4bbc339b4d144c357f39ad3b92da2b22",
     "crates/athlesia_revision/Cargo.toml": "5d86f3c6ebd51f093e03c171df1520526f4e9da298cb07cd04123191f4b0f814",
     "crates/athlesia_revision/src/lib.rs": "a688ddd7a219ab78fb699658cf16c7a52b39fffb81a2b7f11f26f8083a0e9a2d",
     "crates/athlesia_revision/tests/competing_models.rs": "3bba71b5e7d33259583e409cd54100cca885f472aded81f3da1f5bab1e3e75c9",
@@ -244,7 +245,8 @@
       "module_33_recursive_world_model_dependency_graph",
       "module_33_recursive_world_model_dependency_cone",
       "module_33_recursive_world_model_minimal_revision",
-      "module_33_recursive_world_model_revision_cost"
+      "module_33_recursive_world_model_revision_cost",
+      "module_33_recursive_world_model_revision_ranking"
     ],
     "module_23_integrity": {
       "status": "pass",
@@ -257,8 +259,8 @@
       "status": "frozen",
       "verifier": "tools/verify_module_23_parity.py"
     },
-    "next_layer": "module_33_recursive_world_model_revision_ranking",
-    "stage": "module_33_recursive_world_model_revision_cost",
+    "next_layer": "module_33_recursive_world_model_revision_selector",
+    "stage": "module_33_recursive_world_model_revision_ranking",
     "status": "validated"
   },
   "validated_invariants": [
@@ -1009,6 +1011,18 @@
     "recursive_world_model_cost_total_component_sum",
     "recursive_world_model_cost_revision_identity",
     "recursive_world_model_cost_determinism",
-    "recursive_world_model_cost_non_mutation"
+    "recursive_world_model_cost_non_mutation",
+    "recursive_world_model_ranking_empty_identity",
+    "recursive_world_model_ranking_single_best",
+    "recursive_world_model_ranking_total_cost_priority",
+    "recursive_world_model_ranking_dependency_tiebreak",
+    "recursive_world_model_ranking_structural_tiebreak",
+    "recursive_world_model_ranking_identity_tiebreak",
+    "recursive_world_model_ranking_deduplication",
+    "recursive_world_model_ranking_distinct_preservation",
+    "recursive_world_model_ranking_total_cost_monotonicity",
+    "recursive_world_model_ranking_input_order_determinism",
+    "recursive_world_model_ranking_revision_identity",
+    "recursive_world_model_ranking_non_mutation"
   ]
 }
