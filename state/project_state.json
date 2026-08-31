@@ -85,8 +85,9 @@
     "crates/athlesia_recursive_revision/tests/recursive_revision_policy.rs": "7a4607b5bc0a0eb02ec9cfa6cb391a148d73f27010875cf3b4dcf79a73ed162b",
     "crates/athlesia_recursive_world_model/Cargo.lock": "fe0d547bc93f412a90840316fb2456f19b92514e5f94c5d4cca847bda72376e1",
     "crates/athlesia_recursive_world_model/Cargo.toml": "5ce3bb56735c79a2c235299f37472d61972244e5576acf841b79cac7a5d50b5c",
-    "crates/athlesia_recursive_world_model/src/lib.rs": "65cffb0e0a697477a403f68fdd33c1f6d2931f54ce8215a201532931bcc4544e",
+    "crates/athlesia_recursive_world_model/src/lib.rs": "34e09842fe961f4be1ee05386a212aa7c155bd56666536cb4777c31c98c70ab6",
     "crates/athlesia_recursive_world_model/tests/recursive_world_model_contradiction_detection.rs": "225c4cf4bb9422968c3ba338d7835a1246c8b7c459b7e9e5a78753b7986ba448",
+    "crates/athlesia_recursive_world_model/tests/recursive_world_model_dependency_cone.rs": "3b955208e4560a4c5097d69b56070a648cdabcf356e9d3ad082fcd3afb666273",
     "crates/athlesia_recursive_world_model/tests/recursive_world_model_dependency_graph.rs": "5f78664e5c2257ea3f3d920304e218c2df0ca4151ea091bd29236ff191aa405c",
     "crates/athlesia_recursive_world_model/tests/recursive_world_model_foundation.rs": "08b5f5dbcb24ad629b09aead67e18ef2ad26289a3af4b3e87762bba82bf630af",
     "crates/athlesia_revision/Cargo.toml": "5d86f3c6ebd51f093e03c171df1520526f4e9da298cb07cd04123191f4b0f814",
@@ -238,7 +239,8 @@
       "module_32_recursive_deliberation_freeze",
       "module_33_recursive_world_model_foundation",
       "module_33_recursive_world_model_contradiction_detection",
-      "module_33_recursive_world_model_dependency_graph"
+      "module_33_recursive_world_model_dependency_graph",
+      "module_33_recursive_world_model_dependency_cone"
     ],
     "module_23_integrity": {
       "status": "pass",
@@ -251,8 +253,8 @@
       "status": "frozen",
       "verifier": "tools/verify_module_23_parity.py"
     },
-    "next_layer": "module_33_recursive_world_model_dependency_cone",
-    "stage": "module_33_recursive_world_model_dependency_graph",
+    "next_layer": "module_33_recursive_world_model_minimal_revision",
+    "stage": "module_33_recursive_world_model_dependency_cone",
     "status": "validated"
   },
   "validated_invariants": [
@@ -967,6 +969,18 @@
     "recursive_world_model_dependency_fan_out",
     "recursive_world_model_dependency_cycle_preservation",
     "recursive_world_model_dependency_determinism",
-    "recursive_world_model_dependency_non_mutation"
+    "recursive_world_model_dependency_non_mutation",
+    "recursive_world_model_cone_isolated_empty",
+    "recursive_world_model_cone_root_identity",
+    "recursive_world_model_cone_direct_dependency",
+    "recursive_world_model_cone_transitive_dependency",
+    "recursive_world_model_cone_root_exclusion",
+    "recursive_world_model_cone_cycle_safety",
+    "recursive_world_model_cone_fan_out",
+    "recursive_world_model_cone_merge_deduplication",
+    "recursive_world_model_cone_unrelated_exclusion",
+    "recursive_world_model_cone_canonicalization",
+    "recursive_world_model_cone_determinism",
+    "recursive_world_model_cone_non_mutation"
   ]
 }

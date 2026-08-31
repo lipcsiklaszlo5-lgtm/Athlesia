@@ -296,3 +296,70 @@ impl RecursiveWorldDependencyGraph {
             .collect()
     }
 }
+
+use std::collections::BTreeSet;
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct RecursiveWorldDependencyCone {
+    root: RecursiveWorldRule,
+    affected: Vec<RecursiveWorldRule>,
+}
+
+impl RecursiveWorldDependencyCone {
+    pub fn compute(graph: &RecursiveWorldDependencyGraph, root: RecursiveWorldRule) -> Self {
+        let mut visited = BTreeSet::new();
+
+        let mut frontier = graph.direct_dependents(&root);
+
+        frontier.sort();
+        frontier.dedup();
+
+        while let Some(rule) = frontier.pop() {
+            if rule == root {
+                continue;
+            }
+
+            if !visited.insert(rule.clone()) {
+                continue;
+            }
+
+            for dependent in graph.direct_dependents(&rule) {
+                if dependent != root && !visited.contains(&dependent) {
+                    frontier.push(dependent);
+                }
+            }
+
+            frontier.sort();
+            frontier.dedup();
+        }
+
+        Self {
+            root,
+            affected: visited.into_iter().collect(),
+        }
+    }
+
+    pub fn root(&self) -> &RecursiveWorldRule {
+        &self.root
+    }
+
+    pub fn affected(&self) -> &[RecursiveWorldRule] {
+        &self.affected
+    }
+
+    pub fn len(&self) -> usize {
+        self.affected.len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.affected.is_empty()
+    }
+
+    pub fn contains(&self, rule: &RecursiveWorldRule) -> bool {
+        self.affected.binary_search(rule).is_ok()
+    }
+
+    pub fn includes_root(&self) -> bool {
+        self.contains(&self.root)
+    }
+}
