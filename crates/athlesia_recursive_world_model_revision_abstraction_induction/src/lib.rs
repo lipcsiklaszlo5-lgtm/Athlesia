@@ -644,3 +644,148 @@ impl RecursiveWorldRevisionAbstractionVocabularyResolver {
         RecursiveWorldRevisionAbstractionVocabularyResolution::resolve(source)
     }
 }
+
+use athlesia_recursive_world_model_revision_abstraction::RecursiveWorldRevisionAbstractionProjection;
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd)]
+pub enum RecursiveWorldRevisionAbstractionInductionProjectionStatus {
+    SubstitutionUnavailable,
+    InductionUnavailable,
+    VocabularyUnavailable,
+    ProjectionUnavailable,
+    Projected,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct RecursiveWorldRevisionAbstractionInductionProjectionBridge {
+    source_observations: RecursiveWorldRevisionInductionObservationSet,
+    witness_set: Option<RecursiveWorldRevisionAbstractionSubstitutionWitnessSet>,
+    induced_classes: Option<RecursiveWorldRevisionAbstractionInducedClassSet>,
+    resolution: Option<RecursiveWorldRevisionAbstractionVocabularyResolution>,
+    projection: Option<RecursiveWorldRevisionAbstractionProjection>,
+    status: RecursiveWorldRevisionAbstractionInductionProjectionStatus,
+}
+
+impl RecursiveWorldRevisionAbstractionInductionProjectionBridge {
+    pub fn project(source_observations: RecursiveWorldRevisionInductionObservationSet) -> Self {
+        let witness_set = RecursiveWorldRevisionAbstractionSubstitutionWitnessSet::discover(
+            source_observations.clone(),
+        );
+
+        let Some(witness_set_value) = witness_set.clone() else {
+            return Self {
+                source_observations,
+                witness_set: None,
+                induced_classes: None,
+                resolution: None,
+                projection: None,
+                status:
+                    RecursiveWorldRevisionAbstractionInductionProjectionStatus::
+                        SubstitutionUnavailable,
+            };
+        };
+
+        let induced_classes =
+            RecursiveWorldRevisionAbstractionInducedClassSet::induce(witness_set_value);
+
+        let Some(induced_classes_value) = induced_classes.clone() else {
+            return Self {
+                source_observations,
+                witness_set,
+                induced_classes: None,
+                resolution: None,
+                projection: None,
+                status:
+                    RecursiveWorldRevisionAbstractionInductionProjectionStatus::InductionUnavailable,
+            };
+        };
+
+        let resolution =
+            RecursiveWorldRevisionAbstractionVocabularyResolution::resolve(induced_classes_value);
+
+        let Some(vocabulary) = resolution.vocabulary().cloned() else {
+            return Self {
+                source_observations,
+                witness_set,
+                induced_classes,
+                resolution: Some(resolution),
+                projection: None,
+                status:
+                    RecursiveWorldRevisionAbstractionInductionProjectionStatus::
+                        VocabularyUnavailable,
+            };
+        };
+
+        let projection = RecursiveWorldRevisionAbstractionProjection::project(
+            vocabulary,
+            source_observations.clone(),
+        );
+
+        let status = if projection.is_some() {
+            RecursiveWorldRevisionAbstractionInductionProjectionStatus::Projected
+        } else {
+            RecursiveWorldRevisionAbstractionInductionProjectionStatus::ProjectionUnavailable
+        };
+
+        Self {
+            source_observations,
+            witness_set,
+            induced_classes,
+            resolution: Some(resolution),
+            projection,
+            status,
+        }
+    }
+
+    pub fn source_observations(&self) -> &RecursiveWorldRevisionInductionObservationSet {
+        &self.source_observations
+    }
+
+    pub fn witness_set(&self) -> Option<&RecursiveWorldRevisionAbstractionSubstitutionWitnessSet> {
+        self.witness_set.as_ref()
+    }
+
+    pub fn induced_classes(&self) -> Option<&RecursiveWorldRevisionAbstractionInducedClassSet> {
+        self.induced_classes.as_ref()
+    }
+
+    pub fn resolution(&self) -> Option<&RecursiveWorldRevisionAbstractionVocabularyResolution> {
+        self.resolution.as_ref()
+    }
+
+    pub fn projection(&self) -> Option<&RecursiveWorldRevisionAbstractionProjection> {
+        self.projection.as_ref()
+    }
+
+    pub fn status(&self) -> RecursiveWorldRevisionAbstractionInductionProjectionStatus {
+        self.status
+    }
+
+    pub fn is_projected(&self) -> bool {
+        self.status == RecursiveWorldRevisionAbstractionInductionProjectionStatus::Projected
+    }
+
+    pub fn vocabulary(&self) -> Option<&RecursiveWorldRevisionAbstractionVocabulary> {
+        self.resolution
+            .as_ref()
+            .and_then(|resolution| resolution.vocabulary())
+    }
+
+    pub fn conflicts(&self) -> &[RecursiveWorldRevisionAbstractionVocabularyConflict] {
+        self.resolution
+            .as_ref()
+            .map(|resolution| resolution.conflicts())
+            .unwrap_or(&[])
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct RecursiveWorldRevisionAbstractionInductionProjector;
+
+impl RecursiveWorldRevisionAbstractionInductionProjector {
+    pub fn project(
+        source_observations: RecursiveWorldRevisionInductionObservationSet,
+    ) -> RecursiveWorldRevisionAbstractionInductionProjectionBridge {
+        RecursiveWorldRevisionAbstractionInductionProjectionBridge::project(source_observations)
+    }
+}
