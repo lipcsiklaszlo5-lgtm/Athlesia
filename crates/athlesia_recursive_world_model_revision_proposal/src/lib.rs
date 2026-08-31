@@ -317,3 +317,123 @@ impl RecursiveWorldRevisionProposalValidator {
         RecursiveWorldRevisionProposalValidationSet::new(Self::validate_many(model, proposals))
     }
 }
+
+use athlesia_recursive_world_model_evidence::{
+    RecursiveWorldEvidenceAssessment, RecursiveWorldEvidenceRanking,
+};
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct RecursiveWorldRevisionProposalEvidenceScope {
+    pressure: Option<RecursiveWorldEvidenceAssessment>,
+    active: Vec<RecursiveWorldValidatedRevisionProposal>,
+    inactive: Vec<RecursiveWorldValidatedRevisionProposal>,
+    rejected: Vec<RecursiveWorldRejectedRevisionProposal>,
+}
+
+impl RecursiveWorldRevisionProposalEvidenceScope {
+    pub fn new(
+        ranking: &RecursiveWorldEvidenceRanking,
+        validations: &RecursiveWorldRevisionProposalValidationSet,
+    ) -> Self {
+        let pressure = ranking
+            .highest_revision_pressure()
+            .filter(|assessment| assessment.balance() < 0)
+            .cloned();
+
+        let mut active = Vec::new();
+
+        let mut inactive = Vec::new();
+
+        for validated in validations.accepted() {
+            if pressure
+                .as_ref()
+                .is_some_and(|assessment| validated.target() == assessment.rule())
+            {
+                active.push(validated.clone());
+            } else {
+                inactive.push(validated.clone());
+            }
+        }
+
+        let mut rejected = validations.rejected().to_vec();
+
+        active.sort_by(|left, right| left.proposal().cmp(right.proposal()));
+
+        active.dedup_by(|left, right| left.proposal() == right.proposal());
+
+        inactive.sort_by(|left, right| left.proposal().cmp(right.proposal()));
+
+        inactive.dedup_by(|left, right| left.proposal() == right.proposal());
+
+        rejected.sort();
+        rejected.dedup();
+
+        Self {
+            pressure,
+            active,
+            inactive,
+            rejected,
+        }
+    }
+
+    pub fn pressure(&self) -> Option<&RecursiveWorldEvidenceAssessment> {
+        self.pressure.as_ref()
+    }
+
+    pub fn pressured_rule(&self) -> Option<&RecursiveWorldRule> {
+        self.pressure().map(|assessment| assessment.rule())
+    }
+
+    pub fn has_negative_pressure(&self) -> bool {
+        self.pressure
+            .as_ref()
+            .is_some_and(|assessment| assessment.balance() < 0)
+    }
+
+    pub fn active(&self) -> &[RecursiveWorldValidatedRevisionProposal] {
+        &self.active
+    }
+
+    pub fn inactive(&self) -> &[RecursiveWorldValidatedRevisionProposal] {
+        &self.inactive
+    }
+
+    pub fn rejected(&self) -> &[RecursiveWorldRejectedRevisionProposal] {
+        &self.rejected
+    }
+
+    pub fn active_count(&self) -> usize {
+        self.active.len()
+    }
+
+    pub fn inactive_count(&self) -> usize {
+        self.inactive.len()
+    }
+
+    pub fn rejected_count(&self) -> usize {
+        self.rejected.len()
+    }
+
+    pub fn accepted_count(&self) -> usize {
+        self.active.len().saturating_add(self.inactive.len())
+    }
+
+    pub fn active_revisions(&self) -> Vec<RecursiveWorldMinimalRevision> {
+        self.active
+            .iter()
+            .map(|validated| validated.revision().clone())
+            .collect()
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct RecursiveWorldRevisionProposalEvidenceScoper;
+
+impl RecursiveWorldRevisionProposalEvidenceScoper {
+    pub fn scope(
+        ranking: &RecursiveWorldEvidenceRanking,
+        validations: &RecursiveWorldRevisionProposalValidationSet,
+    ) -> RecursiveWorldRevisionProposalEvidenceScope {
+        RecursiveWorldRevisionProposalEvidenceScope::new(ranking, validations)
+    }
+}
