@@ -230,3 +230,208 @@ impl RecursiveWorldRevisionAbstractionSubstitutionDiscoverer {
         RecursiveWorldRevisionAbstractionSubstitutionWitnessSet::discover(observations)
     }
 }
+
+use std::collections::BTreeMap;
+
+impl RecursiveWorldRevisionAbstractionSubstitutionWitnessSet {
+    pub fn new(
+        mut witnesses: Vec<RecursiveWorldRevisionAbstractionSubstitutionWitness>,
+    ) -> Option<Self> {
+        witnesses.sort();
+        witnesses.dedup();
+
+        if witnesses.is_empty() {
+            return None;
+        }
+
+        Some(Self { witnesses })
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Ord, PartialOrd)]
+pub struct RecursiveWorldRevisionAbstractionInductionContext {
+    side: RecursiveWorldRevisionAbstractionInductionSide,
+    shared_units: Vec<RecursiveUnit>,
+    fixed_opposite_units: Vec<RecursiveUnit>,
+}
+
+impl RecursiveWorldRevisionAbstractionInductionContext {
+    pub fn from_witness(witness: &RecursiveWorldRevisionAbstractionSubstitutionWitness) -> Self {
+        Self {
+            side: witness.side(),
+            shared_units: witness.shared_units().to_vec(),
+            fixed_opposite_units: witness.fixed_opposite_units().to_vec(),
+        }
+    }
+
+    pub fn side(&self) -> RecursiveWorldRevisionAbstractionInductionSide {
+        self.side
+    }
+
+    pub fn shared_units(&self) -> &[RecursiveUnit] {
+        &self.shared_units
+    }
+
+    pub fn fixed_opposite_units(&self) -> &[RecursiveUnit] {
+        &self.fixed_opposite_units
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct RecursiveWorldRevisionAbstractionInducedClass {
+    context: RecursiveWorldRevisionAbstractionInductionContext,
+    abstraction_class: RecursiveWorldRevisionAbstractionClass,
+    witnesses: Vec<RecursiveWorldRevisionAbstractionSubstitutionWitness>,
+}
+
+impl RecursiveWorldRevisionAbstractionInducedClass {
+    pub fn context(&self) -> &RecursiveWorldRevisionAbstractionInductionContext {
+        &self.context
+    }
+
+    pub fn abstraction_class(&self) -> &RecursiveWorldRevisionAbstractionClass {
+        &self.abstraction_class
+    }
+
+    pub fn witnesses(&self) -> &[RecursiveWorldRevisionAbstractionSubstitutionWitness] {
+        &self.witnesses
+    }
+
+    pub fn witness_count(&self) -> usize {
+        self.witnesses.len()
+    }
+
+    pub fn side(&self) -> RecursiveWorldRevisionAbstractionInductionSide {
+        self.context.side()
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct RecursiveWorldRevisionAbstractionInducedClassSet {
+    classes: Vec<RecursiveWorldRevisionAbstractionInducedClass>,
+}
+
+impl RecursiveWorldRevisionAbstractionInducedClassSet {
+    pub fn induce(
+        witness_set: RecursiveWorldRevisionAbstractionSubstitutionWitnessSet,
+    ) -> Option<Self> {
+        let mut grouped = BTreeMap::<
+            RecursiveWorldRevisionAbstractionInductionContext,
+            Vec<RecursiveWorldRevisionAbstractionSubstitutionWitness>,
+        >::new();
+
+        for witness in witness_set.witnesses() {
+            let context = RecursiveWorldRevisionAbstractionInductionContext::from_witness(witness);
+
+            grouped.entry(context).or_default().push(witness.clone());
+        }
+
+        let mut classes = Vec::new();
+
+        for (context, mut witnesses) in grouped {
+            witnesses.sort();
+            witnesses.dedup();
+
+            let mut members = BTreeSet::<RecursiveUnit>::new();
+
+            let mut witnessed_pairs = BTreeSet::<(RecursiveUnit, RecursiveUnit)>::new();
+
+            for witness in &witnesses {
+                members.insert(witness.first_unit().clone());
+
+                members.insert(witness.second_unit().clone());
+
+                let mut pair = [witness.first_unit().clone(), witness.second_unit().clone()];
+
+                pair.sort();
+
+                witnessed_pairs.insert((pair[0].clone(), pair[1].clone()));
+            }
+
+            if members.len() < 2 {
+                continue;
+            }
+
+            let member_vec = members.iter().cloned().collect::<Vec<_>>();
+
+            let mut complete = true;
+
+            'pair_check: for left in 0..member_vec.len() {
+                for right in (left + 1)..member_vec.len() {
+                    if !witnessed_pairs
+                        .contains(&(member_vec[left].clone(), member_vec[right].clone()))
+                    {
+                        complete = false;
+                        break 'pair_check;
+                    }
+                }
+            }
+
+            if !complete {
+                continue;
+            }
+
+            let abstraction_class = RecursiveWorldRevisionAbstractionClass::new(member_vec)
+                .expect("complete substitution clique contains at least two distinct units");
+
+            classes.push(RecursiveWorldRevisionAbstractionInducedClass {
+                context,
+                abstraction_class,
+                witnesses,
+            });
+        }
+
+        classes.sort_by(|left, right| {
+            left.context
+                .cmp(&right.context)
+                .then_with(|| left.abstraction_class.cmp(&right.abstraction_class))
+        });
+
+        if classes.is_empty() {
+            return None;
+        }
+
+        Some(Self { classes })
+    }
+
+    pub fn classes(&self) -> &[RecursiveWorldRevisionAbstractionInducedClass] {
+        &self.classes
+    }
+
+    pub fn len(&self) -> usize {
+        self.classes.len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.classes.is_empty()
+    }
+
+    pub fn premise_classes(&self) -> Vec<&RecursiveWorldRevisionAbstractionInducedClass> {
+        self.classes
+            .iter()
+            .filter(|induced| {
+                induced.side() == RecursiveWorldRevisionAbstractionInductionSide::Premise
+            })
+            .collect()
+    }
+
+    pub fn conclusion_classes(&self) -> Vec<&RecursiveWorldRevisionAbstractionInducedClass> {
+        self.classes
+            .iter()
+            .filter(|induced| {
+                induced.side() == RecursiveWorldRevisionAbstractionInductionSide::Conclusion
+            })
+            .collect()
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct RecursiveWorldRevisionAbstractionClassInducer;
+
+impl RecursiveWorldRevisionAbstractionClassInducer {
+    pub fn induce(
+        witness_set: RecursiveWorldRevisionAbstractionSubstitutionWitnessSet,
+    ) -> Option<RecursiveWorldRevisionAbstractionInducedClassSet> {
+        RecursiveWorldRevisionAbstractionInducedClassSet::induce(witness_set)
+    }
+}
