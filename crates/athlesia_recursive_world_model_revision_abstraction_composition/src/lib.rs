@@ -418,3 +418,162 @@ impl RecursiveWorldRevisionAbstractionCompositionPathInducer {
         RecursiveWorldRevisionAbstractionCompositionPathSet::induce(source)
     }
 }
+
+#[derive(Clone, Debug, Eq, PartialEq, Ord, PartialOrd)]
+pub struct RecursiveWorldRevisionAbstractionCompositionPathEdgeSupport {
+    edge: RecursiveWorldRevisionAbstractionCompositionEdge,
+    support_count: usize,
+}
+
+impl RecursiveWorldRevisionAbstractionCompositionPathEdgeSupport {
+    pub fn from_edge(edge: RecursiveWorldRevisionAbstractionCompositionEdge) -> Self {
+        let support_count = edge.support_count();
+
+        Self {
+            edge,
+            support_count,
+        }
+    }
+
+    pub fn edge(&self) -> &RecursiveWorldRevisionAbstractionCompositionEdge {
+        &self.edge
+    }
+
+    pub fn support_count(&self) -> usize {
+        self.support_count
+    }
+
+    pub fn supporting_observations(&self) -> &[RecursiveWorldRevisionDiscoveryObservation] {
+        self.edge.supporting_observations()
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Ord, PartialOrd)]
+pub struct RecursiveWorldRevisionAbstractionCompositionPathSupport {
+    path: RecursiveWorldRevisionAbstractionCompositionPath,
+    edge_supports: Vec<RecursiveWorldRevisionAbstractionCompositionPathEdgeSupport>,
+    minimum_support: usize,
+}
+
+impl RecursiveWorldRevisionAbstractionCompositionPathSupport {
+    pub fn derive(path: RecursiveWorldRevisionAbstractionCompositionPath) -> Self {
+        let edge_supports: Vec<RecursiveWorldRevisionAbstractionCompositionPathEdgeSupport> = path
+            .edges()
+            .iter()
+            .cloned()
+            .map(RecursiveWorldRevisionAbstractionCompositionPathEdgeSupport::from_edge)
+            .collect();
+
+        let minimum_support = edge_supports
+            .iter()
+            .map(RecursiveWorldRevisionAbstractionCompositionPathEdgeSupport::support_count)
+            .min()
+            .expect("composition path contains at least two edges");
+
+        Self {
+            path,
+            edge_supports,
+            minimum_support,
+        }
+    }
+
+    pub fn path(&self) -> &RecursiveWorldRevisionAbstractionCompositionPath {
+        &self.path
+    }
+
+    pub fn edge_supports(&self) -> &[RecursiveWorldRevisionAbstractionCompositionPathEdgeSupport] {
+        &self.edge_supports
+    }
+
+    pub fn minimum_support(&self) -> usize {
+        self.minimum_support
+    }
+
+    pub fn edge_count(&self) -> usize {
+        self.edge_supports.len()
+    }
+
+    pub fn support_for_edge(
+        &self,
+        edge: &RecursiveWorldRevisionAbstractionCompositionEdge,
+    ) -> Option<&RecursiveWorldRevisionAbstractionCompositionPathEdgeSupport> {
+        self.edge_supports
+            .iter()
+            .find(|support| support.edge() == edge)
+    }
+
+    pub fn start(&self) -> &RecursiveWorldRevisionAbstractionClass {
+        self.path.start()
+    }
+
+    pub fn end(&self) -> &RecursiveWorldRevisionAbstractionClass {
+        self.path.end()
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct RecursiveWorldRevisionAbstractionCompositionPathSupportSet {
+    source: RecursiveWorldRevisionAbstractionCompositionPathSet,
+    supports: Vec<RecursiveWorldRevisionAbstractionCompositionPathSupport>,
+}
+
+impl RecursiveWorldRevisionAbstractionCompositionPathSupportSet {
+    pub fn derive(source: RecursiveWorldRevisionAbstractionCompositionPathSet) -> Self {
+        let mut supports: Vec<RecursiveWorldRevisionAbstractionCompositionPathSupport> = source
+            .paths()
+            .iter()
+            .cloned()
+            .map(RecursiveWorldRevisionAbstractionCompositionPathSupport::derive)
+            .collect();
+
+        supports.sort();
+        supports.dedup();
+
+        Self { source, supports }
+    }
+
+    pub fn source(&self) -> &RecursiveWorldRevisionAbstractionCompositionPathSet {
+        &self.source
+    }
+
+    pub fn supports(&self) -> &[RecursiveWorldRevisionAbstractionCompositionPathSupport] {
+        &self.supports
+    }
+
+    pub fn len(&self) -> usize {
+        self.supports.len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.supports.is_empty()
+    }
+
+    pub fn support_for_path(
+        &self,
+        path: &RecursiveWorldRevisionAbstractionCompositionPath,
+    ) -> Option<&RecursiveWorldRevisionAbstractionCompositionPathSupport> {
+        self.supports.iter().find(|support| support.path() == path)
+    }
+
+    pub fn supports_from_to(
+        &self,
+        from: &RecursiveWorldRevisionAbstractionClass,
+        to: &RecursiveWorldRevisionAbstractionClass,
+    ) -> Vec<&RecursiveWorldRevisionAbstractionCompositionPathSupport> {
+        self.supports
+            .iter()
+            .filter(|support| support.start() == from && support.end() == to)
+            .collect()
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct RecursiveWorldRevisionAbstractionCompositionPathSupportDeriver;
+
+impl RecursiveWorldRevisionAbstractionCompositionPathSupportDeriver {
+    pub fn derive(
+        source: RecursiveWorldRevisionAbstractionCompositionPathSet,
+    ) -> RecursiveWorldRevisionAbstractionCompositionPathSupportSet {
+        RecursiveWorldRevisionAbstractionCompositionPathSupportSet::derive(source)
+    }
+}
