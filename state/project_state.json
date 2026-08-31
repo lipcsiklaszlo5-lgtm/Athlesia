@@ -106,10 +106,11 @@
     "crates/athlesia_recursive_world_model_evidence/tests/recursive_world_model_evidence_revision_cycle.rs": "5da0afe2450fcb247a1ca4a9a0706b4472b841f42541a95a7b6fa596a0227089",
     "crates/athlesia_recursive_world_model_revision_generation/Cargo.lock": "e13dca42f13645eccbaf6d14eca13efb5e58ff610574574b0c8757bfb475ee09",
     "crates/athlesia_recursive_world_model_revision_generation/Cargo.toml": "dae9cdb1130e0f7fca6750ca89b32ca264f9409a18f08c1c5ab5d6bd9b938b3c",
-    "crates/athlesia_recursive_world_model_revision_generation/src/lib.rs": "04cfd2c0dd118eae4265a34662fb949e52aa91d27b8ab4e4a8692d1f8ab8c430",
+    "crates/athlesia_recursive_world_model_revision_generation/src/lib.rs": "265e9e19160def591dcfad6cd3c16a84a58bd92c686a45e9c83dde60e5c50dd0",
     "crates/athlesia_recursive_world_model_revision_generation/tests/recursive_world_model_revision_generation_evidence_scope.rs": "efa879170c8684e592e668182a284bbbdb54912f3f42e39aefb3f2e60e9df5be",
     "crates/athlesia_recursive_world_model_revision_generation/tests/recursive_world_model_revision_generation_foundation.rs": "5f487d8ff92c93f9591dd20e5b3ad67fbf5de3e6b77dfdd7814a51dda81107b4",
     "crates/athlesia_recursive_world_model_revision_generation/tests/recursive_world_model_revision_generation_proposal_bridge.rs": "13f37bd6aa35607c9782dcc7fa2d708571e796eb388e78855822aab55aff9c3a",
+    "crates/athlesia_recursive_world_model_revision_generation/tests/recursive_world_model_revision_generation_revision_cycle.rs": "f6a201443bb9b37040465d6d0cc46f61dd1fde695acc7adba2d59a2414962e7a",
     "crates/athlesia_recursive_world_model_revision_generation/tests/recursive_world_model_revision_generation_validation.rs": "368241fc30b405dc85408a7f4ff1bf2b5918899db370e4abf50bfdbcdab5c0db",
     "crates/athlesia_recursive_world_model_revision_proposal/Cargo.lock": "7a143f55d393de72d4d446609c7447c8729f352477aa91df0e02b80228396133",
     "crates/athlesia_recursive_world_model_revision_proposal/Cargo.toml": "235b06e6de3bc721dd5462fb912f90766e1c3d448a0cfe4b7d35018249f30641",
@@ -298,7 +299,8 @@
       "module_36_recursive_world_model_revision_generation_foundation",
       "module_36_recursive_world_model_revision_generation_proposal_bridge",
       "module_36_recursive_world_model_revision_generation_validation",
-      "module_36_recursive_world_model_revision_generation_evidence_scope"
+      "module_36_recursive_world_model_revision_generation_evidence_scope",
+      "module_36_recursive_world_model_revision_generation_revision_cycle"
     ],
     "module_23_integrity": {
       "status": "pass",
@@ -311,8 +313,8 @@
       "status": "frozen",
       "verifier": "tools/verify_module_23_parity.py"
     },
-    "next_layer": "module_36_recursive_world_model_revision_generation_revision_cycle",
-    "stage": "module_36_recursive_world_model_revision_generation_evidence_scope",
+    "next_layer": "module_36_recursive_world_model_revision_generation_freeze",
+    "stage": "module_36_recursive_world_model_revision_generation_revision_cycle",
     "status": "validated"
   },
   "validated_invariants": [
@@ -1282,6 +1284,18 @@
     "recursive_world_revision_generation_evidence_scope_partition_identity",
     "recursive_world_revision_generation_evidence_scope_pressure_priority",
     "recursive_world_revision_generation_evidence_scope_facade_equivalence",
-    "recursive_world_revision_generation_evidence_scope_non_mutation"
+    "recursive_world_revision_generation_evidence_scope_non_mutation",
+    "recursive_world_revision_generation_cycle_empty_identity",
+    "recursive_world_revision_generation_cycle_no_evidence_guard",
+    "recursive_world_revision_generation_cycle_confirming_guard",
+    "recursive_world_revision_generation_cycle_balanced_guard",
+    "recursive_world_revision_generation_cycle_negative_revision",
+    "recursive_world_revision_generation_cycle_rejection_guard",
+    "recursive_world_revision_generation_cycle_pressure_scope",
+    "recursive_world_revision_generation_cycle_cost_priority",
+    "recursive_world_revision_generation_cycle_budget_guard",
+    "recursive_world_revision_generation_cycle_provenance_identity",
+    "recursive_world_revision_generation_cycle_m33_identity",
+    "recursive_world_revision_generation_cycle_non_mutation"
   ]
 }

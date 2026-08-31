@@ -430,3 +430,99 @@ impl RecursiveWorldRevisionGenerationEvidenceScoper {
         RecursiveWorldRevisionGenerationEvidenceScope::new(model, evidence_state, candidates)
     }
 }
+
+use athlesia_recursive_world_model::{
+    RecursiveWorldMinimalRevision, RecursiveWorldRevisionActiveCycle,
+    RecursiveWorldRevisionActiveCycleResult, RecursiveWorldRevisionBudget,
+};
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct RecursiveWorldRevisionGenerationCycleResult {
+    scope: RecursiveWorldRevisionGenerationEvidenceScope,
+    revision_cycle: RecursiveWorldRevisionActiveCycleResult,
+}
+
+impl RecursiveWorldRevisionGenerationCycleResult {
+    pub fn scope(&self) -> &RecursiveWorldRevisionGenerationEvidenceScope {
+        &self.scope
+    }
+
+    pub fn revision_cycle(&self) -> &RecursiveWorldRevisionActiveCycleResult {
+        &self.revision_cycle
+    }
+
+    pub fn pressured_rule(&self) -> Option<&RecursiveWorldRule> {
+        self.scope.pressured_rule()
+    }
+
+    pub fn active_candidates(&self) -> &[RecursiveWorldRevisionGenerationCandidate] {
+        self.scope.active_candidates()
+    }
+
+    pub fn inactive_candidates(&self) -> &[RecursiveWorldRevisionGenerationCandidate] {
+        self.scope.inactive_candidates()
+    }
+
+    pub fn rejected_candidates(&self) -> &[RecursiveWorldRevisionGenerationCandidate] {
+        self.scope.rejected_candidates()
+    }
+
+    pub fn selected_revision(&self) -> Option<&RecursiveWorldMinimalRevision> {
+        self.revision_cycle
+            .selected()
+            .map(|costed| costed.revision())
+    }
+
+    pub fn revised_world(&self) -> Option<&RecursiveWorldModel> {
+        self.revision_cycle.revised_world()
+    }
+
+    pub fn has_revision(&self) -> bool {
+        self.revision_cycle.has_revision()
+    }
+
+    pub fn selected_generation_candidates(&self) -> Vec<RecursiveWorldRevisionGenerationCandidate> {
+        let Some(selected) = self.selected_revision() else {
+            return Vec::new();
+        };
+
+        self.scope
+            .active_candidates()
+            .iter()
+            .filter(|candidate| {
+                candidate.target() == selected.target()
+                    && candidate.replacement() == selected.replacement()
+            })
+            .cloned()
+            .collect()
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct RecursiveWorldRevisionGenerationCycle;
+
+impl RecursiveWorldRevisionGenerationCycle {
+    pub fn evaluate(
+        model: &RecursiveWorldModel,
+        evidence_state: &RecursiveWorldEvidenceState,
+        candidates: RecursiveWorldRevisionGenerationCandidateSet,
+        budget: RecursiveWorldRevisionBudget,
+    ) -> RecursiveWorldRevisionGenerationCycleResult {
+        let scope =
+            RecursiveWorldRevisionGenerationEvidenceScope::new(model, evidence_state, candidates);
+
+        let active_revisions = scope
+            .proposal_scope()
+            .active()
+            .iter()
+            .map(|accepted| accepted.revision().clone())
+            .collect();
+
+        let revision_cycle = RecursiveWorldRevisionActiveCycle::evaluate(active_revisions, budget);
+
+        RecursiveWorldRevisionGenerationCycleResult {
+            scope,
+            revision_cycle,
+        }
+    }
+}
