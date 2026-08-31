@@ -78,3 +78,103 @@ impl RecursiveCounterfactualSet {
             .is_ok()
     }
 }
+
+use athlesia_recursive_planning::RecursivePlanningState;
+
+#[derive(Clone, Debug, Eq, PartialEq, Ord, PartialOrd)]
+pub struct RecursiveCounterfactualOutcome {
+    state: RecursivePlanningState,
+}
+
+impl RecursiveCounterfactualOutcome {
+    pub fn new(state: RecursivePlanningState) -> Self {
+        Self { state }
+    }
+
+    pub fn state(&self) -> &RecursivePlanningState {
+        &self.state
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct RecursiveCounterfactualProjection {
+    candidate: RecursiveCounterfactualCandidate,
+    outcomes: Vec<RecursiveCounterfactualOutcome>,
+}
+
+impl RecursiveCounterfactualProjection {
+    pub fn new(
+        candidate: RecursiveCounterfactualCandidate,
+        outcomes: Vec<RecursiveCounterfactualOutcome>,
+    ) -> Option<Self> {
+        if outcomes.is_empty() {
+            return None;
+        }
+
+        let mut outcomes = outcomes;
+        outcomes.sort();
+        outcomes.dedup();
+
+        Some(Self {
+            candidate,
+            outcomes,
+        })
+    }
+
+    pub fn candidate(&self) -> &RecursiveCounterfactualCandidate {
+        &self.candidate
+    }
+
+    pub fn outcomes(&self) -> &[RecursiveCounterfactualOutcome] {
+        &self.outcomes
+    }
+
+    pub fn outcome_count(&self) -> usize {
+        self.outcomes.len()
+    }
+
+    pub fn is_deterministic(&self) -> bool {
+        self.outcomes.len() == 1
+    }
+
+    pub fn is_branching(&self) -> bool {
+        self.outcomes.len() > 1
+    }
+
+    pub fn contains_state(&self, state: &RecursivePlanningState) -> bool {
+        self.outcomes
+            .binary_search_by(|outcome| outcome.state().cmp(state))
+            .is_ok()
+    }
+}
+
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
+pub struct RecursiveCounterfactualProjectionSet {
+    projections: Vec<RecursiveCounterfactualProjection>,
+}
+
+impl RecursiveCounterfactualProjectionSet {
+    pub fn new(mut projections: Vec<RecursiveCounterfactualProjection>) -> Self {
+        projections.sort_by(|left, right| {
+            left.candidate()
+                .cmp(right.candidate())
+                .then_with(|| left.outcomes().cmp(right.outcomes()))
+        });
+
+        projections.dedup();
+
+        Self { projections }
+    }
+
+    pub fn projections(&self) -> &[RecursiveCounterfactualProjection] {
+        &self.projections
+    }
+
+    pub fn len(&self) -> usize {
+        self.projections.len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.projections.is_empty()
+    }
+}
