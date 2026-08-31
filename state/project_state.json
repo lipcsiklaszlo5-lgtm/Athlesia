@@ -115,6 +115,7 @@
     "state/module_29_recursive_planning_freeze.json": "5067823e04b5cba2e6fce6ff3702416dcb4562a020f385cdacf1e29c3b6731c1",
     "state/module_30_recursive_control_freeze.json": "d75329ad8be24a134f2ed6b289bb187647457869c718e75474dc03d293169f69",
     "state/module_31_recursive_counterfactual_freeze.json": "5d71bd095428e9436a1a3993695c41160c46bbbf17c17c913e347346a3609e20",
+    "state/module_32_recursive_deliberation_freeze.json": "2ea41011d30a49ceeaaab353f5012c4a7fee65f853f12d3ffe7dcf0fd3db8ac5",
     "tests/module_23_concept.rs": "5462517fe36bb9653e926c096d5ca44acd6a4d10fb58aba23e5965e19d153dfa",
     "tests/module_23_encoder.rs": "9e4937f018fc4472f3e2bf63ab8049d9813123b367e5c93e382674caad3edcf3",
     "tests/module_23_evaluation.rs": "f128e24f15e9015019ee5d7af9901ac4434a2b600b7ab8f8650850d88bee3ed6",
@@ -137,7 +138,8 @@
     "tools/verify_module_28_recursive_revision.py": "6370ec64bcf6c141435d66b5154dc9f4195f87638225e8622db2a21efb4b2861",
     "tools/verify_module_29_recursive_planning.py": "f3ac002af3c518b6065e3626df1836d6f574243c6a4edda937795eccbec27240",
     "tools/verify_module_30_recursive_control.py": "c32e0887a68ce467bf1b1042d9093f5b2e6e345f8c0fe9ceb63e1359aad95928",
-    "tools/verify_module_31_recursive_counterfactual.py": "96d736eb43a5d37ec143f69c3edbfa84e5b1dca924fcc3c25b417fc91fd76043"
+    "tools/verify_module_31_recursive_counterfactual.py": "96d736eb43a5d37ec143f69c3edbfa84e5b1dca924fcc3c25b417fc91fd76043",
+    "tools/verify_module_32_recursive_deliberation.py": "c3421b3944e29c87791fb94d12ebc3fa458bf2c15aea2a27e2fe9fb15f709fe5"
   },
   "project": "Athlesia",
   "research_baseline": {
@@ -226,7 +228,8 @@
       "module_32_recursive_deliberation_choice_policy",
       "module_32_recursive_deliberation_risk_gate",
       "module_32_recursive_deliberation_bounded_action_policy",
-      "module_32_recursive_deliberation_active_cycle"
+      "module_32_recursive_deliberation_active_cycle",
+      "module_32_recursive_deliberation_freeze"
     ],
     "module_23_integrity": {
       "status": "pass",
@@ -239,8 +242,8 @@
       "status": "frozen",
       "verifier": "tools/verify_module_23_parity.py"
     },
-    "next_layer": "module_32_recursive_deliberation_freeze",
-    "stage": "module_32_recursive_deliberation_active_cycle",
+    "next_layer": "module_33_recursive_world_model_foundation",
+    "stage": "module_32_recursive_deliberation_freeze",
     "status": "validated"
   },
   "validated_invariants": [
@@ -918,6 +921,7 @@
     "recursive_deliberation_active_counterfactual_identity",
     "recursive_deliberation_active_risk_limit_identity",
     "recursive_deliberation_active_determinism",
-    "recursive_deliberation_active_non_mutation"
+    "recursive_deliberation_active_non_mutation",
+    "recursive_deliberation_freeze_integrity"
   ]
 }
