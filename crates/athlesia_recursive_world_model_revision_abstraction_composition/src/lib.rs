@@ -1002,3 +1002,191 @@ impl RecursiveWorldRevisionAbstractionCompositionDiscoveryBuilder {
         )
     }
 }
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd)]
+pub enum RecursiveWorldRevisionAbstractionCompositionValidationStatus {
+    DiscoveryUnavailable,
+    Rejected,
+    Accepted,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct RecursiveWorldRevisionAbstractionCompositionValidation {
+    model:
+        athlesia_recursive_world_model::RecursiveWorldModel,
+    discovery:
+        RecursiveWorldRevisionAbstractionCompositionDiscoveryBridge,
+    validation:
+        Option<
+            athlesia_recursive_world_model_revision_discovery::
+                RecursiveWorldRevisionDiscoveryValidation,
+        >,
+    status:
+        RecursiveWorldRevisionAbstractionCompositionValidationStatus,
+}
+
+impl RecursiveWorldRevisionAbstractionCompositionValidation {
+    pub fn validate(
+        model: athlesia_recursive_world_model::RecursiveWorldModel,
+        target: athlesia_recursive_world_model::RecursiveWorldRule,
+        selection: RecursiveWorldRevisionAbstractionCompositionPathSelection,
+        application_observations: Vec<RecursiveWorldRevisionDiscoveryObservation>,
+    ) -> Self {
+        let discovery = RecursiveWorldRevisionAbstractionCompositionDiscoveryBridge::discover(
+            target,
+            selection,
+            application_observations,
+        );
+
+        let Some(hypothesis) = discovery.hypothesis().cloned() else {
+            return Self {
+                model,
+                discovery,
+                validation: None,
+                status:
+                    RecursiveWorldRevisionAbstractionCompositionValidationStatus::
+                        DiscoveryUnavailable,
+            };
+        };
+
+        let hypothesis_set =
+            athlesia_recursive_world_model_revision_discovery::
+                RecursiveWorldRevisionDiscoveryHypothesisSet::new(
+                    vec![
+                        hypothesis,
+                    ],
+                );
+
+        let validation =
+            athlesia_recursive_world_model_revision_discovery::RecursiveWorldRevisionDiscoveryValidator::validate(
+                    &model,
+                    hypothesis_set,
+                );
+
+        let accepted = validation.accepted_count() == 1;
+
+        let status = if accepted {
+            RecursiveWorldRevisionAbstractionCompositionValidationStatus::Accepted
+        } else {
+            RecursiveWorldRevisionAbstractionCompositionValidationStatus::Rejected
+        };
+
+        Self {
+            model,
+            discovery,
+            validation: Some(validation),
+            status,
+        }
+    }
+
+    pub fn model(&self) -> &athlesia_recursive_world_model::RecursiveWorldModel {
+        &self.model
+    }
+
+    pub fn discovery(&self) -> &RecursiveWorldRevisionAbstractionCompositionDiscoveryBridge {
+        &self.discovery
+    }
+
+    pub fn validation_result(
+        &self,
+    ) -> Option<
+        &athlesia_recursive_world_model_revision_discovery::
+            RecursiveWorldRevisionDiscoveryValidation,
+    >{
+        self.validation.as_ref()
+    }
+
+    pub fn status(&self) -> RecursiveWorldRevisionAbstractionCompositionValidationStatus {
+        self.status
+    }
+
+    pub fn is_accepted(&self) -> bool {
+        self.status == RecursiveWorldRevisionAbstractionCompositionValidationStatus::Accepted
+    }
+
+    pub fn is_rejected(&self) -> bool {
+        self.status == RecursiveWorldRevisionAbstractionCompositionValidationStatus::Rejected
+    }
+
+    pub fn accepted_hypothesis(
+        &self,
+    ) -> Option<
+        &athlesia_recursive_world_model_revision_discovery::
+            RecursiveWorldRevisionDiscoveryHypothesis,
+    >{
+        if self.is_accepted() {
+            self.discovery.hypothesis()
+        } else {
+            None
+        }
+    }
+
+    pub fn rejected_hypothesis(
+        &self,
+    ) -> Option<
+        &athlesia_recursive_world_model_revision_discovery::
+            RecursiveWorldRevisionDiscoveryHypothesis,
+    >{
+        if self.is_rejected() {
+            self.discovery.hypothesis()
+        } else {
+            None
+        }
+    }
+
+    pub fn target(&self) -> &athlesia_recursive_world_model::RecursiveWorldRule {
+        self.discovery.target()
+    }
+
+    pub fn hypothesis(
+        &self,
+    ) -> Option<
+        &athlesia_recursive_world_model_revision_discovery::
+            RecursiveWorldRevisionDiscoveryHypothesis,
+    >{
+        self.discovery.hypothesis()
+    }
+
+    pub fn replacement(&self) -> Option<&athlesia_recursive_world_model::RecursiveWorldRule> {
+        self.discovery.replacement()
+    }
+
+    pub fn realized_observation(&self) -> Option<&RecursiveWorldRevisionDiscoveryObservation> {
+        self.discovery.realized_observation()
+    }
+
+    pub fn selection(&self) -> &RecursiveWorldRevisionAbstractionCompositionPathSelection {
+        self.discovery.selection()
+    }
+
+    pub fn path(&self) -> &RecursiveWorldRevisionAbstractionCompositionPath {
+        self.discovery.path()
+    }
+
+    pub fn minimum_support(&self) -> usize {
+        self.discovery.minimum_support()
+    }
+
+    pub fn application_observations(&self) -> &[RecursiveWorldRevisionDiscoveryObservation] {
+        self.discovery.application_observations()
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct RecursiveWorldRevisionAbstractionCompositionValidator;
+
+impl RecursiveWorldRevisionAbstractionCompositionValidator {
+    pub fn validate(
+        model: athlesia_recursive_world_model::RecursiveWorldModel,
+        target: athlesia_recursive_world_model::RecursiveWorldRule,
+        selection: RecursiveWorldRevisionAbstractionCompositionPathSelection,
+        application_observations: Vec<RecursiveWorldRevisionDiscoveryObservation>,
+    ) -> RecursiveWorldRevisionAbstractionCompositionValidation {
+        RecursiveWorldRevisionAbstractionCompositionValidation::validate(
+            model,
+            target,
+            selection,
+            application_observations,
+        )
+    }
+}
