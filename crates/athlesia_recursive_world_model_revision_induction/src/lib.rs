@@ -189,3 +189,123 @@ impl RecursiveWorldRevisionInductionDiscoveryBridgeBuilder {
         RecursiveWorldRevisionInductionDiscoveryBridge::new(induced)
     }
 }
+
+use athlesia_recursive_world_model::RecursiveWorldModel;
+
+use athlesia_recursive_world_model_revision_discovery::{
+    RecursiveWorldRevisionDiscoveryHypothesisSet, RecursiveWorldRevisionDiscoveryValidation,
+    RecursiveWorldRevisionDiscoveryValidator,
+};
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd)]
+pub enum RecursiveWorldRevisionInductionValidationStatus {
+    DiscoveryUnavailable,
+    Rejected,
+    Accepted,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct RecursiveWorldRevisionInductionValidation {
+    induced: RecursiveWorldRevisionInducedStructure,
+    bridge: Option<RecursiveWorldRevisionInductionDiscoveryBridge>,
+    discovery_validation: Option<RecursiveWorldRevisionDiscoveryValidation>,
+    status: RecursiveWorldRevisionInductionValidationStatus,
+}
+
+impl RecursiveWorldRevisionInductionValidation {
+    pub fn new(
+        model: &RecursiveWorldModel,
+        induced: RecursiveWorldRevisionInducedStructure,
+    ) -> Self {
+        let bridge = RecursiveWorldRevisionInductionDiscoveryBridge::new(induced.clone());
+
+        let Some(bridge_value) = bridge.clone() else {
+            return Self {
+                induced,
+                bridge: None,
+                discovery_validation: None,
+                status: RecursiveWorldRevisionInductionValidationStatus::DiscoveryUnavailable,
+            };
+        };
+
+        let discovery_validation = RecursiveWorldRevisionDiscoveryValidator::validate(
+            model,
+            RecursiveWorldRevisionDiscoveryHypothesisSet::new(vec![bridge_value
+                .hypothesis()
+                .clone()]),
+        );
+
+        let status = if discovery_validation.accepted_count() == 1 {
+            RecursiveWorldRevisionInductionValidationStatus::Accepted
+        } else {
+            RecursiveWorldRevisionInductionValidationStatus::Rejected
+        };
+
+        Self {
+            induced,
+            bridge,
+            discovery_validation: Some(discovery_validation),
+            status,
+        }
+    }
+
+    pub fn induced(&self) -> &RecursiveWorldRevisionInducedStructure {
+        &self.induced
+    }
+
+    pub fn bridge(&self) -> Option<&RecursiveWorldRevisionInductionDiscoveryBridge> {
+        self.bridge.as_ref()
+    }
+
+    pub fn discovery_validation(&self) -> Option<&RecursiveWorldRevisionDiscoveryValidation> {
+        self.discovery_validation.as_ref()
+    }
+
+    pub fn status(&self) -> RecursiveWorldRevisionInductionValidationStatus {
+        self.status
+    }
+
+    pub fn is_accepted(&self) -> bool {
+        self.status == RecursiveWorldRevisionInductionValidationStatus::Accepted
+    }
+
+    pub fn is_rejected(&self) -> bool {
+        self.status == RecursiveWorldRevisionInductionValidationStatus::Rejected
+    }
+
+    pub fn is_discovery_unavailable(&self) -> bool {
+        self.status == RecursiveWorldRevisionInductionValidationStatus::DiscoveryUnavailable
+    }
+
+    pub fn accepted_hypothesis(&self) -> Option<&RecursiveWorldRevisionDiscoveryHypothesis> {
+        self.discovery_validation
+            .as_ref()
+            .and_then(|validation| validation.accepted_hypotheses().first())
+    }
+
+    pub fn rejected_hypothesis(&self) -> Option<&RecursiveWorldRevisionDiscoveryHypothesis> {
+        self.discovery_validation
+            .as_ref()
+            .and_then(|validation| validation.rejected_hypotheses().first())
+    }
+
+    pub fn support_count(&self) -> usize {
+        self.induced.support_count()
+    }
+
+    pub fn source_observations(&self) -> &RecursiveWorldRevisionInductionObservationSet {
+        self.induced.observations()
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct RecursiveWorldRevisionInductionValidator;
+
+impl RecursiveWorldRevisionInductionValidator {
+    pub fn validate(
+        model: &RecursiveWorldModel,
+        induced: RecursiveWorldRevisionInducedStructure,
+    ) -> RecursiveWorldRevisionInductionValidation {
+        RecursiveWorldRevisionInductionValidation::new(model, induced)
+    }
+}
