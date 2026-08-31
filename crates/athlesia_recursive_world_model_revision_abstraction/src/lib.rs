@@ -361,3 +361,165 @@ impl RecursiveWorldRevisionAbstractionConsensusBuilder {
         RecursiveWorldRevisionAbstractionConsensus::derive(projection)
     }
 }
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd)]
+pub enum RecursiveWorldRevisionAbstractionRealizationStatus {
+    Ambiguous,
+    Deterministic,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct RecursiveWorldRevisionAbstractionRealization {
+    consensus: RecursiveWorldRevisionAbstractionConsensus,
+    premise_witnesses: BTreeMap<RecursiveWorldRevisionAbstractionClass, Vec<RecursiveUnit>>,
+    conclusion_witnesses: BTreeMap<RecursiveWorldRevisionAbstractionClass, Vec<RecursiveUnit>>,
+    realized_observation: Option<RecursiveWorldRevisionDiscoveryObservation>,
+    status: RecursiveWorldRevisionAbstractionRealizationStatus,
+}
+
+impl RecursiveWorldRevisionAbstractionRealization {
+    pub fn realize(consensus: RecursiveWorldRevisionAbstractionConsensus) -> Self {
+        let mut premise_sets =
+            BTreeMap::<RecursiveWorldRevisionAbstractionClass, BTreeSet<RecursiveUnit>>::new();
+
+        let mut conclusion_sets =
+            BTreeMap::<RecursiveWorldRevisionAbstractionClass, BTreeSet<RecursiveUnit>>::new();
+
+        for class in consensus.premise_classes() {
+            premise_sets.insert(class.clone(), BTreeSet::new());
+        }
+
+        for class in consensus.conclusion_classes() {
+            conclusion_sets.insert(class.clone(), BTreeSet::new());
+        }
+
+        for observation in consensus.source_observations().observations() {
+            for unit in observation.premises() {
+                for (class, witnesses) in &mut premise_sets {
+                    if class.contains(unit) {
+                        witnesses.insert(unit.clone());
+                    }
+                }
+            }
+
+            for unit in observation.conclusions() {
+                for (class, witnesses) in &mut conclusion_sets {
+                    if class.contains(unit) {
+                        witnesses.insert(unit.clone());
+                    }
+                }
+            }
+        }
+
+        let premise_witnesses = premise_sets
+            .into_iter()
+            .map(|(class, witnesses)| (class, witnesses.into_iter().collect::<Vec<_>>()))
+            .collect::<BTreeMap<_, _>>();
+
+        let conclusion_witnesses = conclusion_sets
+            .into_iter()
+            .map(|(class, witnesses)| (class, witnesses.into_iter().collect::<Vec<_>>()))
+            .collect::<BTreeMap<_, _>>();
+
+        let premise_is_deterministic = premise_witnesses
+            .values()
+            .all(|witnesses| witnesses.len() == 1);
+
+        let conclusion_is_deterministic = conclusion_witnesses
+            .values()
+            .all(|witnesses| witnesses.len() == 1);
+
+        let realized_observation = if premise_is_deterministic && conclusion_is_deterministic {
+            let realized_premises = premise_witnesses
+                .values()
+                .filter_map(|witnesses| witnesses.first().cloned())
+                .collect::<Vec<_>>();
+
+            let realized_conclusions = conclusion_witnesses
+                .values()
+                .filter_map(|witnesses| witnesses.first().cloned())
+                .collect::<Vec<_>>();
+
+            RecursiveWorldRevisionDiscoveryObservation::new(realized_premises, realized_conclusions)
+        } else {
+            None
+        };
+
+        let status = if realized_observation.is_some() {
+            RecursiveWorldRevisionAbstractionRealizationStatus::Deterministic
+        } else {
+            RecursiveWorldRevisionAbstractionRealizationStatus::Ambiguous
+        };
+
+        Self {
+            consensus,
+            premise_witnesses,
+            conclusion_witnesses,
+            realized_observation,
+            status,
+        }
+    }
+
+    pub fn consensus(&self) -> &RecursiveWorldRevisionAbstractionConsensus {
+        &self.consensus
+    }
+
+    pub fn status(&self) -> RecursiveWorldRevisionAbstractionRealizationStatus {
+        self.status
+    }
+
+    pub fn is_deterministic(&self) -> bool {
+        self.status == RecursiveWorldRevisionAbstractionRealizationStatus::Deterministic
+    }
+
+    pub fn is_ambiguous(&self) -> bool {
+        self.status == RecursiveWorldRevisionAbstractionRealizationStatus::Ambiguous
+    }
+
+    pub fn premise_witnesses(
+        &self,
+        class: &RecursiveWorldRevisionAbstractionClass,
+    ) -> &[RecursiveUnit] {
+        self.premise_witnesses
+            .get(class)
+            .map(Vec::as_slice)
+            .unwrap_or(&[])
+    }
+
+    pub fn conclusion_witnesses(
+        &self,
+        class: &RecursiveWorldRevisionAbstractionClass,
+    ) -> &[RecursiveUnit] {
+        self.conclusion_witnesses
+            .get(class)
+            .map(Vec::as_slice)
+            .unwrap_or(&[])
+    }
+
+    pub fn realized_observation(&self) -> Option<&RecursiveWorldRevisionDiscoveryObservation> {
+        self.realized_observation.as_ref()
+    }
+
+    pub fn source_observations(&self) -> &RecursiveWorldRevisionInductionObservationSet {
+        self.consensus.source_observations()
+    }
+
+    pub fn observation_count(&self) -> usize {
+        self.consensus.observation_count()
+    }
+
+    pub fn vocabulary(&self) -> &RecursiveWorldRevisionAbstractionVocabulary {
+        self.consensus.vocabulary()
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct RecursiveWorldRevisionAbstractionRealizer;
+
+impl RecursiveWorldRevisionAbstractionRealizer {
+    pub fn realize(
+        consensus: RecursiveWorldRevisionAbstractionConsensus,
+    ) -> RecursiveWorldRevisionAbstractionRealization {
+        RecursiveWorldRevisionAbstractionRealization::realize(consensus)
+    }
+}
