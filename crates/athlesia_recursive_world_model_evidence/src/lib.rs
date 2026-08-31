@@ -411,3 +411,74 @@ impl RecursiveWorldEvidenceRevisionBridgeBuilder {
         RecursiveWorldEvidenceRevisionBridge::new(ranking, revisions)
     }
 }
+
+use athlesia_recursive_world_model::{
+    RecursiveWorldRevisionActiveCycle, RecursiveWorldRevisionActiveCycleResult,
+    RecursiveWorldRevisionBudget,
+};
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct RecursiveWorldEvidenceRevisionCycleResult {
+    ranking: RecursiveWorldEvidenceRanking,
+    bridge: RecursiveWorldEvidenceRevisionBridge,
+    revision_cycle: RecursiveWorldRevisionActiveCycleResult,
+}
+
+impl RecursiveWorldEvidenceRevisionCycleResult {
+    pub fn ranking(&self) -> &RecursiveWorldEvidenceRanking {
+        &self.ranking
+    }
+
+    pub fn bridge(&self) -> &RecursiveWorldEvidenceRevisionBridge {
+        &self.bridge
+    }
+
+    pub fn revision_cycle(&self) -> &RecursiveWorldRevisionActiveCycleResult {
+        &self.revision_cycle
+    }
+
+    pub fn pressured_rule(&self) -> Option<&RecursiveWorldRule> {
+        self.bridge.pressured_rule()
+    }
+
+    pub fn selected_revision(&self) -> Option<&RecursiveWorldMinimalRevision> {
+        self.revision_cycle
+            .selected()
+            .map(|costed| costed.revision())
+    }
+
+    pub fn revised_world(&self) -> Option<&athlesia_recursive_world_model::RecursiveWorldModel> {
+        self.revision_cycle.revised_world()
+    }
+
+    pub fn has_revision(&self) -> bool {
+        self.revision_cycle.has_revision()
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct RecursiveWorldEvidenceRevisionCycle;
+
+impl RecursiveWorldEvidenceRevisionCycle {
+    pub fn evaluate(
+        state: &RecursiveWorldEvidenceState,
+        rules: Vec<RecursiveWorldRule>,
+        revisions: Vec<RecursiveWorldMinimalRevision>,
+        budget: RecursiveWorldRevisionBudget,
+    ) -> RecursiveWorldEvidenceRevisionCycleResult {
+        let assessments = RecursiveWorldEvidenceAssessor::assess_many(state, rules);
+
+        let ranking = RecursiveWorldEvidenceRanking::new(assessments);
+
+        let bridge = RecursiveWorldEvidenceRevisionBridge::new(&ranking, revisions);
+
+        let revision_cycle =
+            RecursiveWorldRevisionActiveCycle::evaluate(bridge.candidates().to_vec(), budget);
+
+        RecursiveWorldEvidenceRevisionCycleResult {
+            ranking,
+            bridge,
+            revision_cycle,
+        }
+    }
+}
