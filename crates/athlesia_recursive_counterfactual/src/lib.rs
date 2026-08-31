@@ -178,3 +178,94 @@ impl RecursiveCounterfactualProjectionSet {
         self.projections.is_empty()
     }
 }
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct RecursiveCounterfactualInformationValue {
+    projection: RecursiveCounterfactualProjection,
+    discrimination_capacity: usize,
+}
+
+impl RecursiveCounterfactualInformationValue {
+    pub fn evaluate(projection: RecursiveCounterfactualProjection) -> Self {
+        let outcome_count = projection.outcome_count();
+
+        let discrimination_capacity =
+            outcome_count.saturating_mul(outcome_count.saturating_sub(1)) / 2;
+
+        Self {
+            projection,
+            discrimination_capacity,
+        }
+    }
+
+    pub fn projection(&self) -> &RecursiveCounterfactualProjection {
+        &self.projection
+    }
+
+    pub const fn discrimination_capacity(&self) -> usize {
+        self.discrimination_capacity
+    }
+
+    pub fn interaction_cost(&self) -> usize {
+        self.projection.candidate().interaction_cost()
+    }
+
+    pub fn is_informative(&self) -> bool {
+        self.discrimination_capacity > 0
+    }
+}
+
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
+pub struct RecursiveCounterfactualInformationRanking {
+    values: Vec<RecursiveCounterfactualInformationValue>,
+}
+
+impl RecursiveCounterfactualInformationRanking {
+    pub fn new(mut values: Vec<RecursiveCounterfactualInformationValue>) -> Self {
+        values.sort_by(|left, right| {
+            let left_capacity = left.discrimination_capacity();
+
+            let right_capacity = right.discrimination_capacity();
+
+            let left_cost = left.interaction_cost();
+
+            let right_cost = right.interaction_cost();
+
+            let efficiency_order = right_capacity
+                .saturating_mul(left_cost)
+                .cmp(&left_capacity.saturating_mul(right_cost));
+
+            efficiency_order
+                .then_with(|| right_capacity.cmp(&left_capacity))
+                .then_with(|| left_cost.cmp(&right_cost))
+                .then_with(|| {
+                    left.projection()
+                        .candidate()
+                        .cmp(right.projection().candidate())
+                })
+                .then_with(|| {
+                    left.projection()
+                        .outcomes()
+                        .cmp(right.projection().outcomes())
+                })
+        });
+
+        Self { values }
+    }
+
+    pub fn values(&self) -> &[RecursiveCounterfactualInformationValue] {
+        &self.values
+    }
+
+    pub fn best(&self) -> Option<&RecursiveCounterfactualInformationValue> {
+        self.values.first()
+    }
+
+    pub fn len(&self) -> usize {
+        self.values.len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.values.is_empty()
+    }
+}
