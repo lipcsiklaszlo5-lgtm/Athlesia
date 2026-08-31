@@ -309,3 +309,140 @@ impl RecursiveWorldRevisionInductionValidator {
         RecursiveWorldRevisionInductionValidation::new(model, induced)
     }
 }
+
+use athlesia_recursive_world_model_evidence::RecursiveWorldEvidenceState;
+
+use athlesia_recursive_world_model_revision_discovery::{
+    RecursiveWorldRevisionDiscoveryEvidenceScope, RecursiveWorldRevisionDiscoveryEvidenceScoper,
+};
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd)]
+pub enum RecursiveWorldRevisionInductionEvidenceStatus {
+    DiscoveryUnavailable,
+    Rejected,
+    Inactive,
+    Active,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct RecursiveWorldRevisionInductionEvidenceScope {
+    validation: RecursiveWorldRevisionInductionValidation,
+    discovery_scope: Option<RecursiveWorldRevisionDiscoveryEvidenceScope>,
+    status: RecursiveWorldRevisionInductionEvidenceStatus,
+}
+
+impl RecursiveWorldRevisionInductionEvidenceScope {
+    pub fn new(
+        model: &RecursiveWorldModel,
+        evidence_state: &RecursiveWorldEvidenceState,
+        induced: RecursiveWorldRevisionInducedStructure,
+    ) -> Self {
+        let validation = RecursiveWorldRevisionInductionValidation::new(model, induced);
+
+        if validation.is_discovery_unavailable() {
+            return Self {
+                validation,
+                discovery_scope: None,
+                status: RecursiveWorldRevisionInductionEvidenceStatus::DiscoveryUnavailable,
+            };
+        }
+
+        if validation.is_rejected() {
+            return Self {
+                validation,
+                discovery_scope: None,
+                status: RecursiveWorldRevisionInductionEvidenceStatus::Rejected,
+            };
+        }
+
+        let hypothesis = validation
+            .accepted_hypothesis()
+            .expect("accepted induction validation must expose one discovery hypothesis")
+            .clone();
+
+        let discovery_scope = RecursiveWorldRevisionDiscoveryEvidenceScoper::scope(
+            model,
+            evidence_state,
+            RecursiveWorldRevisionDiscoveryHypothesisSet::new(vec![hypothesis]),
+        );
+
+        let status = if discovery_scope.active_count() == 1 {
+            RecursiveWorldRevisionInductionEvidenceStatus::Active
+        } else {
+            RecursiveWorldRevisionInductionEvidenceStatus::Inactive
+        };
+
+        Self {
+            validation,
+            discovery_scope: Some(discovery_scope),
+            status,
+        }
+    }
+
+    pub fn validation(&self) -> &RecursiveWorldRevisionInductionValidation {
+        &self.validation
+    }
+
+    pub fn discovery_scope(&self) -> Option<&RecursiveWorldRevisionDiscoveryEvidenceScope> {
+        self.discovery_scope.as_ref()
+    }
+
+    pub fn status(&self) -> RecursiveWorldRevisionInductionEvidenceStatus {
+        self.status
+    }
+
+    pub fn is_active(&self) -> bool {
+        self.status == RecursiveWorldRevisionInductionEvidenceStatus::Active
+    }
+
+    pub fn is_inactive(&self) -> bool {
+        self.status == RecursiveWorldRevisionInductionEvidenceStatus::Inactive
+    }
+
+    pub fn is_rejected(&self) -> bool {
+        self.status == RecursiveWorldRevisionInductionEvidenceStatus::Rejected
+    }
+
+    pub fn is_discovery_unavailable(&self) -> bool {
+        self.status == RecursiveWorldRevisionInductionEvidenceStatus::DiscoveryUnavailable
+    }
+
+    pub fn pressured_rule(&self) -> Option<&RecursiveWorldRule> {
+        self.discovery_scope
+            .as_ref()
+            .and_then(|scope| scope.pressured_rule())
+    }
+
+    pub fn active_hypothesis(&self) -> Option<&RecursiveWorldRevisionDiscoveryHypothesis> {
+        self.discovery_scope
+            .as_ref()
+            .and_then(|scope| scope.active_hypotheses().first())
+    }
+
+    pub fn inactive_hypothesis(&self) -> Option<&RecursiveWorldRevisionDiscoveryHypothesis> {
+        self.discovery_scope
+            .as_ref()
+            .and_then(|scope| scope.inactive_hypotheses().first())
+    }
+
+    pub fn support_count(&self) -> usize {
+        self.validation.support_count()
+    }
+
+    pub fn source_observations(&self) -> &RecursiveWorldRevisionInductionObservationSet {
+        self.validation.source_observations()
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct RecursiveWorldRevisionInductionEvidenceScoper;
+
+impl RecursiveWorldRevisionInductionEvidenceScoper {
+    pub fn scope(
+        model: &RecursiveWorldModel,
+        evidence_state: &RecursiveWorldEvidenceState,
+        induced: RecursiveWorldRevisionInducedStructure,
+    ) -> RecursiveWorldRevisionInductionEvidenceScope {
+        RecursiveWorldRevisionInductionEvidenceScope::new(model, evidence_state, induced)
+    }
+}
