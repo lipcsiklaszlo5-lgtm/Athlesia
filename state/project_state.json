@@ -58,7 +58,8 @@
     "crates/athlesia_recursive_counterfactual/tests/recursive_counterfactual_selection.rs": "86ad3030c7ec80591823bce7c915a129cfaa3c6e3335a436a0120d943a67fe3d",
     "crates/athlesia_recursive_deliberation/Cargo.lock": "8574c2c6a39f5953bc361dc543eba7edae7d6d75cabcbbd090d44fbc538cd2cd",
     "crates/athlesia_recursive_deliberation/Cargo.toml": "a8628c08ea40f974436a14264ad7d9eb8a1163d230cbc6f027b864178847d557",
-    "crates/athlesia_recursive_deliberation/src/lib.rs": "e412520d89b3b4ba271e47aed946bfa1daf5b273aba4763615fa5c4d063e242d",
+    "crates/athlesia_recursive_deliberation/src/lib.rs": "e14f533f324d0f422da1e03508f2d1ba77e2186bb2a9b871bd1689d98dfd725b",
+    "crates/athlesia_recursive_deliberation/tests/recursive_deliberation_bounded_action_policy.rs": "db06eb95f38364dafe3724a1687fd9f2b69e8ae8098804ddd433793f9ac4831e",
     "crates/athlesia_recursive_deliberation/tests/recursive_deliberation_choice_policy.rs": "dbd2534e9eca1e83c05c2f1d03bb87e9696d64698108802074a02583f67c09bd",
     "crates/athlesia_recursive_deliberation/tests/recursive_deliberation_control_bridge.rs": "221bab0d220484ea586035962592a4cb414fb170891a9fc4e7c99ea47facb436",
     "crates/athlesia_recursive_deliberation/tests/recursive_deliberation_foundation.rs": "98fe4e1b800f1e0ae5a220171a9fe6eb2fd052f1ed3cd784ce660207c1359243",
@@ -222,7 +223,8 @@
       "module_32_recursive_deliberation_foundation",
       "module_32_recursive_deliberation_control_bridge",
       "module_32_recursive_deliberation_choice_policy",
-      "module_32_recursive_deliberation_risk_gate"
+      "module_32_recursive_deliberation_risk_gate",
+      "module_32_recursive_deliberation_bounded_action_policy"
     ],
     "module_23_integrity": {
       "status": "pass",
@@ -235,8 +237,8 @@
       "status": "frozen",
       "verifier": "tools/verify_module_23_parity.py"
     },
-    "next_layer": "module_32_recursive_deliberation_bounded_action_policy",
-    "stage": "module_32_recursive_deliberation_risk_gate",
+    "next_layer": "module_32_recursive_deliberation_active_cycle",
+    "stage": "module_32_recursive_deliberation_bounded_action_policy",
     "status": "validated"
   },
   "validated_invariants": [
@@ -890,6 +892,18 @@
     "recursive_deliberation_risk_choice_identity",
     "recursive_deliberation_risk_counterfactual_identity",
     "recursive_deliberation_risk_assessment_limit_identity",
-    "recursive_deliberation_risk_deterministic_non_mutation"
+    "recursive_deliberation_risk_deterministic_non_mutation",
+    "recursive_deliberation_bounded_action_preserves_act",
+    "recursive_deliberation_bounded_action_preserves_experiment",
+    "recursive_deliberation_bounded_action_eligible_counterfactual",
+    "recursive_deliberation_bounded_action_rejected_counterfactual",
+    "recursive_deliberation_bounded_action_no_decision_preservation",
+    "recursive_deliberation_bounded_action_decision_generation",
+    "recursive_deliberation_bounded_action_cost_guard",
+    "recursive_deliberation_bounded_action_outcome_guard",
+    "recursive_deliberation_bounded_action_counterfactual_identity",
+    "recursive_deliberation_bounded_action_assessment_identity",
+    "recursive_deliberation_bounded_action_empty_frontier_guard",
+    "recursive_deliberation_bounded_action_deterministic_non_mutation"
   ]
 }

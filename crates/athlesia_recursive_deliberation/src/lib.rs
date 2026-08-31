@@ -324,3 +324,101 @@ impl RecursiveDeliberationRiskGate {
         }
     }
 }
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd)]
+pub enum RecursiveDeliberationActionKind {
+    Act,
+    Experiment,
+    BoundedAction,
+    NoDecision,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct RecursiveDeliberationActionDecision {
+    kind: RecursiveDeliberationActionKind,
+    assessment: RecursiveDeliberationRiskAssessment,
+    counterfactual: Option<RecursiveCounterfactualInformationValue>,
+}
+
+impl RecursiveDeliberationActionDecision {
+    pub const fn kind(&self) -> RecursiveDeliberationActionKind {
+        self.kind
+    }
+
+    pub fn assessment(&self) -> &RecursiveDeliberationRiskAssessment {
+        &self.assessment
+    }
+
+    pub fn choice(&self) -> &RecursiveDeliberationChoice {
+        self.assessment.choice()
+    }
+
+    pub fn control(&self) -> &RecursiveControlUncertaintyDecision {
+        self.choice().control()
+    }
+
+    pub fn counterfactual(&self) -> Option<&RecursiveCounterfactualInformationValue> {
+        self.counterfactual.as_ref()
+    }
+
+    pub fn is_act(&self) -> bool {
+        self.kind == RecursiveDeliberationActionKind::Act
+    }
+
+    pub fn is_experiment(&self) -> bool {
+        self.kind == RecursiveDeliberationActionKind::Experiment
+    }
+
+    pub fn is_bounded_action(&self) -> bool {
+        self.kind == RecursiveDeliberationActionKind::BoundedAction
+    }
+
+    pub fn is_no_decision(&self) -> bool {
+        self.kind == RecursiveDeliberationActionKind::NoDecision
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct RecursiveDeliberationBoundedActionPolicy;
+
+impl RecursiveDeliberationBoundedActionPolicy {
+    pub fn resolve_kind(
+        choice: RecursiveDeliberationChoiceKind,
+        risk: RecursiveDeliberationRiskStatus,
+    ) -> RecursiveDeliberationActionKind {
+        match choice {
+            RecursiveDeliberationChoiceKind::Act => RecursiveDeliberationActionKind::Act,
+            RecursiveDeliberationChoiceKind::Experiment => {
+                RecursiveDeliberationActionKind::Experiment
+            }
+            RecursiveDeliberationChoiceKind::Counterfactual => {
+                if risk == RecursiveDeliberationRiskStatus::Eligible {
+                    RecursiveDeliberationActionKind::BoundedAction
+                } else {
+                    RecursiveDeliberationActionKind::NoDecision
+                }
+            }
+            RecursiveDeliberationChoiceKind::NoDecision => {
+                RecursiveDeliberationActionKind::NoDecision
+            }
+        }
+    }
+
+    pub fn decide(
+        assessment: RecursiveDeliberationRiskAssessment,
+    ) -> RecursiveDeliberationActionDecision {
+        let kind = Self::resolve_kind(assessment.choice().kind(), assessment.status());
+
+        let counterfactual = if kind == RecursiveDeliberationActionKind::BoundedAction {
+            assessment.counterfactual().cloned()
+        } else {
+            None
+        };
+
+        RecursiveDeliberationActionDecision {
+            kind,
+            assessment,
+            counterfactual,
+        }
+    }
+}
