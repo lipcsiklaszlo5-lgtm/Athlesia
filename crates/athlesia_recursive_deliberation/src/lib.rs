@@ -422,3 +422,68 @@ impl RecursiveDeliberationBoundedActionPolicy {
         }
     }
 }
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct RecursiveDeliberationActiveCycleResult {
+    request: RecursiveDeliberationRequest,
+    bridge: RecursiveDeliberationControlBridge,
+    choice: RecursiveDeliberationChoice,
+    assessment: RecursiveDeliberationRiskAssessment,
+    decision: RecursiveDeliberationActionDecision,
+}
+
+impl RecursiveDeliberationActiveCycleResult {
+    pub fn request(&self) -> &RecursiveDeliberationRequest {
+        &self.request
+    }
+
+    pub fn bridge(&self) -> &RecursiveDeliberationControlBridge {
+        &self.bridge
+    }
+
+    pub fn choice(&self) -> &RecursiveDeliberationChoice {
+        &self.choice
+    }
+
+    pub fn assessment(&self) -> &RecursiveDeliberationRiskAssessment {
+        &self.assessment
+    }
+
+    pub fn decision(&self) -> &RecursiveDeliberationActionDecision {
+        &self.decision
+    }
+
+    pub fn final_kind(&self) -> RecursiveDeliberationActionKind {
+        self.decision.kind()
+    }
+
+    pub fn counterfactual(&self) -> Option<&RecursiveCounterfactualInformationValue> {
+        self.decision.counterfactual()
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct RecursiveDeliberationActiveCycle;
+
+impl RecursiveDeliberationActiveCycle {
+    pub fn evaluate(
+        request: RecursiveDeliberationRequest,
+        risk_limit: RecursiveDeliberationRiskLimit,
+    ) -> RecursiveDeliberationActiveCycleResult {
+        let bridge = RecursiveDeliberationFoundation::bridge(request.clone());
+
+        let choice = RecursiveDeliberationChoicePolicy::choose(bridge.clone());
+
+        let assessment = RecursiveDeliberationRiskGate::assess(choice.clone(), risk_limit);
+
+        let decision = RecursiveDeliberationBoundedActionPolicy::decide(assessment.clone());
+
+        RecursiveDeliberationActiveCycleResult {
+            request,
+            bridge,
+            choice,
+            assessment,
+            decision,
+        }
+    }
+}
