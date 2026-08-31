@@ -219,3 +219,108 @@ impl RecursiveDeliberationChoicePolicy {
         }
     }
 }
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct RecursiveDeliberationRiskLimit {
+    max_interaction_cost: usize,
+    max_outcomes: usize,
+}
+
+impl RecursiveDeliberationRiskLimit {
+    pub fn new(max_interaction_cost: usize, max_outcomes: usize) -> Option<Self> {
+        if max_interaction_cost == 0 || max_outcomes == 0 {
+            return None;
+        }
+
+        Some(Self {
+            max_interaction_cost,
+            max_outcomes,
+        })
+    }
+
+    pub const fn max_interaction_cost(&self) -> usize {
+        self.max_interaction_cost
+    }
+
+    pub const fn max_outcomes(&self) -> usize {
+        self.max_outcomes
+    }
+
+    pub fn allows(&self, value: &RecursiveCounterfactualInformationValue) -> bool {
+        value.interaction_cost() <= self.max_interaction_cost
+            && value.projection().outcome_count() <= self.max_outcomes
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd)]
+pub enum RecursiveDeliberationRiskStatus {
+    NotApplicable,
+    Eligible,
+    Rejected,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct RecursiveDeliberationRiskAssessment {
+    choice: RecursiveDeliberationChoice,
+    limit: RecursiveDeliberationRiskLimit,
+    status: RecursiveDeliberationRiskStatus,
+}
+
+impl RecursiveDeliberationRiskAssessment {
+    pub fn choice(&self) -> &RecursiveDeliberationChoice {
+        &self.choice
+    }
+
+    pub const fn limit(&self) -> RecursiveDeliberationRiskLimit {
+        self.limit
+    }
+
+    pub const fn status(&self) -> RecursiveDeliberationRiskStatus {
+        self.status
+    }
+
+    pub fn counterfactual(&self) -> Option<&RecursiveCounterfactualInformationValue> {
+        self.choice.counterfactual()
+    }
+
+    pub fn is_eligible(&self) -> bool {
+        self.status == RecursiveDeliberationRiskStatus::Eligible
+    }
+
+    pub fn is_rejected(&self) -> bool {
+        self.status == RecursiveDeliberationRiskStatus::Rejected
+    }
+
+    pub fn is_not_applicable(&self) -> bool {
+        self.status == RecursiveDeliberationRiskStatus::NotApplicable
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct RecursiveDeliberationRiskGate;
+
+impl RecursiveDeliberationRiskGate {
+    pub fn assess(
+        choice: RecursiveDeliberationChoice,
+        limit: RecursiveDeliberationRiskLimit,
+    ) -> RecursiveDeliberationRiskAssessment {
+        let status = match choice.kind() {
+            RecursiveDeliberationChoiceKind::Counterfactual => match choice.counterfactual() {
+                Some(value) if limit.allows(value) => RecursiveDeliberationRiskStatus::Eligible,
+                Some(_) => RecursiveDeliberationRiskStatus::Rejected,
+                None => RecursiveDeliberationRiskStatus::Rejected,
+            },
+            RecursiveDeliberationChoiceKind::Act
+            | RecursiveDeliberationChoiceKind::Experiment
+            | RecursiveDeliberationChoiceKind::NoDecision => {
+                RecursiveDeliberationRiskStatus::NotApplicable
+            }
+        };
+
+        RecursiveDeliberationRiskAssessment {
+            choice,
+            limit,
+            status,
+        }
+    }
+}
