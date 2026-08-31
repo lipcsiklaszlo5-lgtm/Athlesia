@@ -615,3 +615,153 @@ impl RecursiveWorldRevisionAbstractionDiscoveryBridgeBuilder {
         RecursiveWorldRevisionAbstractionDiscoveryBridge::new(target, realization)
     }
 }
+
+use athlesia_recursive_world_model::RecursiveWorldModel;
+
+use athlesia_recursive_world_model_revision_discovery::{
+    RecursiveWorldRevisionDiscoveryHypothesisSet, RecursiveWorldRevisionDiscoveryValidation,
+    RecursiveWorldRevisionDiscoveryValidator,
+};
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd)]
+pub enum RecursiveWorldRevisionAbstractionValidationStatus {
+    DiscoveryUnavailable,
+    Rejected,
+    Accepted,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct RecursiveWorldRevisionAbstractionValidation {
+    target: RecursiveWorldRule,
+    realization: RecursiveWorldRevisionAbstractionRealization,
+    bridge: Option<RecursiveWorldRevisionAbstractionDiscoveryBridge>,
+    discovery_validation: Option<RecursiveWorldRevisionDiscoveryValidation>,
+    status: RecursiveWorldRevisionAbstractionValidationStatus,
+}
+
+impl RecursiveWorldRevisionAbstractionValidation {
+    pub fn new(
+        model: &RecursiveWorldModel,
+        target: RecursiveWorldRule,
+        realization: RecursiveWorldRevisionAbstractionRealization,
+    ) -> Self {
+        let bridge = RecursiveWorldRevisionAbstractionDiscoveryBridge::new(
+            target.clone(),
+            realization.clone(),
+        );
+
+        let Some(bridge_value) = bridge.clone() else {
+            return Self {
+                target,
+                realization,
+                bridge: None,
+                discovery_validation: None,
+                status: RecursiveWorldRevisionAbstractionValidationStatus::DiscoveryUnavailable,
+            };
+        };
+
+        let discovery_validation = RecursiveWorldRevisionDiscoveryValidator::validate(
+            model,
+            RecursiveWorldRevisionDiscoveryHypothesisSet::new(vec![bridge_value
+                .hypothesis()
+                .clone()]),
+        );
+
+        let status = if discovery_validation.accepted_count() == 1 {
+            RecursiveWorldRevisionAbstractionValidationStatus::Accepted
+        } else {
+            RecursiveWorldRevisionAbstractionValidationStatus::Rejected
+        };
+
+        Self {
+            target,
+            realization,
+            bridge,
+            discovery_validation: Some(discovery_validation),
+            status,
+        }
+    }
+
+    pub fn target(&self) -> &RecursiveWorldRule {
+        &self.target
+    }
+
+    pub fn realization(&self) -> &RecursiveWorldRevisionAbstractionRealization {
+        &self.realization
+    }
+
+    pub fn bridge(&self) -> Option<&RecursiveWorldRevisionAbstractionDiscoveryBridge> {
+        self.bridge.as_ref()
+    }
+
+    pub fn discovery_validation(&self) -> Option<&RecursiveWorldRevisionDiscoveryValidation> {
+        self.discovery_validation.as_ref()
+    }
+
+    pub fn status(&self) -> RecursiveWorldRevisionAbstractionValidationStatus {
+        self.status
+    }
+
+    pub fn is_accepted(&self) -> bool {
+        self.status == RecursiveWorldRevisionAbstractionValidationStatus::Accepted
+    }
+
+    pub fn is_rejected(&self) -> bool {
+        self.status == RecursiveWorldRevisionAbstractionValidationStatus::Rejected
+    }
+
+    pub fn is_discovery_unavailable(&self) -> bool {
+        self.status == RecursiveWorldRevisionAbstractionValidationStatus::DiscoveryUnavailable
+    }
+
+    pub fn accepted_hypothesis(&self) -> Option<&RecursiveWorldRevisionDiscoveryHypothesis> {
+        self.discovery_validation
+            .as_ref()
+            .and_then(|validation| validation.accepted_hypotheses().first())
+    }
+
+    pub fn rejected_hypothesis(&self) -> Option<&RecursiveWorldRevisionDiscoveryHypothesis> {
+        self.discovery_validation
+            .as_ref()
+            .and_then(|validation| validation.rejected_hypotheses().first())
+    }
+
+    pub fn source_observations(&self) -> &RecursiveWorldRevisionInductionObservationSet {
+        self.realization.source_observations()
+    }
+
+    pub fn observation_count(&self) -> usize {
+        self.realization.observation_count()
+    }
+
+    pub fn vocabulary(&self) -> &RecursiveWorldRevisionAbstractionVocabulary {
+        self.realization.vocabulary()
+    }
+
+    pub fn premise_witnesses(
+        &self,
+        class: &RecursiveWorldRevisionAbstractionClass,
+    ) -> &[RecursiveUnit] {
+        self.realization.premise_witnesses(class)
+    }
+
+    pub fn conclusion_witnesses(
+        &self,
+        class: &RecursiveWorldRevisionAbstractionClass,
+    ) -> &[RecursiveUnit] {
+        self.realization.conclusion_witnesses(class)
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct RecursiveWorldRevisionAbstractionValidator;
+
+impl RecursiveWorldRevisionAbstractionValidator {
+    pub fn validate(
+        model: &RecursiveWorldModel,
+        target: RecursiveWorldRule,
+        realization: RecursiveWorldRevisionAbstractionRealization,
+    ) -> RecursiveWorldRevisionAbstractionValidation {
+        RecursiveWorldRevisionAbstractionValidation::new(model, target, realization)
+    }
+}
