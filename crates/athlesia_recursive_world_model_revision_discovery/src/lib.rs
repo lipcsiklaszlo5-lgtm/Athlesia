@@ -332,3 +332,124 @@ impl RecursiveWorldRevisionDiscoveryValidator {
         RecursiveWorldRevisionDiscoveryValidation::new(model, hypotheses)
     }
 }
+
+use athlesia_recursive_world_model_evidence::RecursiveWorldEvidenceState;
+
+use athlesia_recursive_world_model_revision_generation::{
+    RecursiveWorldRevisionGenerationEvidenceScope, RecursiveWorldRevisionGenerationEvidenceScoper,
+};
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct RecursiveWorldRevisionDiscoveryEvidenceScope {
+    validation: RecursiveWorldRevisionDiscoveryValidation,
+    generation_scope: RecursiveWorldRevisionGenerationEvidenceScope,
+    active_hypotheses: Vec<RecursiveWorldRevisionDiscoveryHypothesis>,
+    inactive_hypotheses: Vec<RecursiveWorldRevisionDiscoveryHypothesis>,
+    rejected_hypotheses: Vec<RecursiveWorldRevisionDiscoveryHypothesis>,
+}
+
+impl RecursiveWorldRevisionDiscoveryEvidenceScope {
+    pub fn new(
+        model: &RecursiveWorldModel,
+        evidence_state: &RecursiveWorldEvidenceState,
+        hypotheses: RecursiveWorldRevisionDiscoveryHypothesisSet,
+    ) -> Self {
+        let validation = RecursiveWorldRevisionDiscoveryValidation::new(model, hypotheses);
+
+        let generation_scope = RecursiveWorldRevisionGenerationEvidenceScoper::scope(
+            model,
+            evidence_state,
+            validation.bridge().candidates().clone(),
+        );
+
+        let mut active_hypotheses = generation_scope
+            .active_candidates()
+            .iter()
+            .flat_map(|candidate| validation.bridge().hypotheses_for_candidate(candidate))
+            .collect::<Vec<_>>();
+
+        let mut inactive_hypotheses = generation_scope
+            .inactive_candidates()
+            .iter()
+            .flat_map(|candidate| validation.bridge().hypotheses_for_candidate(candidate))
+            .collect::<Vec<_>>();
+
+        let mut rejected_hypotheses = validation.rejected_hypotheses().to_vec();
+
+        active_hypotheses.sort();
+        active_hypotheses.dedup();
+
+        inactive_hypotheses.sort();
+        inactive_hypotheses.dedup();
+
+        rejected_hypotheses.sort();
+        rejected_hypotheses.dedup();
+
+        Self {
+            validation,
+            generation_scope,
+            active_hypotheses,
+            inactive_hypotheses,
+            rejected_hypotheses,
+        }
+    }
+
+    pub fn validation(&self) -> &RecursiveWorldRevisionDiscoveryValidation {
+        &self.validation
+    }
+
+    pub fn generation_scope(&self) -> &RecursiveWorldRevisionGenerationEvidenceScope {
+        &self.generation_scope
+    }
+
+    pub fn pressured_rule(&self) -> Option<&RecursiveWorldRule> {
+        self.generation_scope.pressured_rule()
+    }
+
+    pub fn has_negative_pressure(&self) -> bool {
+        self.generation_scope.has_negative_pressure()
+    }
+
+    pub fn active_hypotheses(&self) -> &[RecursiveWorldRevisionDiscoveryHypothesis] {
+        &self.active_hypotheses
+    }
+
+    pub fn inactive_hypotheses(&self) -> &[RecursiveWorldRevisionDiscoveryHypothesis] {
+        &self.inactive_hypotheses
+    }
+
+    pub fn rejected_hypotheses(&self) -> &[RecursiveWorldRevisionDiscoveryHypothesis] {
+        &self.rejected_hypotheses
+    }
+
+    pub fn active_count(&self) -> usize {
+        self.active_hypotheses.len()
+    }
+
+    pub fn inactive_count(&self) -> usize {
+        self.inactive_hypotheses.len()
+    }
+
+    pub fn rejected_count(&self) -> usize {
+        self.rejected_hypotheses.len()
+    }
+
+    pub fn accepted_count(&self) -> usize {
+        self.active_hypotheses
+            .len()
+            .saturating_add(self.inactive_hypotheses.len())
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct RecursiveWorldRevisionDiscoveryEvidenceScoper;
+
+impl RecursiveWorldRevisionDiscoveryEvidenceScoper {
+    pub fn scope(
+        model: &RecursiveWorldModel,
+        evidence_state: &RecursiveWorldEvidenceState,
+        hypotheses: RecursiveWorldRevisionDiscoveryHypothesisSet,
+    ) -> RecursiveWorldRevisionDiscoveryEvidenceScope {
+        RecursiveWorldRevisionDiscoveryEvidenceScope::new(model, evidence_state, hypotheses)
+    }
+}
