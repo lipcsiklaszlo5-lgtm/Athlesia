@@ -476,3 +476,190 @@ impl RecursiveWorldRevisionAbstractionCompositionGeneralizationResolver {
         RecursiveWorldRevisionAbstractionCompositionGeneralizationResolution::resolve(source)
     }
 }
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd)]
+pub enum RecursiveWorldRevisionAbstractionCompositionGeneralizationProjectionStatus {
+    NoResolvedMotifs,
+    NoApplicationMatch,
+    Projected,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Ord, PartialOrd)]
+pub struct RecursiveWorldRevisionAbstractionCompositionGeneralizationProjectedMotif {
+    motif:
+        RecursiveWorldRevisionAbstractionCompositionGeneralizedMotif,
+    matching_selections:
+        Vec<
+            athlesia_recursive_world_model_revision_abstraction_composition::
+                RecursiveWorldRevisionAbstractionCompositionPathSelection,
+        >,
+}
+
+impl RecursiveWorldRevisionAbstractionCompositionGeneralizationProjectedMotif {
+    pub fn motif(&self) -> &RecursiveWorldRevisionAbstractionCompositionGeneralizedMotif {
+        &self.motif
+    }
+
+    pub fn matching_selections(
+        &self,
+    ) -> &[
+        athlesia_recursive_world_model_revision_abstraction_composition::
+            RecursiveWorldRevisionAbstractionCompositionPathSelection
+    ]{
+        &self.matching_selections
+    }
+
+    pub fn match_count(&self) -> usize {
+        self.matching_selections.len()
+    }
+
+    pub fn classes(&self) -> &[RecursiveWorldRevisionAbstractionClass] {
+        self.motif.classes()
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct RecursiveWorldRevisionAbstractionCompositionGeneralizationProjection {
+    resolution:
+        RecursiveWorldRevisionAbstractionCompositionGeneralizationResolution,
+    application:
+        athlesia_recursive_world_model_revision_abstraction_composition::
+            RecursiveWorldRevisionAbstractionCompositionPathSelectionSet,
+    projected_motifs:
+        Vec<
+            RecursiveWorldRevisionAbstractionCompositionGeneralizationProjectedMotif,
+        >,
+    status:
+        RecursiveWorldRevisionAbstractionCompositionGeneralizationProjectionStatus,
+}
+
+impl RecursiveWorldRevisionAbstractionCompositionGeneralizationProjection {
+    pub fn project(
+        resolution: RecursiveWorldRevisionAbstractionCompositionGeneralizationResolution,
+        application:
+            athlesia_recursive_world_model_revision_abstraction_composition::
+                RecursiveWorldRevisionAbstractionCompositionPathSelectionSet,
+    ) -> Self {
+        if resolution.resolved_motifs().is_empty() {
+            return Self {
+                resolution,
+                application,
+                projected_motifs:
+                    Vec::new(),
+                status:
+                    RecursiveWorldRevisionAbstractionCompositionGeneralizationProjectionStatus::
+                        NoResolvedMotifs,
+            };
+        }
+
+        let mut projected_motifs = Vec::new();
+
+        for motif in resolution.resolved_motifs() {
+            let mut matching_selections:
+                BTreeSet<
+                    athlesia_recursive_world_model_revision_abstraction_composition::
+                        RecursiveWorldRevisionAbstractionCompositionPathSelection,
+                > =
+                BTreeSet::new();
+
+            for selection in application.selections() {
+                let matched = selection
+                    .path()
+                    .classes()
+                    .windows(3)
+                    .any(|window| window == motif.classes());
+
+                if matched {
+                    matching_selections.insert(selection.clone());
+                }
+            }
+
+            if matching_selections.is_empty() {
+                continue;
+            }
+
+            projected_motifs.push(
+                RecursiveWorldRevisionAbstractionCompositionGeneralizationProjectedMotif {
+                    motif: motif.clone(),
+                    matching_selections: matching_selections.into_iter().collect(),
+                },
+            );
+        }
+
+        projected_motifs.sort();
+        projected_motifs.dedup();
+
+        let status = if projected_motifs.is_empty() {
+            RecursiveWorldRevisionAbstractionCompositionGeneralizationProjectionStatus::
+                    NoApplicationMatch
+        } else {
+            RecursiveWorldRevisionAbstractionCompositionGeneralizationProjectionStatus::Projected
+        };
+
+        Self {
+            resolution,
+            application,
+            projected_motifs,
+            status,
+        }
+    }
+
+    pub fn resolution(
+        &self,
+    ) -> &RecursiveWorldRevisionAbstractionCompositionGeneralizationResolution {
+        &self.resolution
+    }
+
+    pub fn application(
+        &self,
+    ) -> &athlesia_recursive_world_model_revision_abstraction_composition::
+    RecursiveWorldRevisionAbstractionCompositionPathSelectionSet{
+        &self.application
+    }
+
+    pub fn projected_motifs(
+        &self,
+    ) -> &[RecursiveWorldRevisionAbstractionCompositionGeneralizationProjectedMotif] {
+        &self.projected_motifs
+    }
+
+    pub fn status(
+        &self,
+    ) -> RecursiveWorldRevisionAbstractionCompositionGeneralizationProjectionStatus {
+        self.status
+    }
+
+    pub fn len(&self) -> usize {
+        self.projected_motifs.len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.projected_motifs.is_empty()
+    }
+
+    pub fn projected_motif(
+        &self,
+        classes: &[RecursiveWorldRevisionAbstractionClass],
+    ) -> Option<&RecursiveWorldRevisionAbstractionCompositionGeneralizationProjectedMotif> {
+        self.projected_motifs
+            .iter()
+            .find(|motif| motif.classes() == classes)
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct RecursiveWorldRevisionAbstractionCompositionGeneralizationProjector;
+
+impl RecursiveWorldRevisionAbstractionCompositionGeneralizationProjector {
+    pub fn project(
+        resolution: RecursiveWorldRevisionAbstractionCompositionGeneralizationResolution,
+        application:
+            athlesia_recursive_world_model_revision_abstraction_composition::
+                RecursiveWorldRevisionAbstractionCompositionPathSelectionSet,
+    ) -> RecursiveWorldRevisionAbstractionCompositionGeneralizationProjection {
+        RecursiveWorldRevisionAbstractionCompositionGeneralizationProjection::project(
+            resolution,
+            application,
+        )
+    }
+}
