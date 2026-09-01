@@ -927,3 +927,232 @@ impl MindstoneStreamingAggregator {
         }
     }
 }
+
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub struct CognitiveCandidate {
+    fingerprint: CognitiveFingerprint,
+    salience: CognitiveSalience,
+    support: u64,
+    estimated_cost: u32,
+}
+
+impl CognitiveCandidate {
+    pub fn new(
+        fingerprint: CognitiveFingerprint,
+        salience: CognitiveSalience,
+        support: u64,
+        estimated_cost: u32,
+    ) -> Option<Self> {
+        if support == 0 {
+            return None;
+        }
+
+        if estimated_cost == 0 {
+            return None;
+        }
+
+        Some(Self {
+            fingerprint,
+            salience,
+            support,
+            estimated_cost,
+        })
+    }
+
+    pub fn from_streaming_aggregate(
+        aggregate: &StreamingAggregate,
+        estimated_cost: u32,
+    ) -> Option<Self> {
+        Self::new(
+            aggregate.fingerprint(),
+            aggregate.peak_salience(),
+            aggregate.observation_count(),
+            estimated_cost,
+        )
+    }
+
+    pub fn fingerprint(self) -> CognitiveFingerprint {
+        self.fingerprint
+    }
+
+    pub fn salience(self) -> CognitiveSalience {
+        self.salience
+    }
+
+    pub fn support(self) -> u64 {
+        self.support
+    }
+
+    pub fn estimated_cost(self) -> u32 {
+        self.estimated_cost
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+pub struct BoundedCandidateSearchPolicy {
+    max_candidates: usize,
+}
+
+impl BoundedCandidateSearchPolicy {
+    pub fn new(max_candidates: usize) -> Option<Self> {
+        if max_candidates == 0 {
+            return None;
+        }
+
+        Some(Self { max_candidates })
+    }
+
+    pub fn max_candidates(self) -> usize {
+        self.max_candidates
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct BoundedCandidateSearchResult {
+    input_candidate_count: usize,
+    unique_candidate_count: usize,
+    selected: Vec<CognitiveCandidate>,
+    total_selected_cost: u32,
+    truncated_by_candidate_limit: bool,
+    truncated_by_compute_budget: bool,
+}
+
+impl BoundedCandidateSearchResult {
+    pub fn input_candidate_count(&self) -> usize {
+        self.input_candidate_count
+    }
+
+    pub fn unique_candidate_count(&self) -> usize {
+        self.unique_candidate_count
+    }
+
+    pub fn selected(&self) -> &[CognitiveCandidate] {
+        &self.selected
+    }
+
+    pub fn selected_count(&self) -> usize {
+        self.selected.len()
+    }
+
+    pub fn total_selected_cost(&self) -> u32 {
+        self.total_selected_cost
+    }
+
+    pub fn truncated_by_candidate_limit(&self) -> bool {
+        self.truncated_by_candidate_limit
+    }
+
+    pub fn truncated_by_compute_budget(&self) -> bool {
+        self.truncated_by_compute_budget
+    }
+
+    pub fn was_truncated(&self) -> bool {
+        self.truncated_by_candidate_limit || self.truncated_by_compute_budget
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, Hash, Ord, PartialEq, PartialOrd)]
+pub struct BoundedCandidateSearch;
+
+impl BoundedCandidateSearch {
+    fn ranking(left: &CognitiveCandidate, right: &CognitiveCandidate) -> std::cmp::Ordering {
+        right
+            .salience()
+            .cmp(&left.salience())
+            .then_with(|| right.support().cmp(&left.support()))
+            .then_with(|| left.estimated_cost().cmp(&right.estimated_cost()))
+            .then_with(|| left.fingerprint().cmp(&right.fingerprint()))
+    }
+
+    fn canonicalize(candidates: Vec<CognitiveCandidate>) -> Vec<CognitiveCandidate> {
+        let mut unique =
+            std::collections::BTreeMap::<CognitiveFingerprint, CognitiveCandidate>::new();
+
+        for candidate in candidates {
+            match unique.get(&candidate.fingerprint()).copied() {
+                None => {
+                    unique.insert(candidate.fingerprint(), candidate);
+                }
+
+                Some(existing) => {
+                    if Self::ranking(&candidate, &existing) == std::cmp::Ordering::Less {
+                        unique.insert(candidate.fingerprint(), candidate);
+                    }
+                }
+            }
+        }
+
+        let mut ranked = unique.into_values().collect::<Vec<_>>();
+
+        ranked.sort_by(Self::ranking);
+
+        ranked
+    }
+
+    pub fn select(
+        candidates: Vec<CognitiveCandidate>,
+        policy: BoundedCandidateSearchPolicy,
+        budget: CognitiveBudget,
+    ) -> BoundedCandidateSearchResult {
+        let input_candidate_count = candidates.len();
+
+        let ranked = Self::canonicalize(candidates);
+
+        let unique_candidate_count = ranked.len();
+
+        let mut selected = Vec::with_capacity(policy.max_candidates().min(unique_candidate_count));
+
+        let mut total_selected_cost = 0_u32;
+
+        let mut truncated_by_candidate_limit = false;
+
+        let mut truncated_by_compute_budget = false;
+
+        for (index, candidate) in ranked.into_iter().enumerate() {
+            if selected.len() >= policy.max_candidates() {
+                truncated_by_candidate_limit = index < unique_candidate_count;
+
+                break;
+            }
+
+            let Some(next_total) = total_selected_cost.checked_add(candidate.estimated_cost())
+            else {
+                truncated_by_compute_budget = true;
+
+                break;
+            };
+
+            if next_total > budget.units() {
+                truncated_by_compute_budget = true;
+
+                break;
+            }
+
+            total_selected_cost = next_total;
+
+            selected.push(candidate);
+        }
+
+        BoundedCandidateSearchResult {
+            input_candidate_count,
+            unique_candidate_count,
+            selected,
+            total_selected_cost,
+            truncated_by_candidate_limit,
+            truncated_by_compute_budget,
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, Hash, Ord, PartialEq, PartialOrd)]
+pub struct MindstoneBoundedCandidateSearch;
+
+impl MindstoneBoundedCandidateSearch {
+    pub fn evaluate(
+        candidates: Vec<CognitiveCandidate>,
+        policy: BoundedCandidateSearchPolicy,
+        budget: CognitiveBudget,
+    ) -> BoundedCandidateSearchResult {
+        BoundedCandidateSearch::select(candidates, policy, budget)
+    }
+}
