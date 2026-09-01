@@ -5627,3 +5627,249 @@ impl MindstoneCausalControllability {
         }
     }
 }
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct SparseMindstoneFinalInput {
+    identity: CollisionSafeStructuralIdentity,
+    profile: MindstoneExtendedSignalProfile,
+    causal_evidence: Option<CausalControllabilityEvidence>,
+    hypotheses: Vec<BoundedHypothesisSearchNode>,
+}
+
+impl SparseMindstoneFinalInput {
+    pub fn from_structure(
+        structure: CognitiveStructure,
+        profile: MindstoneExtendedSignalProfile,
+        causal_evidence: Option<CausalControllabilityEvidence>,
+        hypotheses: Vec<BoundedHypothesisSearchNode>,
+    ) -> Self {
+        Self {
+            identity: CollisionSafeStructuralIdentity::from_structure(structure),
+            profile,
+            causal_evidence,
+            hypotheses,
+        }
+    }
+
+    pub fn with_fingerprint_hint(
+        fingerprint: CognitiveFingerprint,
+        structure: CognitiveStructure,
+        profile: MindstoneExtendedSignalProfile,
+        causal_evidence: Option<CausalControllabilityEvidence>,
+        hypotheses: Vec<BoundedHypothesisSearchNode>,
+    ) -> Self {
+        Self {
+            identity: CollisionSafeStructuralIdentity::with_fingerprint_hint(
+                fingerprint,
+                structure,
+            ),
+            profile,
+            causal_evidence,
+            hypotheses,
+        }
+    }
+
+    pub fn identity(&self) -> &CollisionSafeStructuralIdentity {
+        &self.identity
+    }
+
+    pub fn profile(&self) -> MindstoneExtendedSignalProfile {
+        self.profile
+    }
+
+    pub fn causal_evidence(&self) -> Option<CausalControllabilityEvidence> {
+        self.causal_evidence
+    }
+
+    pub fn hypotheses(&self) -> &[BoundedHypothesisSearchNode] {
+        &self.hypotheses
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct SparseMindstoneFinalContext {
+    cycle_context: IntegratedSparseCycleContext,
+    hypothesis_policy: BoundedHypothesisSearchPolicy,
+}
+
+impl SparseMindstoneFinalContext {
+    pub fn new(
+        cycle_context: IntegratedSparseCycleContext,
+        hypothesis_policy: BoundedHypothesisSearchPolicy,
+    ) -> Self {
+        Self {
+            cycle_context,
+            hypothesis_policy,
+        }
+    }
+
+    pub fn cycle_context(&self) -> &IntegratedSparseCycleContext {
+        &self.cycle_context
+    }
+
+    pub fn hypothesis_policy(&self) -> BoundedHypothesisSearchPolicy {
+        self.hypothesis_policy
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct SparseMindstoneFinalResult {
+    corrected_profile: MindstoneExtendedSignalProfile,
+    causal_estimate: Option<CausalControllabilityEstimate>,
+    cycle: IntegratedSparseCycleResult,
+    allocation: Option<AdaptiveComputeAllocation>,
+    final_goals: CollisionSafeGoalFrontierResult,
+    hypothesis_search: Option<BoundedHypothesisSearchResult>,
+}
+
+impl SparseMindstoneFinalResult {
+    pub fn corrected_profile(&self) -> MindstoneExtendedSignalProfile {
+        self.corrected_profile
+    }
+
+    pub fn causal_estimate(&self) -> Option<CausalControllabilityEstimate> {
+        self.causal_estimate
+    }
+
+    pub fn cycle(&self) -> &IntegratedSparseCycleResult {
+        &self.cycle
+    }
+
+    pub fn allocation(&self) -> Option<AdaptiveComputeAllocation> {
+        self.allocation
+    }
+
+    pub fn final_goals(&self) -> &CollisionSafeGoalFrontierResult {
+        &self.final_goals
+    }
+
+    pub fn hypothesis_search(&self) -> Option<&BoundedHypothesisSearchResult> {
+        self.hypothesis_search.as_ref()
+    }
+
+    pub fn processed(&self) -> bool {
+        self.cycle.processed()
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, Hash, Ord, PartialEq, PartialOrd)]
+pub struct SparseMindstoneFinalOrchestrator;
+
+impl SparseMindstoneFinalOrchestrator {
+    fn causal_correct(
+        profile: MindstoneExtendedSignalProfile,
+        evidence: Option<CausalControllabilityEvidence>,
+    ) -> (
+        MindstoneExtendedSignalProfile,
+        Option<CausalControllabilityEstimate>,
+    ) {
+        if let Some(evidence) = evidence {
+            let estimate = CausalControllabilityEstimator::estimate(evidence);
+
+            (
+                profile.with_causal_controllability(estimate),
+                Some(estimate),
+            )
+        } else {
+            (
+                MindstoneExtendedSignalProfile::new(
+                    profile.base(),
+                    profile.compression_gain(),
+                    CognitiveSignal::zero(),
+                ),
+                None,
+            )
+        }
+    }
+
+    pub fn evaluate(
+        state: IntegratedSparseCycleState,
+        event_index: u64,
+        input: SparseMindstoneFinalInput,
+        context: &SparseMindstoneFinalContext,
+    ) -> SparseMindstoneFinalResult {
+        let (corrected_profile, causal_estimate) =
+            Self::causal_correct(input.profile(), input.causal_evidence());
+
+        let cycle = IntegratedSparseCycle::evaluate_with_fingerprint_hint(
+            state,
+            event_index,
+            input.identity().fingerprint(),
+            input.identity().structure().clone(),
+            corrected_profile,
+            context.cycle_context(),
+        );
+
+        if !cycle.processed() {
+            return SparseMindstoneFinalResult {
+                corrected_profile,
+                causal_estimate,
+                cycle,
+                allocation: None,
+                final_goals: CollisionSafeGoalFrontierResult::empty(),
+                hypothesis_search: None,
+            };
+        }
+
+        let effective_profile = cycle
+            .effective_profile()
+            .expect("processed integrated sparse cycle has effective profile");
+
+        let reserved_units = cycle
+            .admission()
+            .expect("processed integrated sparse cycle has admission decision")
+            .granted_units();
+
+        let allocation = MindstoneAdaptiveComputeAllocation::evaluate(
+            effective_profile,
+            context.cycle_context().budget(),
+            reserved_units,
+        )
+        .expect("admission reservation cannot exceed hard cycle budget");
+
+        let final_goals = CollisionSafeInformationGoalEngine::rank(
+            cycle.state_after().epistemic(),
+            context.cycle_context().epistemic_policy(),
+            context.cycle_context().goal_policy(),
+            context.cycle_context().predictions(),
+            allocation.goal_units(),
+        );
+
+        let hypothesis_search =
+            if allocation.hypothesis_units() == 0 || input.hypotheses().is_empty() {
+                None
+            } else {
+                let hypothesis_budget = CognitiveBudget::new(allocation.hypothesis_units())
+                    .expect("positive allocated hypothesis budget is valid");
+
+                Some(BoundedHypothesisPathDepthSearch::search(
+                    input.hypotheses(),
+                    context.hypothesis_policy(),
+                    hypothesis_budget,
+                ))
+            };
+
+        SparseMindstoneFinalResult {
+            corrected_profile,
+            causal_estimate,
+            cycle,
+            allocation: Some(allocation),
+            final_goals,
+            hypothesis_search,
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, Hash, Ord, PartialEq, PartialOrd)]
+pub struct MindstoneSparseMindstoneFinal;
+
+impl MindstoneSparseMindstoneFinal {
+    pub fn evaluate(
+        state: IntegratedSparseCycleState,
+        event_index: u64,
+        input: SparseMindstoneFinalInput,
+        context: &SparseMindstoneFinalContext,
+    ) -> SparseMindstoneFinalResult {
+        SparseMindstoneFinalOrchestrator::evaluate(state, event_index, input, context)
+    }
+}
