@@ -1156,3 +1156,526 @@ impl MindstoneBoundedCandidateSearch {
         BoundedCandidateSearch::select(candidates, policy, budget)
     }
 }
+
+#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+pub enum CognitiveMemoryTier {
+    Cold,
+    Consolidated,
+    Active,
+}
+
+#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+pub enum HierarchicalMemoryAdmissionClass {
+    Discard,
+    Cold,
+    Consolidated,
+    Active,
+}
+
+impl HierarchicalMemoryAdmissionClass {
+    pub fn tier(self) -> Option<CognitiveMemoryTier> {
+        match self {
+            Self::Discard => None,
+            Self::Cold => Some(CognitiveMemoryTier::Cold),
+            Self::Consolidated => Some(CognitiveMemoryTier::Consolidated),
+            Self::Active => Some(CognitiveMemoryTier::Active),
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+pub struct HierarchicalMemoryPolicy {
+    consolidated_salience_threshold: CognitiveSignal,
+    active_salience_threshold: CognitiveSignal,
+    cold_support_threshold: u64,
+    consolidated_support_threshold: u64,
+    active_capacity: usize,
+    consolidated_capacity: usize,
+    cold_capacity: usize,
+}
+
+impl HierarchicalMemoryPolicy {
+    pub fn new(
+        consolidated_salience_threshold: CognitiveSignal,
+        active_salience_threshold: CognitiveSignal,
+        cold_support_threshold: u64,
+        consolidated_support_threshold: u64,
+        active_capacity: usize,
+        consolidated_capacity: usize,
+        cold_capacity: usize,
+    ) -> Option<Self> {
+        if consolidated_salience_threshold >= active_salience_threshold {
+            return None;
+        }
+
+        if cold_support_threshold == 0 || consolidated_support_threshold == 0 {
+            return None;
+        }
+
+        if cold_support_threshold > consolidated_support_threshold {
+            return None;
+        }
+
+        if active_capacity == 0 || consolidated_capacity == 0 || cold_capacity == 0 {
+            return None;
+        }
+
+        Some(Self {
+            consolidated_salience_threshold,
+            active_salience_threshold,
+            cold_support_threshold,
+            consolidated_support_threshold,
+            active_capacity,
+            consolidated_capacity,
+            cold_capacity,
+        })
+    }
+
+    pub fn consolidated_salience_threshold(self) -> CognitiveSignal {
+        self.consolidated_salience_threshold
+    }
+
+    pub fn active_salience_threshold(self) -> CognitiveSignal {
+        self.active_salience_threshold
+    }
+
+    pub fn cold_support_threshold(self) -> u64 {
+        self.cold_support_threshold
+    }
+
+    pub fn consolidated_support_threshold(self) -> u64 {
+        self.consolidated_support_threshold
+    }
+
+    pub fn active_capacity(self) -> usize {
+        self.active_capacity
+    }
+
+    pub fn consolidated_capacity(self) -> usize {
+        self.consolidated_capacity
+    }
+
+    pub fn cold_capacity(self) -> usize {
+        self.cold_capacity
+    }
+
+    pub fn total_capacity(self) -> usize {
+        self.active_capacity
+            .saturating_add(self.consolidated_capacity)
+            .saturating_add(self.cold_capacity)
+    }
+
+    pub fn classify(self, candidate: CognitiveCandidate) -> HierarchicalMemoryAdmissionClass {
+        if candidate.salience().value() >= self.active_salience_threshold.value() {
+            HierarchicalMemoryAdmissionClass::Active
+        } else if candidate.salience().value() >= self.consolidated_salience_threshold.value()
+            && candidate.support() >= self.consolidated_support_threshold
+        {
+            HierarchicalMemoryAdmissionClass::Consolidated
+        } else if candidate.support() >= self.cold_support_threshold {
+            HierarchicalMemoryAdmissionClass::Cold
+        } else {
+            HierarchicalMemoryAdmissionClass::Discard
+        }
+    }
+
+    fn capacity_for(self, tier: CognitiveMemoryTier) -> usize {
+        match tier {
+            CognitiveMemoryTier::Active => self.active_capacity,
+            CognitiveMemoryTier::Consolidated => self.consolidated_capacity,
+            CognitiveMemoryTier::Cold => self.cold_capacity,
+        }
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct CognitiveMemoryRecord {
+    candidate: CognitiveCandidate,
+    tier: CognitiveMemoryTier,
+    first_admitted_at: u64,
+    last_admitted_at: u64,
+    admission_count: u64,
+}
+
+impl CognitiveMemoryRecord {
+    fn new(candidate: CognitiveCandidate, tier: CognitiveMemoryTier, event_index: u64) -> Self {
+        Self {
+            candidate,
+            tier,
+            first_admitted_at: event_index,
+            last_admitted_at: event_index,
+            admission_count: 1,
+        }
+    }
+
+    fn updated(
+        previous: CognitiveMemoryRecord,
+        candidate: CognitiveCandidate,
+        tier: CognitiveMemoryTier,
+        event_index: u64,
+    ) -> Self {
+        Self {
+            candidate,
+            tier,
+            first_admitted_at: previous.first_admitted_at,
+            last_admitted_at: event_index,
+            admission_count: previous.admission_count.saturating_add(1),
+        }
+    }
+
+    pub fn candidate(&self) -> CognitiveCandidate {
+        self.candidate
+    }
+
+    pub fn fingerprint(&self) -> CognitiveFingerprint {
+        self.candidate.fingerprint()
+    }
+
+    pub fn tier(&self) -> CognitiveMemoryTier {
+        self.tier
+    }
+
+    pub fn first_admitted_at(&self) -> u64 {
+        self.first_admitted_at
+    }
+
+    pub fn last_admitted_at(&self) -> u64 {
+        self.last_admitted_at
+    }
+
+    pub fn admission_count(&self) -> u64 {
+        self.admission_count
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct HierarchicalMemoryState {
+    last_event_index: Option<u64>,
+    active: std::collections::BTreeMap<CognitiveFingerprint, CognitiveMemoryRecord>,
+    consolidated: std::collections::BTreeMap<CognitiveFingerprint, CognitiveMemoryRecord>,
+    cold: std::collections::BTreeMap<CognitiveFingerprint, CognitiveMemoryRecord>,
+}
+
+impl HierarchicalMemoryState {
+    pub fn empty() -> Self {
+        Self {
+            last_event_index: None,
+            active: std::collections::BTreeMap::new(),
+            consolidated: std::collections::BTreeMap::new(),
+            cold: std::collections::BTreeMap::new(),
+        }
+    }
+
+    pub fn last_event_index(&self) -> Option<u64> {
+        self.last_event_index
+    }
+
+    pub fn active_len(&self) -> usize {
+        self.active.len()
+    }
+
+    pub fn consolidated_len(&self) -> usize {
+        self.consolidated.len()
+    }
+
+    pub fn cold_len(&self) -> usize {
+        self.cold.len()
+    }
+
+    pub fn total_len(&self) -> usize {
+        self.active_len()
+            .saturating_add(self.consolidated_len())
+            .saturating_add(self.cold_len())
+    }
+
+    pub fn contains(&self, fingerprint: CognitiveFingerprint) -> bool {
+        self.active.contains_key(&fingerprint)
+            || self.consolidated.contains_key(&fingerprint)
+            || self.cold.contains_key(&fingerprint)
+    }
+
+    pub fn tier_of(&self, fingerprint: CognitiveFingerprint) -> Option<CognitiveMemoryTier> {
+        if self.active.contains_key(&fingerprint) {
+            Some(CognitiveMemoryTier::Active)
+        } else if self.consolidated.contains_key(&fingerprint) {
+            Some(CognitiveMemoryTier::Consolidated)
+        } else if self.cold.contains_key(&fingerprint) {
+            Some(CognitiveMemoryTier::Cold)
+        } else {
+            None
+        }
+    }
+
+    pub fn record(&self, fingerprint: CognitiveFingerprint) -> Option<&CognitiveMemoryRecord> {
+        self.active
+            .get(&fingerprint)
+            .or_else(|| self.consolidated.get(&fingerprint))
+            .or_else(|| self.cold.get(&fingerprint))
+    }
+
+    fn map(
+        &self,
+        tier: CognitiveMemoryTier,
+    ) -> &std::collections::BTreeMap<CognitiveFingerprint, CognitiveMemoryRecord> {
+        match tier {
+            CognitiveMemoryTier::Active => &self.active,
+            CognitiveMemoryTier::Consolidated => &self.consolidated,
+            CognitiveMemoryTier::Cold => &self.cold,
+        }
+    }
+
+    fn map_mut(
+        &mut self,
+        tier: CognitiveMemoryTier,
+    ) -> &mut std::collections::BTreeMap<CognitiveFingerprint, CognitiveMemoryRecord> {
+        match tier {
+            CognitiveMemoryTier::Active => &mut self.active,
+            CognitiveMemoryTier::Consolidated => &mut self.consolidated,
+            CognitiveMemoryTier::Cold => &mut self.cold,
+        }
+    }
+
+    fn remove(
+        &mut self,
+        fingerprint: CognitiveFingerprint,
+    ) -> Option<(CognitiveMemoryTier, CognitiveMemoryRecord)> {
+        if let Some(record) = self.active.remove(&fingerprint) {
+            return Some((CognitiveMemoryTier::Active, record));
+        }
+
+        if let Some(record) = self.consolidated.remove(&fingerprint) {
+            return Some((CognitiveMemoryTier::Consolidated, record));
+        }
+
+        self.cold
+            .remove(&fingerprint)
+            .map(|record| (CognitiveMemoryTier::Cold, record))
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+pub struct CognitiveMemoryEviction {
+    fingerprint: CognitiveFingerprint,
+    tier: CognitiveMemoryTier,
+}
+
+impl CognitiveMemoryEviction {
+    fn new(fingerprint: CognitiveFingerprint, tier: CognitiveMemoryTier) -> Self {
+        Self { fingerprint, tier }
+    }
+
+    pub fn fingerprint(self) -> CognitiveFingerprint {
+        self.fingerprint
+    }
+
+    pub fn tier(self) -> CognitiveMemoryTier {
+        self.tier
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+pub enum HierarchicalMemoryAdmissionStatus {
+    RejectedOutOfOrder,
+    Discarded,
+    Cold,
+    Consolidated,
+    Active,
+}
+
+impl HierarchicalMemoryAdmissionStatus {
+    pub fn tier(self) -> Option<CognitiveMemoryTier> {
+        match self {
+            Self::RejectedOutOfOrder | Self::Discarded => None,
+            Self::Cold => Some(CognitiveMemoryTier::Cold),
+            Self::Consolidated => Some(CognitiveMemoryTier::Consolidated),
+            Self::Active => Some(CognitiveMemoryTier::Active),
+        }
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct HierarchicalMemoryAdmissionResult {
+    state_before: HierarchicalMemoryState,
+    state_after: HierarchicalMemoryState,
+    event_index: u64,
+    candidate: CognitiveCandidate,
+    class: HierarchicalMemoryAdmissionClass,
+    previous_tier: Option<CognitiveMemoryTier>,
+    eviction: Option<CognitiveMemoryEviction>,
+    record: Option<CognitiveMemoryRecord>,
+    status: HierarchicalMemoryAdmissionStatus,
+}
+
+impl HierarchicalMemoryAdmissionResult {
+    pub fn state_before(&self) -> &HierarchicalMemoryState {
+        &self.state_before
+    }
+
+    pub fn state_after(&self) -> &HierarchicalMemoryState {
+        &self.state_after
+    }
+
+    pub fn event_index(&self) -> u64 {
+        self.event_index
+    }
+
+    pub fn candidate(&self) -> CognitiveCandidate {
+        self.candidate
+    }
+
+    pub fn class(&self) -> HierarchicalMemoryAdmissionClass {
+        self.class
+    }
+
+    pub fn previous_tier(&self) -> Option<CognitiveMemoryTier> {
+        self.previous_tier
+    }
+
+    pub fn eviction(&self) -> Option<CognitiveMemoryEviction> {
+        self.eviction
+    }
+
+    pub fn record(&self) -> Option<&CognitiveMemoryRecord> {
+        self.record.as_ref()
+    }
+
+    pub fn status(&self) -> HierarchicalMemoryAdmissionStatus {
+        self.status
+    }
+
+    pub fn accepted(&self) -> bool {
+        self.status != HierarchicalMemoryAdmissionStatus::RejectedOutOfOrder
+    }
+
+    pub fn retained(&self) -> bool {
+        self.status.tier().is_some()
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, Hash, Ord, PartialEq, PartialOrd)]
+pub struct HierarchicalMemoryAdmission;
+
+impl HierarchicalMemoryAdmission {
+    fn status_for(class: HierarchicalMemoryAdmissionClass) -> HierarchicalMemoryAdmissionStatus {
+        match class {
+            HierarchicalMemoryAdmissionClass::Discard => {
+                HierarchicalMemoryAdmissionStatus::Discarded
+            }
+            HierarchicalMemoryAdmissionClass::Cold => HierarchicalMemoryAdmissionStatus::Cold,
+            HierarchicalMemoryAdmissionClass::Consolidated => {
+                HierarchicalMemoryAdmissionStatus::Consolidated
+            }
+            HierarchicalMemoryAdmissionClass::Active => HierarchicalMemoryAdmissionStatus::Active,
+        }
+    }
+
+    fn evict_oldest(
+        state: &mut HierarchicalMemoryState,
+        tier: CognitiveMemoryTier,
+    ) -> Option<CognitiveMemoryEviction> {
+        let victim = state
+            .map(tier)
+            .iter()
+            .min_by_key(|(fingerprint, record)| (record.last_admitted_at(), **fingerprint))
+            .map(|(fingerprint, _)| *fingerprint);
+
+        victim.map(|fingerprint| {
+            state.map_mut(tier).remove(&fingerprint);
+
+            CognitiveMemoryEviction::new(fingerprint, tier)
+        })
+    }
+
+    pub fn admit(
+        state: HierarchicalMemoryState,
+        event_index: u64,
+        candidate: CognitiveCandidate,
+        policy: HierarchicalMemoryPolicy,
+    ) -> HierarchicalMemoryAdmissionResult {
+        let state_before = state.clone();
+
+        let class = policy.classify(candidate);
+
+        if let Some(previous_index) = state.last_event_index() {
+            if event_index <= previous_index {
+                return HierarchicalMemoryAdmissionResult {
+                    state_before,
+                    state_after: state,
+                    event_index,
+                    candidate,
+                    class,
+                    previous_tier: None,
+                    eviction: None,
+                    record: None,
+                    status: HierarchicalMemoryAdmissionStatus::RejectedOutOfOrder,
+                };
+            }
+        }
+
+        let mut state_after = state;
+
+        let previous = state_after.remove(candidate.fingerprint());
+
+        let previous_tier = previous.as_ref().map(|(tier, _)| *tier);
+
+        state_after.last_event_index = Some(event_index);
+
+        let Some(target_tier) = class.tier() else {
+            return HierarchicalMemoryAdmissionResult {
+                state_before,
+                state_after,
+                event_index,
+                candidate,
+                class,
+                previous_tier,
+                eviction: None,
+                record: None,
+                status: HierarchicalMemoryAdmissionStatus::Discarded,
+            };
+        };
+
+        let eviction = if state_after.map(target_tier).len() >= policy.capacity_for(target_tier) {
+            Self::evict_oldest(&mut state_after, target_tier)
+        } else {
+            None
+        };
+
+        let record = match previous {
+            Some((_, previous_record)) => {
+                CognitiveMemoryRecord::updated(previous_record, candidate, target_tier, event_index)
+            }
+
+            None => CognitiveMemoryRecord::new(candidate, target_tier, event_index),
+        };
+
+        state_after
+            .map_mut(target_tier)
+            .insert(candidate.fingerprint(), record.clone());
+
+        HierarchicalMemoryAdmissionResult {
+            state_before,
+            state_after,
+            event_index,
+            candidate,
+            class,
+            previous_tier,
+            eviction,
+            record: Some(record),
+            status: Self::status_for(class),
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, Hash, Ord, PartialEq, PartialOrd)]
+pub struct MindstoneHierarchicalMemoryAdmission;
+
+impl MindstoneHierarchicalMemoryAdmission {
+    pub fn evaluate(
+        state: HierarchicalMemoryState,
+        event_index: u64,
+        candidate: CognitiveCandidate,
+        policy: HierarchicalMemoryPolicy,
+    ) -> HierarchicalMemoryAdmissionResult {
+        HierarchicalMemoryAdmission::admit(state, event_index, candidate, policy)
+    }
+}
