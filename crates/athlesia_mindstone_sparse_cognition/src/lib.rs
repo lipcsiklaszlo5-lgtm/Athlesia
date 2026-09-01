@@ -619,3 +619,311 @@ impl MindstoneStructuralNoveltyGate {
         }
     }
 }
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct StreamingAggregate {
+    fingerprint: CognitiveFingerprint,
+    observation_count: u64,
+    first_seen: u64,
+    last_seen: u64,
+    total_salience: u128,
+    peak_salience: CognitiveSalience,
+}
+
+impl StreamingAggregate {
+    fn new(
+        fingerprint: CognitiveFingerprint,
+        event_index: u64,
+        salience: CognitiveSalience,
+    ) -> Self {
+        Self {
+            fingerprint,
+            observation_count: 1,
+            first_seen: event_index,
+            last_seen: event_index,
+            total_salience: u128::from(salience.value()),
+            peak_salience: salience,
+        }
+    }
+
+    fn observe(&mut self, event_index: u64, salience: CognitiveSalience) {
+        self.observation_count = self.observation_count.saturating_add(1);
+
+        self.last_seen = event_index;
+
+        self.total_salience = self
+            .total_salience
+            .saturating_add(u128::from(salience.value()));
+
+        if salience > self.peak_salience {
+            self.peak_salience = salience;
+        }
+    }
+
+    pub fn fingerprint(&self) -> CognitiveFingerprint {
+        self.fingerprint
+    }
+
+    pub fn observation_count(&self) -> u64 {
+        self.observation_count
+    }
+
+    pub fn first_seen(&self) -> u64 {
+        self.first_seen
+    }
+
+    pub fn last_seen(&self) -> u64 {
+        self.last_seen
+    }
+
+    pub fn total_salience(&self) -> u128 {
+        self.total_salience
+    }
+
+    pub fn mean_salience(&self) -> u16 {
+        (self.total_salience / u128::from(self.observation_count)) as u16
+    }
+
+    pub fn peak_salience(&self) -> CognitiveSalience {
+        self.peak_salience
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct StreamingAggregationState {
+    capacity: usize,
+    last_event_index: Option<u64>,
+    aggregates: std::collections::BTreeMap<CognitiveFingerprint, StreamingAggregate>,
+}
+
+impl StreamingAggregationState {
+    pub fn new(capacity: usize) -> Option<Self> {
+        if capacity == 0 {
+            return None;
+        }
+
+        Some(Self {
+            capacity,
+            last_event_index: None,
+            aggregates: std::collections::BTreeMap::new(),
+        })
+    }
+
+    pub fn capacity(&self) -> usize {
+        self.capacity
+    }
+
+    pub fn len(&self) -> usize {
+        self.aggregates.len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.aggregates.is_empty()
+    }
+
+    pub fn is_full(&self) -> bool {
+        self.len() == self.capacity
+    }
+
+    pub fn last_event_index(&self) -> Option<u64> {
+        self.last_event_index
+    }
+
+    pub fn contains(&self, fingerprint: CognitiveFingerprint) -> bool {
+        self.aggregates.contains_key(&fingerprint)
+    }
+
+    pub fn aggregate(&self, fingerprint: CognitiveFingerprint) -> Option<&StreamingAggregate> {
+        self.aggregates.get(&fingerprint)
+    }
+
+    pub fn total_retained_observations(&self) -> u64 {
+        self.aggregates.values().fold(0_u64, |total, aggregate| {
+            total.saturating_add(aggregate.observation_count())
+        })
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+pub enum StreamingAggregationStatus {
+    RejectedOutOfOrder,
+    Inserted,
+    Updated,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct StreamingAggregationResult {
+    state_before: StreamingAggregationState,
+    state_after: StreamingAggregationState,
+    fingerprint: CognitiveFingerprint,
+    event_index: u64,
+    salience: CognitiveSalience,
+    evicted: Option<CognitiveFingerprint>,
+    aggregate: Option<StreamingAggregate>,
+    status: StreamingAggregationStatus,
+}
+
+impl StreamingAggregationResult {
+    pub fn state_before(&self) -> &StreamingAggregationState {
+        &self.state_before
+    }
+
+    pub fn state_after(&self) -> &StreamingAggregationState {
+        &self.state_after
+    }
+
+    pub fn fingerprint(&self) -> CognitiveFingerprint {
+        self.fingerprint
+    }
+
+    pub fn event_index(&self) -> u64 {
+        self.event_index
+    }
+
+    pub fn salience(&self) -> CognitiveSalience {
+        self.salience
+    }
+
+    pub fn evicted(&self) -> Option<CognitiveFingerprint> {
+        self.evicted
+    }
+
+    pub fn aggregate(&self) -> Option<&StreamingAggregate> {
+        self.aggregate.as_ref()
+    }
+
+    pub fn status(&self) -> StreamingAggregationStatus {
+        self.status
+    }
+
+    pub fn accepted(&self) -> bool {
+        self.status != StreamingAggregationStatus::RejectedOutOfOrder
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, Hash, Ord, PartialEq, PartialOrd)]
+pub struct StreamingAggregator;
+
+impl StreamingAggregator {
+    pub fn observe(
+        state: StreamingAggregationState,
+        event_index: u64,
+        fingerprint: CognitiveFingerprint,
+        salience: CognitiveSalience,
+    ) -> StreamingAggregationResult {
+        let state_before = state.clone();
+
+        if let Some(previous_index) = state.last_event_index() {
+            if event_index <= previous_index {
+                return StreamingAggregationResult {
+                    state_before,
+                    state_after: state,
+                    fingerprint,
+                    event_index,
+                    salience,
+                    evicted: None,
+                    aggregate: None,
+                    status: StreamingAggregationStatus::RejectedOutOfOrder,
+                };
+            }
+        }
+
+        let mut state_after = state;
+
+        let mut evicted = None;
+
+        let status = if let Some(aggregate) = state_after.aggregates.get_mut(&fingerprint) {
+            aggregate.observe(event_index, salience);
+
+            StreamingAggregationStatus::Updated
+        } else {
+            if state_after.is_full() {
+                let victim = state_after
+                    .aggregates
+                    .iter()
+                    .min_by_key(|(victim_fingerprint, aggregate)| {
+                        (aggregate.last_seen(), **victim_fingerprint)
+                    })
+                    .map(|(victim_fingerprint, _)| *victim_fingerprint);
+
+                if let Some(victim) = victim {
+                    state_after.aggregates.remove(&victim);
+
+                    evicted = Some(victim);
+                }
+            }
+
+            state_after.aggregates.insert(
+                fingerprint,
+                StreamingAggregate::new(fingerprint, event_index, salience),
+            );
+
+            StreamingAggregationStatus::Inserted
+        };
+
+        state_after.last_event_index = Some(event_index);
+
+        let aggregate = state_after.aggregates.get(&fingerprint).cloned();
+
+        StreamingAggregationResult {
+            state_before,
+            state_after,
+            fingerprint,
+            event_index,
+            salience,
+            evicted,
+            aggregate,
+            status,
+        }
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct MindstoneStreamingAggregationResult {
+    structure: CognitiveStructure,
+    fingerprint: CognitiveFingerprint,
+    profile: MindstoneSignalProfile,
+    aggregation: StreamingAggregationResult,
+}
+
+impl MindstoneStreamingAggregationResult {
+    pub fn structure(&self) -> &CognitiveStructure {
+        &self.structure
+    }
+
+    pub fn fingerprint(&self) -> CognitiveFingerprint {
+        self.fingerprint
+    }
+
+    pub fn profile(&self) -> MindstoneSignalProfile {
+        self.profile
+    }
+
+    pub fn aggregation(&self) -> &StreamingAggregationResult {
+        &self.aggregation
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, Hash, Ord, PartialEq, PartialOrd)]
+pub struct MindstoneStreamingAggregator;
+
+impl MindstoneStreamingAggregator {
+    pub fn observe(
+        state: StreamingAggregationState,
+        event_index: u64,
+        structure: CognitiveStructure,
+        profile: MindstoneSignalProfile,
+    ) -> MindstoneStreamingAggregationResult {
+        let fingerprint = StructuralHasher::fingerprint(&structure);
+
+        let aggregation =
+            StreamingAggregator::observe(state, event_index, fingerprint, profile.salience());
+
+        MindstoneStreamingAggregationResult {
+            structure,
+            fingerprint,
+            profile,
+            aggregation,
+        }
+    }
+}
