@@ -243,8 +243,9 @@
     "crates/athlesia_revision/tests/revision_policy.rs": "6378aee538bf205e5fd65a1fa7f1413b109f34f4b6f9858015dfb8d046c99773",
     "crates/athlesia_universal_domain_learning/Cargo.lock": "dd15fa520383ab416934233abdaa2337ae0eadfa1483437d7d8392646e2b9de6",
     "crates/athlesia_universal_domain_learning/Cargo.toml": "608f66355321005946091cb7bce202f353496f0b61edc6e457f31728a7de540b",
-    "crates/athlesia_universal_domain_learning/src/lib.rs": "91c808816ef6ca4bce0296b26ea29c47264eadeaa19dd3979cd02c46348c6c18",
+    "crates/athlesia_universal_domain_learning/src/lib.rs": "be6037dbb4ec18c37fd9173795c8399d6b9126acb7de1e7098a10e376fcabe25",
     "crates/athlesia_universal_domain_learning/tests/universal_domain_learning_grounded_predicate_discovery.rs": "373d49d4010c873cb98d7a830c0dd31d2fd49179beea3a0a7b3dc3c5f0c1b363",
+    "crates/athlesia_universal_domain_learning/tests/universal_domain_learning_rule_induction.rs": "82aa2f1e82ca04dfabaa1251e65f0b58cd37f00970409e8dcb01187e3f86869c",
     "src/concept.rs": "8b0b0e8417354c20abedc2ae4f6d4e7d173333fc4ed8626694c1ddc90c788d4f",
     "src/encoder.rs": "99f1a0999307c67f2d79bd84141fd0df79c9ed9226fce4878902afc34b43cfcd",
     "src/evaluation.rs": "4d2ea28bc2582163226f0035100f8c7d3df6cd581f868c805ca965418d4ad4e6",
@@ -527,7 +528,8 @@
       "module_46_core_knowledge_perceptual_grounding_action_consequences",
       "module_46_core_knowledge_perceptual_grounding_final_integration_freeze",
       "module_46_core_knowledge_perceptual_grounding_frozen",
-      "module_47_universal_domain_learning_grounded_predicate_discovery"
+      "module_47_universal_domain_learning_grounded_predicate_discovery",
+      "module_47_universal_domain_learning_rule_induction"
     ],
     "module_23_integrity": {
       "status": "pass",
@@ -540,8 +542,8 @@
       "status": "frozen",
       "verifier": "tools/verify_module_23_parity.py"
     },
-    "next_layer": "module_47_universal_domain_learning_rule_induction",
-    "stage": "module_47_universal_domain_learning_grounded_predicate_discovery",
+    "next_layer": "module_47_universal_domain_learning_invariant_discovery",
+    "stage": "module_47_universal_domain_learning_rule_induction",
     "status": "validated"
   },
   "validated_invariants": [
@@ -2540,6 +2542,18 @@
     "universal_learning_predicate_minimum_precision_filter",
     "universal_learning_predicate_hard_frontier_bound",
     "universal_learning_predicate_deterministic_rank_order",
-    "universal_learning_predicate_non_mutating_facade_equivalence"
+    "universal_learning_predicate_non_mutating_facade_equivalence",
+    "universal_learning_rule_premise_set_exact_canonical_identity",
+    "universal_learning_rule_policy_bounded_arity_and_positive_evidence",
+    "universal_learning_rule_conjunctive_synergy_discovery",
+    "universal_learning_rule_redundant_conjunction_rejection",
+    "universal_learning_rule_explicit_falsifying_counterexamples",
+    "universal_learning_rule_baseline_corrected_association_lift",
+    "universal_learning_rule_three_way_incremental_discovery",
+    "universal_learning_rule_hard_maximum_premise_arity",
+    "universal_learning_rule_seed_prioritized_bounded_candidate_generation",
+    "universal_learning_rule_hard_evaluation_budget",
+    "universal_learning_rule_incremental_gain_rank_input_order_invariance",
+    "universal_learning_rule_deterministic_non_mutating_facade_equivalence"
   ]
 }
