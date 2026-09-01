@@ -2875,3 +2875,173 @@ impl MindstoneSelfGeneratedGoals {
         SelfGeneratedGoalEngine::generate(state, epistemic_policy, goal_policy, budget)
     }
 }
+
+#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+pub struct EpistemicOutcomePrediction {
+    weight: u32,
+    resulting_uncertainty: CognitiveSignal,
+}
+
+impl EpistemicOutcomePrediction {
+    pub fn new(weight: u32, resulting_uncertainty: CognitiveSignal) -> Option<Self> {
+        if weight == 0 {
+            return None;
+        }
+
+        Some(Self {
+            weight,
+            resulting_uncertainty,
+        })
+    }
+
+    pub fn weight(self) -> u32 {
+        self.weight
+    }
+
+    pub fn resulting_uncertainty(self) -> CognitiveSignal {
+        self.resulting_uncertainty
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ExpectedInformationGainEstimate {
+    current_uncertainty: CognitiveSignal,
+    expected_uncertainty: CognitiveSignal,
+    information_gain: CognitiveSignal,
+    total_weight: u128,
+    outcome_count: usize,
+}
+
+impl ExpectedInformationGainEstimate {
+    pub fn current_uncertainty(&self) -> CognitiveSignal {
+        self.current_uncertainty
+    }
+
+    pub fn expected_uncertainty(&self) -> CognitiveSignal {
+        self.expected_uncertainty
+    }
+
+    pub fn information_gain(&self) -> CognitiveSignal {
+        self.information_gain
+    }
+
+    pub fn total_weight(&self) -> u128 {
+        self.total_weight
+    }
+
+    pub fn outcome_count(&self) -> usize {
+        self.outcome_count
+    }
+
+    pub fn predicts_learning(&self) -> bool {
+        self.information_gain > CognitiveSignal::zero()
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, Hash, Ord, PartialEq, PartialOrd)]
+pub struct ExpectedInformationGain;
+
+impl ExpectedInformationGain {
+    pub fn estimate(
+        current_uncertainty: CognitiveSignal,
+        outcomes: &[EpistemicOutcomePrediction],
+    ) -> Option<ExpectedInformationGainEstimate> {
+        if outcomes.is_empty() {
+            return None;
+        }
+
+        let total_weight = outcomes.iter().fold(0_u128, |total, outcome| {
+            total.saturating_add(u128::from(outcome.weight()))
+        });
+
+        if total_weight == 0 {
+            return None;
+        }
+
+        let weighted_uncertainty = outcomes.iter().fold(0_u128, |total, outcome| {
+            let contribution = u128::from(outcome.weight())
+                .saturating_mul(u128::from(outcome.resulting_uncertainty().value()));
+
+            total.saturating_add(contribution)
+        });
+
+        let expected_value =
+            weighted_uncertainty.saturating_add(total_weight.saturating_sub(1)) / total_weight;
+
+        let expected_uncertainty = CognitiveSignal::new(expected_value as u16)?;
+
+        let information_gain = if current_uncertainty > expected_uncertainty {
+            CognitiveSignal::new(
+                current_uncertainty
+                    .value()
+                    .saturating_sub(expected_uncertainty.value()),
+            )?
+        } else {
+            CognitiveSignal::zero()
+        };
+
+        Some(ExpectedInformationGainEstimate {
+            current_uncertainty,
+            expected_uncertainty,
+            information_gain,
+            total_weight,
+            outcome_count: outcomes.len(),
+        })
+    }
+}
+
+impl MindstoneSignalProfile {
+    pub fn with_information_gain(mut self, information_gain: CognitiveSignal) -> Self {
+        self.information_gain = information_gain;
+        self
+    }
+
+    pub fn expected_information_gain_signal(self) -> CognitiveSignal {
+        self.information_gain
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct MindstoneExpectedInformationGainResult {
+    estimate: ExpectedInformationGainEstimate,
+    profile: MindstoneSignalProfile,
+    decision: CognitiveAdmissionDecision,
+}
+
+impl MindstoneExpectedInformationGainResult {
+    pub fn estimate(&self) -> &ExpectedInformationGainEstimate {
+        &self.estimate
+    }
+
+    pub fn profile(&self) -> MindstoneSignalProfile {
+        self.profile
+    }
+
+    pub fn decision(&self) -> CognitiveAdmissionDecision {
+        self.decision
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, Hash, Ord, PartialEq, PartialOrd)]
+pub struct MindstoneExpectedInformationGain;
+
+impl MindstoneExpectedInformationGain {
+    pub fn evaluate(
+        base_profile: MindstoneSignalProfile,
+        outcomes: &[EpistemicOutcomePrediction],
+        policy: SparseCognitionPolicy,
+        budget: CognitiveBudget,
+    ) -> Option<MindstoneExpectedInformationGainResult> {
+        let estimate = ExpectedInformationGain::estimate(base_profile.uncertainty(), outcomes)?;
+
+        let profile = base_profile.with_information_gain(estimate.information_gain());
+
+        let decision = policy.admit(profile, budget);
+
+        Some(MindstoneExpectedInformationGainResult {
+            estimate,
+            profile,
+            decision,
+        })
+    }
+}
