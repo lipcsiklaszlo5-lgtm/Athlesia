@@ -31,8 +31,9 @@
     "crates/athlesia_hierarchy/tests/hierarchy_recognition.rs": "bc7fe6ac289f8697e65b2ebe9aab179ae0cdb2db655fed18afae454bf2132841",
     "crates/athlesia_mindstone_sparse_cognition/Cargo.lock": "d67e0a5b9f7be917468be052c0febda5861b9c25ce92228c287ab0181d3fb201",
     "crates/athlesia_mindstone_sparse_cognition/Cargo.toml": "5cf3f615255e7419fa2240e54b4f49e9a4cc45d5b142a545fb856a66fc43f401",
-    "crates/athlesia_mindstone_sparse_cognition/src/lib.rs": "6f4e9a5e29d41ce3644e0839fcdc304c20e17303e689d95d7e04eae4a754fcea",
+    "crates/athlesia_mindstone_sparse_cognition/src/lib.rs": "5bebe655f46e1b5abd9be79bfde5742a2a0940975603bde3a645fb587c2545f3",
     "crates/athlesia_mindstone_sparse_cognition/tests/mindstone_sparse_cognition_bounded_candidate_search.rs": "03ac4de9a403aec3772c9e75b79375f128da0cc36920afcb84e3baaa895668b0",
+    "crates/athlesia_mindstone_sparse_cognition/tests/mindstone_sparse_cognition_forgetting_cold_storage.rs": "e5dd436a438d00aee879708e88e865c41014898f5064dbd3260ad6d991d2a7f4",
     "crates/athlesia_mindstone_sparse_cognition/tests/mindstone_sparse_cognition_foundation.rs": "7c6e0ed54b601d97954680f311e19f780717dbb0746d30ff385c0ebc2b07f10b",
     "crates/athlesia_mindstone_sparse_cognition/tests/mindstone_sparse_cognition_hierarchical_memory_admission.rs": "9384367520f10afcdc08538b9de41406543842a1470844436678379111ef9ba0",
     "crates/athlesia_mindstone_sparse_cognition/tests/mindstone_sparse_cognition_novelty_gate.rs": "f07e1d5924abc353bd68b2920b4447f3cc9f99907fbbb8ddaa793197f2a804dc",
@@ -479,7 +480,8 @@
       "module_45_mindstone_sparse_cognition_structural_hashing",
       "module_45_mindstone_sparse_cognition_streaming_aggregation",
       "module_45_mindstone_sparse_cognition_bounded_candidate_search",
-      "module_45_mindstone_sparse_cognition_hierarchical_memory_admission"
+      "module_45_mindstone_sparse_cognition_hierarchical_memory_admission",
+      "module_45_mindstone_sparse_cognition_forgetting_cold_storage"
     ],
     "module_23_integrity": {
       "status": "pass",
@@ -492,8 +494,8 @@
       "status": "frozen",
       "verifier": "tools/verify_module_23_parity.py"
     },
-    "next_layer": "module_45_mindstone_sparse_cognition_forgetting_cold_storage",
-    "stage": "module_45_mindstone_sparse_cognition_hierarchical_memory_admission",
+    "next_layer": "module_45_mindstone_sparse_cognition_compression_controllability",
+    "stage": "module_45_mindstone_sparse_cognition_forgetting_cold_storage",
     "status": "validated"
   },
   "validated_invariants": [
@@ -2264,6 +2266,18 @@
     "mindstone_memory_independent_tier_bounds_total_bound",
     "mindstone_memory_monotonic_event_order_guard",
     "mindstone_memory_refresh_recency_eviction_protection",
-    "mindstone_memory_determinism_non_mutation_facade_equivalence"
+    "mindstone_memory_determinism_non_mutation_facade_equivalence",
+    "mindstone_forgetting_positive_ordered_temporal_policy",
+    "mindstone_forgetting_young_memory_retention",
+    "mindstone_forgetting_active_to_consolidated_cooling",
+    "mindstone_forgetting_consolidated_to_cold_cooling",
+    "mindstone_forgetting_explicit_cold_removal",
+    "mindstone_forgetting_single_step_per_maintenance_cycle",
+    "mindstone_forgetting_high_salience_temporal_protection",
+    "mindstone_forgetting_repeated_use_temporal_protection",
+    "mindstone_forgetting_full_lifecycle_active_to_forgotten",
+    "mindstone_forgetting_target_tier_capacity_bound",
+    "mindstone_forgetting_monotonic_maintenance_guard",
+    "mindstone_forgetting_determinism_non_mutation_facade_equivalence"
   ]
 }

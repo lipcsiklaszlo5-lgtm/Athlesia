@@ -1679,3 +1679,311 @@ impl MindstoneHierarchicalMemoryAdmission {
         HierarchicalMemoryAdmission::admit(state, event_index, candidate, policy)
     }
 }
+
+#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+pub struct CognitiveForgettingPolicy {
+    active_cool_after: u64,
+    consolidated_cool_after: u64,
+    cold_forget_after: u64,
+    protected_admission_count: u64,
+    protected_salience_threshold: CognitiveSignal,
+}
+
+impl CognitiveForgettingPolicy {
+    pub fn new(
+        active_cool_after: u64,
+        consolidated_cool_after: u64,
+        cold_forget_after: u64,
+        protected_admission_count: u64,
+        protected_salience_threshold: CognitiveSignal,
+    ) -> Option<Self> {
+        if active_cool_after == 0
+            || consolidated_cool_after == 0
+            || cold_forget_after == 0
+            || protected_admission_count == 0
+        {
+            return None;
+        }
+
+        if active_cool_after >= consolidated_cool_after
+            || consolidated_cool_after >= cold_forget_after
+        {
+            return None;
+        }
+
+        Some(Self {
+            active_cool_after,
+            consolidated_cool_after,
+            cold_forget_after,
+            protected_admission_count,
+            protected_salience_threshold,
+        })
+    }
+
+    pub fn active_cool_after(self) -> u64 {
+        self.active_cool_after
+    }
+
+    pub fn consolidated_cool_after(self) -> u64 {
+        self.consolidated_cool_after
+    }
+
+    pub fn cold_forget_after(self) -> u64 {
+        self.cold_forget_after
+    }
+
+    pub fn protected_admission_count(self) -> u64 {
+        self.protected_admission_count
+    }
+
+    pub fn protected_salience_threshold(self) -> CognitiveSignal {
+        self.protected_salience_threshold
+    }
+
+    pub fn protects(self, record: &CognitiveMemoryRecord) -> bool {
+        record.admission_count() >= self.protected_admission_count
+            || record.candidate().salience().value() >= self.protected_salience_threshold.value()
+    }
+}
+
+impl CognitiveMemoryRecord {
+    fn with_tier(mut self, tier: CognitiveMemoryTier) -> Self {
+        self.tier = tier;
+
+        self
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+pub enum CognitiveMemoryMaintenanceAction {
+    Cooled {
+        fingerprint: CognitiveFingerprint,
+        from: CognitiveMemoryTier,
+        to: CognitiveMemoryTier,
+    },
+    Forgotten {
+        fingerprint: CognitiveFingerprint,
+    },
+    CapacityEvicted {
+        fingerprint: CognitiveFingerprint,
+        tier: CognitiveMemoryTier,
+    },
+}
+
+#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+pub enum CognitiveMemoryMaintenanceStatus {
+    RejectedOutOfOrder,
+    Maintained,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct CognitiveMemoryMaintenanceResult {
+    state_before: HierarchicalMemoryState,
+    state_after: HierarchicalMemoryState,
+    current_index: u64,
+    actions: Vec<CognitiveMemoryMaintenanceAction>,
+    status: CognitiveMemoryMaintenanceStatus,
+}
+
+impl CognitiveMemoryMaintenanceResult {
+    pub fn state_before(&self) -> &HierarchicalMemoryState {
+        &self.state_before
+    }
+
+    pub fn state_after(&self) -> &HierarchicalMemoryState {
+        &self.state_after
+    }
+
+    pub fn current_index(&self) -> u64 {
+        self.current_index
+    }
+
+    pub fn actions(&self) -> &[CognitiveMemoryMaintenanceAction] {
+        &self.actions
+    }
+
+    pub fn status(&self) -> CognitiveMemoryMaintenanceStatus {
+        self.status
+    }
+
+    pub fn accepted(&self) -> bool {
+        self.status == CognitiveMemoryMaintenanceStatus::Maintained
+    }
+
+    pub fn changed(&self) -> bool {
+        !self.actions.is_empty()
+    }
+
+    pub fn cooled_count(&self) -> usize {
+        self.actions
+            .iter()
+            .filter(|action| matches!(action, CognitiveMemoryMaintenanceAction::Cooled { .. }))
+            .count()
+    }
+
+    pub fn forgotten_count(&self) -> usize {
+        self.actions
+            .iter()
+            .filter(|action| matches!(action, CognitiveMemoryMaintenanceAction::Forgotten { .. }))
+            .count()
+    }
+
+    pub fn capacity_eviction_count(&self) -> usize {
+        self.actions
+            .iter()
+            .filter(|action| {
+                matches!(
+                    action,
+                    CognitiveMemoryMaintenanceAction::CapacityEvicted { .. }
+                )
+            })
+            .count()
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, Hash, Ord, PartialEq, PartialOrd)]
+pub struct CognitiveMemoryMaintenance;
+
+impl CognitiveMemoryMaintenance {
+    fn age(current_index: u64, record: &CognitiveMemoryRecord) -> u64 {
+        current_index.saturating_sub(record.last_admitted_at())
+    }
+
+    fn cool_record(
+        state: &mut HierarchicalMemoryState,
+        fingerprint: CognitiveFingerprint,
+        from: CognitiveMemoryTier,
+        to: CognitiveMemoryTier,
+        admission_policy: HierarchicalMemoryPolicy,
+        actions: &mut Vec<CognitiveMemoryMaintenanceAction>,
+    ) {
+        let Some(record) = state.map_mut(from).remove(&fingerprint) else {
+            return;
+        };
+
+        if state.map(to).len() >= admission_policy.capacity_for(to) {
+            if let Some(eviction) = HierarchicalMemoryAdmission::evict_oldest(state, to) {
+                actions.push(CognitiveMemoryMaintenanceAction::CapacityEvicted {
+                    fingerprint: eviction.fingerprint(),
+                    tier: eviction.tier(),
+                });
+            }
+        }
+
+        state.map_mut(to).insert(fingerprint, record.with_tier(to));
+
+        actions.push(CognitiveMemoryMaintenanceAction::Cooled {
+            fingerprint,
+            from,
+            to,
+        });
+    }
+
+    pub fn maintain(
+        state: HierarchicalMemoryState,
+        current_index: u64,
+        admission_policy: HierarchicalMemoryPolicy,
+        forgetting_policy: CognitiveForgettingPolicy,
+    ) -> CognitiveMemoryMaintenanceResult {
+        let state_before = state.clone();
+
+        if let Some(previous_index) = state.last_event_index() {
+            if current_index <= previous_index {
+                return CognitiveMemoryMaintenanceResult {
+                    state_before,
+                    state_after: state,
+                    current_index,
+                    actions: Vec::new(),
+                    status: CognitiveMemoryMaintenanceStatus::RejectedOutOfOrder,
+                };
+            }
+        }
+
+        let active_snapshot = state.active.values().cloned().collect::<Vec<_>>();
+
+        let consolidated_snapshot = state.consolidated.values().cloned().collect::<Vec<_>>();
+
+        let cold_snapshot = state.cold.values().cloned().collect::<Vec<_>>();
+
+        let mut state_after = state;
+
+        state_after.last_event_index = Some(current_index);
+
+        let mut actions = Vec::new();
+
+        for record in active_snapshot {
+            if forgetting_policy.protects(&record) {
+                continue;
+            }
+
+            if Self::age(current_index, &record) >= forgetting_policy.active_cool_after() {
+                Self::cool_record(
+                    &mut state_after,
+                    record.fingerprint(),
+                    CognitiveMemoryTier::Active,
+                    CognitiveMemoryTier::Consolidated,
+                    admission_policy,
+                    &mut actions,
+                );
+            }
+        }
+
+        for record in consolidated_snapshot {
+            if forgetting_policy.protects(&record) {
+                continue;
+            }
+
+            if Self::age(current_index, &record) >= forgetting_policy.consolidated_cool_after() {
+                Self::cool_record(
+                    &mut state_after,
+                    record.fingerprint(),
+                    CognitiveMemoryTier::Consolidated,
+                    CognitiveMemoryTier::Cold,
+                    admission_policy,
+                    &mut actions,
+                );
+            }
+        }
+
+        for record in cold_snapshot {
+            if forgetting_policy.protects(&record) {
+                continue;
+            }
+
+            if Self::age(current_index, &record) >= forgetting_policy.cold_forget_after()
+                && state_after.cold.remove(&record.fingerprint()).is_some()
+            {
+                actions.push(CognitiveMemoryMaintenanceAction::Forgotten {
+                    fingerprint: record.fingerprint(),
+                });
+            }
+        }
+
+        CognitiveMemoryMaintenanceResult {
+            state_before,
+            state_after,
+            current_index,
+            actions,
+            status: CognitiveMemoryMaintenanceStatus::Maintained,
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, Hash, Ord, PartialEq, PartialOrd)]
+pub struct MindstoneForgettingColdStorage;
+
+impl MindstoneForgettingColdStorage {
+    pub fn evaluate(
+        state: HierarchicalMemoryState,
+        current_index: u64,
+        admission_policy: HierarchicalMemoryPolicy,
+        forgetting_policy: CognitiveForgettingPolicy,
+    ) -> CognitiveMemoryMaintenanceResult {
+        CognitiveMemoryMaintenance::maintain(
+            state,
+            current_index,
+            admission_policy,
+            forgetting_policy,
+        )
+    }
+}
