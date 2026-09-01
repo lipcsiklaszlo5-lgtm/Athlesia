@@ -1178,3 +1178,515 @@ impl CoreKnowledgeTopologicalRelations {
         TopologicalRelationCompetition::select(candidates, policy)
     }
 }
+
+#[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+pub struct ObjectTransitionObservation {
+    previous: ObjectObservation,
+    current: ObjectObservation,
+}
+
+impl ObjectTransitionObservation {
+    pub fn from_persistence_link(link: &PersistenceLinkHypothesis) -> Self {
+        Self {
+            previous: link.previous().clone(),
+            current: link.current().clone(),
+        }
+    }
+
+    pub fn previous(&self) -> &ObjectObservation {
+        &self.previous
+    }
+
+    pub fn current(&self) -> &ObjectObservation {
+        &self.current
+    }
+
+    pub fn start_index(&self) -> u64 {
+        self.previous.observation_index()
+    }
+
+    pub fn end_index(&self) -> u64 {
+        self.current.observation_index()
+    }
+
+    pub fn temporal_gap(&self) -> u64 {
+        self.end_index().saturating_sub(self.start_index())
+    }
+
+    pub fn shares_time_window(&self, other: &Self) -> bool {
+        self.start_index() == other.start_index() && self.end_index() == other.end_index()
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+pub enum PerceptualChangeKind {
+    StateTransition,
+    Motion,
+    RelativeChange,
+    CommonChange,
+}
+
+impl PerceptualChangeKind {
+    pub fn requires_reference(self) -> bool {
+        matches!(self, Self::RelativeChange | Self::CommonChange)
+    }
+
+    pub fn is_symmetric_comparison(self) -> bool {
+        matches!(self, Self::CommonChange)
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub struct ChangeEvidence {
+    state_difference: CognitiveSignal,
+    relational_difference: CognitiveSignal,
+    structural_difference: CognitiveSignal,
+    temporal_consistency: CognitiveSignal,
+    commonality: CognitiveSignal,
+    causal_support: CognitiveSignal,
+}
+
+impl ChangeEvidence {
+    pub fn new(
+        state_difference: CognitiveSignal,
+        relational_difference: CognitiveSignal,
+        structural_difference: CognitiveSignal,
+        temporal_consistency: CognitiveSignal,
+        commonality: CognitiveSignal,
+        causal_support: CognitiveSignal,
+    ) -> Self {
+        Self {
+            state_difference,
+            relational_difference,
+            structural_difference,
+            temporal_consistency,
+            commonality,
+            causal_support,
+        }
+    }
+
+    pub fn state_difference(self) -> CognitiveSignal {
+        self.state_difference
+    }
+
+    pub fn relational_difference(self) -> CognitiveSignal {
+        self.relational_difference
+    }
+
+    pub fn structural_difference(self) -> CognitiveSignal {
+        self.structural_difference
+    }
+
+    pub fn temporal_consistency(self) -> CognitiveSignal {
+        self.temporal_consistency
+    }
+
+    pub fn commonality(self) -> CognitiveSignal {
+        self.commonality
+    }
+
+    pub fn causal_support(self) -> CognitiveSignal {
+        self.causal_support
+    }
+
+    pub fn has_support(self) -> bool {
+        self.axes()
+            .into_iter()
+            .any(|value| value > CognitiveSignal::zero())
+    }
+
+    pub fn peak_support(self) -> CognitiveSignal {
+        self.axes()
+            .into_iter()
+            .max()
+            .expect("change evidence has fixed nonempty axes")
+    }
+
+    pub fn change_score(self) -> CognitiveSignal {
+        let axes = self.axes();
+
+        let peak = u32::from(self.peak_support().value());
+
+        let total = axes
+            .into_iter()
+            .map(|value| u32::from(value.value()))
+            .sum::<u32>();
+
+        let composite = peak.saturating_mul(2).saturating_add(total) / 8;
+
+        CognitiveSignal::new(composite as u16)
+            .expect("bounded change composite remains on signal scale")
+    }
+
+    fn axes(self) -> [CognitiveSignal; 6] {
+        [
+            self.state_difference,
+            self.relational_difference,
+            self.structural_difference,
+            self.temporal_consistency,
+            self.commonality,
+            self.causal_support,
+        ]
+    }
+
+    fn canonical_key(self) -> [u16; 6] {
+        [
+            self.state_difference.value(),
+            self.relational_difference.value(),
+            self.structural_difference.value(),
+            self.temporal_consistency.value(),
+            self.commonality.value(),
+            self.causal_support.value(),
+        ]
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct PerceptualChangeHypothesis {
+    transition: ObjectTransitionObservation,
+    kind: PerceptualChangeKind,
+    reference: Option<ObjectTransitionObservation>,
+    descriptor: CognitiveStructure,
+    evidence: ChangeEvidence,
+}
+
+impl PerceptualChangeHypothesis {
+    pub fn new(
+        mut transition: ObjectTransitionObservation,
+        kind: PerceptualChangeKind,
+        mut reference: Option<ObjectTransitionObservation>,
+        descriptor: CognitiveStructure,
+        evidence: ChangeEvidence,
+    ) -> Option<Self> {
+        if !evidence.has_support() || kind.requires_reference() != reference.is_some() {
+            return None;
+        }
+
+        if let Some(reference_transition) = reference.as_ref()
+            && (transition == *reference_transition
+                || !transition.shares_time_window(reference_transition))
+        {
+            return None;
+        }
+
+        if kind.is_symmetric_comparison()
+            && let Some(reference_transition) = reference.as_mut()
+            && *reference_transition < transition
+        {
+            std::mem::swap(&mut transition, reference_transition);
+        }
+
+        Some(Self {
+            transition,
+            kind,
+            reference,
+            descriptor,
+            evidence,
+        })
+    }
+
+    pub fn transition(&self) -> &ObjectTransitionObservation {
+        &self.transition
+    }
+
+    pub fn kind(&self) -> PerceptualChangeKind {
+        self.kind
+    }
+
+    pub fn reference(&self) -> Option<&ObjectTransitionObservation> {
+        self.reference.as_ref()
+    }
+
+    pub fn descriptor(&self) -> &CognitiveStructure {
+        &self.descriptor
+    }
+
+    pub fn evidence(&self) -> ChangeEvidence {
+        self.evidence
+    }
+
+    pub fn change_score(&self) -> CognitiveSignal {
+        self.evidence.change_score()
+    }
+
+    pub fn is_comparative(&self) -> bool {
+        self.reference.is_some()
+    }
+
+    fn same_change_identity(&self, other: &Self) -> bool {
+        self.transition == other.transition
+            && self.kind == other.kind
+            && self.reference == other.reference
+            && self.descriptor == other.descriptor
+    }
+
+    fn involved_transitions(&self) -> Vec<ObjectTransitionObservation> {
+        let mut transitions = vec![self.transition.clone()];
+
+        if let Some(reference) = &self.reference {
+            transitions.push(reference.clone());
+
+            transitions.sort();
+            transitions.dedup();
+        }
+
+        transitions
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+pub struct PerceptualChangePolicy {
+    max_hypotheses_per_transition: usize,
+    max_total_hypotheses: usize,
+}
+
+impl PerceptualChangePolicy {
+    pub fn new(max_hypotheses_per_transition: usize, max_total_hypotheses: usize) -> Option<Self> {
+        if max_hypotheses_per_transition == 0 || max_total_hypotheses == 0 {
+            return None;
+        }
+
+        Some(Self {
+            max_hypotheses_per_transition,
+            max_total_hypotheses,
+        })
+    }
+
+    pub fn max_hypotheses_per_transition(self) -> usize {
+        self.max_hypotheses_per_transition
+    }
+
+    pub fn max_total_hypotheses(self) -> usize {
+        self.max_total_hypotheses
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct PerceptualChangeCompetitionResult {
+    input_hypothesis_count: usize,
+    canonical_hypothesis_count: usize,
+    duplicate_hypothesis_count: usize,
+    dropped_by_transition_bound_count: usize,
+    dropped_by_global_bound_count: usize,
+    selected: Vec<PerceptualChangeHypothesis>,
+}
+
+impl PerceptualChangeCompetitionResult {
+    pub fn input_hypothesis_count(&self) -> usize {
+        self.input_hypothesis_count
+    }
+
+    pub fn canonical_hypothesis_count(&self) -> usize {
+        self.canonical_hypothesis_count
+    }
+
+    pub fn duplicate_hypothesis_count(&self) -> usize {
+        self.duplicate_hypothesis_count
+    }
+
+    pub fn dropped_by_transition_bound_count(&self) -> usize {
+        self.dropped_by_transition_bound_count
+    }
+
+    pub fn dropped_by_global_bound_count(&self) -> usize {
+        self.dropped_by_global_bound_count
+    }
+
+    pub fn selected(&self) -> &[PerceptualChangeHypothesis] {
+        &self.selected
+    }
+
+    pub fn selected_count(&self) -> usize {
+        self.selected.len()
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, Hash, Ord, PartialEq, PartialOrd)]
+pub struct PerceptualChangeCompetition;
+
+impl PerceptualChangeCompetition {
+    fn compare_structure(
+        left: &CognitiveStructure,
+        right: &CognitiveStructure,
+    ) -> std::cmp::Ordering {
+        use std::cmp::Ordering;
+
+        match (left, right) {
+            (CognitiveStructure::Atom(left_value), CognitiveStructure::Atom(right_value)) => {
+                left_value.cmp(right_value)
+            }
+
+            (CognitiveStructure::Atom(_), _) => Ordering::Less,
+
+            (_, CognitiveStructure::Atom(_)) => Ordering::Greater,
+
+            (
+                CognitiveStructure::Ordered(left_values),
+                CognitiveStructure::Ordered(right_values),
+            )
+            | (
+                CognitiveStructure::Unordered(left_values),
+                CognitiveStructure::Unordered(right_values),
+            ) => {
+                let mut left_iterator = left_values.iter();
+
+                let mut right_iterator = right_values.iter();
+
+                loop {
+                    match (left_iterator.next(), right_iterator.next()) {
+                        (Some(left_item), Some(right_item)) => {
+                            let ordering = Self::compare_structure(left_item, right_item);
+
+                            if ordering != Ordering::Equal {
+                                return ordering;
+                            }
+                        }
+
+                        (None, Some(_)) => {
+                            return Ordering::Less;
+                        }
+
+                        (Some(_), None) => {
+                            return Ordering::Greater;
+                        }
+
+                        (None, None) => {
+                            return Ordering::Equal;
+                        }
+                    }
+                }
+            }
+
+            (CognitiveStructure::Ordered(_), CognitiveStructure::Unordered(_)) => Ordering::Less,
+
+            (CognitiveStructure::Unordered(_), CognitiveStructure::Ordered(_)) => Ordering::Greater,
+        }
+    }
+
+    fn ranking(
+        left: &PerceptualChangeHypothesis,
+        right: &PerceptualChangeHypothesis,
+    ) -> std::cmp::Ordering {
+        right
+            .change_score()
+            .cmp(&left.change_score())
+            .then_with(|| {
+                right
+                    .evidence()
+                    .peak_support()
+                    .cmp(&left.evidence().peak_support())
+            })
+            .then_with(|| {
+                left.transition()
+                    .temporal_gap()
+                    .cmp(&right.transition().temporal_gap())
+            })
+            .then_with(|| left.kind().cmp(&right.kind()))
+            .then_with(|| left.transition().cmp(right.transition()))
+            .then_with(|| left.reference().cmp(&right.reference()))
+            .then_with(|| Self::compare_structure(left.descriptor(), right.descriptor()))
+            .then_with(|| {
+                left.evidence()
+                    .canonical_key()
+                    .cmp(&right.evidence().canonical_key())
+            })
+    }
+
+    pub fn select(
+        candidates: &[PerceptualChangeHypothesis],
+        policy: PerceptualChangePolicy,
+    ) -> PerceptualChangeCompetitionResult {
+        let input_hypothesis_count = candidates.len();
+
+        let mut canonical: Vec<PerceptualChangeHypothesis> = Vec::new();
+
+        let mut duplicate_hypothesis_count = 0_usize;
+
+        for candidate in candidates {
+            if let Some(position) = canonical
+                .iter()
+                .position(|existing| existing.same_change_identity(candidate))
+            {
+                duplicate_hypothesis_count = duplicate_hypothesis_count.saturating_add(1);
+
+                if Self::ranking(candidate, &canonical[position]) == std::cmp::Ordering::Less {
+                    canonical[position] = candidate.clone();
+                }
+            } else {
+                canonical.push(candidate.clone());
+            }
+        }
+
+        canonical.sort_by(Self::ranking);
+
+        let canonical_hypothesis_count = canonical.len();
+
+        let mut transition_counts: std::collections::BTreeMap<ObjectTransitionObservation, usize> =
+            std::collections::BTreeMap::new();
+
+        let mut selected = Vec::with_capacity(
+            policy
+                .max_total_hypotheses()
+                .min(canonical_hypothesis_count),
+        );
+
+        let mut dropped_by_transition_bound_count = 0_usize;
+
+        let mut dropped_by_global_bound_count = 0_usize;
+
+        for (index, candidate) in canonical.into_iter().enumerate() {
+            if selected.len() >= policy.max_total_hypotheses() {
+                dropped_by_global_bound_count = dropped_by_global_bound_count
+                    .saturating_add(canonical_hypothesis_count.saturating_sub(index));
+
+                break;
+            }
+
+            let involved = candidate.involved_transitions();
+
+            let bound_reached = involved.iter().any(|transition| {
+                transition_counts.get(transition).copied().unwrap_or(0)
+                    >= policy.max_hypotheses_per_transition()
+            });
+
+            if bound_reached {
+                dropped_by_transition_bound_count =
+                    dropped_by_transition_bound_count.saturating_add(1);
+
+                continue;
+            }
+
+            for transition in involved {
+                transition_counts
+                    .entry(transition)
+                    .and_modify(|count| {
+                        *count = count.saturating_add(1);
+                    })
+                    .or_insert(1);
+            }
+
+            selected.push(candidate);
+        }
+
+        PerceptualChangeCompetitionResult {
+            input_hypothesis_count,
+            canonical_hypothesis_count,
+            duplicate_hypothesis_count,
+            dropped_by_transition_bound_count,
+            dropped_by_global_bound_count,
+            selected,
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, Hash, Ord, PartialEq, PartialOrd)]
+pub struct CoreKnowledgeMotionChange;
+
+impl CoreKnowledgeMotionChange {
+    pub fn evaluate(
+        candidates: &[PerceptualChangeHypothesis],
+        policy: PerceptualChangePolicy,
+    ) -> PerceptualChangeCompetitionResult {
+        PerceptualChangeCompetition::select(candidates, policy)
+    }
+}
