@@ -5449,3 +5449,181 @@ impl MindstoneAdaptiveComputeAllocation {
         )
     }
 }
+
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub struct CausalControllabilityEvidence {
+    intervention_successes: u64,
+    intervention_attempts: u64,
+    passive_successes: u64,
+    passive_attempts: u64,
+}
+
+impl CausalControllabilityEvidence {
+    pub fn new(
+        intervention_successes: u64,
+        intervention_attempts: u64,
+        passive_successes: u64,
+        passive_attempts: u64,
+    ) -> Option<Self> {
+        if intervention_attempts == 0
+            || passive_attempts == 0
+            || intervention_successes > intervention_attempts
+            || passive_successes > passive_attempts
+        {
+            return None;
+        }
+
+        Some(Self {
+            intervention_successes,
+            intervention_attempts,
+            passive_successes,
+            passive_attempts,
+        })
+    }
+
+    pub fn intervention_successes(self) -> u64 {
+        self.intervention_successes
+    }
+
+    pub fn intervention_attempts(self) -> u64 {
+        self.intervention_attempts
+    }
+
+    pub fn passive_successes(self) -> u64 {
+        self.passive_successes
+    }
+
+    pub fn passive_attempts(self) -> u64 {
+        self.passive_attempts
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub struct CausalControllabilityEstimate {
+    intervention_rate: CognitiveSignal,
+    passive_rate: CognitiveSignal,
+    causal_lift: CognitiveSignal,
+}
+
+impl CausalControllabilityEstimate {
+    pub fn intervention_rate(self) -> CognitiveSignal {
+        self.intervention_rate
+    }
+
+    pub fn passive_rate(self) -> CognitiveSignal {
+        self.passive_rate
+    }
+
+    pub fn causal_lift(self) -> CognitiveSignal {
+        self.causal_lift
+    }
+
+    pub fn has_positive_causal_lift(self) -> bool {
+        self.causal_lift > CognitiveSignal::zero()
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, Hash, Ord, PartialEq, PartialOrd)]
+pub struct CausalControllabilityEstimator;
+
+impl CausalControllabilityEstimator {
+    fn empirical_rate(successes: u64, attempts: u64) -> CognitiveSignal {
+        let scaled = u128::from(successes).saturating_mul(1000_u128) / u128::from(attempts);
+
+        CognitiveSignal::new(scaled as u16).expect("validated empirical success rate is bounded")
+    }
+
+    pub fn estimate(evidence: CausalControllabilityEvidence) -> CausalControllabilityEstimate {
+        let intervention_rate = Self::empirical_rate(
+            evidence.intervention_successes(),
+            evidence.intervention_attempts(),
+        );
+
+        let passive_rate =
+            Self::empirical_rate(evidence.passive_successes(), evidence.passive_attempts());
+
+        let causal_lift = if intervention_rate > passive_rate {
+            CognitiveSignal::new(
+                intervention_rate
+                    .value()
+                    .saturating_sub(passive_rate.value()),
+            )
+            .expect("causal lift remains on cognitive signal scale")
+        } else {
+            CognitiveSignal::zero()
+        };
+
+        CausalControllabilityEstimate {
+            intervention_rate,
+            passive_rate,
+            causal_lift,
+        }
+    }
+}
+
+impl CognitiveSignal {
+    pub fn causal_controllability(
+        intervention_successes: u64,
+        intervention_attempts: u64,
+        passive_successes: u64,
+        passive_attempts: u64,
+    ) -> Option<Self> {
+        let evidence = CausalControllabilityEvidence::new(
+            intervention_successes,
+            intervention_attempts,
+            passive_successes,
+            passive_attempts,
+        )?;
+
+        Some(CausalControllabilityEstimator::estimate(evidence).causal_lift())
+    }
+}
+
+impl MindstoneExtendedSignalProfile {
+    pub fn with_causal_controllability(mut self, estimate: CausalControllabilityEstimate) -> Self {
+        self.controllability = estimate.causal_lift();
+
+        self
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub struct MindstoneCausalControllabilityResult {
+    evidence: CausalControllabilityEvidence,
+    estimate: CausalControllabilityEstimate,
+    profile: MindstoneExtendedSignalProfile,
+}
+
+impl MindstoneCausalControllabilityResult {
+    pub fn evidence(self) -> CausalControllabilityEvidence {
+        self.evidence
+    }
+
+    pub fn estimate(self) -> CausalControllabilityEstimate {
+        self.estimate
+    }
+
+    pub fn profile(self) -> MindstoneExtendedSignalProfile {
+        self.profile
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, Hash, Ord, PartialEq, PartialOrd)]
+pub struct MindstoneCausalControllability;
+
+impl MindstoneCausalControllability {
+    pub fn evaluate(
+        profile: MindstoneExtendedSignalProfile,
+        evidence: CausalControllabilityEvidence,
+    ) -> MindstoneCausalControllabilityResult {
+        let estimate = CausalControllabilityEstimator::estimate(evidence);
+
+        let profile = profile.with_causal_controllability(estimate);
+
+        MindstoneCausalControllabilityResult {
+            evidence,
+            estimate,
+            profile,
+        }
+    }
+}

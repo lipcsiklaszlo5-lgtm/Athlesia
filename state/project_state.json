@@ -31,10 +31,11 @@
     "crates/athlesia_hierarchy/tests/hierarchy_recognition.rs": "bc7fe6ac289f8697e65b2ebe9aab179ae0cdb2db655fed18afae454bf2132841",
     "crates/athlesia_mindstone_sparse_cognition/Cargo.lock": "d67e0a5b9f7be917468be052c0febda5861b9c25ce92228c287ab0181d3fb201",
     "crates/athlesia_mindstone_sparse_cognition/Cargo.toml": "5cf3f615255e7419fa2240e54b4f49e9a4cc45d5b142a545fb856a66fc43f401",
-    "crates/athlesia_mindstone_sparse_cognition/src/lib.rs": "aeb7ca412d10ad8c5f9efef23bdd4edad5d8256add5da4acd7e6c863aee128c4",
+    "crates/athlesia_mindstone_sparse_cognition/src/lib.rs": "b19f3aa4eb26692dc68fa828c7048349ebaec809f85c7aca4688e4476fd0a4a7",
     "crates/athlesia_mindstone_sparse_cognition/tests/mindstone_sparse_cognition_adaptive_compute_allocation.rs": "ea05b7e478b1c9ddaa06a205df0dfb5151fa526eab4143cd9d0beda960bc0678",
     "crates/athlesia_mindstone_sparse_cognition/tests/mindstone_sparse_cognition_bounded_candidate_search.rs": "03ac4de9a403aec3772c9e75b79375f128da0cc36920afcb84e3baaa895668b0",
     "crates/athlesia_mindstone_sparse_cognition/tests/mindstone_sparse_cognition_bounded_hypothesis_path_depth_search.rs": "4eb8bffbb63903045f200c66b6422a97c92e6e07ba091792e598b929ca39ad87",
+    "crates/athlesia_mindstone_sparse_cognition/tests/mindstone_sparse_cognition_causal_controllability_baseline.rs": "7bd4d3c4d994a6e2f6eecc1d520ee5ce1195156ac3b71a42cc2200a0286f1c58",
     "crates/athlesia_mindstone_sparse_cognition/tests/mindstone_sparse_cognition_collision_safe_structural_identity.rs": "415227f613f33dab64a0e351dd3a9938cc97948ad4ca02035e72b31feff1eaa6",
     "crates/athlesia_mindstone_sparse_cognition/tests/mindstone_sparse_cognition_compression_controllability.rs": "093f549fe24c1356eece54bb01539db02a9cee5866453a2ac0ba55546f94183d",
     "crates/athlesia_mindstone_sparse_cognition/tests/mindstone_sparse_cognition_epistemic_self_model.rs": "11b6b13bc109f105a0013a615575dd4fff42e233caa10a64741b34dae7fb63a3",
@@ -499,7 +500,8 @@
       "module_45_mindstone_sparse_cognition_collision_safe_structural_identity",
       "module_45_mindstone_sparse_cognition_integrated_sparse_cycle",
       "module_45_mindstone_sparse_cognition_bounded_hypothesis_path_depth_search",
-      "module_45_mindstone_sparse_cognition_adaptive_compute_allocation"
+      "module_45_mindstone_sparse_cognition_adaptive_compute_allocation",
+      "module_45_mindstone_sparse_cognition_causal_controllability_baseline"
     ],
     "module_23_integrity": {
       "status": "pass",
@@ -512,8 +514,8 @@
       "status": "frozen",
       "verifier": "tools/verify_module_23_parity.py"
     },
-    "next_layer": "module_45_mindstone_sparse_cognition_causal_controllability_baseline",
-    "stage": "module_45_mindstone_sparse_cognition_adaptive_compute_allocation",
+    "next_layer": "module_45_mindstone_sparse_cognition_final_integration_freeze",
+    "stage": "module_45_mindstone_sparse_cognition_causal_controllability_baseline",
     "status": "validated"
   },
   "validated_invariants": [
@@ -2404,6 +2406,18 @@
     "mindstone_adaptive_compute_surprise_learning_search_shift",
     "mindstone_adaptive_compute_reserved_admission_hard_cap",
     "mindstone_adaptive_compute_u32_overflow_safety",
-    "mindstone_adaptive_compute_determinism_non_mutation_facade_equivalence"
+    "mindstone_adaptive_compute_determinism_non_mutation_facade_equivalence",
+    "mindstone_causal_controllability_two_valid_comparison_groups",
+    "mindstone_causal_controllability_positive_intervention_lift",
+    "mindstone_causal_controllability_equal_baseline_zero_lift",
+    "mindstone_causal_controllability_negative_lift_clamped_zero",
+    "mindstone_causal_controllability_zero_passive_recovers_intervention_rate",
+    "mindstone_causal_controllability_proportional_evidence_scale_invariance",
+    "mindstone_causal_controllability_fixed_point_determinism",
+    "mindstone_causal_controllability_u64_overflow_safety",
+    "mindstone_causal_controllability_signal_convenience_equivalence",
+    "mindstone_causal_controllability_profile_replacement_non_mutation",
+    "mindstone_causal_controllability_adaptive_compute_spurious_control_suppression",
+    "mindstone_causal_controllability_facade_determinism_composability"
   ]
 }
