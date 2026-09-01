@@ -243,12 +243,13 @@
     "crates/athlesia_revision/tests/revision_policy.rs": "6378aee538bf205e5fd65a1fa7f1413b109f34f4b6f9858015dfb8d046c99773",
     "crates/athlesia_universal_domain_learning/Cargo.lock": "dd15fa520383ab416934233abdaa2337ae0eadfa1483437d7d8392646e2b9de6",
     "crates/athlesia_universal_domain_learning/Cargo.toml": "608f66355321005946091cb7bce202f353496f0b61edc6e457f31728a7de540b",
-    "crates/athlesia_universal_domain_learning/src/lib.rs": "cc32b1af74c6b1e089b862d86e2cfa1ec30ba2133fd69e39aa3f9440aa297dd6",
+    "crates/athlesia_universal_domain_learning/src/lib.rs": "1bffee46a5e3a89fa408dd12950693bc45e38856f333d7a90a041c3da67e7636",
     "crates/athlesia_universal_domain_learning/tests/universal_domain_learning_contextual_transition_rules.rs": "8c70371cb2e2c7482294f4dc33cb6fbc7f9451a36f24241950e11c5a2b8ab314",
     "crates/athlesia_universal_domain_learning/tests/universal_domain_learning_cross_context_generalization.rs": "b3dc16eace122f65215d918912ec5f5e6c0558fdbb1551c4e5929323a095f6dd",
     "crates/athlesia_universal_domain_learning/tests/universal_domain_learning_exception_refinement.rs": "8d59b0ace0f74c67fa6ebee3f0b26f893e180d74ca8cd491dac697eb1617f77f",
     "crates/athlesia_universal_domain_learning/tests/universal_domain_learning_grounded_predicate_discovery.rs": "373d49d4010c873cb98d7a830c0dd31d2fd49179beea3a0a7b3dc3c5f0c1b363",
     "crates/athlesia_universal_domain_learning/tests/universal_domain_learning_invariant_discovery.rs": "ca578477f286abd57567a00efc7679776181d85a9aa3fb2dde4421fde6ed913c",
+    "crates/athlesia_universal_domain_learning/tests/universal_domain_learning_rule_confidence_calibration.rs": "810a274b8e077826ea1d194dd1fbed7457595cdd79bc1f5f7491db3f69245e28",
     "crates/athlesia_universal_domain_learning/tests/universal_domain_learning_rule_induction.rs": "82aa2f1e82ca04dfabaa1251e65f0b58cd37f00970409e8dcb01187e3f86869c",
     "crates/athlesia_universal_domain_learning/tests/universal_domain_learning_transition_schema_induction.rs": "fe625f232a9cf500b8ba9d753411e2ed5231ae7b49369c2c3b6b14a5b09581c8",
     "src/concept.rs": "8b0b0e8417354c20abedc2ae4f6d4e7d173333fc4ed8626694c1ddc90c788d4f",
@@ -539,7 +540,8 @@
       "module_47_universal_domain_learning_transition_schema_induction",
       "module_47_universal_domain_learning_contextual_transition_rules",
       "module_47_universal_domain_learning_cross_context_generalization",
-      "module_47_universal_domain_learning_exception_refinement"
+      "module_47_universal_domain_learning_exception_refinement",
+      "module_47_universal_domain_learning_rule_confidence_calibration"
     ],
     "module_23_integrity": {
       "status": "pass",
@@ -552,8 +554,8 @@
       "status": "frozen",
       "verifier": "tools/verify_module_23_parity.py"
     },
-    "next_layer": "module_47_universal_domain_learning_rule_confidence_calibration",
-    "stage": "module_47_universal_domain_learning_exception_refinement",
+    "next_layer": "module_47_universal_domain_learning_causal_contrast_induction",
+    "stage": "module_47_universal_domain_learning_rule_confidence_calibration",
     "status": "validated"
   },
   "validated_invariants": [
@@ -2624,6 +2626,18 @@
     "universal_learning_exception_hard_maximum_exception_arity",
     "universal_learning_exception_exact_transformation_identity",
     "universal_learning_exception_hard_search_and_final_frontiers",
-    "universal_learning_exception_deterministic_non_mutating_facade_equivalence"
+    "universal_learning_exception_deterministic_non_mutating_facade_equivalence",
+    "universal_learning_confidence_positive_support_and_hard_bounds",
+    "universal_learning_confidence_small_sample_support_discount",
+    "universal_learning_confidence_full_support_matches_effective_precision",
+    "universal_learning_confidence_exception_abstention_preserves_raw_precision",
+    "universal_learning_confidence_exception_leakage_retained",
+    "universal_learning_confidence_unrelated_exception_identity_isolation",
+    "universal_learning_confidence_exact_transformation_identity",
+    "universal_learning_confidence_threshold_rejects_under_supported_precision",
+    "universal_learning_confidence_hard_exception_check_budget",
+    "universal_learning_confidence_hard_seed_rule_budget",
+    "universal_learning_confidence_hard_final_frontier_input_order_invariance",
+    "universal_learning_confidence_deterministic_non_mutating_facade_equivalence"
   ]
 }

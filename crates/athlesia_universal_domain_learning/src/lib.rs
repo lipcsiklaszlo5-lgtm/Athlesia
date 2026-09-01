@@ -4430,3 +4430,669 @@ impl UniversalExceptionRefinement {
         ExceptionRefinement::refine(episodes, seeds, policy)
     }
 }
+
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub struct RuleConfidenceCalibrationPolicy {
+    minimum_effective_support: u64,
+    full_confidence_support: u64,
+    minimum_calibrated_confidence: CognitiveSignal,
+    max_seed_rules: usize,
+    max_exception_checks: usize,
+    max_calibrated_rules: usize,
+}
+
+impl RuleConfidenceCalibrationPolicy {
+    pub fn new(
+        minimum_effective_support: u64,
+        full_confidence_support: u64,
+        minimum_calibrated_confidence: CognitiveSignal,
+        max_seed_rules: usize,
+        max_exception_checks: usize,
+        max_calibrated_rules: usize,
+    ) -> Option<Self> {
+        if minimum_effective_support == 0
+            || full_confidence_support == 0
+            || full_confidence_support < minimum_effective_support
+            || max_seed_rules == 0
+            || max_exception_checks == 0
+            || max_calibrated_rules == 0
+        {
+            return None;
+        }
+
+        Some(Self {
+            minimum_effective_support,
+            full_confidence_support,
+            minimum_calibrated_confidence,
+            max_seed_rules,
+            max_exception_checks,
+            max_calibrated_rules,
+        })
+    }
+
+    pub fn minimum_effective_support(self) -> u64 {
+        self.minimum_effective_support
+    }
+
+    pub fn full_confidence_support(self) -> u64 {
+        self.full_confidence_support
+    }
+
+    pub fn minimum_calibrated_confidence(self) -> CognitiveSignal {
+        self.minimum_calibrated_confidence
+    }
+
+    pub fn max_seed_rules(self) -> usize {
+        self.max_seed_rules
+    }
+
+    pub fn max_exception_checks(self) -> usize {
+        self.max_exception_checks
+    }
+
+    pub fn max_calibrated_rules(self) -> usize {
+        self.max_calibrated_rules
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct CalibratedRuleConfidence {
+    transformation: CognitiveStructure,
+    context: ContextPremiseSet,
+    effect_kind: TransitionEffectKind,
+    effect_fact: CognitiveStructure,
+    total_opportunity_count: u64,
+    total_success_count: u64,
+    total_failure_count: u64,
+    matching_exception_count: usize,
+    checked_exception_count: usize,
+    exception_check_truncated: bool,
+    exception_triggered_opportunity_count: u64,
+    exception_triggered_failure_count: u64,
+    exception_triggered_success_count: u64,
+    effective_opportunity_count: u64,
+    effective_success_count: u64,
+    effective_failure_count: u64,
+    raw_precision: CognitiveSignal,
+    effective_precision: CognitiveSignal,
+    support_adequacy: CognitiveSignal,
+    calibrated_confidence: CognitiveSignal,
+    abstention_rate: CognitiveSignal,
+}
+
+impl CalibratedRuleConfidence {
+    pub fn transformation(&self) -> &CognitiveStructure {
+        &self.transformation
+    }
+
+    pub fn context(&self) -> &ContextPremiseSet {
+        &self.context
+    }
+
+    pub fn effect_kind(&self) -> TransitionEffectKind {
+        self.effect_kind
+    }
+
+    pub fn effect_fact(&self) -> &CognitiveStructure {
+        &self.effect_fact
+    }
+
+    pub fn total_opportunity_count(&self) -> u64 {
+        self.total_opportunity_count
+    }
+
+    pub fn total_success_count(&self) -> u64 {
+        self.total_success_count
+    }
+
+    pub fn total_failure_count(&self) -> u64 {
+        self.total_failure_count
+    }
+
+    pub fn matching_exception_count(&self) -> usize {
+        self.matching_exception_count
+    }
+
+    pub fn checked_exception_count(&self) -> usize {
+        self.checked_exception_count
+    }
+
+    pub fn exception_check_truncated(&self) -> bool {
+        self.exception_check_truncated
+    }
+
+    pub fn exception_triggered_opportunity_count(&self) -> u64 {
+        self.exception_triggered_opportunity_count
+    }
+
+    pub fn exception_triggered_failure_count(&self) -> u64 {
+        self.exception_triggered_failure_count
+    }
+
+    pub fn exception_triggered_success_count(&self) -> u64 {
+        self.exception_triggered_success_count
+    }
+
+    pub fn effective_opportunity_count(&self) -> u64 {
+        self.effective_opportunity_count
+    }
+
+    pub fn effective_success_count(&self) -> u64 {
+        self.effective_success_count
+    }
+
+    pub fn effective_failure_count(&self) -> u64 {
+        self.effective_failure_count
+    }
+
+    pub fn raw_precision(&self) -> CognitiveSignal {
+        self.raw_precision
+    }
+
+    pub fn effective_precision(&self) -> CognitiveSignal {
+        self.effective_precision
+    }
+
+    pub fn support_adequacy(&self) -> CognitiveSignal {
+        self.support_adequacy
+    }
+
+    pub fn calibrated_confidence(&self) -> CognitiveSignal {
+        self.calibrated_confidence
+    }
+
+    pub fn abstention_rate(&self) -> CognitiveSignal {
+        self.abstention_rate
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct RuleConfidenceCalibrationResult {
+    input_seed_count: usize,
+    considered_seed_count: usize,
+    seed_truncated: bool,
+    total_matching_exception_count: usize,
+    total_checked_exception_count: usize,
+    exception_check_budget_exhausted: bool,
+    rejected_insufficient_support: usize,
+    rejected_below_confidence: usize,
+    admitted_before_frontier: usize,
+    selected: Vec<CalibratedRuleConfidence>,
+}
+
+impl RuleConfidenceCalibrationResult {
+    pub fn input_seed_count(&self) -> usize {
+        self.input_seed_count
+    }
+
+    pub fn considered_seed_count(&self) -> usize {
+        self.considered_seed_count
+    }
+
+    pub fn seed_truncated(&self) -> bool {
+        self.seed_truncated
+    }
+
+    pub fn total_matching_exception_count(&self) -> usize {
+        self.total_matching_exception_count
+    }
+
+    pub fn total_checked_exception_count(&self) -> usize {
+        self.total_checked_exception_count
+    }
+
+    pub fn exception_check_budget_exhausted(&self) -> bool {
+        self.exception_check_budget_exhausted
+    }
+
+    pub fn rejected_insufficient_support(&self) -> usize {
+        self.rejected_insufficient_support
+    }
+
+    pub fn rejected_below_confidence(&self) -> usize {
+        self.rejected_below_confidence
+    }
+
+    pub fn admitted_before_frontier(&self) -> usize {
+        self.admitted_before_frontier
+    }
+
+    pub fn selected(&self) -> &[CalibratedRuleConfidence] {
+        &self.selected
+    }
+
+    pub fn selected_count(&self) -> usize {
+        self.selected.len()
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, Hash, PartialEq)]
+pub struct RuleConfidenceCalibration;
+
+impl RuleConfidenceCalibration {
+    fn scaled_rate(numerator: u64, denominator: u64) -> CognitiveSignal {
+        debug_assert!(denominator > 0);
+
+        let scaled = (u128::from(numerator) * 1000) / u128::from(denominator);
+
+        CognitiveSignal::new(scaled as u16)
+            .expect("bounded rule confidence rate remains on signal scale")
+    }
+
+    fn scaled_product(left: CognitiveSignal, right: CognitiveSignal) -> CognitiveSignal {
+        let product = (u32::from(left.value()) * u32::from(right.value())) / 1000;
+
+        CognitiveSignal::new(product as u16)
+            .expect("bounded rule confidence product remains on signal scale")
+    }
+
+    fn support_adequacy(support: u64, full_confidence_support: u64) -> CognitiveSignal {
+        if support >= full_confidence_support {
+            return CognitiveSignal::new(1000).expect("full support confidence is on signal scale");
+        }
+
+        Self::scaled_rate(support, full_confidence_support)
+    }
+
+    fn compare_context(left: &ContextPremiseSet, right: &ContextPremiseSet) -> std::cmp::Ordering {
+        let mut left_iterator = left.premises().iter();
+
+        let mut right_iterator = right.premises().iter();
+
+        loop {
+            match (left_iterator.next(), right_iterator.next()) {
+                (Some(left_value), Some(right_value)) => {
+                    let ordering = PredicateDiscovery::compare_structure(left_value, right_value);
+
+                    if ordering != std::cmp::Ordering::Equal {
+                        return ordering;
+                    }
+                }
+
+                (None, Some(_)) => {
+                    return std::cmp::Ordering::Less;
+                }
+
+                (Some(_), None) => {
+                    return std::cmp::Ordering::Greater;
+                }
+
+                (None, None) => {
+                    return std::cmp::Ordering::Equal;
+                }
+            }
+        }
+    }
+
+    fn compare_seed(
+        left: &GroundedCrossContextGeneralizationHypothesis,
+        right: &GroundedCrossContextGeneralizationHypothesis,
+    ) -> std::cmp::Ordering {
+        right
+            .incremental_precision_gain()
+            .value()
+            .cmp(&left.incremental_precision_gain().value())
+            .then_with(|| right.precision().value().cmp(&left.precision().value()))
+            .then_with(|| right.support_count().cmp(&left.support_count()))
+            .then_with(|| {
+                PredicateDiscovery::compare_structure(left.transformation(), right.transformation())
+            })
+            .then_with(|| left.effect_kind().cmp(&right.effect_kind()))
+            .then_with(|| {
+                PredicateDiscovery::compare_structure(left.effect_fact(), right.effect_fact())
+            })
+            .then_with(|| {
+                Self::compare_context(left.generalized_context(), right.generalized_context())
+            })
+    }
+
+    fn considered_seed_indices(
+        seeds: &[GroundedCrossContextGeneralizationHypothesis],
+        policy: RuleConfidenceCalibrationPolicy,
+    ) -> Vec<usize> {
+        let mut indices = (0..seeds.len()).collect::<Vec<_>>();
+
+        indices.sort_by(|left, right| Self::compare_seed(&seeds[*left], &seeds[*right]));
+
+        indices.truncate(policy.max_seed_rules());
+
+        indices
+    }
+
+    fn exception_matches_seed(
+        exception: &GroundedExceptionRefinementHypothesis,
+        seed: &GroundedCrossContextGeneralizationHypothesis,
+    ) -> bool {
+        exception.transformation() == seed.transformation()
+            && exception.base_context() == seed.generalized_context()
+            && exception.effect_kind() == seed.effect_kind()
+            && exception.effect_fact() == seed.effect_fact()
+    }
+
+    fn compare_exception(
+        left: &GroundedExceptionRefinementHypothesis,
+        right: &GroundedExceptionRefinementHypothesis,
+    ) -> std::cmp::Ordering {
+        right
+            .failure_lift()
+            .value()
+            .cmp(&left.failure_lift().value())
+            .then_with(|| {
+                right
+                    .exception_failure_rate()
+                    .value()
+                    .cmp(&left.exception_failure_rate().value())
+            })
+            .then_with(|| {
+                right
+                    .failure_coverage()
+                    .value()
+                    .cmp(&left.failure_coverage().value())
+            })
+            .then_with(|| {
+                Self::compare_context(left.exception_context(), right.exception_context())
+            })
+    }
+
+    fn matching_exception_indices(
+        seed: &GroundedCrossContextGeneralizationHypothesis,
+        exceptions: &[GroundedExceptionRefinementHypothesis],
+    ) -> Vec<usize> {
+        let mut indices = exceptions
+            .iter()
+            .enumerate()
+            .filter_map(|(index, exception)| {
+                if Self::exception_matches_seed(exception, seed) {
+                    Some(index)
+                } else {
+                    None
+                }
+            })
+            .collect::<Vec<_>>();
+
+        indices.sort_by(|left, right| {
+            Self::compare_exception(&exceptions[*left], &exceptions[*right])
+        });
+
+        indices
+    }
+
+    fn is_rule_opportunity(
+        seed: &GroundedCrossContextGeneralizationHypothesis,
+        episode: &GroundedTransformationEpisode,
+    ) -> bool {
+        episode.transformation() == seed.transformation()
+            && seed.generalized_context().is_satisfied_by(episode.before())
+            && episode.effect_opportunity(seed.effect_kind(), seed.effect_fact())
+    }
+
+    fn any_checked_exception_triggered(
+        episode: &GroundedTransformationEpisode,
+        checked_indices: &[usize],
+        exceptions: &[GroundedExceptionRefinementHypothesis],
+    ) -> bool {
+        checked_indices
+            .iter()
+            .any(|index| exceptions[*index].is_triggered_by(episode))
+    }
+
+    fn calibrate_seed(
+        episodes: &[GroundedTransformationEpisode],
+        seed: &GroundedCrossContextGeneralizationHypothesis,
+        matching_exception_count: usize,
+        checked_indices: &[usize],
+        exceptions: &[GroundedExceptionRefinementHypothesis],
+        policy: RuleConfidenceCalibrationPolicy,
+    ) -> Option<CalibratedRuleConfidence> {
+        let opportunities = episodes
+            .iter()
+            .filter(|episode| Self::is_rule_opportunity(seed, episode))
+            .collect::<Vec<_>>();
+
+        if opportunities.is_empty() {
+            return None;
+        }
+
+        let total_opportunity_count = opportunities.len() as u64;
+
+        let total_success_count = opportunities
+            .iter()
+            .filter(|episode| episode.effect_occurs(seed.effect_kind(), seed.effect_fact()))
+            .count() as u64;
+
+        let total_failure_count = total_opportunity_count.saturating_sub(total_success_count);
+
+        let mut exception_triggered_opportunity_count = 0_u64;
+
+        let mut exception_triggered_failure_count = 0_u64;
+
+        let mut exception_triggered_success_count = 0_u64;
+
+        for episode in &opportunities {
+            if !Self::any_checked_exception_triggered(episode, checked_indices, exceptions) {
+                continue;
+            }
+
+            exception_triggered_opportunity_count =
+                exception_triggered_opportunity_count.saturating_add(1);
+
+            if episode.effect_occurs(seed.effect_kind(), seed.effect_fact()) {
+                exception_triggered_success_count =
+                    exception_triggered_success_count.saturating_add(1);
+            } else {
+                exception_triggered_failure_count =
+                    exception_triggered_failure_count.saturating_add(1);
+            }
+        }
+
+        let effective_opportunity_count =
+            total_opportunity_count.saturating_sub(exception_triggered_opportunity_count);
+
+        if effective_opportunity_count == 0 {
+            return None;
+        }
+
+        let effective_success_count =
+            total_success_count.saturating_sub(exception_triggered_success_count);
+
+        let effective_failure_count =
+            effective_opportunity_count.saturating_sub(effective_success_count);
+
+        let raw_precision = Self::scaled_rate(total_success_count, total_opportunity_count);
+
+        let effective_precision =
+            Self::scaled_rate(effective_success_count, effective_opportunity_count);
+
+        let support_adequacy = Self::support_adequacy(
+            effective_opportunity_count,
+            policy.full_confidence_support(),
+        );
+
+        let calibrated_confidence = Self::scaled_product(effective_precision, support_adequacy);
+
+        let abstention_rate = Self::scaled_rate(
+            exception_triggered_opportunity_count,
+            total_opportunity_count,
+        );
+
+        Some(CalibratedRuleConfidence {
+            transformation: seed.transformation().clone(),
+            context: seed.generalized_context().clone(),
+            effect_kind: seed.effect_kind(),
+            effect_fact: seed.effect_fact().clone(),
+            total_opportunity_count,
+            total_success_count,
+            total_failure_count,
+            matching_exception_count,
+            checked_exception_count: checked_indices.len(),
+            exception_check_truncated: matching_exception_count > checked_indices.len(),
+            exception_triggered_opportunity_count,
+            exception_triggered_failure_count,
+            exception_triggered_success_count,
+            effective_opportunity_count,
+            effective_success_count,
+            effective_failure_count,
+            raw_precision,
+            effective_precision,
+            support_adequacy,
+            calibrated_confidence,
+            abstention_rate,
+        })
+    }
+
+    fn ranking(
+        left: &CalibratedRuleConfidence,
+        right: &CalibratedRuleConfidence,
+    ) -> std::cmp::Ordering {
+        right
+            .calibrated_confidence()
+            .value()
+            .cmp(&left.calibrated_confidence().value())
+            .then_with(|| {
+                right
+                    .effective_precision()
+                    .value()
+                    .cmp(&left.effective_precision().value())
+            })
+            .then_with(|| {
+                right
+                    .support_adequacy()
+                    .value()
+                    .cmp(&left.support_adequacy().value())
+            })
+            .then_with(|| {
+                right
+                    .effective_opportunity_count()
+                    .cmp(&left.effective_opportunity_count())
+            })
+            .then_with(|| {
+                left.effective_failure_count()
+                    .cmp(&right.effective_failure_count())
+            })
+            .then_with(|| {
+                PredicateDiscovery::compare_structure(left.transformation(), right.transformation())
+            })
+            .then_with(|| left.effect_kind().cmp(&right.effect_kind()))
+            .then_with(|| {
+                PredicateDiscovery::compare_structure(left.effect_fact(), right.effect_fact())
+            })
+            .then_with(|| Self::compare_context(left.context(), right.context()))
+    }
+
+    pub fn calibrate(
+        episodes: &[GroundedTransformationEpisode],
+        seeds: &[GroundedCrossContextGeneralizationHypothesis],
+        exceptions: &[GroundedExceptionRefinementHypothesis],
+        policy: RuleConfidenceCalibrationPolicy,
+    ) -> RuleConfidenceCalibrationResult {
+        if episodes.is_empty() || seeds.is_empty() {
+            return RuleConfidenceCalibrationResult {
+                input_seed_count: seeds.len(),
+                considered_seed_count: 0,
+                seed_truncated: false,
+                total_matching_exception_count: 0,
+                total_checked_exception_count: 0,
+                exception_check_budget_exhausted: false,
+                rejected_insufficient_support: 0,
+                rejected_below_confidence: 0,
+                admitted_before_frontier: 0,
+                selected: Vec::new(),
+            };
+        }
+
+        let considered_indices = Self::considered_seed_indices(seeds, policy);
+
+        let mut remaining_exception_checks = policy.max_exception_checks();
+
+        let mut total_matching_exception_count = 0_usize;
+
+        let mut total_checked_exception_count = 0_usize;
+
+        let mut rejected_insufficient_support = 0_usize;
+
+        let mut rejected_below_confidence = 0_usize;
+
+        let mut admitted = Vec::new();
+
+        for seed_index in &considered_indices {
+            let seed = &seeds[*seed_index];
+
+            let matching_indices = Self::matching_exception_indices(seed, exceptions);
+
+            total_matching_exception_count =
+                total_matching_exception_count.saturating_add(matching_indices.len());
+
+            let checked_count = matching_indices.len().min(remaining_exception_checks);
+
+            let checked_indices = &matching_indices[..checked_count];
+
+            remaining_exception_checks = remaining_exception_checks.saturating_sub(checked_count);
+
+            total_checked_exception_count =
+                total_checked_exception_count.saturating_add(checked_count);
+
+            let Some(calibrated) = Self::calibrate_seed(
+                episodes,
+                seed,
+                matching_indices.len(),
+                checked_indices,
+                exceptions,
+                policy,
+            ) else {
+                rejected_insufficient_support = rejected_insufficient_support.saturating_add(1);
+
+                continue;
+            };
+
+            if calibrated.effective_opportunity_count() < policy.minimum_effective_support() {
+                rejected_insufficient_support = rejected_insufficient_support.saturating_add(1);
+
+                continue;
+            }
+
+            if calibrated.calibrated_confidence().value()
+                < policy.minimum_calibrated_confidence().value()
+            {
+                rejected_below_confidence = rejected_below_confidence.saturating_add(1);
+
+                continue;
+            }
+
+            admitted.push(calibrated);
+        }
+
+        admitted.sort_by(Self::ranking);
+
+        let admitted_before_frontier = admitted.len();
+
+        admitted.truncate(policy.max_calibrated_rules());
+
+        RuleConfidenceCalibrationResult {
+            input_seed_count: seeds.len(),
+            considered_seed_count: considered_indices.len(),
+            seed_truncated: seeds.len() > considered_indices.len(),
+            total_matching_exception_count,
+            total_checked_exception_count,
+            exception_check_budget_exhausted: total_matching_exception_count
+                > total_checked_exception_count,
+            rejected_insufficient_support,
+            rejected_below_confidence,
+            admitted_before_frontier,
+            selected: admitted,
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, Hash, PartialEq)]
+pub struct UniversalRuleConfidenceCalibration;
+
+impl UniversalRuleConfidenceCalibration {
+    pub fn evaluate(
+        episodes: &[GroundedTransformationEpisode],
+        seeds: &[GroundedCrossContextGeneralizationHypothesis],
+        exceptions: &[GroundedExceptionRefinementHypothesis],
+        policy: RuleConfidenceCalibrationPolicy,
+    ) -> RuleConfidenceCalibrationResult {
+        RuleConfidenceCalibration::calibrate(episodes, seeds, exceptions, policy)
+    }
+}
