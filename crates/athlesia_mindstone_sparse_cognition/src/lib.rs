@@ -2593,3 +2593,285 @@ impl MindstoneEpistemicSelfModel {
         EpistemicSelfModel::observe(state, update_index, fingerprint, profile, policy)
     }
 }
+
+#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+pub enum SelfGeneratedGoalKind {
+    ResolveUncertainty,
+    ContinueLearning,
+    TestControl,
+    CompressRepresentation,
+}
+
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub struct SelfGeneratedGoal {
+    fingerprint: CognitiveFingerprint,
+    kind: SelfGeneratedGoalKind,
+    priority: CognitiveSignal,
+    estimated_cost: u32,
+}
+
+impl SelfGeneratedGoal {
+    pub fn new(
+        fingerprint: CognitiveFingerprint,
+        kind: SelfGeneratedGoalKind,
+        priority: CognitiveSignal,
+        estimated_cost: u32,
+    ) -> Option<Self> {
+        if priority == CognitiveSignal::zero() || estimated_cost == 0 {
+            return None;
+        }
+
+        Some(Self {
+            fingerprint,
+            kind,
+            priority,
+            estimated_cost,
+        })
+    }
+
+    pub fn fingerprint(self) -> CognitiveFingerprint {
+        self.fingerprint
+    }
+
+    pub fn kind(self) -> SelfGeneratedGoalKind {
+        self.kind
+    }
+
+    pub fn priority(self) -> CognitiveSignal {
+        self.priority
+    }
+
+    pub fn estimated_cost(self) -> u32 {
+        self.estimated_cost
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+pub struct SelfGeneratedGoalPolicy {
+    max_goals: usize,
+    resolve_uncertainty_cost: u32,
+    continue_learning_cost: u32,
+    test_control_cost: u32,
+    compress_representation_cost: u32,
+}
+
+impl SelfGeneratedGoalPolicy {
+    pub fn new(
+        max_goals: usize,
+        resolve_uncertainty_cost: u32,
+        continue_learning_cost: u32,
+        test_control_cost: u32,
+        compress_representation_cost: u32,
+    ) -> Option<Self> {
+        if max_goals == 0
+            || resolve_uncertainty_cost == 0
+            || continue_learning_cost == 0
+            || test_control_cost == 0
+            || compress_representation_cost == 0
+        {
+            return None;
+        }
+
+        Some(Self {
+            max_goals,
+            resolve_uncertainty_cost,
+            continue_learning_cost,
+            test_control_cost,
+            compress_representation_cost,
+        })
+    }
+
+    pub fn max_goals(self) -> usize {
+        self.max_goals
+    }
+
+    pub fn resolve_uncertainty_cost(self) -> u32 {
+        self.resolve_uncertainty_cost
+    }
+
+    pub fn continue_learning_cost(self) -> u32 {
+        self.continue_learning_cost
+    }
+
+    pub fn test_control_cost(self) -> u32 {
+        self.test_control_cost
+    }
+
+    pub fn compress_representation_cost(self) -> u32 {
+        self.compress_representation_cost
+    }
+
+    fn cost_for(self, kind: SelfGeneratedGoalKind) -> u32 {
+        match kind {
+            SelfGeneratedGoalKind::ResolveUncertainty => self.resolve_uncertainty_cost,
+            SelfGeneratedGoalKind::ContinueLearning => self.continue_learning_cost,
+            SelfGeneratedGoalKind::TestControl => self.test_control_cost,
+            SelfGeneratedGoalKind::CompressRepresentation => self.compress_representation_cost,
+        }
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct SelfGeneratedGoalResult {
+    source_record_count: usize,
+    candidate_goal_count: usize,
+    selected: Vec<SelfGeneratedGoal>,
+    total_selected_cost: u32,
+    truncated_by_goal_limit: bool,
+    truncated_by_compute_budget: bool,
+}
+
+impl SelfGeneratedGoalResult {
+    pub fn source_record_count(&self) -> usize {
+        self.source_record_count
+    }
+
+    pub fn candidate_goal_count(&self) -> usize {
+        self.candidate_goal_count
+    }
+
+    pub fn selected(&self) -> &[SelfGeneratedGoal] {
+        &self.selected
+    }
+
+    pub fn selected_count(&self) -> usize {
+        self.selected.len()
+    }
+
+    pub fn total_selected_cost(&self) -> u32 {
+        self.total_selected_cost
+    }
+
+    pub fn truncated_by_goal_limit(&self) -> bool {
+        self.truncated_by_goal_limit
+    }
+
+    pub fn truncated_by_compute_budget(&self) -> bool {
+        self.truncated_by_compute_budget
+    }
+
+    pub fn was_truncated(&self) -> bool {
+        self.truncated_by_goal_limit || self.truncated_by_compute_budget
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, Hash, Ord, PartialEq, PartialOrd)]
+pub struct SelfGeneratedGoalEngine;
+
+impl SelfGeneratedGoalEngine {
+    fn primary_goal(
+        record: &EpistemicSelfRecord,
+        assessment: EpistemicSelfAssessment,
+        policy: SelfGeneratedGoalPolicy,
+    ) -> Option<SelfGeneratedGoal> {
+        let (kind, priority) = if assessment.is_stable() && assessment.is_compressible() {
+            (
+                SelfGeneratedGoalKind::CompressRepresentation,
+                record.compression_gain(),
+            )
+        } else if !assessment.is_stable() && assessment.is_controllable() {
+            (SelfGeneratedGoalKind::TestControl, record.controllability())
+        } else if assessment.is_learning() {
+            (
+                SelfGeneratedGoalKind::ContinueLearning,
+                record.learning_progress(),
+            )
+        } else if assessment.is_uncertain() {
+            (
+                SelfGeneratedGoalKind::ResolveUncertainty,
+                record.uncertainty(),
+            )
+        } else {
+            return None;
+        };
+
+        SelfGeneratedGoal::new(record.fingerprint(), kind, priority, policy.cost_for(kind))
+    }
+
+    fn ranking(left: &SelfGeneratedGoal, right: &SelfGeneratedGoal) -> std::cmp::Ordering {
+        right
+            .priority()
+            .cmp(&left.priority())
+            .then_with(|| left.estimated_cost().cmp(&right.estimated_cost()))
+            .then_with(|| left.kind().cmp(&right.kind()))
+            .then_with(|| left.fingerprint().cmp(&right.fingerprint()))
+    }
+
+    pub fn generate(
+        state: &EpistemicSelfState,
+        epistemic_policy: EpistemicSelfPolicy,
+        goal_policy: SelfGeneratedGoalPolicy,
+        budget: CognitiveBudget,
+    ) -> SelfGeneratedGoalResult {
+        let source_record_count = state.len();
+
+        let mut candidates = state
+            .records
+            .values()
+            .filter_map(|record| {
+                let assessment = record.assessment(epistemic_policy);
+
+                Self::primary_goal(record, assessment, goal_policy)
+            })
+            .collect::<Vec<_>>();
+
+        candidates.sort_by(Self::ranking);
+
+        let candidate_goal_count = candidates.len();
+
+        let mut selected = Vec::with_capacity(goal_policy.max_goals().min(candidate_goal_count));
+
+        let mut total_selected_cost = 0_u32;
+
+        let mut truncated_by_goal_limit = false;
+
+        let mut truncated_by_compute_budget = false;
+
+        for (index, goal) in candidates.into_iter().enumerate() {
+            if selected.len() >= goal_policy.max_goals() {
+                truncated_by_goal_limit = index < candidate_goal_count;
+
+                break;
+            }
+
+            let Some(next_total) = total_selected_cost.checked_add(goal.estimated_cost()) else {
+                truncated_by_compute_budget = true;
+
+                break;
+            };
+
+            if next_total > budget.units() {
+                truncated_by_compute_budget = true;
+
+                break;
+            }
+
+            total_selected_cost = next_total;
+
+            selected.push(goal);
+        }
+
+        SelfGeneratedGoalResult {
+            source_record_count,
+            candidate_goal_count,
+            selected,
+            total_selected_cost,
+            truncated_by_goal_limit,
+            truncated_by_compute_budget,
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, Hash, Ord, PartialEq, PartialOrd)]
+pub struct MindstoneSelfGeneratedGoals;
+
+impl MindstoneSelfGeneratedGoals {
+    pub fn evaluate(
+        state: &EpistemicSelfState,
+        epistemic_policy: EpistemicSelfPolicy,
+        goal_policy: SelfGeneratedGoalPolicy,
+        budget: CognitiveBudget,
+    ) -> SelfGeneratedGoalResult {
+        SelfGeneratedGoalEngine::generate(state, epistemic_policy, goal_policy, budget)
+    }
+}
