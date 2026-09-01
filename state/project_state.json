@@ -31,7 +31,8 @@
     "crates/athlesia_hierarchy/tests/hierarchy_recognition.rs": "bc7fe6ac289f8697e65b2ebe9aab179ae0cdb2db655fed18afae454bf2132841",
     "crates/athlesia_mindstone_sparse_cognition/Cargo.lock": "d67e0a5b9f7be917468be052c0febda5861b9c25ce92228c287ab0181d3fb201",
     "crates/athlesia_mindstone_sparse_cognition/Cargo.toml": "5cf3f615255e7419fa2240e54b4f49e9a4cc45d5b142a545fb856a66fc43f401",
-    "crates/athlesia_mindstone_sparse_cognition/src/lib.rs": "ea7e256a550a878bd44eda3bd19a0cd5e208ba4bfc4a2b1c3f5286bb11aadbc2",
+    "crates/athlesia_mindstone_sparse_cognition/src/lib.rs": "aeb7ca412d10ad8c5f9efef23bdd4edad5d8256add5da4acd7e6c863aee128c4",
+    "crates/athlesia_mindstone_sparse_cognition/tests/mindstone_sparse_cognition_adaptive_compute_allocation.rs": "ea05b7e478b1c9ddaa06a205df0dfb5151fa526eab4143cd9d0beda960bc0678",
     "crates/athlesia_mindstone_sparse_cognition/tests/mindstone_sparse_cognition_bounded_candidate_search.rs": "03ac4de9a403aec3772c9e75b79375f128da0cc36920afcb84e3baaa895668b0",
     "crates/athlesia_mindstone_sparse_cognition/tests/mindstone_sparse_cognition_bounded_hypothesis_path_depth_search.rs": "4eb8bffbb63903045f200c66b6422a97c92e6e07ba091792e598b929ca39ad87",
     "crates/athlesia_mindstone_sparse_cognition/tests/mindstone_sparse_cognition_collision_safe_structural_identity.rs": "415227f613f33dab64a0e351dd3a9938cc97948ad4ca02035e72b31feff1eaa6",
@@ -497,7 +498,8 @@
       "module_45_mindstone_sparse_cognition_information_gain_goal_ranking",
       "module_45_mindstone_sparse_cognition_collision_safe_structural_identity",
       "module_45_mindstone_sparse_cognition_integrated_sparse_cycle",
-      "module_45_mindstone_sparse_cognition_bounded_hypothesis_path_depth_search"
+      "module_45_mindstone_sparse_cognition_bounded_hypothesis_path_depth_search",
+      "module_45_mindstone_sparse_cognition_adaptive_compute_allocation"
     ],
     "module_23_integrity": {
       "status": "pass",
@@ -510,8 +512,8 @@
       "status": "frozen",
       "verifier": "tools/verify_module_23_parity.py"
     },
-    "next_layer": "module_45_mindstone_sparse_cognition_adaptive_compute_allocation",
-    "stage": "module_45_mindstone_sparse_cognition_bounded_hypothesis_path_depth_search",
+    "next_layer": "module_45_mindstone_sparse_cognition_causal_controllability_baseline",
+    "stage": "module_45_mindstone_sparse_cognition_adaptive_compute_allocation",
     "status": "validated"
   },
   "validated_invariants": [
@@ -2390,6 +2392,18 @@
     "mindstone_hypothesis_search_collision_safe_identity_separation",
     "mindstone_hypothesis_search_conservative_compute_no_skip",
     "mindstone_hypothesis_search_root_depth_zero_support",
-    "mindstone_hypothesis_search_determinism_non_mutation_facade_equivalence"
+    "mindstone_hypothesis_search_determinism_non_mutation_facade_equivalence",
+    "mindstone_adaptive_compute_four_epistemic_pressure_axes",
+    "mindstone_adaptive_compute_invalid_overreservation_rejection",
+    "mindstone_adaptive_compute_zero_pressure_idle_retention",
+    "mindstone_adaptive_compute_full_goal_pressure_assignment",
+    "mindstone_adaptive_compute_full_hypothesis_pressure_assignment",
+    "mindstone_adaptive_compute_pressure_scaled_activation",
+    "mindstone_adaptive_compute_proportional_branch_split_conservation",
+    "mindstone_adaptive_compute_information_gain_goal_shift",
+    "mindstone_adaptive_compute_surprise_learning_search_shift",
+    "mindstone_adaptive_compute_reserved_admission_hard_cap",
+    "mindstone_adaptive_compute_u32_overflow_safety",
+    "mindstone_adaptive_compute_determinism_non_mutation_facade_equivalence"
   ]
 }

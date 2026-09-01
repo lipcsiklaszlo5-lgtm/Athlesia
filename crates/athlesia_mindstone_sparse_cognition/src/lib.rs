@@ -5195,3 +5195,257 @@ impl MindstoneBoundedHypothesisPathDepthSearch {
         BoundedHypothesisPathDepthSearch::search(candidates, policy, budget)
     }
 }
+
+impl MindstoneSignalProfile {
+    pub fn adaptive_surprise_signal(self) -> CognitiveSignal {
+        self.surprise
+    }
+
+    pub fn adaptive_information_gain_signal(self) -> CognitiveSignal {
+        self.information_gain
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub struct AdaptiveComputeSignals {
+    surprise: CognitiveSignal,
+    learning_progress: CognitiveSignal,
+    information_gain: CognitiveSignal,
+    controllability: CognitiveSignal,
+}
+
+impl AdaptiveComputeSignals {
+    pub fn new(
+        surprise: CognitiveSignal,
+        learning_progress: CognitiveSignal,
+        information_gain: CognitiveSignal,
+        controllability: CognitiveSignal,
+    ) -> Self {
+        Self {
+            surprise,
+            learning_progress,
+            information_gain,
+            controllability,
+        }
+    }
+
+    pub fn from_profile(profile: MindstoneExtendedSignalProfile) -> Self {
+        let base = profile.base();
+
+        Self {
+            surprise: base.adaptive_surprise_signal(),
+            learning_progress: base.learning_progress_signal(),
+            information_gain: base.adaptive_information_gain_signal(),
+            controllability: profile.controllability(),
+        }
+    }
+
+    pub fn surprise(self) -> CognitiveSignal {
+        self.surprise
+    }
+
+    pub fn learning_progress(self) -> CognitiveSignal {
+        self.learning_progress
+    }
+
+    pub fn information_gain(self) -> CognitiveSignal {
+        self.information_gain
+    }
+
+    pub fn controllability(self) -> CognitiveSignal {
+        self.controllability
+    }
+
+    pub fn goal_pressure(self) -> CognitiveSignal {
+        self.information_gain.max(self.controllability)
+    }
+
+    pub fn hypothesis_pressure(self) -> CognitiveSignal {
+        self.surprise.max(self.learning_progress)
+    }
+
+    pub fn overall_pressure(self) -> CognitiveSignal {
+        self.goal_pressure().max(self.hypothesis_pressure())
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub struct AdaptiveComputeAllocation {
+    hard_cap_units: u32,
+    reserved_units: u32,
+    available_units: u32,
+    activated_units: u32,
+    goal_units: u32,
+    hypothesis_units: u32,
+    unused_units: u32,
+    goal_pressure: CognitiveSignal,
+    hypothesis_pressure: CognitiveSignal,
+    overall_pressure: CognitiveSignal,
+}
+
+impl AdaptiveComputeAllocation {
+    pub fn hard_cap_units(self) -> u32 {
+        self.hard_cap_units
+    }
+
+    pub fn reserved_units(self) -> u32 {
+        self.reserved_units
+    }
+
+    pub fn available_units(self) -> u32 {
+        self.available_units
+    }
+
+    pub fn activated_units(self) -> u32 {
+        self.activated_units
+    }
+
+    pub fn goal_units(self) -> u32 {
+        self.goal_units
+    }
+
+    pub fn hypothesis_units(self) -> u32 {
+        self.hypothesis_units
+    }
+
+    pub fn unused_units(self) -> u32 {
+        self.unused_units
+    }
+
+    pub fn goal_pressure(self) -> CognitiveSignal {
+        self.goal_pressure
+    }
+
+    pub fn hypothesis_pressure(self) -> CognitiveSignal {
+        self.hypothesis_pressure
+    }
+
+    pub fn overall_pressure(self) -> CognitiveSignal {
+        self.overall_pressure
+    }
+
+    pub fn total_accounted_units(self) -> u32 {
+        self.reserved_units
+            .saturating_add(self.goal_units)
+            .saturating_add(self.hypothesis_units)
+            .saturating_add(self.unused_units)
+    }
+
+    pub fn is_idle(self) -> bool {
+        self.activated_units == 0
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, Hash, Ord, PartialEq, PartialOrd)]
+pub struct AdaptiveComputeAllocator;
+
+impl AdaptiveComputeAllocator {
+    fn activated_units(available_units: u32, overall_pressure: CognitiveSignal) -> u32 {
+        if available_units == 0 || overall_pressure == CognitiveSignal::zero() {
+            return 0;
+        }
+
+        let numerator =
+            u128::from(available_units).saturating_mul(u128::from(overall_pressure.value()));
+
+        let activated = numerator.div_ceil(1000_u128);
+
+        activated.min(u128::from(available_units)) as u32
+    }
+
+    fn split_active_units(
+        activated_units: u32,
+        goal_pressure: CognitiveSignal,
+        hypothesis_pressure: CognitiveSignal,
+    ) -> (u32, u32) {
+        if activated_units == 0 {
+            return (0, 0);
+        }
+
+        let goal = u128::from(goal_pressure.value());
+
+        let hypothesis = u128::from(hypothesis_pressure.value());
+
+        let total_pressure = goal.saturating_add(hypothesis);
+
+        if total_pressure == 0 {
+            return (0, 0);
+        }
+
+        if hypothesis == 0 {
+            return (activated_units, 0);
+        }
+
+        if goal == 0 {
+            return (0, activated_units);
+        }
+
+        let goal_numerator = u128::from(activated_units).saturating_mul(goal);
+
+        let rounded_goal_units = goal_numerator.saturating_add(total_pressure / 2) / total_pressure;
+
+        let goal_units = rounded_goal_units.min(u128::from(activated_units)) as u32;
+
+        let hypothesis_units = activated_units.saturating_sub(goal_units);
+
+        (goal_units, hypothesis_units)
+    }
+
+    pub fn allocate(
+        signals: AdaptiveComputeSignals,
+        hard_budget: CognitiveBudget,
+        reserved_units: u32,
+    ) -> Option<AdaptiveComputeAllocation> {
+        let hard_cap_units = hard_budget.units();
+
+        if reserved_units > hard_cap_units {
+            return None;
+        }
+
+        let available_units = hard_cap_units.saturating_sub(reserved_units);
+
+        let goal_pressure = signals.goal_pressure();
+
+        let hypothesis_pressure = signals.hypothesis_pressure();
+
+        let overall_pressure = signals.overall_pressure();
+
+        let activated_units = Self::activated_units(available_units, overall_pressure);
+
+        let (goal_units, hypothesis_units) =
+            Self::split_active_units(activated_units, goal_pressure, hypothesis_pressure);
+
+        let unused_units =
+            available_units.saturating_sub(goal_units.saturating_add(hypothesis_units));
+
+        Some(AdaptiveComputeAllocation {
+            hard_cap_units,
+            reserved_units,
+            available_units,
+            activated_units,
+            goal_units,
+            hypothesis_units,
+            unused_units,
+            goal_pressure,
+            hypothesis_pressure,
+            overall_pressure,
+        })
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, Hash, Ord, PartialEq, PartialOrd)]
+pub struct MindstoneAdaptiveComputeAllocation;
+
+impl MindstoneAdaptiveComputeAllocation {
+    pub fn evaluate(
+        profile: MindstoneExtendedSignalProfile,
+        hard_budget: CognitiveBudget,
+        reserved_units: u32,
+    ) -> Option<AdaptiveComputeAllocation> {
+        AdaptiveComputeAllocator::allocate(
+            AdaptiveComputeSignals::from_profile(profile),
+            hard_budget,
+            reserved_units,
+        )
+    }
+}
