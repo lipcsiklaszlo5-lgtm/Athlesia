@@ -241,6 +241,10 @@
     "crates/athlesia_revision/tests/revision_cycle.rs": "beac511d4149f995ea0d3a397e143617af6b1da10a99fbbd403df5856a998e42",
     "crates/athlesia_revision/tests/revision_foundation.rs": "32827637fa01b5dc4a5a41a15b0112fdbb99208cf5f3ff9634d8d264b51cb073",
     "crates/athlesia_revision/tests/revision_policy.rs": "6378aee538bf205e5fd65a1fa7f1413b109f34f4b6f9858015dfb8d046c99773",
+    "crates/athlesia_universal_domain_learning/Cargo.lock": "dd15fa520383ab416934233abdaa2337ae0eadfa1483437d7d8392646e2b9de6",
+    "crates/athlesia_universal_domain_learning/Cargo.toml": "608f66355321005946091cb7bce202f353496f0b61edc6e457f31728a7de540b",
+    "crates/athlesia_universal_domain_learning/src/lib.rs": "91c808816ef6ca4bce0296b26ea29c47264eadeaa19dd3979cd02c46348c6c18",
+    "crates/athlesia_universal_domain_learning/tests/universal_domain_learning_grounded_predicate_discovery.rs": "373d49d4010c873cb98d7a830c0dd31d2fd49179beea3a0a7b3dc3c5f0c1b363",
     "src/concept.rs": "8b0b0e8417354c20abedc2ae4f6d4e7d173333fc4ed8626694c1ddc90c788d4f",
     "src/encoder.rs": "99f1a0999307c67f2d79bd84141fd0df79c9ed9226fce4878902afc34b43cfcd",
     "src/evaluation.rs": "4d2ea28bc2582163226f0035100f8c7d3df6cd581f868c805ca965418d4ad4e6",
@@ -522,7 +526,8 @@
       "module_46_core_knowledge_perceptual_grounding_motion_change",
       "module_46_core_knowledge_perceptual_grounding_action_consequences",
       "module_46_core_knowledge_perceptual_grounding_final_integration_freeze",
-      "module_46_core_knowledge_perceptual_grounding_frozen"
+      "module_46_core_knowledge_perceptual_grounding_frozen",
+      "module_47_universal_domain_learning_grounded_predicate_discovery"
     ],
     "module_23_integrity": {
       "status": "pass",
@@ -535,8 +540,8 @@
       "status": "frozen",
       "verifier": "tools/verify_module_23_parity.py"
     },
-    "next_layer": "module_47_universal_domain_learning",
-    "stage": "module_46_core_knowledge_perceptual_grounding_frozen",
+    "next_layer": "module_47_universal_domain_learning_rule_induction",
+    "stage": "module_47_universal_domain_learning_grounded_predicate_discovery",
     "status": "validated"
   },
   "validated_invariants": [
@@ -2523,6 +2528,18 @@
     "perceptual_grounding_final_association_without_causal_lift_remains_hypothesis",
     "perceptual_grounding_final_rejected_upstream_cannot_be_resurrected_downstream",
     "perceptual_grounding_final_determinism_non_mutation_facade_equivalence",
-    "perceptual_grounding_final_complete_dependency_closed_chain"
+    "perceptual_grounding_final_complete_dependency_closed_chain",
+    "universal_learning_predicate_episode_requires_grounded_fact",
+    "universal_learning_predicate_episode_exact_fact_canonicalization",
+    "universal_learning_predicate_exact_structural_identity",
+    "universal_learning_predicate_episode_duplicate_no_support_inflation",
+    "universal_learning_predicate_repeated_association_discovery",
+    "universal_learning_predicate_baseline_corrected_association_lift",
+    "universal_learning_predicate_multiple_outcomes_same_fact",
+    "universal_learning_predicate_minimum_support_filter",
+    "universal_learning_predicate_minimum_precision_filter",
+    "universal_learning_predicate_hard_frontier_bound",
+    "universal_learning_predicate_deterministic_rank_order",
+    "universal_learning_predicate_non_mutating_facade_equivalence"
   ]
 }
