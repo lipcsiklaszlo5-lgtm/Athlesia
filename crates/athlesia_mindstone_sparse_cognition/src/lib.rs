@@ -3350,3 +3350,454 @@ impl MindstoneInformationGainGoalRanking {
         InformationGainGoalRanking::rank(state, epistemic_policy, goal_policy, predictions, budget)
     }
 }
+
+#[derive(Clone, Debug)]
+pub struct CollisionSafeStructuralIdentity {
+    fingerprint: CognitiveFingerprint,
+    structure: CognitiveStructure,
+}
+
+impl CollisionSafeStructuralIdentity {
+    pub fn from_structure(structure: CognitiveStructure) -> Self {
+        let fingerprint = StructuralHasher::fingerprint(&structure);
+
+        Self {
+            fingerprint,
+            structure,
+        }
+    }
+
+    pub fn with_fingerprint_hint(
+        fingerprint: CognitiveFingerprint,
+        structure: CognitiveStructure,
+    ) -> Self {
+        Self {
+            fingerprint,
+            structure,
+        }
+    }
+
+    pub fn fingerprint(&self) -> CognitiveFingerprint {
+        self.fingerprint
+    }
+
+    pub fn structure(&self) -> &CognitiveStructure {
+        &self.structure
+    }
+
+    pub fn semantically_matches(&self, other: &Self) -> bool {
+        self.structure == other.structure
+    }
+}
+
+impl PartialEq for CollisionSafeStructuralIdentity {
+    fn eq(&self, other: &Self) -> bool {
+        self.semantically_matches(other)
+    }
+}
+
+impl Eq for CollisionSafeStructuralIdentity {}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct CollisionSafeStructuralRecord {
+    identity: CollisionSafeStructuralIdentity,
+    observation_count: u64,
+    first_seen: u64,
+    last_seen: u64,
+    total_salience: u128,
+    peak_salience: CognitiveSalience,
+}
+
+impl CollisionSafeStructuralRecord {
+    fn new(
+        identity: CollisionSafeStructuralIdentity,
+        event_index: u64,
+        salience: CognitiveSalience,
+    ) -> Self {
+        Self {
+            identity,
+            observation_count: 1,
+            first_seen: event_index,
+            last_seen: event_index,
+            total_salience: u128::from(salience.value()),
+            peak_salience: salience,
+        }
+    }
+
+    fn observe(&mut self, event_index: u64, salience: CognitiveSalience) {
+        self.observation_count = self.observation_count.saturating_add(1);
+
+        self.last_seen = event_index;
+
+        self.total_salience = self
+            .total_salience
+            .saturating_add(u128::from(salience.value()));
+
+        if salience > self.peak_salience {
+            self.peak_salience = salience;
+        }
+    }
+
+    pub fn identity(&self) -> &CollisionSafeStructuralIdentity {
+        &self.identity
+    }
+
+    pub fn fingerprint(&self) -> CognitiveFingerprint {
+        self.identity.fingerprint()
+    }
+
+    pub fn structure(&self) -> &CognitiveStructure {
+        self.identity.structure()
+    }
+
+    pub fn observation_count(&self) -> u64 {
+        self.observation_count
+    }
+
+    pub fn first_seen(&self) -> u64 {
+        self.first_seen
+    }
+
+    pub fn last_seen(&self) -> u64 {
+        self.last_seen
+    }
+
+    pub fn total_salience(&self) -> u128 {
+        self.total_salience
+    }
+
+    pub fn mean_salience_value(&self) -> u16 {
+        if self.observation_count == 0 {
+            return 0;
+        }
+
+        let mean = self.total_salience / u128::from(self.observation_count);
+
+        mean as u16
+    }
+
+    pub fn peak_salience(&self) -> CognitiveSalience {
+        self.peak_salience
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct CollisionSafeStructuralState {
+    capacity: usize,
+    last_event_index: Option<u64>,
+    buckets: std::collections::BTreeMap<CognitiveFingerprint, Vec<CollisionSafeStructuralRecord>>,
+}
+
+impl CollisionSafeStructuralState {
+    pub fn new(capacity: usize) -> Option<Self> {
+        if capacity == 0 {
+            return None;
+        }
+
+        Some(Self {
+            capacity,
+            last_event_index: None,
+            buckets: std::collections::BTreeMap::new(),
+        })
+    }
+
+    pub fn capacity(&self) -> usize {
+        self.capacity
+    }
+
+    pub fn len(&self) -> usize {
+        self.buckets.values().map(Vec::len).sum()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
+
+    pub fn is_full(&self) -> bool {
+        self.len() == self.capacity
+    }
+
+    pub fn last_event_index(&self) -> Option<u64> {
+        self.last_event_index
+    }
+
+    pub fn bucket_len(&self, fingerprint: CognitiveFingerprint) -> usize {
+        self.buckets.get(&fingerprint).map_or(0, Vec::len)
+    }
+
+    pub fn records_in_bucket(
+        &self,
+        fingerprint: CognitiveFingerprint,
+    ) -> Option<&[CollisionSafeStructuralRecord]> {
+        self.buckets.get(&fingerprint).map(Vec::as_slice)
+    }
+
+    pub fn record_for_identity(
+        &self,
+        identity: &CollisionSafeStructuralIdentity,
+    ) -> Option<&CollisionSafeStructuralRecord> {
+        self.buckets
+            .get(&identity.fingerprint())
+            .and_then(|bucket| {
+                bucket
+                    .iter()
+                    .find(|record| record.identity().semantically_matches(identity))
+            })
+    }
+
+    pub fn record_for_structure(
+        &self,
+        structure: &CognitiveStructure,
+    ) -> Option<&CollisionSafeStructuralRecord> {
+        let fingerprint = StructuralHasher::fingerprint(structure);
+
+        self.buckets
+            .get(&fingerprint)
+            .and_then(|bucket| bucket.iter().find(|record| record.structure() == structure))
+    }
+
+    pub fn contains_structure(&self, structure: &CognitiveStructure) -> bool {
+        self.record_for_structure(structure).is_some()
+    }
+
+    pub fn total_retained_observations(&self) -> u64 {
+        self.buckets
+            .values()
+            .flat_map(|bucket| bucket.iter())
+            .fold(0_u64, |total, record| {
+                total.saturating_add(record.observation_count())
+            })
+    }
+
+    fn find_exact_position(&self, identity: &CollisionSafeStructuralIdentity) -> Option<usize> {
+        self.buckets
+            .get(&identity.fingerprint())
+            .and_then(|bucket| {
+                bucket
+                    .iter()
+                    .position(|record| record.identity().semantically_matches(identity))
+            })
+    }
+
+    fn evict_oldest(&mut self) -> Option<CollisionSafeStructuralIdentity> {
+        let mut victim: Option<(u64, CognitiveFingerprint, usize)> = None;
+
+        for (fingerprint, bucket) in &self.buckets {
+            for (index, record) in bucket.iter().enumerate() {
+                let candidate = (record.last_seen(), *fingerprint, index);
+
+                if victim.as_ref().is_none_or(|current| candidate < *current) {
+                    victim = Some(candidate);
+                }
+            }
+        }
+
+        let (_, fingerprint, index) = victim?;
+
+        let (removed, bucket_empty) = {
+            let bucket = self
+                .buckets
+                .get_mut(&fingerprint)
+                .expect("selected collision-safe bucket exists");
+
+            let removed = bucket.remove(index);
+
+            (removed, bucket.is_empty())
+        };
+
+        if bucket_empty {
+            self.buckets.remove(&fingerprint);
+        }
+
+        Some(removed.identity)
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+pub enum CollisionSafeStructuralObservationStatus {
+    RejectedOutOfOrder,
+    NewStructure,
+    ExistingStructure,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct CollisionSafeStructuralObservationResult {
+    state_before: CollisionSafeStructuralState,
+    state_after: CollisionSafeStructuralState,
+    event_index: u64,
+    identity: CollisionSafeStructuralIdentity,
+    novelty: CognitiveSignal,
+    evicted: Option<CollisionSafeStructuralIdentity>,
+    record: Option<CollisionSafeStructuralRecord>,
+    status: CollisionSafeStructuralObservationStatus,
+}
+
+impl CollisionSafeStructuralObservationResult {
+    pub fn state_before(&self) -> &CollisionSafeStructuralState {
+        &self.state_before
+    }
+
+    pub fn state_after(&self) -> &CollisionSafeStructuralState {
+        &self.state_after
+    }
+
+    pub fn event_index(&self) -> u64 {
+        self.event_index
+    }
+
+    pub fn identity(&self) -> &CollisionSafeStructuralIdentity {
+        &self.identity
+    }
+
+    pub fn novelty(&self) -> CognitiveSignal {
+        self.novelty
+    }
+
+    pub fn evicted(&self) -> Option<&CollisionSafeStructuralIdentity> {
+        self.evicted.as_ref()
+    }
+
+    pub fn record(&self) -> Option<&CollisionSafeStructuralRecord> {
+        self.record.as_ref()
+    }
+
+    pub fn status(&self) -> CollisionSafeStructuralObservationStatus {
+        self.status
+    }
+
+    pub fn accepted(&self) -> bool {
+        self.status != CollisionSafeStructuralObservationStatus::RejectedOutOfOrder
+    }
+
+    pub fn is_novel(&self) -> bool {
+        self.status == CollisionSafeStructuralObservationStatus::NewStructure
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, Hash, Ord, PartialEq, PartialOrd)]
+pub struct CollisionSafeStructuralCognition;
+
+impl CollisionSafeStructuralCognition {
+    fn observe_identity(
+        state: CollisionSafeStructuralState,
+        event_index: u64,
+        identity: CollisionSafeStructuralIdentity,
+        salience: CognitiveSalience,
+    ) -> CollisionSafeStructuralObservationResult {
+        let state_before = state.clone();
+
+        if let Some(previous_index) = state.last_event_index() {
+            if event_index <= previous_index {
+                return CollisionSafeStructuralObservationResult {
+                    state_before,
+                    state_after: state,
+                    event_index,
+                    identity,
+                    novelty: CognitiveSignal::zero(),
+                    evicted: None,
+                    record: None,
+                    status: CollisionSafeStructuralObservationStatus::RejectedOutOfOrder,
+                };
+            }
+        }
+
+        let mut state_after = state;
+
+        let fingerprint = identity.fingerprint();
+
+        let existing_position = state_after.find_exact_position(&identity);
+
+        let (status, novelty, evicted, record) = if let Some(position) = existing_position {
+            let bucket = state_after
+                .buckets
+                .get_mut(&fingerprint)
+                .expect("existing collision-safe bucket exists");
+
+            let existing = bucket
+                .get_mut(position)
+                .expect("existing collision-safe record exists");
+
+            existing.observe(event_index, salience);
+
+            (
+                CollisionSafeStructuralObservationStatus::ExistingStructure,
+                CognitiveSignal::zero(),
+                None,
+                existing.clone(),
+            )
+        } else {
+            let evicted = if state_after.is_full() {
+                state_after.evict_oldest()
+            } else {
+                None
+            };
+
+            let record =
+                CollisionSafeStructuralRecord::new(identity.clone(), event_index, salience);
+
+            state_after
+                .buckets
+                .entry(fingerprint)
+                .or_default()
+                .push(record.clone());
+
+            (
+                CollisionSafeStructuralObservationStatus::NewStructure,
+                CognitiveSignal::maximum(),
+                evicted,
+                record,
+            )
+        };
+
+        state_after.last_event_index = Some(event_index);
+
+        CollisionSafeStructuralObservationResult {
+            state_before,
+            state_after,
+            event_index,
+            identity,
+            novelty,
+            evicted,
+            record: Some(record),
+            status,
+        }
+    }
+
+    pub fn observe(
+        state: CollisionSafeStructuralState,
+        event_index: u64,
+        structure: CognitiveStructure,
+        salience: CognitiveSalience,
+    ) -> CollisionSafeStructuralObservationResult {
+        let identity = CollisionSafeStructuralIdentity::from_structure(structure);
+
+        Self::observe_identity(state, event_index, identity, salience)
+    }
+
+    pub fn observe_with_fingerprint_hint(
+        state: CollisionSafeStructuralState,
+        event_index: u64,
+        fingerprint: CognitiveFingerprint,
+        structure: CognitiveStructure,
+        salience: CognitiveSalience,
+    ) -> CollisionSafeStructuralObservationResult {
+        let identity =
+            CollisionSafeStructuralIdentity::with_fingerprint_hint(fingerprint, structure);
+
+        Self::observe_identity(state, event_index, identity, salience)
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, Hash, Ord, PartialEq, PartialOrd)]
+pub struct MindstoneCollisionSafeStructuralCognition;
+
+impl MindstoneCollisionSafeStructuralCognition {
+    pub fn observe(
+        state: CollisionSafeStructuralState,
+        event_index: u64,
+        structure: CognitiveStructure,
+        salience: CognitiveSalience,
+    ) -> CollisionSafeStructuralObservationResult {
+        CollisionSafeStructuralCognition::observe(state, event_index, structure, salience)
+    }
+}
