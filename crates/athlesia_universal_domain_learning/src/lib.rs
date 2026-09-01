@@ -1599,3 +1599,518 @@ impl UniversalInvariantDiscovery {
         InvariantDiscovery::discover(episodes, rule_seeds, policy)
     }
 }
+
+#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+pub enum TransitionEffectKind {
+    Added,
+    Removed,
+}
+
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub struct TransitionSchemaPolicy {
+    minimum_support: u64,
+    minimum_precision: CognitiveSignal,
+    minimum_association_lift: CognitiveSignal,
+    max_candidate_effects: usize,
+    max_schemas: usize,
+}
+
+impl TransitionSchemaPolicy {
+    pub fn new(
+        minimum_support: u64,
+        minimum_precision: CognitiveSignal,
+        minimum_association_lift: CognitiveSignal,
+        max_candidate_effects: usize,
+        max_schemas: usize,
+    ) -> Option<Self> {
+        if minimum_support == 0
+            || minimum_association_lift == CognitiveSignal::zero()
+            || max_candidate_effects == 0
+            || max_schemas == 0
+        {
+            return None;
+        }
+
+        Some(Self {
+            minimum_support,
+            minimum_precision,
+            minimum_association_lift,
+            max_candidate_effects,
+            max_schemas,
+        })
+    }
+
+    pub fn minimum_support(self) -> u64 {
+        self.minimum_support
+    }
+
+    pub fn minimum_precision(self) -> CognitiveSignal {
+        self.minimum_precision
+    }
+
+    pub fn minimum_association_lift(self) -> CognitiveSignal {
+        self.minimum_association_lift
+    }
+
+    pub fn max_candidate_effects(self) -> usize {
+        self.max_candidate_effects
+    }
+
+    pub fn max_schemas(self) -> usize {
+        self.max_schemas
+    }
+}
+
+impl GroundedTransformationEpisode {
+    pub fn effect_opportunity(
+        &self,
+        kind: TransitionEffectKind,
+        fact: &CognitiveStructure,
+    ) -> bool {
+        match kind {
+            TransitionEffectKind::Added => !self.before().contains_fact(fact),
+
+            TransitionEffectKind::Removed => self.before().contains_fact(fact),
+        }
+    }
+
+    pub fn effect_occurs(&self, kind: TransitionEffectKind, fact: &CognitiveStructure) -> bool {
+        match kind {
+            TransitionEffectKind::Added => {
+                !self.before().contains_fact(fact) && self.after().contains_fact(fact)
+            }
+
+            TransitionEffectKind::Removed => {
+                self.before().contains_fact(fact) && !self.after().contains_fact(fact)
+            }
+        }
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct GroundedTransitionSchemaHypothesis {
+    transformation: CognitiveStructure,
+    effect_kind: TransitionEffectKind,
+    fact: CognitiveStructure,
+    support_count: u64,
+    transformation_opportunity_count: u64,
+    counterexample_count: u64,
+    global_support_count: u64,
+    global_opportunity_count: u64,
+    precision: CognitiveSignal,
+    baseline_rate: CognitiveSignal,
+    association_lift: CognitiveSignal,
+}
+
+impl GroundedTransitionSchemaHypothesis {
+    pub fn transformation(&self) -> &CognitiveStructure {
+        &self.transformation
+    }
+
+    pub fn effect_kind(&self) -> TransitionEffectKind {
+        self.effect_kind
+    }
+
+    pub fn fact(&self) -> &CognitiveStructure {
+        &self.fact
+    }
+
+    pub fn support_count(&self) -> u64 {
+        self.support_count
+    }
+
+    pub fn transformation_opportunity_count(&self) -> u64 {
+        self.transformation_opportunity_count
+    }
+
+    pub fn counterexample_count(&self) -> u64 {
+        self.counterexample_count
+    }
+
+    pub fn global_support_count(&self) -> u64 {
+        self.global_support_count
+    }
+
+    pub fn global_opportunity_count(&self) -> u64 {
+        self.global_opportunity_count
+    }
+
+    pub fn precision(&self) -> CognitiveSignal {
+        self.precision
+    }
+
+    pub fn baseline_rate(&self) -> CognitiveSignal {
+        self.baseline_rate
+    }
+
+    pub fn association_lift(&self) -> CognitiveSignal {
+        self.association_lift
+    }
+
+    pub fn is_supported_by(&self, episode: &GroundedTransformationEpisode) -> bool {
+        episode.transformation() == &self.transformation
+            && episode.effect_occurs(self.effect_kind, &self.fact)
+    }
+
+    pub fn is_counterexample(&self, episode: &GroundedTransformationEpisode) -> bool {
+        episode.transformation() == &self.transformation
+            && episode.effect_opportunity(self.effect_kind, &self.fact)
+            && !episode.effect_occurs(self.effect_kind, &self.fact)
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+struct TransitionEffectCandidate {
+    transformation: CognitiveStructure,
+    kind: TransitionEffectKind,
+    fact: CognitiveStructure,
+    observed_support: u64,
+    invariance_penalty: u16,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct TransitionSchemaInductionResult {
+    transformation_count: usize,
+    vocabulary_fact_count: usize,
+    possible_effect_candidate_count: usize,
+    evaluated_candidate_count: usize,
+    candidate_generation_truncated: bool,
+    invariant_seeded_fact_count: usize,
+    admitted_before_frontier: usize,
+    selected: Vec<GroundedTransitionSchemaHypothesis>,
+}
+
+impl TransitionSchemaInductionResult {
+    pub fn transformation_count(&self) -> usize {
+        self.transformation_count
+    }
+
+    pub fn vocabulary_fact_count(&self) -> usize {
+        self.vocabulary_fact_count
+    }
+
+    pub fn possible_effect_candidate_count(&self) -> usize {
+        self.possible_effect_candidate_count
+    }
+
+    pub fn evaluated_candidate_count(&self) -> usize {
+        self.evaluated_candidate_count
+    }
+
+    pub fn candidate_generation_truncated(&self) -> bool {
+        self.candidate_generation_truncated
+    }
+
+    pub fn invariant_seeded_fact_count(&self) -> usize {
+        self.invariant_seeded_fact_count
+    }
+
+    pub fn admitted_before_frontier(&self) -> usize {
+        self.admitted_before_frontier
+    }
+
+    pub fn selected(&self) -> &[GroundedTransitionSchemaHypothesis] {
+        &self.selected
+    }
+
+    pub fn selected_count(&self) -> usize {
+        self.selected.len()
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, Hash, PartialEq)]
+pub struct TransitionSchemaInduction;
+
+impl TransitionSchemaInduction {
+    fn scaled_rate(numerator: u64, denominator: u64) -> CognitiveSignal {
+        debug_assert!(denominator > 0);
+
+        let scaled = (u128::from(numerator) * 1000) / u128::from(denominator);
+
+        CognitiveSignal::new(scaled as u16)
+            .expect("bounded transition-schema rate remains on signal scale")
+    }
+
+    fn positive_difference(left: CognitiveSignal, right: CognitiveSignal) -> CognitiveSignal {
+        CognitiveSignal::new(left.value().saturating_sub(right.value()))
+            .expect("bounded transition-schema lift remains on signal scale")
+    }
+
+    fn transformations(episodes: &[GroundedTransformationEpisode]) -> Vec<CognitiveStructure> {
+        let mut transformations = episodes
+            .iter()
+            .map(|episode| episode.transformation().clone())
+            .collect::<Vec<_>>();
+
+        transformations.sort_by(PredicateDiscovery::compare_structure);
+
+        transformations.dedup();
+
+        transformations
+    }
+
+    fn facts(episodes: &[GroundedTransformationEpisode]) -> Vec<CognitiveStructure> {
+        let mut facts = episodes
+            .iter()
+            .flat_map(|episode| {
+                episode
+                    .before()
+                    .facts()
+                    .iter()
+                    .chain(episode.after().facts().iter())
+                    .cloned()
+            })
+            .collect::<Vec<_>>();
+
+        facts.sort_by(PredicateDiscovery::compare_structure);
+
+        facts.dedup();
+
+        facts
+    }
+
+    fn invariance_penalty(
+        fact: &CognitiveStructure,
+        invariants: &[GroundedInvariantHypothesis],
+    ) -> u16 {
+        invariants
+            .iter()
+            .filter(|invariant| invariant.fact() == fact)
+            .map(|invariant| invariant.preservation_rate().value())
+            .max()
+            .unwrap_or(0)
+    }
+
+    fn observed_support(
+        episodes: &[GroundedTransformationEpisode],
+        transformation: &CognitiveStructure,
+        kind: TransitionEffectKind,
+        fact: &CognitiveStructure,
+    ) -> u64 {
+        episodes
+            .iter()
+            .filter(|episode| {
+                episode.transformation() == transformation && episode.effect_occurs(kind, fact)
+            })
+            .count() as u64
+    }
+
+    fn candidates(
+        episodes: &[GroundedTransformationEpisode],
+        invariants: &[GroundedInvariantHypothesis],
+    ) -> (Vec<TransitionEffectCandidate>, usize, usize) {
+        let transformations = Self::transformations(episodes);
+
+        let facts = Self::facts(episodes);
+
+        let invariant_seeded_fact_count = facts
+            .iter()
+            .filter(|fact| Self::invariance_penalty(fact, invariants) > 0)
+            .count();
+
+        let possible = transformations
+            .len()
+            .saturating_mul(facts.len())
+            .saturating_mul(2);
+
+        let mut candidates = Vec::with_capacity(possible);
+
+        for transformation in transformations {
+            for kind in [TransitionEffectKind::Added, TransitionEffectKind::Removed] {
+                for fact in &facts {
+                    candidates.push(TransitionEffectCandidate {
+                        observed_support: Self::observed_support(
+                            episodes,
+                            &transformation,
+                            kind,
+                            fact,
+                        ),
+                        invariance_penalty: Self::invariance_penalty(fact, invariants),
+                        transformation: transformation.clone(),
+                        kind,
+                        fact: fact.clone(),
+                    });
+                }
+            }
+        }
+
+        candidates.sort_by(|left, right| {
+            right
+                .observed_support
+                .cmp(&left.observed_support)
+                .then_with(|| left.invariance_penalty.cmp(&right.invariance_penalty))
+                .then_with(|| {
+                    PredicateDiscovery::compare_structure(
+                        &left.transformation,
+                        &right.transformation,
+                    )
+                })
+                .then_with(|| left.kind.cmp(&right.kind))
+                .then_with(|| PredicateDiscovery::compare_structure(&left.fact, &right.fact))
+        });
+
+        (candidates, facts.len(), invariant_seeded_fact_count)
+    }
+
+    fn evaluate_candidate(
+        episodes: &[GroundedTransformationEpisode],
+        candidate: &TransitionEffectCandidate,
+        policy: TransitionSchemaPolicy,
+    ) -> Option<GroundedTransitionSchemaHypothesis> {
+        let transformation_opportunity_count = episodes
+            .iter()
+            .filter(|episode| {
+                episode.transformation() == &candidate.transformation
+                    && episode.effect_opportunity(candidate.kind, &candidate.fact)
+            })
+            .count() as u64;
+
+        if transformation_opportunity_count == 0 {
+            return None;
+        }
+
+        let support_count = episodes
+            .iter()
+            .filter(|episode| {
+                episode.transformation() == &candidate.transformation
+                    && episode.effect_occurs(candidate.kind, &candidate.fact)
+            })
+            .count() as u64;
+
+        if support_count == 0 {
+            return None;
+        }
+
+        let global_opportunity_count = episodes
+            .iter()
+            .filter(|episode| episode.effect_opportunity(candidate.kind, &candidate.fact))
+            .count() as u64;
+
+        if global_opportunity_count == 0 {
+            return None;
+        }
+
+        let global_support_count = episodes
+            .iter()
+            .filter(|episode| episode.effect_occurs(candidate.kind, &candidate.fact))
+            .count() as u64;
+
+        let counterexample_count = transformation_opportunity_count.saturating_sub(support_count);
+
+        let precision = Self::scaled_rate(support_count, transformation_opportunity_count);
+
+        let baseline_rate = Self::scaled_rate(global_support_count, global_opportunity_count);
+
+        let association_lift = Self::positive_difference(precision, baseline_rate);
+
+        if support_count < policy.minimum_support()
+            || precision.value() < policy.minimum_precision().value()
+            || association_lift.value() < policy.minimum_association_lift().value()
+        {
+            return None;
+        }
+
+        Some(GroundedTransitionSchemaHypothesis {
+            transformation: candidate.transformation.clone(),
+            effect_kind: candidate.kind,
+            fact: candidate.fact.clone(),
+            support_count,
+            transformation_opportunity_count,
+            counterexample_count,
+            global_support_count,
+            global_opportunity_count,
+            precision,
+            baseline_rate,
+            association_lift,
+        })
+    }
+
+    fn ranking(
+        left: &GroundedTransitionSchemaHypothesis,
+        right: &GroundedTransitionSchemaHypothesis,
+    ) -> std::cmp::Ordering {
+        right
+            .association_lift()
+            .value()
+            .cmp(&left.association_lift().value())
+            .then_with(|| right.precision().value().cmp(&left.precision().value()))
+            .then_with(|| right.support_count().cmp(&left.support_count()))
+            .then_with(|| {
+                left.counterexample_count()
+                    .cmp(&right.counterexample_count())
+            })
+            .then_with(|| {
+                PredicateDiscovery::compare_structure(left.transformation(), right.transformation())
+            })
+            .then_with(|| left.effect_kind().cmp(&right.effect_kind()))
+            .then_with(|| PredicateDiscovery::compare_structure(left.fact(), right.fact()))
+    }
+
+    pub fn induce(
+        episodes: &[GroundedTransformationEpisode],
+        invariants: &[GroundedInvariantHypothesis],
+        policy: TransitionSchemaPolicy,
+    ) -> TransitionSchemaInductionResult {
+        if episodes.is_empty() {
+            return TransitionSchemaInductionResult {
+                transformation_count: 0,
+                vocabulary_fact_count: 0,
+                possible_effect_candidate_count: 0,
+                evaluated_candidate_count: 0,
+                candidate_generation_truncated: false,
+                invariant_seeded_fact_count: 0,
+                admitted_before_frontier: 0,
+                selected: Vec::new(),
+            };
+        }
+
+        let transformation_count = Self::transformations(episodes).len();
+
+        let (candidates, vocabulary_fact_count, invariant_seeded_fact_count) =
+            Self::candidates(episodes, invariants);
+
+        let possible_effect_candidate_count = candidates.len();
+
+        let evaluated_candidate_count =
+            possible_effect_candidate_count.min(policy.max_candidate_effects());
+
+        let candidate_generation_truncated =
+            possible_effect_candidate_count > policy.max_candidate_effects();
+
+        let mut admitted = candidates
+            .iter()
+            .take(policy.max_candidate_effects())
+            .filter_map(|candidate| Self::evaluate_candidate(episodes, candidate, policy))
+            .collect::<Vec<_>>();
+
+        admitted.sort_by(Self::ranking);
+
+        let admitted_before_frontier = admitted.len();
+
+        admitted.truncate(policy.max_schemas());
+
+        TransitionSchemaInductionResult {
+            transformation_count,
+            vocabulary_fact_count,
+            possible_effect_candidate_count,
+            evaluated_candidate_count,
+            candidate_generation_truncated,
+            invariant_seeded_fact_count,
+            admitted_before_frontier,
+            selected: admitted,
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, Hash, PartialEq)]
+pub struct UniversalTransitionSchemaInduction;
+
+impl UniversalTransitionSchemaInduction {
+    pub fn evaluate(
+        episodes: &[GroundedTransformationEpisode],
+        invariants: &[GroundedInvariantHypothesis],
+        policy: TransitionSchemaPolicy,
+    ) -> TransitionSchemaInductionResult {
+        TransitionSchemaInduction::induce(episodes, invariants, policy)
+    }
+}

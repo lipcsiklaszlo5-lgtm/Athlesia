@@ -243,10 +243,11 @@
     "crates/athlesia_revision/tests/revision_policy.rs": "6378aee538bf205e5fd65a1fa7f1413b109f34f4b6f9858015dfb8d046c99773",
     "crates/athlesia_universal_domain_learning/Cargo.lock": "dd15fa520383ab416934233abdaa2337ae0eadfa1483437d7d8392646e2b9de6",
     "crates/athlesia_universal_domain_learning/Cargo.toml": "608f66355321005946091cb7bce202f353496f0b61edc6e457f31728a7de540b",
-    "crates/athlesia_universal_domain_learning/src/lib.rs": "e00f7180f10ba810a9d95736babbb2c579d241b03ec1ed0867698a186bf9aa43",
+    "crates/athlesia_universal_domain_learning/src/lib.rs": "491576c7f33b5588cc904f42f90338ffb39279a15e510ce8e02c18553326c4b4",
     "crates/athlesia_universal_domain_learning/tests/universal_domain_learning_grounded_predicate_discovery.rs": "373d49d4010c873cb98d7a830c0dd31d2fd49179beea3a0a7b3dc3c5f0c1b363",
     "crates/athlesia_universal_domain_learning/tests/universal_domain_learning_invariant_discovery.rs": "ca578477f286abd57567a00efc7679776181d85a9aa3fb2dde4421fde6ed913c",
     "crates/athlesia_universal_domain_learning/tests/universal_domain_learning_rule_induction.rs": "82aa2f1e82ca04dfabaa1251e65f0b58cd37f00970409e8dcb01187e3f86869c",
+    "crates/athlesia_universal_domain_learning/tests/universal_domain_learning_transition_schema_induction.rs": "fe625f232a9cf500b8ba9d753411e2ed5231ae7b49369c2c3b6b14a5b09581c8",
     "src/concept.rs": "8b0b0e8417354c20abedc2ae4f6d4e7d173333fc4ed8626694c1ddc90c788d4f",
     "src/encoder.rs": "99f1a0999307c67f2d79bd84141fd0df79c9ed9226fce4878902afc34b43cfcd",
     "src/evaluation.rs": "4d2ea28bc2582163226f0035100f8c7d3df6cd581f868c805ca965418d4ad4e6",
@@ -531,7 +532,8 @@
       "module_46_core_knowledge_perceptual_grounding_frozen",
       "module_47_universal_domain_learning_grounded_predicate_discovery",
       "module_47_universal_domain_learning_rule_induction",
-      "module_47_universal_domain_learning_invariant_discovery"
+      "module_47_universal_domain_learning_invariant_discovery",
+      "module_47_universal_domain_learning_transition_schema_induction"
     ],
     "module_23_integrity": {
       "status": "pass",
@@ -544,8 +546,8 @@
       "status": "frozen",
       "verifier": "tools/verify_module_23_parity.py"
     },
-    "next_layer": "module_47_universal_domain_learning_transition_schema_induction",
-    "stage": "module_47_universal_domain_learning_invariant_discovery",
+    "next_layer": "module_47_universal_domain_learning_contextual_transition_rules",
+    "stage": "module_47_universal_domain_learning_transition_schema_induction",
     "status": "validated"
   },
   "validated_invariants": [
@@ -2568,6 +2570,18 @@
     "universal_learning_invariant_exact_structural_identity",
     "universal_learning_invariant_rule_seed_priority_not_semantic_gate",
     "universal_learning_invariant_hard_frontier_and_input_order_invariance",
-    "universal_learning_invariant_deterministic_non_mutating_facade_equivalence"
+    "universal_learning_invariant_deterministic_non_mutating_facade_equivalence",
+    "universal_learning_transition_effect_add_remove_preservation_distinction",
+    "universal_learning_transition_schema_positive_evidence_and_hard_bounds",
+    "universal_learning_transition_specific_addition_discovery",
+    "universal_learning_transition_specific_removal_discovery",
+    "universal_learning_transition_preservation_not_effect",
+    "universal_learning_transition_explicit_effect_counterexamples",
+    "universal_learning_transition_global_baseline_lift_guard",
+    "universal_learning_transition_multiple_effects_per_transformation",
+    "universal_learning_transition_exact_opaque_transformation_identity",
+    "universal_learning_transition_invariant_deprioritization_not_semantic_gate",
+    "universal_learning_transition_hard_frontier_input_order_invariance",
+    "universal_learning_transition_deterministic_non_mutating_facade_equivalence"
   ]
 }
