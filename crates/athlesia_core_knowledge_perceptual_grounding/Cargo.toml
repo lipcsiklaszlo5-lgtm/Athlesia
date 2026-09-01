@@ -1,0 +1,7 @@
+[package]
+name = "athlesia_core_knowledge_perceptual_grounding"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+athlesia_mindstone_sparse_cognition = { path = "../athlesia_mindstone_sparse_cognition" }

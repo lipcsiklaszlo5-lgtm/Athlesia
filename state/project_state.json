@@ -10,6 +10,9 @@
   "implementation_language": "Rust",
   "implementation_sha256": {
     "Cargo.toml": "e852faab0d9dff23b09e1ee2323d0998955f837450c70ea015382ffe5ec52bff",
+    "crates/athlesia_core_knowledge_perceptual_grounding/Cargo.toml": "04ffcd03f7862aac5423b16466ca1ea5ad1ad65856a76a9f4a4265c6dca64ff8",
+    "crates/athlesia_core_knowledge_perceptual_grounding/src/lib.rs": "6fe2e890cdc2f5a523e38bfe0576270b3a0d788d5b55a1af7f40636468ab2762",
+    "crates/athlesia_core_knowledge_perceptual_grounding/tests/core_knowledge_perceptual_grounding_foundation.rs": "a5229032192bdd0bbf0dd58ef55aeeec9410917a164a40ea80d73d63ff32d4cb",
     "crates/athlesia_cross_level/Cargo.lock": "e7672cfc40c8c81465a5682b0ae831a17215d2bfeefd293b3d570168194e0d38",
     "crates/athlesia_cross_level/Cargo.toml": "d32ebca99f825d3dc7b0ec6d8197457ba47688f2a73bb6fe72acb45c0a5ef04b",
     "crates/athlesia_cross_level/src/lib.rs": "1413fa9de9abe1284130ca3caa5c212b35d647b3009581a1884d3ee344201689",
@@ -505,7 +508,8 @@
       "module_45_mindstone_sparse_cognition_adaptive_compute_allocation",
       "module_45_mindstone_sparse_cognition_causal_controllability_baseline",
       "module_45_mindstone_sparse_cognition_final_integration_freeze",
-      "module_45_mindstone_sparse_cognition_frozen"
+      "module_45_mindstone_sparse_cognition_frozen",
+      "module_46_core_knowledge_perceptual_grounding"
     ],
     "module_23_integrity": {
       "status": "pass",
@@ -518,8 +522,8 @@
       "status": "frozen",
       "verifier": "tools/verify_module_23_parity.py"
     },
-    "next_layer": "module_46_core_knowledge_perceptual_grounding",
-    "stage": "module_45_mindstone_sparse_cognition_frozen",
+    "next_layer": "module_46_core_knowledge_perceptual_grounding_persistence_tracking",
+    "stage": "module_46_core_knowledge_perceptual_grounding",
     "status": "validated"
   },
   "validated_invariants": [
@@ -2434,6 +2438,18 @@
     "mindstone_final_hypothesis_conservative_unaffordable_stop",
     "mindstone_final_out_of_order_atomic_expensive_path_rejection",
     "mindstone_final_ignored_repeat_expensive_path_suppression",
-    "mindstone_final_determinism_non_mutation_hard_cap_facade_equivalence"
+    "mindstone_final_determinism_non_mutation_hard_cap_facade_equivalence",
+    "perceptual_grounding_nonempty_unique_observation_local_elements",
+    "perceptual_grounding_canonical_element_order_opaque_signature",
+    "perceptual_grounding_object_hypothesis_requires_evidence",
+    "perceptual_grounding_no_mandatory_single_objecthood_axis",
+    "perceptual_grounding_canonical_membership_and_frame_grounding",
+    "perceptual_grounding_overlapping_object_hypotheses_supported",
+    "perceptual_grounding_duplicate_membership_scene_rejection",
+    "perceptual_grounding_nonvacuous_hard_scene_object_bounds",
+    "perceptual_grounding_invalid_scene_filtering",
+    "perceptual_grounding_hard_competing_scene_frontier",
+    "perceptual_grounding_support_then_simplicity_deterministic_ranking",
+    "perceptual_grounding_determinism_non_mutation_facade_equivalence"
   ]
 }
