@@ -1690,3 +1690,521 @@ impl CoreKnowledgeMotionChange {
         PerceptualChangeCompetition::select(candidates, policy)
     }
 }
+
+#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+pub enum ActionSource {
+    SelfGenerated,
+    ObservedExternal,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ActionObservation {
+    event_index: u64,
+    source: ActionSource,
+    descriptor: CognitiveStructure,
+}
+
+impl ActionObservation {
+    pub fn new(event_index: u64, source: ActionSource, descriptor: CognitiveStructure) -> Self {
+        Self {
+            event_index,
+            source,
+            descriptor,
+        }
+    }
+
+    pub fn event_index(&self) -> u64 {
+        self.event_index
+    }
+
+    pub fn source(&self) -> ActionSource {
+        self.source
+    }
+
+    pub fn descriptor(&self) -> &CognitiveStructure {
+        &self.descriptor
+    }
+
+    pub fn occurs_within(&self, transition: &ObjectTransitionObservation) -> bool {
+        self.event_index >= transition.start_index() && self.event_index < transition.end_index()
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub struct ActionConsequenceEvidence {
+    temporal_alignment: CognitiveSignal,
+    action_change_association: CognitiveSignal,
+    repeatability: CognitiveSignal,
+    counterfactual_contrast: CognitiveSignal,
+    outcome_specificity: CognitiveSignal,
+    causal_lift: CognitiveSignal,
+}
+
+impl ActionConsequenceEvidence {
+    pub fn new(
+        temporal_alignment: CognitiveSignal,
+        action_change_association: CognitiveSignal,
+        repeatability: CognitiveSignal,
+        counterfactual_contrast: CognitiveSignal,
+        outcome_specificity: CognitiveSignal,
+        causal_lift: CognitiveSignal,
+    ) -> Self {
+        Self {
+            temporal_alignment,
+            action_change_association,
+            repeatability,
+            counterfactual_contrast,
+            outcome_specificity,
+            causal_lift,
+        }
+    }
+
+    pub fn temporal_alignment(self) -> CognitiveSignal {
+        self.temporal_alignment
+    }
+
+    pub fn action_change_association(self) -> CognitiveSignal {
+        self.action_change_association
+    }
+
+    pub fn repeatability(self) -> CognitiveSignal {
+        self.repeatability
+    }
+
+    pub fn counterfactual_contrast(self) -> CognitiveSignal {
+        self.counterfactual_contrast
+    }
+
+    pub fn outcome_specificity(self) -> CognitiveSignal {
+        self.outcome_specificity
+    }
+
+    pub fn causal_lift(self) -> CognitiveSignal {
+        self.causal_lift
+    }
+
+    pub fn has_support(self) -> bool {
+        self.axes()
+            .into_iter()
+            .any(|value| value > CognitiveSignal::zero())
+    }
+
+    pub fn peak_support(self) -> CognitiveSignal {
+        self.axes()
+            .into_iter()
+            .max()
+            .expect("action consequence evidence has fixed nonempty axes")
+    }
+
+    pub fn consequence_score(self) -> CognitiveSignal {
+        let axes = self.axes();
+
+        let peak = u32::from(self.peak_support().value());
+
+        let total = axes
+            .into_iter()
+            .map(|value| u32::from(value.value()))
+            .sum::<u32>();
+
+        let composite = peak.saturating_mul(2).saturating_add(total) / 8;
+
+        CognitiveSignal::new(composite as u16)
+            .expect("bounded consequence composite remains on signal scale")
+    }
+
+    fn axes(self) -> [CognitiveSignal; 6] {
+        [
+            self.temporal_alignment,
+            self.action_change_association,
+            self.repeatability,
+            self.counterfactual_contrast,
+            self.outcome_specificity,
+            self.causal_lift,
+        ]
+    }
+
+    fn canonical_key(self) -> [u16; 6] {
+        [
+            self.temporal_alignment.value(),
+            self.action_change_association.value(),
+            self.repeatability.value(),
+            self.counterfactual_contrast.value(),
+            self.outcome_specificity.value(),
+            self.causal_lift.value(),
+        ]
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ActionConsequenceHypothesis {
+    action: ActionObservation,
+    change: PerceptualChangeHypothesis,
+    consequence_descriptor: CognitiveStructure,
+    evidence: ActionConsequenceEvidence,
+}
+
+impl ActionConsequenceHypothesis {
+    pub fn new(
+        action: ActionObservation,
+        change: PerceptualChangeHypothesis,
+        consequence_descriptor: CognitiveStructure,
+        evidence: ActionConsequenceEvidence,
+    ) -> Option<Self> {
+        if !action.occurs_within(change.transition()) || !evidence.has_support() {
+            return None;
+        }
+
+        Some(Self {
+            action,
+            change,
+            consequence_descriptor,
+            evidence,
+        })
+    }
+
+    pub fn action(&self) -> &ActionObservation {
+        &self.action
+    }
+
+    pub fn change(&self) -> &PerceptualChangeHypothesis {
+        &self.change
+    }
+
+    pub fn consequence_descriptor(&self) -> &CognitiveStructure {
+        &self.consequence_descriptor
+    }
+
+    pub fn evidence(&self) -> ActionConsequenceEvidence {
+        self.evidence
+    }
+
+    pub fn consequence_score(&self) -> CognitiveSignal {
+        self.evidence.consequence_score()
+    }
+
+    fn same_change_identity(
+        left: &PerceptualChangeHypothesis,
+        right: &PerceptualChangeHypothesis,
+    ) -> bool {
+        left.transition() == right.transition()
+            && left.kind() == right.kind()
+            && left.reference() == right.reference()
+            && left.descriptor() == right.descriptor()
+    }
+
+    fn same_consequence_identity(&self, other: &Self) -> bool {
+        self.action == other.action
+            && Self::same_change_identity(&self.change, &other.change)
+            && self.consequence_descriptor == other.consequence_descriptor
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+pub struct ActionConsequencePolicy {
+    max_consequences_per_action: usize,
+    max_actions_per_change: usize,
+    max_total_consequences: usize,
+}
+
+impl ActionConsequencePolicy {
+    pub fn new(
+        max_consequences_per_action: usize,
+        max_actions_per_change: usize,
+        max_total_consequences: usize,
+    ) -> Option<Self> {
+        if max_consequences_per_action == 0
+            || max_actions_per_change == 0
+            || max_total_consequences == 0
+        {
+            return None;
+        }
+
+        Some(Self {
+            max_consequences_per_action,
+            max_actions_per_change,
+            max_total_consequences,
+        })
+    }
+
+    pub fn max_consequences_per_action(self) -> usize {
+        self.max_consequences_per_action
+    }
+
+    pub fn max_actions_per_change(self) -> usize {
+        self.max_actions_per_change
+    }
+
+    pub fn max_total_consequences(self) -> usize {
+        self.max_total_consequences
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ActionConsequenceCompetitionResult {
+    input_hypothesis_count: usize,
+    canonical_hypothesis_count: usize,
+    duplicate_hypothesis_count: usize,
+    dropped_by_action_bound_count: usize,
+    dropped_by_change_bound_count: usize,
+    dropped_by_global_bound_count: usize,
+    selected: Vec<ActionConsequenceHypothesis>,
+}
+
+impl ActionConsequenceCompetitionResult {
+    pub fn input_hypothesis_count(&self) -> usize {
+        self.input_hypothesis_count
+    }
+
+    pub fn canonical_hypothesis_count(&self) -> usize {
+        self.canonical_hypothesis_count
+    }
+
+    pub fn duplicate_hypothesis_count(&self) -> usize {
+        self.duplicate_hypothesis_count
+    }
+
+    pub fn dropped_by_action_bound_count(&self) -> usize {
+        self.dropped_by_action_bound_count
+    }
+
+    pub fn dropped_by_change_bound_count(&self) -> usize {
+        self.dropped_by_change_bound_count
+    }
+
+    pub fn dropped_by_global_bound_count(&self) -> usize {
+        self.dropped_by_global_bound_count
+    }
+
+    pub fn selected(&self) -> &[ActionConsequenceHypothesis] {
+        &self.selected
+    }
+
+    pub fn selected_count(&self) -> usize {
+        self.selected.len()
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, Hash, Ord, PartialEq, PartialOrd)]
+pub struct ActionConsequenceCompetition;
+
+impl ActionConsequenceCompetition {
+    fn compare_structure(
+        left: &CognitiveStructure,
+        right: &CognitiveStructure,
+    ) -> std::cmp::Ordering {
+        use std::cmp::Ordering;
+
+        match (left, right) {
+            (CognitiveStructure::Atom(left_value), CognitiveStructure::Atom(right_value)) => {
+                left_value.cmp(right_value)
+            }
+
+            (CognitiveStructure::Atom(_), _) => Ordering::Less,
+
+            (_, CognitiveStructure::Atom(_)) => Ordering::Greater,
+
+            (
+                CognitiveStructure::Ordered(left_values),
+                CognitiveStructure::Ordered(right_values),
+            )
+            | (
+                CognitiveStructure::Unordered(left_values),
+                CognitiveStructure::Unordered(right_values),
+            ) => {
+                let mut left_iterator = left_values.iter();
+
+                let mut right_iterator = right_values.iter();
+
+                loop {
+                    match (left_iterator.next(), right_iterator.next()) {
+                        (Some(left_item), Some(right_item)) => {
+                            let ordering = Self::compare_structure(left_item, right_item);
+
+                            if ordering != Ordering::Equal {
+                                return ordering;
+                            }
+                        }
+
+                        (None, Some(_)) => {
+                            return Ordering::Less;
+                        }
+
+                        (Some(_), None) => {
+                            return Ordering::Greater;
+                        }
+
+                        (None, None) => {
+                            return Ordering::Equal;
+                        }
+                    }
+                }
+            }
+
+            (CognitiveStructure::Ordered(_), CognitiveStructure::Unordered(_)) => Ordering::Less,
+
+            (CognitiveStructure::Unordered(_), CognitiveStructure::Ordered(_)) => Ordering::Greater,
+        }
+    }
+
+    fn compare_action(left: &ActionObservation, right: &ActionObservation) -> std::cmp::Ordering {
+        left.event_index()
+            .cmp(&right.event_index())
+            .then_with(|| left.source().cmp(&right.source()))
+            .then_with(|| Self::compare_structure(left.descriptor(), right.descriptor()))
+    }
+
+    fn compare_change(
+        left: &PerceptualChangeHypothesis,
+        right: &PerceptualChangeHypothesis,
+    ) -> std::cmp::Ordering {
+        left.transition()
+            .cmp(right.transition())
+            .then_with(|| left.kind().cmp(&right.kind()))
+            .then_with(|| left.reference().cmp(&right.reference()))
+            .then_with(|| Self::compare_structure(left.descriptor(), right.descriptor()))
+    }
+
+    fn ranking(
+        left: &ActionConsequenceHypothesis,
+        right: &ActionConsequenceHypothesis,
+    ) -> std::cmp::Ordering {
+        right
+            .consequence_score()
+            .cmp(&left.consequence_score())
+            .then_with(|| {
+                right
+                    .evidence()
+                    .peak_support()
+                    .cmp(&left.evidence().peak_support())
+            })
+            .then_with(|| Self::compare_action(left.action(), right.action()))
+            .then_with(|| Self::compare_change(left.change(), right.change()))
+            .then_with(|| {
+                Self::compare_structure(
+                    left.consequence_descriptor(),
+                    right.consequence_descriptor(),
+                )
+            })
+            .then_with(|| {
+                left.evidence()
+                    .canonical_key()
+                    .cmp(&right.evidence().canonical_key())
+            })
+    }
+
+    fn action_selected_count(
+        selected: &[ActionConsequenceHypothesis],
+        action: &ActionObservation,
+    ) -> usize {
+        selected
+            .iter()
+            .filter(|candidate| candidate.action() == action)
+            .count()
+    }
+
+    fn change_selected_count(
+        selected: &[ActionConsequenceHypothesis],
+        change: &PerceptualChangeHypothesis,
+    ) -> usize {
+        selected
+            .iter()
+            .filter(|candidate| {
+                ActionConsequenceHypothesis::same_change_identity(candidate.change(), change)
+            })
+            .count()
+    }
+
+    pub fn select(
+        candidates: &[ActionConsequenceHypothesis],
+        policy: ActionConsequencePolicy,
+    ) -> ActionConsequenceCompetitionResult {
+        let input_hypothesis_count = candidates.len();
+
+        let mut canonical: Vec<ActionConsequenceHypothesis> = Vec::new();
+
+        let mut duplicate_hypothesis_count = 0_usize;
+
+        for candidate in candidates {
+            if let Some(position) = canonical
+                .iter()
+                .position(|existing| existing.same_consequence_identity(candidate))
+            {
+                duplicate_hypothesis_count = duplicate_hypothesis_count.saturating_add(1);
+
+                let replace =
+                    Self::ranking(candidate, &canonical[position]) == std::cmp::Ordering::Less;
+
+                if replace {
+                    canonical[position] = candidate.clone();
+                }
+            } else {
+                canonical.push(candidate.clone());
+            }
+        }
+
+        canonical.sort_by(Self::ranking);
+
+        let canonical_hypothesis_count = canonical.len();
+
+        let mut selected = Vec::with_capacity(
+            policy
+                .max_total_consequences()
+                .min(canonical_hypothesis_count),
+        );
+
+        let mut dropped_by_action_bound_count = 0_usize;
+
+        let mut dropped_by_change_bound_count = 0_usize;
+
+        let mut dropped_by_global_bound_count = 0_usize;
+
+        for (index, candidate) in canonical.into_iter().enumerate() {
+            if selected.len() >= policy.max_total_consequences() {
+                dropped_by_global_bound_count = dropped_by_global_bound_count
+                    .saturating_add(canonical_hypothesis_count.saturating_sub(index));
+
+                break;
+            }
+
+            if Self::action_selected_count(&selected, candidate.action())
+                >= policy.max_consequences_per_action()
+            {
+                dropped_by_action_bound_count = dropped_by_action_bound_count.saturating_add(1);
+
+                continue;
+            }
+
+            if Self::change_selected_count(&selected, candidate.change())
+                >= policy.max_actions_per_change()
+            {
+                dropped_by_change_bound_count = dropped_by_change_bound_count.saturating_add(1);
+
+                continue;
+            }
+
+            selected.push(candidate);
+        }
+
+        ActionConsequenceCompetitionResult {
+            input_hypothesis_count,
+            canonical_hypothesis_count,
+            duplicate_hypothesis_count,
+            dropped_by_action_bound_count,
+            dropped_by_change_bound_count,
+            dropped_by_global_bound_count,
+            selected,
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, Hash, Ord, PartialEq, PartialOrd)]
+pub struct CoreKnowledgeActionConsequences;
+
+impl CoreKnowledgeActionConsequences {
+    pub fn evaluate(
+        candidates: &[ActionConsequenceHypothesis],
+        policy: ActionConsequencePolicy,
+    ) -> ActionConsequenceCompetitionResult {
+        ActionConsequenceCompetition::select(candidates, policy)
+    }
+}
