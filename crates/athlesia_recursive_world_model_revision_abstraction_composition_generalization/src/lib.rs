@@ -1309,3 +1309,230 @@ impl RecursiveWorldRevisionAbstractionCompositionGeneralizationValidator {
         )
     }
 }
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd)]
+pub enum RecursiveWorldRevisionAbstractionCompositionGeneralizationEvidenceScopeStatus {
+    DiscoveryUnavailable,
+    Rejected,
+    Inactive,
+    Active,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct RecursiveWorldRevisionAbstractionCompositionGeneralizationEvidenceScope {
+    validation:
+        RecursiveWorldRevisionAbstractionCompositionGeneralizationValidation,
+    evidence_state:
+        athlesia_recursive_world_model_evidence::RecursiveWorldEvidenceState,
+    active_hypothesis:
+        Option<
+            athlesia_recursive_world_model_revision_discovery::
+                RecursiveWorldRevisionDiscoveryHypothesis,
+        >,
+    status:
+        RecursiveWorldRevisionAbstractionCompositionGeneralizationEvidenceScopeStatus,
+}
+
+impl RecursiveWorldRevisionAbstractionCompositionGeneralizationEvidenceScope {
+    pub fn scope(
+        model: athlesia_recursive_world_model::RecursiveWorldModel,
+        evidence_state: athlesia_recursive_world_model_evidence::RecursiveWorldEvidenceState,
+        target: athlesia_recursive_world_model::RecursiveWorldRule,
+        projected_motif: RecursiveWorldRevisionAbstractionCompositionGeneralizationProjectedMotif,
+        application_observations:
+            Vec<
+                athlesia_recursive_world_model_revision_discovery::
+                    RecursiveWorldRevisionDiscoveryObservation,
+            >,
+    ) -> Self {
+        let validation =
+            RecursiveWorldRevisionAbstractionCompositionGeneralizationValidation::validate(
+                model,
+                target.clone(),
+                projected_motif,
+                application_observations,
+            );
+
+        match validation.status() {
+            RecursiveWorldRevisionAbstractionCompositionGeneralizationValidationStatus::
+                DiscoveryUnavailable =>
+            {
+                Self {
+                    validation,
+                    evidence_state,
+                    active_hypothesis: None,
+                    status:
+                        RecursiveWorldRevisionAbstractionCompositionGeneralizationEvidenceScopeStatus::
+                            DiscoveryUnavailable,
+                }
+            }
+
+            RecursiveWorldRevisionAbstractionCompositionGeneralizationValidationStatus::
+                Rejected =>
+            {
+                Self {
+                    validation,
+                    evidence_state,
+                    active_hypothesis: None,
+                    status:
+                        RecursiveWorldRevisionAbstractionCompositionGeneralizationEvidenceScopeStatus::
+                            Rejected,
+                }
+            }
+
+            RecursiveWorldRevisionAbstractionCompositionGeneralizationValidationStatus::
+                Accepted =>
+            {
+                let active =
+                    evidence_state
+                        .records_for_rule(
+                            &target,
+                        )
+                        .iter()
+                        .any(
+                            |record| {
+                                record.kind()
+                                    == athlesia_recursive_world_model_evidence::
+                                        RecursiveWorldEvidenceKind::Violating
+                            },
+                        );
+
+                let active_hypothesis =
+                    if active {
+                        validation
+                            .accepted_hypothesis()
+                            .cloned()
+                    } else {
+                        None
+                    };
+
+                let status =
+                    if active_hypothesis.is_some() {
+                        RecursiveWorldRevisionAbstractionCompositionGeneralizationEvidenceScopeStatus::
+                            Active
+                    } else {
+                        RecursiveWorldRevisionAbstractionCompositionGeneralizationEvidenceScopeStatus::
+                            Inactive
+                    };
+
+                Self {
+                    validation,
+                    evidence_state,
+                    active_hypothesis,
+                    status,
+                }
+            }
+        }
+    }
+
+    pub fn validation(
+        &self,
+    ) -> &RecursiveWorldRevisionAbstractionCompositionGeneralizationValidation {
+        &self.validation
+    }
+
+    pub fn evidence_state(
+        &self,
+    ) -> &athlesia_recursive_world_model_evidence::RecursiveWorldEvidenceState {
+        &self.evidence_state
+    }
+
+    pub fn active_hypothesis(
+        &self,
+    ) -> Option<
+        &athlesia_recursive_world_model_revision_discovery::
+            RecursiveWorldRevisionDiscoveryHypothesis,
+    >{
+        self.active_hypothesis.as_ref()
+    }
+
+    pub fn hypothesis(
+        &self,
+    ) -> Option<
+        &athlesia_recursive_world_model_revision_discovery::
+            RecursiveWorldRevisionDiscoveryHypothesis,
+    >{
+        self.validation.hypothesis()
+    }
+
+    pub fn status(
+        &self,
+    ) -> RecursiveWorldRevisionAbstractionCompositionGeneralizationEvidenceScopeStatus {
+        self.status
+    }
+
+    pub fn is_active(&self) -> bool {
+        self.status
+            == RecursiveWorldRevisionAbstractionCompositionGeneralizationEvidenceScopeStatus::Active
+    }
+
+    pub fn target(&self) -> &athlesia_recursive_world_model::RecursiveWorldRule {
+        self.validation.target()
+    }
+
+    pub fn replacement(&self) -> Option<&athlesia_recursive_world_model::RecursiveWorldRule> {
+        self.validation.replacement()
+    }
+
+    pub fn realized_observation(
+        &self,
+    ) -> Option<
+        &athlesia_recursive_world_model_revision_discovery::
+            RecursiveWorldRevisionDiscoveryObservation,
+    >{
+        self.validation.realized_observation()
+    }
+
+    pub fn projected_motif(
+        &self,
+    ) -> &RecursiveWorldRevisionAbstractionCompositionGeneralizationProjectedMotif {
+        self.validation.projected_motif()
+    }
+
+    pub fn support_count(&self) -> usize {
+        self.validation.support_count()
+    }
+
+    pub fn matching_selections(
+        &self,
+    ) -> &[
+        athlesia_recursive_world_model_revision_abstraction_composition::
+            RecursiveWorldRevisionAbstractionCompositionPathSelection
+    ]{
+        self.validation.matching_selections()
+    }
+
+    pub fn application_observations(
+        &self,
+    ) -> &[
+        athlesia_recursive_world_model_revision_discovery::
+            RecursiveWorldRevisionDiscoveryObservation
+    ]{
+        self.validation.application_observations()
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct RecursiveWorldRevisionAbstractionCompositionGeneralizationEvidenceScoper;
+
+impl RecursiveWorldRevisionAbstractionCompositionGeneralizationEvidenceScoper {
+    pub fn scope(
+        model: athlesia_recursive_world_model::RecursiveWorldModel,
+        evidence_state: athlesia_recursive_world_model_evidence::RecursiveWorldEvidenceState,
+        target: athlesia_recursive_world_model::RecursiveWorldRule,
+        projected_motif: RecursiveWorldRevisionAbstractionCompositionGeneralizationProjectedMotif,
+        application_observations:
+            Vec<
+                athlesia_recursive_world_model_revision_discovery::
+                    RecursiveWorldRevisionDiscoveryObservation,
+            >,
+    ) -> RecursiveWorldRevisionAbstractionCompositionGeneralizationEvidenceScope {
+        RecursiveWorldRevisionAbstractionCompositionGeneralizationEvidenceScope::scope(
+            model,
+            evidence_state,
+            target,
+            projected_motif,
+            application_observations,
+        )
+    }
+}
