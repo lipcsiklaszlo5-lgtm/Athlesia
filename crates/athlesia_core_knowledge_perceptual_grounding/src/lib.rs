@@ -477,3 +477,422 @@ impl CoreKnowledgePerceptualGrounding {
         CompetingSceneInterpretations::select(frame, candidates, policy)
     }
 }
+
+#[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+pub struct ObjectObservation {
+    observation_index: u64,
+    members: Vec<PerceptualElementHandle>,
+}
+
+impl ObjectObservation {
+    pub fn from_hypothesis(frame: &PerceptualFrame, hypothesis: &ObjectHypothesis) -> Option<Self> {
+        if !hypothesis.is_grounded_in(frame) {
+            return None;
+        }
+
+        Some(Self {
+            observation_index: frame.observation_index(),
+            members: hypothesis.members().to_vec(),
+        })
+    }
+
+    pub fn observation_index(&self) -> u64 {
+        self.observation_index
+    }
+
+    pub fn members(&self) -> &[PerceptualElementHandle] {
+        &self.members
+    }
+
+    pub fn member_count(&self) -> usize {
+        self.members.len()
+    }
+
+    pub fn contains(&self, handle: PerceptualElementHandle) -> bool {
+        self.members.binary_search(&handle).is_ok()
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub struct PersistenceEvidence {
+    structural_continuity: CognitiveSignal,
+    relational_continuity: CognitiveSignal,
+    change_continuity: CognitiveSignal,
+    boundary_continuity: CognitiveSignal,
+    containment_continuity: CognitiveSignal,
+    causal_continuity: CognitiveSignal,
+}
+
+impl PersistenceEvidence {
+    pub fn new(
+        structural_continuity: CognitiveSignal,
+        relational_continuity: CognitiveSignal,
+        change_continuity: CognitiveSignal,
+        boundary_continuity: CognitiveSignal,
+        containment_continuity: CognitiveSignal,
+        causal_continuity: CognitiveSignal,
+    ) -> Self {
+        Self {
+            structural_continuity,
+            relational_continuity,
+            change_continuity,
+            boundary_continuity,
+            containment_continuity,
+            causal_continuity,
+        }
+    }
+
+    pub fn structural_continuity(self) -> CognitiveSignal {
+        self.structural_continuity
+    }
+
+    pub fn relational_continuity(self) -> CognitiveSignal {
+        self.relational_continuity
+    }
+
+    pub fn change_continuity(self) -> CognitiveSignal {
+        self.change_continuity
+    }
+
+    pub fn boundary_continuity(self) -> CognitiveSignal {
+        self.boundary_continuity
+    }
+
+    pub fn containment_continuity(self) -> CognitiveSignal {
+        self.containment_continuity
+    }
+
+    pub fn causal_continuity(self) -> CognitiveSignal {
+        self.causal_continuity
+    }
+
+    pub fn has_support(self) -> bool {
+        self.axes()
+            .into_iter()
+            .any(|value| value > CognitiveSignal::zero())
+    }
+
+    pub fn peak_support(self) -> CognitiveSignal {
+        self.axes()
+            .into_iter()
+            .max()
+            .expect("persistence evidence has fixed nonempty axes")
+    }
+
+    pub fn continuity_score(self) -> CognitiveSignal {
+        let axes = self.axes();
+
+        let peak = u32::from(self.peak_support().value());
+
+        let total = axes
+            .into_iter()
+            .map(|value| u32::from(value.value()))
+            .sum::<u32>();
+
+        let composite = (peak.saturating_mul(2).saturating_add(total)) / 8;
+
+        CognitiveSignal::new(composite as u16)
+            .expect("bounded persistence composite remains on signal scale")
+    }
+
+    fn axes(self) -> [CognitiveSignal; 6] {
+        [
+            self.structural_continuity,
+            self.relational_continuity,
+            self.change_continuity,
+            self.boundary_continuity,
+            self.containment_continuity,
+            self.causal_continuity,
+        ]
+    }
+
+    fn canonical_key(self) -> [u16; 6] {
+        [
+            self.structural_continuity.value(),
+            self.relational_continuity.value(),
+            self.change_continuity.value(),
+            self.boundary_continuity.value(),
+            self.containment_continuity.value(),
+            self.causal_continuity.value(),
+        ]
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct PersistenceLinkHypothesis {
+    previous: ObjectObservation,
+    current: ObjectObservation,
+    evidence: PersistenceEvidence,
+}
+
+impl PersistenceLinkHypothesis {
+    pub fn new(
+        previous: ObjectObservation,
+        current: ObjectObservation,
+        evidence: PersistenceEvidence,
+    ) -> Option<Self> {
+        if previous.observation_index() >= current.observation_index() || !evidence.has_support() {
+            return None;
+        }
+
+        Some(Self {
+            previous,
+            current,
+            evidence,
+        })
+    }
+
+    pub fn previous(&self) -> &ObjectObservation {
+        &self.previous
+    }
+
+    pub fn current(&self) -> &ObjectObservation {
+        &self.current
+    }
+
+    pub fn evidence(&self) -> PersistenceEvidence {
+        self.evidence
+    }
+
+    pub fn continuity_score(&self) -> CognitiveSignal {
+        self.evidence.continuity_score()
+    }
+
+    pub fn temporal_gap(&self) -> u64 {
+        self.current
+            .observation_index()
+            .saturating_sub(self.previous.observation_index())
+    }
+
+    fn same_transition(&self, other: &Self) -> bool {
+        self.previous == other.previous && self.current == other.current
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+pub struct PersistenceTrackingPolicy {
+    max_predecessors_per_current: usize,
+    max_successors_per_previous: usize,
+    max_total_links: usize,
+}
+
+impl PersistenceTrackingPolicy {
+    pub fn new(
+        max_predecessors_per_current: usize,
+        max_successors_per_previous: usize,
+        max_total_links: usize,
+    ) -> Option<Self> {
+        if max_predecessors_per_current == 0
+            || max_successors_per_previous == 0
+            || max_total_links == 0
+        {
+            return None;
+        }
+
+        Some(Self {
+            max_predecessors_per_current,
+            max_successors_per_previous,
+            max_total_links,
+        })
+    }
+
+    pub fn max_predecessors_per_current(self) -> usize {
+        self.max_predecessors_per_current
+    }
+
+    pub fn max_successors_per_previous(self) -> usize {
+        self.max_successors_per_previous
+    }
+
+    pub fn max_total_links(self) -> usize {
+        self.max_total_links
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct PersistenceTrackingResult {
+    input_link_count: usize,
+    canonical_link_count: usize,
+    duplicate_transition_count: usize,
+    dropped_by_predecessor_bound_count: usize,
+    dropped_by_successor_bound_count: usize,
+    dropped_by_global_bound_count: usize,
+    selected: Vec<PersistenceLinkHypothesis>,
+}
+
+impl PersistenceTrackingResult {
+    pub fn input_link_count(&self) -> usize {
+        self.input_link_count
+    }
+
+    pub fn canonical_link_count(&self) -> usize {
+        self.canonical_link_count
+    }
+
+    pub fn duplicate_transition_count(&self) -> usize {
+        self.duplicate_transition_count
+    }
+
+    pub fn dropped_by_predecessor_bound_count(&self) -> usize {
+        self.dropped_by_predecessor_bound_count
+    }
+
+    pub fn dropped_by_successor_bound_count(&self) -> usize {
+        self.dropped_by_successor_bound_count
+    }
+
+    pub fn dropped_by_global_bound_count(&self) -> usize {
+        self.dropped_by_global_bound_count
+    }
+
+    pub fn selected(&self) -> &[PersistenceLinkHypothesis] {
+        &self.selected
+    }
+
+    pub fn selected_count(&self) -> usize {
+        self.selected.len()
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, Hash, Ord, PartialEq, PartialOrd)]
+pub struct PersistenceTracking;
+
+impl PersistenceTracking {
+    fn ranking(
+        left: &PersistenceLinkHypothesis,
+        right: &PersistenceLinkHypothesis,
+    ) -> std::cmp::Ordering {
+        right
+            .continuity_score()
+            .cmp(&left.continuity_score())
+            .then_with(|| {
+                right
+                    .evidence()
+                    .peak_support()
+                    .cmp(&left.evidence().peak_support())
+            })
+            .then_with(|| left.temporal_gap().cmp(&right.temporal_gap()))
+            .then_with(|| left.previous().cmp(right.previous()))
+            .then_with(|| left.current().cmp(right.current()))
+            .then_with(|| {
+                left.evidence()
+                    .canonical_key()
+                    .cmp(&right.evidence().canonical_key())
+            })
+    }
+
+    pub fn select(
+        candidates: &[PersistenceLinkHypothesis],
+        policy: PersistenceTrackingPolicy,
+    ) -> PersistenceTrackingResult {
+        let input_link_count = candidates.len();
+
+        let mut duplicate_transition_count = 0_usize;
+
+        let mut canonical: Vec<PersistenceLinkHypothesis> = Vec::new();
+
+        for candidate in candidates {
+            if let Some(position) = canonical
+                .iter()
+                .position(|existing| existing.same_transition(candidate))
+            {
+                duplicate_transition_count = duplicate_transition_count.saturating_add(1);
+
+                if Self::ranking(candidate, &canonical[position]) == std::cmp::Ordering::Less {
+                    canonical[position] = candidate.clone();
+                }
+            } else {
+                canonical.push(candidate.clone());
+            }
+        }
+
+        canonical.sort_by(Self::ranking);
+
+        let canonical_link_count = canonical.len();
+
+        let mut predecessor_counts: std::collections::BTreeMap<ObjectObservation, usize> =
+            std::collections::BTreeMap::new();
+
+        let mut successor_counts: std::collections::BTreeMap<ObjectObservation, usize> =
+            std::collections::BTreeMap::new();
+
+        let mut selected = Vec::with_capacity(policy.max_total_links().min(canonical_link_count));
+
+        let mut dropped_by_predecessor_bound_count = 0_usize;
+
+        let mut dropped_by_successor_bound_count = 0_usize;
+
+        let mut dropped_by_global_bound_count = 0_usize;
+
+        for (index, candidate) in canonical.into_iter().enumerate() {
+            if selected.len() >= policy.max_total_links() {
+                dropped_by_global_bound_count = dropped_by_global_bound_count
+                    .saturating_add(canonical_link_count.saturating_sub(index));
+
+                break;
+            }
+
+            let current_count = predecessor_counts
+                .get(candidate.current())
+                .copied()
+                .unwrap_or(0);
+
+            if current_count >= policy.max_predecessors_per_current() {
+                dropped_by_predecessor_bound_count =
+                    dropped_by_predecessor_bound_count.saturating_add(1);
+
+                continue;
+            }
+
+            let previous_count = successor_counts
+                .get(candidate.previous())
+                .copied()
+                .unwrap_or(0);
+
+            if previous_count >= policy.max_successors_per_previous() {
+                dropped_by_successor_bound_count =
+                    dropped_by_successor_bound_count.saturating_add(1);
+
+                continue;
+            }
+
+            predecessor_counts
+                .entry(candidate.current().clone())
+                .and_modify(|count| {
+                    *count = count.saturating_add(1);
+                })
+                .or_insert(1);
+
+            successor_counts
+                .entry(candidate.previous().clone())
+                .and_modify(|count| {
+                    *count = count.saturating_add(1);
+                })
+                .or_insert(1);
+
+            selected.push(candidate);
+        }
+
+        PersistenceTrackingResult {
+            input_link_count,
+            canonical_link_count,
+            duplicate_transition_count,
+            dropped_by_predecessor_bound_count,
+            dropped_by_successor_bound_count,
+            dropped_by_global_bound_count,
+            selected,
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, Hash, Ord, PartialEq, PartialOrd)]
+pub struct CoreKnowledgePersistenceTracking;
+
+impl CoreKnowledgePersistenceTracking {
+    pub fn evaluate(
+        candidates: &[PersistenceLinkHypothesis],
+        policy: PersistenceTrackingPolicy,
+    ) -> PersistenceTrackingResult {
+        PersistenceTracking::select(candidates, policy)
+    }
+}
