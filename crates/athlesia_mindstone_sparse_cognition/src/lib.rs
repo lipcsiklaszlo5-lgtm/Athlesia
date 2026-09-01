@@ -3045,3 +3045,308 @@ impl MindstoneExpectedInformationGain {
         })
     }
 }
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct GoalInformationPrediction {
+    fingerprint: CognitiveFingerprint,
+    outcomes: Vec<EpistemicOutcomePrediction>,
+}
+
+impl GoalInformationPrediction {
+    pub fn new(
+        fingerprint: CognitiveFingerprint,
+        outcomes: Vec<EpistemicOutcomePrediction>,
+    ) -> Option<Self> {
+        if outcomes.is_empty() {
+            return None;
+        }
+
+        Some(Self {
+            fingerprint,
+            outcomes,
+        })
+    }
+
+    pub fn fingerprint(&self) -> CognitiveFingerprint {
+        self.fingerprint
+    }
+
+    pub fn outcomes(&self) -> &[EpistemicOutcomePrediction] {
+        &self.outcomes
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct GoalInformationPredictionSet {
+    predictions: std::collections::BTreeMap<CognitiveFingerprint, Vec<EpistemicOutcomePrediction>>,
+}
+
+impl GoalInformationPredictionSet {
+    pub fn new(predictions: Vec<GoalInformationPrediction>) -> Option<Self> {
+        let mut canonical = std::collections::BTreeMap::new();
+
+        for prediction in predictions {
+            if canonical
+                .insert(prediction.fingerprint(), prediction.outcomes)
+                .is_some()
+            {
+                return None;
+            }
+        }
+
+        Some(Self {
+            predictions: canonical,
+        })
+    }
+
+    pub fn empty() -> Self {
+        Self {
+            predictions: std::collections::BTreeMap::new(),
+        }
+    }
+
+    pub fn len(&self) -> usize {
+        self.predictions.len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.predictions.is_empty()
+    }
+
+    pub fn contains(&self, fingerprint: CognitiveFingerprint) -> bool {
+        self.predictions.contains_key(&fingerprint)
+    }
+
+    pub fn outcomes_for(
+        &self,
+        fingerprint: CognitiveFingerprint,
+    ) -> Option<&[EpistemicOutcomePrediction]> {
+        self.predictions.get(&fingerprint).map(Vec::as_slice)
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub struct InformationRankedGoal {
+    goal: SelfGeneratedGoal,
+    information_gain: CognitiveSignal,
+    expected_uncertainty: Option<CognitiveSignal>,
+    has_prediction: bool,
+}
+
+impl InformationRankedGoal {
+    pub fn goal(self) -> SelfGeneratedGoal {
+        self.goal
+    }
+
+    pub fn fingerprint(self) -> CognitiveFingerprint {
+        self.goal.fingerprint()
+    }
+
+    pub fn kind(self) -> SelfGeneratedGoalKind {
+        self.goal.kind()
+    }
+
+    pub fn base_priority(self) -> CognitiveSignal {
+        self.goal.priority()
+    }
+
+    pub fn estimated_cost(self) -> u32 {
+        self.goal.estimated_cost()
+    }
+
+    pub fn information_gain(self) -> CognitiveSignal {
+        self.information_gain
+    }
+
+    pub fn expected_uncertainty(self) -> Option<CognitiveSignal> {
+        self.expected_uncertainty
+    }
+
+    pub fn has_prediction(self) -> bool {
+        self.has_prediction
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct InformationGainGoalRankingResult {
+    source_record_count: usize,
+    candidate_goal_count: usize,
+    prediction_count: usize,
+    matched_prediction_count: usize,
+    selected: Vec<InformationRankedGoal>,
+    total_selected_cost: u32,
+    truncated_by_goal_limit: bool,
+    truncated_by_compute_budget: bool,
+}
+
+impl InformationGainGoalRankingResult {
+    pub fn source_record_count(&self) -> usize {
+        self.source_record_count
+    }
+
+    pub fn candidate_goal_count(&self) -> usize {
+        self.candidate_goal_count
+    }
+
+    pub fn prediction_count(&self) -> usize {
+        self.prediction_count
+    }
+
+    pub fn matched_prediction_count(&self) -> usize {
+        self.matched_prediction_count
+    }
+
+    pub fn selected(&self) -> &[InformationRankedGoal] {
+        &self.selected
+    }
+
+    pub fn selected_count(&self) -> usize {
+        self.selected.len()
+    }
+
+    pub fn total_selected_cost(&self) -> u32 {
+        self.total_selected_cost
+    }
+
+    pub fn truncated_by_goal_limit(&self) -> bool {
+        self.truncated_by_goal_limit
+    }
+
+    pub fn truncated_by_compute_budget(&self) -> bool {
+        self.truncated_by_compute_budget
+    }
+
+    pub fn was_truncated(&self) -> bool {
+        self.truncated_by_goal_limit || self.truncated_by_compute_budget
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, Hash, Ord, PartialEq, PartialOrd)]
+pub struct InformationGainGoalRanking;
+
+impl InformationGainGoalRanking {
+    fn enrich_goal(
+        goal: SelfGeneratedGoal,
+        record: &EpistemicSelfRecord,
+        predictions: &GoalInformationPredictionSet,
+    ) -> InformationRankedGoal {
+        if let Some(outcomes) = predictions.outcomes_for(goal.fingerprint()) {
+            let estimate = ExpectedInformationGain::estimate(record.uncertainty(), outcomes)
+                .expect("validated nonempty prediction outcomes");
+
+            InformationRankedGoal {
+                goal,
+                information_gain: estimate.information_gain(),
+                expected_uncertainty: Some(estimate.expected_uncertainty()),
+                has_prediction: true,
+            }
+        } else {
+            InformationRankedGoal {
+                goal,
+                information_gain: CognitiveSignal::zero(),
+                expected_uncertainty: None,
+                has_prediction: false,
+            }
+        }
+    }
+
+    fn ranking(left: &InformationRankedGoal, right: &InformationRankedGoal) -> std::cmp::Ordering {
+        right
+            .information_gain()
+            .cmp(&left.information_gain())
+            .then_with(|| right.base_priority().cmp(&left.base_priority()))
+            .then_with(|| left.estimated_cost().cmp(&right.estimated_cost()))
+            .then_with(|| left.kind().cmp(&right.kind()))
+            .then_with(|| left.fingerprint().cmp(&right.fingerprint()))
+    }
+
+    pub fn rank(
+        state: &EpistemicSelfState,
+        epistemic_policy: EpistemicSelfPolicy,
+        goal_policy: SelfGeneratedGoalPolicy,
+        predictions: &GoalInformationPredictionSet,
+        budget: CognitiveBudget,
+    ) -> InformationGainGoalRankingResult {
+        let source_record_count = state.len();
+
+        let mut candidates = state
+            .records
+            .values()
+            .filter_map(|record| {
+                let assessment = record.assessment(epistemic_policy);
+
+                let goal = SelfGeneratedGoalEngine::primary_goal(record, assessment, goal_policy)?;
+
+                Some(Self::enrich_goal(goal, record, predictions))
+            })
+            .collect::<Vec<_>>();
+
+        candidates.sort_by(Self::ranking);
+
+        let candidate_goal_count = candidates.len();
+
+        let matched_prediction_count = candidates
+            .iter()
+            .filter(|candidate| candidate.has_prediction())
+            .count();
+
+        let mut selected = Vec::with_capacity(goal_policy.max_goals().min(candidate_goal_count));
+
+        let mut total_selected_cost = 0_u32;
+
+        let mut truncated_by_goal_limit = false;
+
+        let mut truncated_by_compute_budget = false;
+
+        for (index, candidate) in candidates.into_iter().enumerate() {
+            if selected.len() >= goal_policy.max_goals() {
+                truncated_by_goal_limit = index < candidate_goal_count;
+
+                break;
+            }
+
+            let Some(next_total) = total_selected_cost.checked_add(candidate.estimated_cost())
+            else {
+                truncated_by_compute_budget = true;
+
+                break;
+            };
+
+            if next_total > budget.units() {
+                truncated_by_compute_budget = true;
+
+                break;
+            }
+
+            total_selected_cost = next_total;
+
+            selected.push(candidate);
+        }
+
+        InformationGainGoalRankingResult {
+            source_record_count,
+            candidate_goal_count,
+            prediction_count: predictions.len(),
+            matched_prediction_count,
+            selected,
+            total_selected_cost,
+            truncated_by_goal_limit,
+            truncated_by_compute_budget,
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, Hash, Ord, PartialEq, PartialOrd)]
+pub struct MindstoneInformationGainGoalRanking;
+
+impl MindstoneInformationGainGoalRanking {
+    pub fn evaluate(
+        state: &EpistemicSelfState,
+        epistemic_policy: EpistemicSelfPolicy,
+        goal_policy: SelfGeneratedGoalPolicy,
+        predictions: &GoalInformationPredictionSet,
+        budget: CognitiveBudget,
+    ) -> InformationGainGoalRankingResult {
+        InformationGainGoalRanking::rank(state, epistemic_policy, goal_policy, predictions, budget)
+    }
+}

@@ -31,7 +31,7 @@
     "crates/athlesia_hierarchy/tests/hierarchy_recognition.rs": "bc7fe6ac289f8697e65b2ebe9aab179ae0cdb2db655fed18afae454bf2132841",
     "crates/athlesia_mindstone_sparse_cognition/Cargo.lock": "d67e0a5b9f7be917468be052c0febda5861b9c25ce92228c287ab0181d3fb201",
     "crates/athlesia_mindstone_sparse_cognition/Cargo.toml": "5cf3f615255e7419fa2240e54b4f49e9a4cc45d5b142a545fb856a66fc43f401",
-    "crates/athlesia_mindstone_sparse_cognition/src/lib.rs": "ec3b791278d14a50b4af1d6faeac72d7129c26546a85bfd819b4f938686550ba",
+    "crates/athlesia_mindstone_sparse_cognition/src/lib.rs": "2d77c72dc465d29f0d59cf8f4d32bff3ba9e62d5d0d92f090d0bba76fef99e3d",
     "crates/athlesia_mindstone_sparse_cognition/tests/mindstone_sparse_cognition_bounded_candidate_search.rs": "03ac4de9a403aec3772c9e75b79375f128da0cc36920afcb84e3baaa895668b0",
     "crates/athlesia_mindstone_sparse_cognition/tests/mindstone_sparse_cognition_compression_controllability.rs": "093f549fe24c1356eece54bb01539db02a9cee5866453a2ac0ba55546f94183d",
     "crates/athlesia_mindstone_sparse_cognition/tests/mindstone_sparse_cognition_epistemic_self_model.rs": "11b6b13bc109f105a0013a615575dd4fff42e233caa10a64741b34dae7fb63a3",
@@ -39,6 +39,7 @@
     "crates/athlesia_mindstone_sparse_cognition/tests/mindstone_sparse_cognition_forgetting_cold_storage.rs": "e5dd436a438d00aee879708e88e865c41014898f5064dbd3260ad6d991d2a7f4",
     "crates/athlesia_mindstone_sparse_cognition/tests/mindstone_sparse_cognition_foundation.rs": "7c6e0ed54b601d97954680f311e19f780717dbb0746d30ff385c0ebc2b07f10b",
     "crates/athlesia_mindstone_sparse_cognition/tests/mindstone_sparse_cognition_hierarchical_memory_admission.rs": "9384367520f10afcdc08538b9de41406543842a1470844436678379111ef9ba0",
+    "crates/athlesia_mindstone_sparse_cognition/tests/mindstone_sparse_cognition_information_gain_goal_ranking.rs": "3b18827096d21513f6afdbd2d01b10cbacac7080bdf9d02944a268e4a8d922fe",
     "crates/athlesia_mindstone_sparse_cognition/tests/mindstone_sparse_cognition_novelty_gate.rs": "f07e1d5924abc353bd68b2920b4447f3cc9f99907fbbb8ddaa793197f2a804dc",
     "crates/athlesia_mindstone_sparse_cognition/tests/mindstone_sparse_cognition_self_generated_goals.rs": "5f3553179d0993ce8997b0525f1f431abafc644f466c3c7d4afa5919253722d2",
     "crates/athlesia_mindstone_sparse_cognition/tests/mindstone_sparse_cognition_streaming_aggregation.rs": "b6daaaccc07d86160f6741db49aae508b1df9df4d422e6f224bf21aa44ec0694",
@@ -489,7 +490,8 @@
       "module_45_mindstone_sparse_cognition_compression_controllability",
       "module_45_mindstone_sparse_cognition_epistemic_self_model",
       "module_45_mindstone_sparse_cognition_self_generated_goals",
-      "module_45_mindstone_sparse_cognition_expected_information_gain"
+      "module_45_mindstone_sparse_cognition_expected_information_gain",
+      "module_45_mindstone_sparse_cognition_information_gain_goal_ranking"
     ],
     "module_23_integrity": {
       "status": "pass",
@@ -502,8 +504,8 @@
       "status": "frozen",
       "verifier": "tools/verify_module_23_parity.py"
     },
-    "next_layer": "module_45_mindstone_sparse_cognition_information_gain_goal_ranking",
-    "stage": "module_45_mindstone_sparse_cognition_expected_information_gain",
+    "next_layer": "module_45_mindstone_sparse_cognition_collision_safe_structural_identity",
+    "stage": "module_45_mindstone_sparse_cognition_information_gain_goal_ranking",
     "status": "validated"
   },
   "validated_invariants": [
@@ -2334,6 +2336,18 @@
     "mindstone_information_gain_profile_replacement_non_mutation",
     "mindstone_information_gain_sparse_admission_priority",
     "mindstone_information_gain_hard_compute_budget",
-    "mindstone_information_gain_determinism_non_mutation_facade_composability"
+    "mindstone_information_gain_determinism_non_mutation_facade_composability",
+    "mindstone_goal_information_prediction_nonempty_outcomes",
+    "mindstone_goal_information_prediction_unique_identity",
+    "mindstone_goal_information_missing_prediction_zero_gain",
+    "mindstone_goal_information_gain_derived_from_self_uncertainty",
+    "mindstone_goal_information_gain_primary_ranking",
+    "mindstone_goal_information_equal_gain_base_priority_fallback",
+    "mindstone_goal_information_equal_gain_priority_cost_fallback",
+    "mindstone_goal_information_worsening_prediction_zero_gain",
+    "mindstone_goal_information_irrelevant_prediction_no_effect",
+    "mindstone_goal_information_hard_frontier_count_bound",
+    "mindstone_goal_information_no_skip_unaffordable_next_goal",
+    "mindstone_goal_information_determinism_non_mutation_facade_equivalence"
   ]
 }
