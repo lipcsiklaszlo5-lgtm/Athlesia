@@ -279,3 +279,192 @@ impl MindstoneSparseCognition {
         policy.admit(profile, budget)
     }
 }
+
+#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+pub struct CognitiveFingerprint(u64);
+
+impl CognitiveFingerprint {
+    pub fn new(value: u64) -> Self {
+        Self(value)
+    }
+
+    pub fn value(self) -> u64 {
+        self.0
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct NoveltyMemory {
+    capacity: usize,
+    fingerprints: std::collections::VecDeque<CognitiveFingerprint>,
+}
+
+impl NoveltyMemory {
+    pub fn new(capacity: usize) -> Option<Self> {
+        if capacity == 0 {
+            return None;
+        }
+
+        Some(Self {
+            capacity,
+            fingerprints: std::collections::VecDeque::new(),
+        })
+    }
+
+    pub fn capacity(&self) -> usize {
+        self.capacity
+    }
+
+    pub fn len(&self) -> usize {
+        self.fingerprints.len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.fingerprints.is_empty()
+    }
+
+    pub fn is_full(&self) -> bool {
+        self.len() == self.capacity
+    }
+
+    pub fn contains(&self, fingerprint: CognitiveFingerprint) -> bool {
+        self.fingerprints.contains(&fingerprint)
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+pub enum NoveltyStatus {
+    Known,
+    Novel,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct NoveltyGateResult {
+    memory_before: NoveltyMemory,
+    memory_after: NoveltyMemory,
+    fingerprint: CognitiveFingerprint,
+    evicted: Option<CognitiveFingerprint>,
+    novelty_signal: CognitiveSignal,
+    status: NoveltyStatus,
+}
+
+impl NoveltyGateResult {
+    pub fn memory_before(&self) -> &NoveltyMemory {
+        &self.memory_before
+    }
+
+    pub fn memory_after(&self) -> &NoveltyMemory {
+        &self.memory_after
+    }
+
+    pub fn fingerprint(&self) -> CognitiveFingerprint {
+        self.fingerprint
+    }
+
+    pub fn evicted(&self) -> Option<CognitiveFingerprint> {
+        self.evicted
+    }
+
+    pub fn novelty_signal(&self) -> CognitiveSignal {
+        self.novelty_signal
+    }
+
+    pub fn status(&self) -> NoveltyStatus {
+        self.status
+    }
+
+    pub fn is_novel(&self) -> bool {
+        self.status == NoveltyStatus::Novel
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, Hash, Ord, PartialEq, PartialOrd)]
+pub struct NoveltyGate;
+
+impl NoveltyGate {
+    pub fn observe(memory: NoveltyMemory, fingerprint: CognitiveFingerprint) -> NoveltyGateResult {
+        let memory_before = memory.clone();
+
+        if memory.contains(fingerprint) {
+            return NoveltyGateResult {
+                memory_before,
+                memory_after: memory,
+                fingerprint,
+                evicted: None,
+                novelty_signal: CognitiveSignal::zero(),
+                status: NoveltyStatus::Known,
+            };
+        }
+
+        let mut memory_after = memory;
+
+        let evicted = if memory_after.is_full() {
+            memory_after.fingerprints.pop_front()
+        } else {
+            None
+        };
+
+        memory_after.fingerprints.push_back(fingerprint);
+
+        NoveltyGateResult {
+            memory_before,
+            memory_after,
+            fingerprint,
+            evicted,
+            novelty_signal: CognitiveSignal::maximum(),
+            status: NoveltyStatus::Novel,
+        }
+    }
+}
+
+impl MindstoneSignalProfile {
+    pub fn with_novelty(self, novelty: CognitiveSignal) -> Self {
+        Self { novelty, ..self }
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct MindstoneNoveltyAdmissionResult {
+    novelty: NoveltyGateResult,
+    profile: MindstoneSignalProfile,
+    decision: CognitiveAdmissionDecision,
+}
+
+impl MindstoneNoveltyAdmissionResult {
+    pub fn novelty(&self) -> &NoveltyGateResult {
+        &self.novelty
+    }
+
+    pub fn profile(&self) -> MindstoneSignalProfile {
+        self.profile
+    }
+
+    pub fn decision(&self) -> CognitiveAdmissionDecision {
+        self.decision
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, Hash, Ord, PartialEq, PartialOrd)]
+pub struct MindstoneNoveltyGate;
+
+impl MindstoneNoveltyGate {
+    pub fn evaluate(
+        memory: NoveltyMemory,
+        fingerprint: CognitiveFingerprint,
+        profile: MindstoneSignalProfile,
+        policy: SparseCognitionPolicy,
+        budget: CognitiveBudget,
+    ) -> MindstoneNoveltyAdmissionResult {
+        let novelty = NoveltyGate::observe(memory, fingerprint);
+
+        let profile = profile.with_novelty(novelty.novelty_signal());
+
+        let decision = policy.admit(profile, budget);
+
+        MindstoneNoveltyAdmissionResult {
+            novelty,
+            profile,
+            decision,
+        }
+    }
+}
