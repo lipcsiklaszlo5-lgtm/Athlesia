@@ -5096,3 +5096,787 @@ impl UniversalRuleConfidenceCalibration {
         RuleConfidenceCalibration::calibrate(episodes, seeds, exceptions, policy)
     }
 }
+
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub struct CausalContrastThresholds {
+    minimum_matched_states: usize,
+    minimum_target_opportunities: u64,
+    minimum_contrast_opportunities: u64,
+    minimum_contrast_lift: CognitiveSignal,
+    minimum_contrast_confidence: CognitiveSignal,
+}
+
+impl CausalContrastThresholds {
+    pub fn new(
+        minimum_matched_states: usize,
+        minimum_target_opportunities: u64,
+        minimum_contrast_opportunities: u64,
+        minimum_contrast_lift: CognitiveSignal,
+        minimum_contrast_confidence: CognitiveSignal,
+    ) -> Option<Self> {
+        if minimum_matched_states == 0
+            || minimum_target_opportunities == 0
+            || minimum_contrast_opportunities == 0
+            || minimum_contrast_lift == CognitiveSignal::zero()
+            || minimum_contrast_confidence == CognitiveSignal::zero()
+        {
+            return None;
+        }
+
+        Some(Self {
+            minimum_matched_states,
+            minimum_target_opportunities,
+            minimum_contrast_opportunities,
+            minimum_contrast_lift,
+            minimum_contrast_confidence,
+        })
+    }
+
+    pub fn minimum_matched_states(self) -> usize {
+        self.minimum_matched_states
+    }
+
+    pub fn minimum_target_opportunities(self) -> u64 {
+        self.minimum_target_opportunities
+    }
+
+    pub fn minimum_contrast_opportunities(self) -> u64 {
+        self.minimum_contrast_opportunities
+    }
+
+    pub fn minimum_contrast_lift(self) -> CognitiveSignal {
+        self.minimum_contrast_lift
+    }
+
+    pub fn minimum_contrast_confidence(self) -> CognitiveSignal {
+        self.minimum_contrast_confidence
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub struct CausalContrastPolicy {
+    max_seed_rules: usize,
+    max_contrasts_per_seed: usize,
+    max_evaluations: usize,
+    max_hypotheses: usize,
+    thresholds: CausalContrastThresholds,
+}
+
+impl CausalContrastPolicy {
+    pub fn new(
+        max_seed_rules: usize,
+        max_contrasts_per_seed: usize,
+        max_evaluations: usize,
+        max_hypotheses: usize,
+        thresholds: CausalContrastThresholds,
+    ) -> Option<Self> {
+        if max_seed_rules == 0
+            || max_contrasts_per_seed == 0
+            || max_evaluations == 0
+            || max_hypotheses == 0
+        {
+            return None;
+        }
+
+        Some(Self {
+            max_seed_rules,
+            max_contrasts_per_seed,
+            max_evaluations,
+            max_hypotheses,
+            thresholds,
+        })
+    }
+
+    pub fn max_seed_rules(self) -> usize {
+        self.max_seed_rules
+    }
+
+    pub fn max_contrasts_per_seed(self) -> usize {
+        self.max_contrasts_per_seed
+    }
+
+    pub fn max_evaluations(self) -> usize {
+        self.max_evaluations
+    }
+
+    pub fn max_hypotheses(self) -> usize {
+        self.max_hypotheses
+    }
+
+    pub fn thresholds(self) -> CausalContrastThresholds {
+        self.thresholds
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+struct CausalContrastCandidate {
+    transformation: CognitiveStructure,
+    contrast_transformation: CognitiveStructure,
+    context: ContextPremiseSet,
+    effect_kind: TransitionEffectKind,
+    effect_fact: CognitiveStructure,
+    seed_calibrated_confidence: CognitiveSignal,
+    matched_state_count: usize,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct GroundedCausalContrastHypothesis {
+    transformation: CognitiveStructure,
+    contrast_transformation: CognitiveStructure,
+    context: ContextPremiseSet,
+    effect_kind: TransitionEffectKind,
+    effect_fact: CognitiveStructure,
+    matched_state_count: usize,
+    target_opportunity_count: u64,
+    target_success_count: u64,
+    target_failure_count: u64,
+    contrast_opportunity_count: u64,
+    contrast_success_count: u64,
+    contrast_failure_count: u64,
+    target_effect_rate: CognitiveSignal,
+    contrast_effect_rate: CognitiveSignal,
+    contrast_lift: CognitiveSignal,
+    seed_calibrated_confidence: CognitiveSignal,
+    contrast_confidence: CognitiveSignal,
+}
+
+impl GroundedCausalContrastHypothesis {
+    pub fn transformation(&self) -> &CognitiveStructure {
+        &self.transformation
+    }
+
+    pub fn contrast_transformation(&self) -> &CognitiveStructure {
+        &self.contrast_transformation
+    }
+
+    pub fn context(&self) -> &ContextPremiseSet {
+        &self.context
+    }
+
+    pub fn effect_kind(&self) -> TransitionEffectKind {
+        self.effect_kind
+    }
+
+    pub fn effect_fact(&self) -> &CognitiveStructure {
+        &self.effect_fact
+    }
+
+    pub fn matched_state_count(&self) -> usize {
+        self.matched_state_count
+    }
+
+    pub fn target_opportunity_count(&self) -> u64 {
+        self.target_opportunity_count
+    }
+
+    pub fn target_success_count(&self) -> u64 {
+        self.target_success_count
+    }
+
+    pub fn target_failure_count(&self) -> u64 {
+        self.target_failure_count
+    }
+
+    pub fn contrast_opportunity_count(&self) -> u64 {
+        self.contrast_opportunity_count
+    }
+
+    pub fn contrast_success_count(&self) -> u64 {
+        self.contrast_success_count
+    }
+
+    pub fn contrast_failure_count(&self) -> u64 {
+        self.contrast_failure_count
+    }
+
+    pub fn target_effect_rate(&self) -> CognitiveSignal {
+        self.target_effect_rate
+    }
+
+    pub fn contrast_effect_rate(&self) -> CognitiveSignal {
+        self.contrast_effect_rate
+    }
+
+    pub fn contrast_lift(&self) -> CognitiveSignal {
+        self.contrast_lift
+    }
+
+    pub fn seed_calibrated_confidence(&self) -> CognitiveSignal {
+        self.seed_calibrated_confidence
+    }
+
+    pub fn contrast_confidence(&self) -> CognitiveSignal {
+        self.contrast_confidence
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct CausalContrastInductionResult {
+    input_seed_count: usize,
+    considered_seed_count: usize,
+    seed_truncated: bool,
+    possible_contrast_count: usize,
+    generated_contrast_count: usize,
+    contrast_generation_truncated: bool,
+    evaluated_candidate_count: usize,
+    evaluation_truncated: bool,
+    admitted_before_frontier: usize,
+    selected: Vec<GroundedCausalContrastHypothesis>,
+}
+
+impl CausalContrastInductionResult {
+    pub fn input_seed_count(&self) -> usize {
+        self.input_seed_count
+    }
+
+    pub fn considered_seed_count(&self) -> usize {
+        self.considered_seed_count
+    }
+
+    pub fn seed_truncated(&self) -> bool {
+        self.seed_truncated
+    }
+
+    pub fn possible_contrast_count(&self) -> usize {
+        self.possible_contrast_count
+    }
+
+    pub fn generated_contrast_count(&self) -> usize {
+        self.generated_contrast_count
+    }
+
+    pub fn contrast_generation_truncated(&self) -> bool {
+        self.contrast_generation_truncated
+    }
+
+    pub fn evaluated_candidate_count(&self) -> usize {
+        self.evaluated_candidate_count
+    }
+
+    pub fn evaluation_truncated(&self) -> bool {
+        self.evaluation_truncated
+    }
+
+    pub fn admitted_before_frontier(&self) -> usize {
+        self.admitted_before_frontier
+    }
+
+    pub fn selected(&self) -> &[GroundedCausalContrastHypothesis] {
+        &self.selected
+    }
+
+    pub fn selected_count(&self) -> usize {
+        self.selected.len()
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, Hash, PartialEq)]
+pub struct CausalContrastInduction;
+
+impl CausalContrastInduction {
+    fn scaled_rate(numerator: u64, denominator: u64) -> CognitiveSignal {
+        debug_assert!(denominator > 0);
+
+        let scaled = (u128::from(numerator) * 1000) / u128::from(denominator);
+
+        CognitiveSignal::new(scaled as u16)
+            .expect("bounded causal contrast rate remains on signal scale")
+    }
+
+    fn positive_difference(left: CognitiveSignal, right: CognitiveSignal) -> CognitiveSignal {
+        CognitiveSignal::new(left.value().saturating_sub(right.value()))
+            .expect("bounded causal contrast lift remains on signal scale")
+    }
+
+    fn scaled_product(left: CognitiveSignal, right: CognitiveSignal) -> CognitiveSignal {
+        let product = (u32::from(left.value()) * u32::from(right.value())) / 1000;
+
+        CognitiveSignal::new(product as u16)
+            .expect("bounded causal contrast confidence remains on signal scale")
+    }
+
+    fn compare_context(left: &ContextPremiseSet, right: &ContextPremiseSet) -> std::cmp::Ordering {
+        let mut left_iterator = left.premises().iter();
+
+        let mut right_iterator = right.premises().iter();
+
+        loop {
+            match (left_iterator.next(), right_iterator.next()) {
+                (Some(left_value), Some(right_value)) => {
+                    let ordering = PredicateDiscovery::compare_structure(left_value, right_value);
+
+                    if ordering != std::cmp::Ordering::Equal {
+                        return ordering;
+                    }
+                }
+
+                (None, Some(_)) => {
+                    return std::cmp::Ordering::Less;
+                }
+
+                (Some(_), None) => {
+                    return std::cmp::Ordering::Greater;
+                }
+
+                (None, None) => {
+                    return std::cmp::Ordering::Equal;
+                }
+            }
+        }
+    }
+
+    fn compare_seed(
+        left: &CalibratedRuleConfidence,
+        right: &CalibratedRuleConfidence,
+    ) -> std::cmp::Ordering {
+        right
+            .calibrated_confidence()
+            .value()
+            .cmp(&left.calibrated_confidence().value())
+            .then_with(|| {
+                right
+                    .effective_precision()
+                    .value()
+                    .cmp(&left.effective_precision().value())
+            })
+            .then_with(|| {
+                right
+                    .support_adequacy()
+                    .value()
+                    .cmp(&left.support_adequacy().value())
+            })
+            .then_with(|| {
+                right
+                    .effective_opportunity_count()
+                    .cmp(&left.effective_opportunity_count())
+            })
+            .then_with(|| {
+                PredicateDiscovery::compare_structure(left.transformation(), right.transformation())
+            })
+            .then_with(|| left.effect_kind().cmp(&right.effect_kind()))
+            .then_with(|| {
+                PredicateDiscovery::compare_structure(left.effect_fact(), right.effect_fact())
+            })
+            .then_with(|| Self::compare_context(left.context(), right.context()))
+    }
+
+    fn considered_seeds(
+        seeds: &[CalibratedRuleConfidence],
+        policy: CausalContrastPolicy,
+    ) -> Vec<&CalibratedRuleConfidence> {
+        let mut considered = seeds.iter().collect::<Vec<_>>();
+
+        considered.sort_by(|left, right| Self::compare_seed(left, right));
+
+        considered.truncate(policy.max_seed_rules());
+
+        considered
+    }
+
+    fn target_episode_matches(
+        seed: &CalibratedRuleConfidence,
+        episode: &GroundedTransformationEpisode,
+    ) -> bool {
+        episode.transformation() == seed.transformation()
+            && seed.context().is_satisfied_by(episode.before())
+            && episode.effect_opportunity(seed.effect_kind(), seed.effect_fact())
+    }
+
+    fn contrast_episode_matches(
+        seed: &CalibratedRuleConfidence,
+        contrast: &CognitiveStructure,
+        episode: &GroundedTransformationEpisode,
+    ) -> bool {
+        episode.transformation() == contrast
+            && seed.context().is_satisfied_by(episode.before())
+            && episode.effect_opportunity(seed.effect_kind(), seed.effect_fact())
+    }
+
+    fn state_has_target(
+        episodes: &[GroundedTransformationEpisode],
+        seed: &CalibratedRuleConfidence,
+        state: &GroundedStateSnapshot,
+    ) -> bool {
+        episodes
+            .iter()
+            .any(|episode| episode.before() == state && Self::target_episode_matches(seed, episode))
+    }
+
+    fn state_has_contrast(
+        episodes: &[GroundedTransformationEpisode],
+        seed: &CalibratedRuleConfidence,
+        contrast: &CognitiveStructure,
+        state: &GroundedStateSnapshot,
+    ) -> bool {
+        episodes.iter().any(|episode| {
+            episode.before() == state && Self::contrast_episode_matches(seed, contrast, episode)
+        })
+    }
+
+    fn matched_states(
+        episodes: &[GroundedTransformationEpisode],
+        seed: &CalibratedRuleConfidence,
+        contrast: &CognitiveStructure,
+    ) -> Vec<GroundedStateSnapshot> {
+        let mut states = Vec::new();
+
+        for episode in episodes {
+            if !Self::target_episode_matches(seed, episode) {
+                continue;
+            }
+
+            if !Self::state_has_contrast(episodes, seed, contrast, episode.before()) {
+                continue;
+            }
+
+            if !states.contains(episode.before()) {
+                states.push(episode.before().clone());
+            }
+        }
+
+        states
+    }
+
+    fn possible_contrasts(
+        episodes: &[GroundedTransformationEpisode],
+        seed: &CalibratedRuleConfidence,
+    ) -> Vec<(CognitiveStructure, usize)> {
+        let mut transformations = Vec::<CognitiveStructure>::new();
+
+        for episode in episodes {
+            if episode.transformation() == seed.transformation() {
+                continue;
+            }
+
+            if !seed.context().is_satisfied_by(episode.before()) {
+                continue;
+            }
+
+            if !episode.effect_opportunity(seed.effect_kind(), seed.effect_fact()) {
+                continue;
+            }
+
+            if !Self::state_has_target(episodes, seed, episode.before()) {
+                continue;
+            }
+
+            if !transformations.contains(episode.transformation()) {
+                transformations.push(episode.transformation().clone());
+            }
+        }
+
+        let mut contrasts = transformations
+            .into_iter()
+            .map(|transformation| {
+                let matched_state_count =
+                    Self::matched_states(episodes, seed, &transformation).len();
+
+                (transformation, matched_state_count)
+            })
+            .collect::<Vec<_>>();
+
+        contrasts.sort_by(|left, right| {
+            right
+                .1
+                .cmp(&left.1)
+                .then_with(|| PredicateDiscovery::compare_structure(&left.0, &right.0))
+        });
+
+        contrasts
+    }
+
+    fn candidates(
+        episodes: &[GroundedTransformationEpisode],
+        considered: &[&CalibratedRuleConfidence],
+        policy: CausalContrastPolicy,
+    ) -> (Vec<CausalContrastCandidate>, usize) {
+        let mut candidates = Vec::new();
+
+        let mut possible_contrast_count = 0_usize;
+
+        for seed in considered {
+            let contrasts = Self::possible_contrasts(episodes, seed);
+
+            possible_contrast_count = possible_contrast_count.saturating_add(contrasts.len());
+
+            for (contrast_transformation, matched_state_count) in
+                contrasts.into_iter().take(policy.max_contrasts_per_seed())
+            {
+                candidates.push(CausalContrastCandidate {
+                    transformation: seed.transformation().clone(),
+                    contrast_transformation,
+                    context: seed.context().clone(),
+                    effect_kind: seed.effect_kind(),
+                    effect_fact: seed.effect_fact().clone(),
+                    seed_calibrated_confidence: seed.calibrated_confidence(),
+                    matched_state_count,
+                });
+            }
+        }
+
+        (candidates, possible_contrast_count)
+    }
+
+    fn candidate_episode_matches(
+        candidate: &CausalContrastCandidate,
+        transformation: &CognitiveStructure,
+        episode: &GroundedTransformationEpisode,
+    ) -> bool {
+        episode.transformation() == transformation
+            && candidate.context.is_satisfied_by(episode.before())
+            && episode.effect_opportunity(candidate.effect_kind, &candidate.effect_fact)
+    }
+
+    fn candidate_matched_states(
+        episodes: &[GroundedTransformationEpisode],
+        candidate: &CausalContrastCandidate,
+    ) -> Vec<GroundedStateSnapshot> {
+        let mut states = Vec::new();
+
+        for episode in episodes {
+            if !Self::candidate_episode_matches(candidate, &candidate.transformation, episode) {
+                continue;
+            }
+
+            let has_contrast = episodes.iter().any(|other| {
+                other.before() == episode.before()
+                    && Self::candidate_episode_matches(
+                        candidate,
+                        &candidate.contrast_transformation,
+                        other,
+                    )
+            });
+
+            if has_contrast && !states.contains(episode.before()) {
+                states.push(episode.before().clone());
+            }
+        }
+
+        states
+    }
+
+    fn episode_in_matched_states(
+        episode: &GroundedTransformationEpisode,
+        matched_states: &[GroundedStateSnapshot],
+    ) -> bool {
+        matched_states.contains(episode.before())
+    }
+
+    fn evaluate_candidate(
+        episodes: &[GroundedTransformationEpisode],
+        candidate: &CausalContrastCandidate,
+        thresholds: CausalContrastThresholds,
+    ) -> Option<GroundedCausalContrastHypothesis> {
+        let matched_states = Self::candidate_matched_states(episodes, candidate);
+
+        let matched_state_count = matched_states.len();
+
+        if matched_state_count < thresholds.minimum_matched_states() {
+            return None;
+        }
+
+        let target_opportunity_count = episodes
+            .iter()
+            .filter(|episode| {
+                Self::candidate_episode_matches(candidate, &candidate.transformation, episode)
+                    && Self::episode_in_matched_states(episode, &matched_states)
+            })
+            .count() as u64;
+
+        let contrast_opportunity_count = episodes
+            .iter()
+            .filter(|episode| {
+                Self::candidate_episode_matches(
+                    candidate,
+                    &candidate.contrast_transformation,
+                    episode,
+                ) && Self::episode_in_matched_states(episode, &matched_states)
+            })
+            .count() as u64;
+
+        if target_opportunity_count < thresholds.minimum_target_opportunities()
+            || contrast_opportunity_count < thresholds.minimum_contrast_opportunities()
+        {
+            return None;
+        }
+
+        let target_success_count = episodes
+            .iter()
+            .filter(|episode| {
+                Self::candidate_episode_matches(candidate, &candidate.transformation, episode)
+                    && Self::episode_in_matched_states(episode, &matched_states)
+                    && episode.effect_occurs(candidate.effect_kind, &candidate.effect_fact)
+            })
+            .count() as u64;
+
+        let contrast_success_count = episodes
+            .iter()
+            .filter(|episode| {
+                Self::candidate_episode_matches(
+                    candidate,
+                    &candidate.contrast_transformation,
+                    episode,
+                ) && Self::episode_in_matched_states(episode, &matched_states)
+                    && episode.effect_occurs(candidate.effect_kind, &candidate.effect_fact)
+            })
+            .count() as u64;
+
+        let target_failure_count = target_opportunity_count.saturating_sub(target_success_count);
+
+        let contrast_failure_count =
+            contrast_opportunity_count.saturating_sub(contrast_success_count);
+
+        let target_effect_rate = Self::scaled_rate(target_success_count, target_opportunity_count);
+
+        let contrast_effect_rate =
+            Self::scaled_rate(contrast_success_count, contrast_opportunity_count);
+
+        let contrast_lift = Self::positive_difference(target_effect_rate, contrast_effect_rate);
+
+        let contrast_confidence =
+            Self::scaled_product(contrast_lift, candidate.seed_calibrated_confidence);
+
+        if contrast_lift.value() < thresholds.minimum_contrast_lift().value()
+            || contrast_confidence.value() < thresholds.minimum_contrast_confidence().value()
+        {
+            return None;
+        }
+
+        Some(GroundedCausalContrastHypothesis {
+            transformation: candidate.transformation.clone(),
+            contrast_transformation: candidate.contrast_transformation.clone(),
+            context: candidate.context.clone(),
+            effect_kind: candidate.effect_kind,
+            effect_fact: candidate.effect_fact.clone(),
+            matched_state_count,
+            target_opportunity_count,
+            target_success_count,
+            target_failure_count,
+            contrast_opportunity_count,
+            contrast_success_count,
+            contrast_failure_count,
+            target_effect_rate,
+            contrast_effect_rate,
+            contrast_lift,
+            seed_calibrated_confidence: candidate.seed_calibrated_confidence,
+            contrast_confidence,
+        })
+    }
+
+    fn ranking(
+        left: &GroundedCausalContrastHypothesis,
+        right: &GroundedCausalContrastHypothesis,
+    ) -> std::cmp::Ordering {
+        right
+            .contrast_confidence()
+            .value()
+            .cmp(&left.contrast_confidence().value())
+            .then_with(|| {
+                right
+                    .contrast_lift()
+                    .value()
+                    .cmp(&left.contrast_lift().value())
+            })
+            .then_with(|| right.matched_state_count().cmp(&left.matched_state_count()))
+            .then_with(|| {
+                right
+                    .target_opportunity_count()
+                    .cmp(&left.target_opportunity_count())
+            })
+            .then_with(|| {
+                left.target_failure_count()
+                    .cmp(&right.target_failure_count())
+            })
+            .then_with(|| {
+                left.contrast_success_count()
+                    .cmp(&right.contrast_success_count())
+            })
+            .then_with(|| {
+                PredicateDiscovery::compare_structure(left.transformation(), right.transformation())
+            })
+            .then_with(|| {
+                PredicateDiscovery::compare_structure(
+                    left.contrast_transformation(),
+                    right.contrast_transformation(),
+                )
+            })
+            .then_with(|| left.effect_kind().cmp(&right.effect_kind()))
+            .then_with(|| {
+                PredicateDiscovery::compare_structure(left.effect_fact(), right.effect_fact())
+            })
+            .then_with(|| Self::compare_context(left.context(), right.context()))
+    }
+
+    pub fn induce(
+        episodes: &[GroundedTransformationEpisode],
+        seeds: &[CalibratedRuleConfidence],
+        policy: CausalContrastPolicy,
+    ) -> CausalContrastInductionResult {
+        if episodes.is_empty() || seeds.is_empty() {
+            return CausalContrastInductionResult {
+                input_seed_count: seeds.len(),
+                considered_seed_count: 0,
+                seed_truncated: false,
+                possible_contrast_count: 0,
+                generated_contrast_count: 0,
+                contrast_generation_truncated: false,
+                evaluated_candidate_count: 0,
+                evaluation_truncated: false,
+                admitted_before_frontier: 0,
+                selected: Vec::new(),
+            };
+        }
+
+        let considered = Self::considered_seeds(seeds, policy);
+
+        let (candidates, possible_contrast_count) = Self::candidates(episodes, &considered, policy);
+
+        let generated_contrast_count = candidates.len();
+
+        let contrast_generation_truncated = possible_contrast_count > generated_contrast_count;
+
+        let evaluated_candidate_count = generated_contrast_count.min(policy.max_evaluations());
+
+        let evaluation_truncated = generated_contrast_count > evaluated_candidate_count;
+
+        let mut admitted = candidates
+            .iter()
+            .take(policy.max_evaluations())
+            .filter_map(|candidate| {
+                Self::evaluate_candidate(episodes, candidate, policy.thresholds())
+            })
+            .collect::<Vec<_>>();
+
+        admitted.sort_by(Self::ranking);
+
+        let admitted_before_frontier = admitted.len();
+
+        admitted.truncate(policy.max_hypotheses());
+
+        CausalContrastInductionResult {
+            input_seed_count: seeds.len(),
+            considered_seed_count: considered.len(),
+            seed_truncated: seeds.len() > considered.len(),
+            possible_contrast_count,
+            generated_contrast_count,
+            contrast_generation_truncated,
+            evaluated_candidate_count,
+            evaluation_truncated,
+            admitted_before_frontier,
+            selected: admitted,
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, Hash, PartialEq)]
+pub struct UniversalCausalContrastInduction;
+
+impl UniversalCausalContrastInduction {
+    pub fn evaluate(
+        episodes: &[GroundedTransformationEpisode],
+        seeds: &[CalibratedRuleConfidence],
+        policy: CausalContrastPolicy,
+    ) -> CausalContrastInductionResult {
+        CausalContrastInduction::induce(episodes, seeds, policy)
+    }
+}
