@@ -243,12 +243,13 @@
     "crates/athlesia_revision/tests/revision_policy.rs": "6378aee538bf205e5fd65a1fa7f1413b109f34f4b6f9858015dfb8d046c99773",
     "crates/athlesia_universal_domain_learning/Cargo.lock": "dd15fa520383ab416934233abdaa2337ae0eadfa1483437d7d8392646e2b9de6",
     "crates/athlesia_universal_domain_learning/Cargo.toml": "608f66355321005946091cb7bce202f353496f0b61edc6e457f31728a7de540b",
-    "crates/athlesia_universal_domain_learning/src/lib.rs": "6cd0aaef13eb0a0f3c85df2b421a428bf54f6ceeb55cca3af9244222713ebd42",
+    "crates/athlesia_universal_domain_learning/src/lib.rs": "6a2b05de870a546d958b76d7dac879bf65b8a9fc18effa11f39a8c3990eb4ea1",
     "crates/athlesia_universal_domain_learning/tests/universal_domain_learning_causal_contrast_induction.rs": "0e6e6429fb4fce39e52669fab25df498d3a5a9204e5705aede2ae400ca7285c2",
     "crates/athlesia_universal_domain_learning/tests/universal_domain_learning_contextual_transition_rules.rs": "8c70371cb2e2c7482294f4dc33cb6fbc7f9451a36f24241950e11c5a2b8ab314",
     "crates/athlesia_universal_domain_learning/tests/universal_domain_learning_cross_context_generalization.rs": "b3dc16eace122f65215d918912ec5f5e6c0558fdbb1551c4e5929323a095f6dd",
     "crates/athlesia_universal_domain_learning/tests/universal_domain_learning_exception_refinement.rs": "8d59b0ace0f74c67fa6ebee3f0b26f893e180d74ca8cd491dac697eb1617f77f",
     "crates/athlesia_universal_domain_learning/tests/universal_domain_learning_grounded_predicate_discovery.rs": "373d49d4010c873cb98d7a830c0dd31d2fd49179beea3a0a7b3dc3c5f0c1b363",
+    "crates/athlesia_universal_domain_learning/tests/universal_domain_learning_interventional_causal_validation.rs": "1baacc59dfb51266bfaab7a0a55871e318088141c487d8fbbaaf4bbc6b19a145",
     "crates/athlesia_universal_domain_learning/tests/universal_domain_learning_invariant_discovery.rs": "ca578477f286abd57567a00efc7679776181d85a9aa3fb2dde4421fde6ed913c",
     "crates/athlesia_universal_domain_learning/tests/universal_domain_learning_rule_confidence_calibration.rs": "810a274b8e077826ea1d194dd1fbed7457595cdd79bc1f5f7491db3f69245e28",
     "crates/athlesia_universal_domain_learning/tests/universal_domain_learning_rule_induction.rs": "82aa2f1e82ca04dfabaa1251e65f0b58cd37f00970409e8dcb01187e3f86869c",
@@ -543,7 +544,8 @@
       "module_47_universal_domain_learning_cross_context_generalization",
       "module_47_universal_domain_learning_exception_refinement",
       "module_47_universal_domain_learning_rule_confidence_calibration",
-      "module_47_universal_domain_learning_causal_contrast_induction"
+      "module_47_universal_domain_learning_causal_contrast_induction",
+      "module_47_universal_domain_learning_interventional_causal_validation"
     ],
     "module_23_integrity": {
       "status": "pass",
@@ -556,8 +558,8 @@
       "status": "frozen",
       "verifier": "tools/verify_module_23_parity.py"
     },
-    "next_layer": "module_47_universal_domain_learning_interventional_causal_validation",
-    "stage": "module_47_universal_domain_learning_causal_contrast_induction",
+    "next_layer": "module_47_universal_domain_learning_cross_domain_transfer",
+    "stage": "module_47_universal_domain_learning_interventional_causal_validation",
     "status": "validated"
   },
   "validated_invariants": [
@@ -2652,6 +2654,18 @@
     "universal_learning_causal_contrast_distinct_matched_state_support",
     "universal_learning_causal_contrast_hard_per_seed_frontier",
     "universal_learning_causal_contrast_hard_evaluation_and_final_frontiers",
-    "universal_learning_causal_contrast_deterministic_non_mutating_facade_equivalence"
+    "universal_learning_causal_contrast_deterministic_non_mutating_facade_equivalence",
+    "universal_learning_intervention_positive_evidence_support_and_hard_bounds",
+    "universal_learning_intervention_passive_observation_cannot_validate",
+    "universal_learning_intervention_requires_controlled_assignment_on_both_sides",
+    "universal_learning_intervention_matched_assignment_effect_validation",
+    "universal_learning_intervention_common_effect_zero_lift_rejection",
+    "universal_learning_intervention_explicit_failure_and_control_success_counterevidence",
+    "universal_learning_intervention_distinct_matched_state_support",
+    "universal_learning_intervention_passive_evidence_retained_without_score_inflation",
+    "universal_learning_intervention_small_sample_support_discount",
+    "universal_learning_intervention_exact_transformation_identity",
+    "universal_learning_intervention_hard_seed_evaluation_and_final_frontiers",
+    "universal_learning_intervention_deterministic_non_mutating_facade_equivalence"
   ]
 }

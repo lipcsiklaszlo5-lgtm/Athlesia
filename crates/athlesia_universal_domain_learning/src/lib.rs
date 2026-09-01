@@ -5880,3 +5880,778 @@ impl UniversalCausalContrastInduction {
         CausalContrastInduction::induce(episodes, seeds, policy)
     }
 }
+
+#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+pub enum InterventionEvidenceKind {
+    PassiveObservation,
+    ControlledAssignment,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct InterventionalTransformationEpisode {
+    episode: GroundedTransformationEpisode,
+    evidence_kind: InterventionEvidenceKind,
+}
+
+impl InterventionalTransformationEpisode {
+    pub fn new(
+        episode: GroundedTransformationEpisode,
+        evidence_kind: InterventionEvidenceKind,
+    ) -> Self {
+        Self {
+            episode,
+            evidence_kind,
+        }
+    }
+
+    pub fn controlled(episode: GroundedTransformationEpisode) -> Self {
+        Self::new(episode, InterventionEvidenceKind::ControlledAssignment)
+    }
+
+    pub fn observed(episode: GroundedTransformationEpisode) -> Self {
+        Self::new(episode, InterventionEvidenceKind::PassiveObservation)
+    }
+
+    pub fn episode(&self) -> &GroundedTransformationEpisode {
+        &self.episode
+    }
+
+    pub fn evidence_kind(&self) -> InterventionEvidenceKind {
+        self.evidence_kind
+    }
+
+    pub fn is_controlled(&self) -> bool {
+        self.evidence_kind == InterventionEvidenceKind::ControlledAssignment
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub struct InterventionalCausalThresholds {
+    minimum_matched_intervention_states: usize,
+    minimum_target_interventions: u64,
+    minimum_contrast_interventions: u64,
+    minimum_interventional_lift: CognitiveSignal,
+    minimum_validated_confidence: CognitiveSignal,
+}
+
+impl InterventionalCausalThresholds {
+    pub fn new(
+        minimum_matched_intervention_states: usize,
+        minimum_target_interventions: u64,
+        minimum_contrast_interventions: u64,
+        minimum_interventional_lift: CognitiveSignal,
+        minimum_validated_confidence: CognitiveSignal,
+    ) -> Option<Self> {
+        if minimum_matched_intervention_states == 0
+            || minimum_target_interventions == 0
+            || minimum_contrast_interventions == 0
+            || minimum_interventional_lift == CognitiveSignal::zero()
+            || minimum_validated_confidence == CognitiveSignal::zero()
+        {
+            return None;
+        }
+
+        Some(Self {
+            minimum_matched_intervention_states,
+            minimum_target_interventions,
+            minimum_contrast_interventions,
+            minimum_interventional_lift,
+            minimum_validated_confidence,
+        })
+    }
+
+    pub fn minimum_matched_intervention_states(self) -> usize {
+        self.minimum_matched_intervention_states
+    }
+
+    pub fn minimum_target_interventions(self) -> u64 {
+        self.minimum_target_interventions
+    }
+
+    pub fn minimum_contrast_interventions(self) -> u64 {
+        self.minimum_contrast_interventions
+    }
+
+    pub fn minimum_interventional_lift(self) -> CognitiveSignal {
+        self.minimum_interventional_lift
+    }
+
+    pub fn minimum_validated_confidence(self) -> CognitiveSignal {
+        self.minimum_validated_confidence
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub struct InterventionalCausalValidationPolicy {
+    max_seed_contrasts: usize,
+    max_evaluations: usize,
+    max_validated_hypotheses: usize,
+    full_confidence_interventions: u64,
+    thresholds: InterventionalCausalThresholds,
+}
+
+impl InterventionalCausalValidationPolicy {
+    pub fn new(
+        max_seed_contrasts: usize,
+        max_evaluations: usize,
+        max_validated_hypotheses: usize,
+        full_confidence_interventions: u64,
+        thresholds: InterventionalCausalThresholds,
+    ) -> Option<Self> {
+        if max_seed_contrasts == 0
+            || max_evaluations == 0
+            || max_validated_hypotheses == 0
+            || full_confidence_interventions == 0
+        {
+            return None;
+        }
+
+        Some(Self {
+            max_seed_contrasts,
+            max_evaluations,
+            max_validated_hypotheses,
+            full_confidence_interventions,
+            thresholds,
+        })
+    }
+
+    pub fn max_seed_contrasts(self) -> usize {
+        self.max_seed_contrasts
+    }
+
+    pub fn max_evaluations(self) -> usize {
+        self.max_evaluations
+    }
+
+    pub fn max_validated_hypotheses(self) -> usize {
+        self.max_validated_hypotheses
+    }
+
+    pub fn full_confidence_interventions(self) -> u64 {
+        self.full_confidence_interventions
+    }
+
+    pub fn thresholds(self) -> InterventionalCausalThresholds {
+        self.thresholds
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct GroundedInterventionalCausalHypothesis {
+    transformation: CognitiveStructure,
+    contrast_transformation: CognitiveStructure,
+    context: ContextPremiseSet,
+    effect_kind: TransitionEffectKind,
+    effect_fact: CognitiveStructure,
+    matched_intervention_state_count: usize,
+    target_intervention_opportunity_count: u64,
+    target_intervention_success_count: u64,
+    target_intervention_failure_count: u64,
+    contrast_intervention_opportunity_count: u64,
+    contrast_intervention_success_count: u64,
+    contrast_intervention_failure_count: u64,
+    target_intervention_rate: CognitiveSignal,
+    contrast_intervention_rate: CognitiveSignal,
+    interventional_lift: CognitiveSignal,
+    balanced_intervention_support: u64,
+    intervention_support_adequacy: CognitiveSignal,
+    source_contrast_confidence: CognitiveSignal,
+    validated_causal_confidence: CognitiveSignal,
+    passive_corroborating_count: u64,
+    passive_counterevidence_count: u64,
+}
+
+impl GroundedInterventionalCausalHypothesis {
+    pub fn transformation(&self) -> &CognitiveStructure {
+        &self.transformation
+    }
+
+    pub fn contrast_transformation(&self) -> &CognitiveStructure {
+        &self.contrast_transformation
+    }
+
+    pub fn context(&self) -> &ContextPremiseSet {
+        &self.context
+    }
+
+    pub fn effect_kind(&self) -> TransitionEffectKind {
+        self.effect_kind
+    }
+
+    pub fn effect_fact(&self) -> &CognitiveStructure {
+        &self.effect_fact
+    }
+
+    pub fn matched_intervention_state_count(&self) -> usize {
+        self.matched_intervention_state_count
+    }
+
+    pub fn target_intervention_opportunity_count(&self) -> u64 {
+        self.target_intervention_opportunity_count
+    }
+
+    pub fn target_intervention_success_count(&self) -> u64 {
+        self.target_intervention_success_count
+    }
+
+    pub fn target_intervention_failure_count(&self) -> u64 {
+        self.target_intervention_failure_count
+    }
+
+    pub fn contrast_intervention_opportunity_count(&self) -> u64 {
+        self.contrast_intervention_opportunity_count
+    }
+
+    pub fn contrast_intervention_success_count(&self) -> u64 {
+        self.contrast_intervention_success_count
+    }
+
+    pub fn contrast_intervention_failure_count(&self) -> u64 {
+        self.contrast_intervention_failure_count
+    }
+
+    pub fn target_intervention_rate(&self) -> CognitiveSignal {
+        self.target_intervention_rate
+    }
+
+    pub fn contrast_intervention_rate(&self) -> CognitiveSignal {
+        self.contrast_intervention_rate
+    }
+
+    pub fn interventional_lift(&self) -> CognitiveSignal {
+        self.interventional_lift
+    }
+
+    pub fn balanced_intervention_support(&self) -> u64 {
+        self.balanced_intervention_support
+    }
+
+    pub fn intervention_support_adequacy(&self) -> CognitiveSignal {
+        self.intervention_support_adequacy
+    }
+
+    pub fn source_contrast_confidence(&self) -> CognitiveSignal {
+        self.source_contrast_confidence
+    }
+
+    pub fn validated_causal_confidence(&self) -> CognitiveSignal {
+        self.validated_causal_confidence
+    }
+
+    pub fn passive_corroborating_count(&self) -> u64 {
+        self.passive_corroborating_count
+    }
+
+    pub fn passive_counterevidence_count(&self) -> u64 {
+        self.passive_counterevidence_count
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct InterventionalCausalValidationResult {
+    input_seed_count: usize,
+    considered_seed_count: usize,
+    seed_truncated: bool,
+    evaluated_seed_count: usize,
+    evaluation_truncated: bool,
+    rejected_without_matched_interventions: usize,
+    rejected_below_interventional_threshold: usize,
+    admitted_before_frontier: usize,
+    selected: Vec<GroundedInterventionalCausalHypothesis>,
+}
+
+impl InterventionalCausalValidationResult {
+    pub fn input_seed_count(&self) -> usize {
+        self.input_seed_count
+    }
+
+    pub fn considered_seed_count(&self) -> usize {
+        self.considered_seed_count
+    }
+
+    pub fn seed_truncated(&self) -> bool {
+        self.seed_truncated
+    }
+
+    pub fn evaluated_seed_count(&self) -> usize {
+        self.evaluated_seed_count
+    }
+
+    pub fn evaluation_truncated(&self) -> bool {
+        self.evaluation_truncated
+    }
+
+    pub fn rejected_without_matched_interventions(&self) -> usize {
+        self.rejected_without_matched_interventions
+    }
+
+    pub fn rejected_below_interventional_threshold(&self) -> usize {
+        self.rejected_below_interventional_threshold
+    }
+
+    pub fn admitted_before_frontier(&self) -> usize {
+        self.admitted_before_frontier
+    }
+
+    pub fn selected(&self) -> &[GroundedInterventionalCausalHypothesis] {
+        &self.selected
+    }
+
+    pub fn selected_count(&self) -> usize {
+        self.selected.len()
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, Hash, PartialEq)]
+pub struct InterventionalCausalValidation;
+
+impl InterventionalCausalValidation {
+    fn scaled_rate(numerator: u64, denominator: u64) -> CognitiveSignal {
+        debug_assert!(denominator > 0);
+
+        let scaled = (u128::from(numerator) * 1000) / u128::from(denominator);
+
+        CognitiveSignal::new(scaled as u16)
+            .expect("bounded interventional rate remains on signal scale")
+    }
+
+    fn positive_difference(left: CognitiveSignal, right: CognitiveSignal) -> CognitiveSignal {
+        CognitiveSignal::new(left.value().saturating_sub(right.value()))
+            .expect("bounded interventional lift remains on signal scale")
+    }
+
+    fn scaled_product(left: CognitiveSignal, right: CognitiveSignal) -> CognitiveSignal {
+        let scaled = (u32::from(left.value()) * u32::from(right.value())) / 1000;
+
+        CognitiveSignal::new(scaled as u16)
+            .expect("bounded interventional confidence remains on signal scale")
+    }
+
+    fn support_adequacy(support: u64, full_support: u64) -> CognitiveSignal {
+        if support >= full_support {
+            return CognitiveSignal::new(1000)
+                .expect("full intervention support remains on signal scale");
+        }
+
+        Self::scaled_rate(support, full_support)
+    }
+
+    fn compare_context(left: &ContextPremiseSet, right: &ContextPremiseSet) -> std::cmp::Ordering {
+        let mut left_iterator = left.premises().iter();
+
+        let mut right_iterator = right.premises().iter();
+
+        loop {
+            match (left_iterator.next(), right_iterator.next()) {
+                (Some(left_value), Some(right_value)) => {
+                    let ordering = PredicateDiscovery::compare_structure(left_value, right_value);
+
+                    if ordering != std::cmp::Ordering::Equal {
+                        return ordering;
+                    }
+                }
+
+                (None, Some(_)) => {
+                    return std::cmp::Ordering::Less;
+                }
+
+                (Some(_), None) => {
+                    return std::cmp::Ordering::Greater;
+                }
+
+                (None, None) => {
+                    return std::cmp::Ordering::Equal;
+                }
+            }
+        }
+    }
+
+    fn compare_seed(
+        left: &GroundedCausalContrastHypothesis,
+        right: &GroundedCausalContrastHypothesis,
+    ) -> std::cmp::Ordering {
+        right
+            .contrast_confidence()
+            .value()
+            .cmp(&left.contrast_confidence().value())
+            .then_with(|| {
+                right
+                    .contrast_lift()
+                    .value()
+                    .cmp(&left.contrast_lift().value())
+            })
+            .then_with(|| right.matched_state_count().cmp(&left.matched_state_count()))
+            .then_with(|| {
+                PredicateDiscovery::compare_structure(left.transformation(), right.transformation())
+            })
+            .then_with(|| {
+                PredicateDiscovery::compare_structure(
+                    left.contrast_transformation(),
+                    right.contrast_transformation(),
+                )
+            })
+            .then_with(|| left.effect_kind().cmp(&right.effect_kind()))
+            .then_with(|| {
+                PredicateDiscovery::compare_structure(left.effect_fact(), right.effect_fact())
+            })
+            .then_with(|| Self::compare_context(left.context(), right.context()))
+    }
+
+    fn considered_seeds(
+        seeds: &[GroundedCausalContrastHypothesis],
+        policy: InterventionalCausalValidationPolicy,
+    ) -> Vec<&GroundedCausalContrastHypothesis> {
+        let mut considered = seeds.iter().collect::<Vec<_>>();
+
+        considered.sort_by(|left, right| Self::compare_seed(left, right));
+
+        considered.truncate(policy.max_seed_contrasts());
+
+        considered
+    }
+
+    fn controlled_episode_matches(
+        seed: &GroundedCausalContrastHypothesis,
+        transformation: &CognitiveStructure,
+        evidence: &InterventionalTransformationEpisode,
+    ) -> bool {
+        let episode = evidence.episode();
+
+        evidence.is_controlled()
+            && episode.transformation() == transformation
+            && seed.context().is_satisfied_by(episode.before())
+            && episode.effect_opportunity(seed.effect_kind(), seed.effect_fact())
+    }
+
+    fn matched_intervention_states(
+        evidence: &[InterventionalTransformationEpisode],
+        seed: &GroundedCausalContrastHypothesis,
+    ) -> Vec<GroundedStateSnapshot> {
+        let mut states = Vec::new();
+
+        for target_evidence in evidence {
+            if !Self::controlled_episode_matches(seed, seed.transformation(), target_evidence) {
+                continue;
+            }
+
+            let target_state = target_evidence.episode().before();
+
+            let contrast_exists = evidence.iter().any(|contrast_evidence| {
+                contrast_evidence.episode().before() == target_state
+                    && Self::controlled_episode_matches(
+                        seed,
+                        seed.contrast_transformation(),
+                        contrast_evidence,
+                    )
+            });
+
+            if contrast_exists && !states.contains(target_state) {
+                states.push(target_state.clone());
+            }
+        }
+
+        states
+    }
+
+    fn in_matched_states(
+        evidence: &InterventionalTransformationEpisode,
+        states: &[GroundedStateSnapshot],
+    ) -> bool {
+        states.contains(evidence.episode().before())
+    }
+
+    fn passive_counts(
+        evidence: &[InterventionalTransformationEpisode],
+        seed: &GroundedCausalContrastHypothesis,
+    ) -> (u64, u64) {
+        let mut corroborating = 0_u64;
+
+        let mut counterevidence = 0_u64;
+
+        for item in evidence {
+            if item.is_controlled() {
+                continue;
+            }
+
+            let episode = item.episode();
+
+            if !seed.context().is_satisfied_by(episode.before())
+                || !episode.effect_opportunity(seed.effect_kind(), seed.effect_fact())
+            {
+                continue;
+            }
+
+            if episode.transformation() == seed.transformation() {
+                if episode.effect_occurs(seed.effect_kind(), seed.effect_fact()) {
+                    corroborating = corroborating.saturating_add(1);
+                } else {
+                    counterevidence = counterevidence.saturating_add(1);
+                }
+            } else if episode.transformation() == seed.contrast_transformation() {
+                if episode.effect_occurs(seed.effect_kind(), seed.effect_fact()) {
+                    counterevidence = counterevidence.saturating_add(1);
+                } else {
+                    corroborating = corroborating.saturating_add(1);
+                }
+            }
+        }
+
+        (corroborating, counterevidence)
+    }
+
+    fn evaluate_seed(
+        evidence: &[InterventionalTransformationEpisode],
+        seed: &GroundedCausalContrastHypothesis,
+        policy: InterventionalCausalValidationPolicy,
+    ) -> Option<GroundedInterventionalCausalHypothesis> {
+        let matched_states = Self::matched_intervention_states(evidence, seed);
+
+        if matched_states.len() < policy.thresholds().minimum_matched_intervention_states() {
+            return None;
+        }
+
+        let target_intervention_opportunity_count = evidence
+            .iter()
+            .filter(|item| {
+                Self::controlled_episode_matches(seed, seed.transformation(), item)
+                    && Self::in_matched_states(item, &matched_states)
+            })
+            .count() as u64;
+
+        let contrast_intervention_opportunity_count = evidence
+            .iter()
+            .filter(|item| {
+                Self::controlled_episode_matches(seed, seed.contrast_transformation(), item)
+                    && Self::in_matched_states(item, &matched_states)
+            })
+            .count() as u64;
+
+        if target_intervention_opportunity_count
+            < policy.thresholds().minimum_target_interventions()
+            || contrast_intervention_opportunity_count
+                < policy.thresholds().minimum_contrast_interventions()
+        {
+            return None;
+        }
+
+        let target_intervention_success_count = evidence
+            .iter()
+            .filter(|item| {
+                Self::controlled_episode_matches(seed, seed.transformation(), item)
+                    && Self::in_matched_states(item, &matched_states)
+                    && item
+                        .episode()
+                        .effect_occurs(seed.effect_kind(), seed.effect_fact())
+            })
+            .count() as u64;
+
+        let contrast_intervention_success_count = evidence
+            .iter()
+            .filter(|item| {
+                Self::controlled_episode_matches(seed, seed.contrast_transformation(), item)
+                    && Self::in_matched_states(item, &matched_states)
+                    && item
+                        .episode()
+                        .effect_occurs(seed.effect_kind(), seed.effect_fact())
+            })
+            .count() as u64;
+
+        let target_intervention_failure_count =
+            target_intervention_opportunity_count.saturating_sub(target_intervention_success_count);
+
+        let contrast_intervention_failure_count = contrast_intervention_opportunity_count
+            .saturating_sub(contrast_intervention_success_count);
+
+        let target_intervention_rate = Self::scaled_rate(
+            target_intervention_success_count,
+            target_intervention_opportunity_count,
+        );
+
+        let contrast_intervention_rate = Self::scaled_rate(
+            contrast_intervention_success_count,
+            contrast_intervention_opportunity_count,
+        );
+
+        let interventional_lift =
+            Self::positive_difference(target_intervention_rate, contrast_intervention_rate);
+
+        if interventional_lift.value() < policy.thresholds().minimum_interventional_lift().value() {
+            return None;
+        }
+
+        let balanced_intervention_support =
+            target_intervention_opportunity_count.min(contrast_intervention_opportunity_count);
+
+        let intervention_support_adequacy = Self::support_adequacy(
+            balanced_intervention_support,
+            policy.full_confidence_interventions(),
+        );
+
+        let lift_with_support =
+            Self::scaled_product(interventional_lift, intervention_support_adequacy);
+
+        let validated_causal_confidence =
+            Self::scaled_product(lift_with_support, seed.contrast_confidence());
+
+        if validated_causal_confidence.value()
+            < policy.thresholds().minimum_validated_confidence().value()
+        {
+            return None;
+        }
+
+        let (passive_corroborating_count, passive_counterevidence_count) =
+            Self::passive_counts(evidence, seed);
+
+        Some(GroundedInterventionalCausalHypothesis {
+            transformation: seed.transformation().clone(),
+            contrast_transformation: seed.contrast_transformation().clone(),
+            context: seed.context().clone(),
+            effect_kind: seed.effect_kind(),
+            effect_fact: seed.effect_fact().clone(),
+            matched_intervention_state_count: matched_states.len(),
+            target_intervention_opportunity_count,
+            target_intervention_success_count,
+            target_intervention_failure_count,
+            contrast_intervention_opportunity_count,
+            contrast_intervention_success_count,
+            contrast_intervention_failure_count,
+            target_intervention_rate,
+            contrast_intervention_rate,
+            interventional_lift,
+            balanced_intervention_support,
+            intervention_support_adequacy,
+            source_contrast_confidence: seed.contrast_confidence(),
+            validated_causal_confidence,
+            passive_corroborating_count,
+            passive_counterevidence_count,
+        })
+    }
+
+    fn ranking(
+        left: &GroundedInterventionalCausalHypothesis,
+        right: &GroundedInterventionalCausalHypothesis,
+    ) -> std::cmp::Ordering {
+        right
+            .validated_causal_confidence()
+            .value()
+            .cmp(&left.validated_causal_confidence().value())
+            .then_with(|| {
+                right
+                    .interventional_lift()
+                    .value()
+                    .cmp(&left.interventional_lift().value())
+            })
+            .then_with(|| {
+                right
+                    .intervention_support_adequacy()
+                    .value()
+                    .cmp(&left.intervention_support_adequacy().value())
+            })
+            .then_with(|| {
+                right
+                    .matched_intervention_state_count()
+                    .cmp(&left.matched_intervention_state_count())
+            })
+            .then_with(|| {
+                left.target_intervention_failure_count()
+                    .cmp(&right.target_intervention_failure_count())
+            })
+            .then_with(|| {
+                left.contrast_intervention_success_count()
+                    .cmp(&right.contrast_intervention_success_count())
+            })
+            .then_with(|| {
+                PredicateDiscovery::compare_structure(left.transformation(), right.transformation())
+            })
+            .then_with(|| {
+                PredicateDiscovery::compare_structure(
+                    left.contrast_transformation(),
+                    right.contrast_transformation(),
+                )
+            })
+            .then_with(|| left.effect_kind().cmp(&right.effect_kind()))
+            .then_with(|| {
+                PredicateDiscovery::compare_structure(left.effect_fact(), right.effect_fact())
+            })
+            .then_with(|| Self::compare_context(left.context(), right.context()))
+    }
+
+    pub fn validate(
+        evidence: &[InterventionalTransformationEpisode],
+        seeds: &[GroundedCausalContrastHypothesis],
+        policy: InterventionalCausalValidationPolicy,
+    ) -> InterventionalCausalValidationResult {
+        if evidence.is_empty() || seeds.is_empty() {
+            return InterventionalCausalValidationResult {
+                input_seed_count: seeds.len(),
+                considered_seed_count: 0,
+                seed_truncated: false,
+                evaluated_seed_count: 0,
+                evaluation_truncated: false,
+                rejected_without_matched_interventions: 0,
+                rejected_below_interventional_threshold: 0,
+                admitted_before_frontier: 0,
+                selected: Vec::new(),
+            };
+        }
+
+        let considered = Self::considered_seeds(seeds, policy);
+
+        let evaluated_seed_count = considered.len().min(policy.max_evaluations());
+
+        let mut rejected_without_matched_interventions = 0_usize;
+
+        let mut rejected_below_interventional_threshold = 0_usize;
+
+        let mut admitted = Vec::new();
+
+        for seed in considered.iter().take(policy.max_evaluations()) {
+            let matched_states = Self::matched_intervention_states(evidence, seed);
+
+            if matched_states.len() < policy.thresholds().minimum_matched_intervention_states() {
+                rejected_without_matched_interventions =
+                    rejected_without_matched_interventions.saturating_add(1);
+
+                continue;
+            }
+
+            if let Some(hypothesis) = Self::evaluate_seed(evidence, seed, policy) {
+                admitted.push(hypothesis);
+            } else {
+                rejected_below_interventional_threshold =
+                    rejected_below_interventional_threshold.saturating_add(1);
+            }
+        }
+
+        admitted.sort_by(Self::ranking);
+
+        let admitted_before_frontier = admitted.len();
+
+        admitted.truncate(policy.max_validated_hypotheses());
+
+        InterventionalCausalValidationResult {
+            input_seed_count: seeds.len(),
+            considered_seed_count: considered.len(),
+            seed_truncated: seeds.len() > considered.len(),
+            evaluated_seed_count,
+            evaluation_truncated: considered.len() > evaluated_seed_count,
+            rejected_without_matched_interventions,
+            rejected_below_interventional_threshold,
+            admitted_before_frontier,
+            selected: admitted,
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, Hash, PartialEq)]
+pub struct UniversalInterventionalCausalValidation;
+
+impl UniversalInterventionalCausalValidation {
+    pub fn evaluate(
+        evidence: &[InterventionalTransformationEpisode],
+        seeds: &[GroundedCausalContrastHypothesis],
+        policy: InterventionalCausalValidationPolicy,
+    ) -> InterventionalCausalValidationResult {
+        InterventionalCausalValidation::validate(evidence, seeds, policy)
+    }
+}
