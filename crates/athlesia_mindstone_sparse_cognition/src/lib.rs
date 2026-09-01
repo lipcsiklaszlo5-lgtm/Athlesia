@@ -468,3 +468,154 @@ impl MindstoneNoveltyGate {
         }
     }
 }
+
+#[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+pub enum CognitiveStructure {
+    Atom(u64),
+    Ordered(Vec<CognitiveStructure>),
+    Unordered(Vec<CognitiveStructure>),
+}
+
+impl CognitiveStructure {
+    pub fn atom(value: u64) -> Self {
+        Self::Atom(value)
+    }
+
+    pub fn ordered(children: Vec<CognitiveStructure>) -> Option<Self> {
+        if children.is_empty() {
+            return None;
+        }
+
+        Some(Self::Ordered(children))
+    }
+
+    pub fn unordered(mut children: Vec<CognitiveStructure>) -> Option<Self> {
+        if children.is_empty() {
+            return None;
+        }
+
+        children.sort();
+
+        Some(Self::Unordered(children))
+    }
+
+    pub fn is_atom(&self) -> bool {
+        matches!(self, Self::Atom(_))
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, Hash, Ord, PartialEq, PartialOrd)]
+pub struct StructuralHasher;
+
+impl StructuralHasher {
+    const OFFSET: u64 = 14_695_981_039_346_656_037;
+
+    const PRIME: u64 = 1_099_511_628_211;
+
+    const ATOM_TAG: u64 = 0xA1;
+
+    const ORDERED_TAG: u64 = 0xB2;
+
+    const UNORDERED_TAG: u64 = 0xC3;
+
+    fn mix_u64(mut state: u64, value: u64) -> u64 {
+        for byte in value.to_le_bytes() {
+            state ^= u64::from(byte);
+
+            state = state.wrapping_mul(Self::PRIME);
+        }
+
+        state
+    }
+
+    fn hash_into(structure: &CognitiveStructure, state: u64) -> u64 {
+        match structure {
+            CognitiveStructure::Atom(value) => {
+                let state = Self::mix_u64(state, Self::ATOM_TAG);
+
+                Self::mix_u64(state, *value)
+            }
+
+            CognitiveStructure::Ordered(children) => {
+                let mut state = Self::mix_u64(state, Self::ORDERED_TAG);
+
+                state = Self::mix_u64(state, children.len() as u64);
+
+                for child in children {
+                    state = Self::hash_into(child, state);
+                }
+
+                state
+            }
+
+            CognitiveStructure::Unordered(children) => {
+                let mut state = Self::mix_u64(state, Self::UNORDERED_TAG);
+
+                state = Self::mix_u64(state, children.len() as u64);
+
+                for child in children {
+                    state = Self::hash_into(child, state);
+                }
+
+                state
+            }
+        }
+    }
+
+    pub fn fingerprint(structure: &CognitiveStructure) -> CognitiveFingerprint {
+        CognitiveFingerprint::new(Self::hash_into(structure, Self::OFFSET))
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct MindstoneStructuralNoveltyAdmissionResult {
+    structure: CognitiveStructure,
+    fingerprint: CognitiveFingerprint,
+    admission: MindstoneNoveltyAdmissionResult,
+}
+
+impl MindstoneStructuralNoveltyAdmissionResult {
+    pub fn structure(&self) -> &CognitiveStructure {
+        &self.structure
+    }
+
+    pub fn fingerprint(&self) -> CognitiveFingerprint {
+        self.fingerprint
+    }
+
+    pub fn admission(&self) -> &MindstoneNoveltyAdmissionResult {
+        &self.admission
+    }
+
+    pub fn decision(&self) -> CognitiveAdmissionDecision {
+        self.admission.decision()
+    }
+
+    pub fn is_novel(&self) -> bool {
+        self.admission.novelty().is_novel()
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, Hash, Ord, PartialEq, PartialOrd)]
+pub struct MindstoneStructuralNoveltyGate;
+
+impl MindstoneStructuralNoveltyGate {
+    pub fn evaluate(
+        memory: NoveltyMemory,
+        structure: CognitiveStructure,
+        profile: MindstoneSignalProfile,
+        policy: SparseCognitionPolicy,
+        budget: CognitiveBudget,
+    ) -> MindstoneStructuralNoveltyAdmissionResult {
+        let fingerprint = StructuralHasher::fingerprint(&structure);
+
+        let admission =
+            MindstoneNoveltyGate::evaluate(memory, fingerprint, profile, policy, budget);
+
+        MindstoneStructuralNoveltyAdmissionResult {
+            structure,
+            fingerprint,
+            admission,
+        }
+    }
+}

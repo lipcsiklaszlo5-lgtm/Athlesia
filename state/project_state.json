@@ -31,9 +31,10 @@
     "crates/athlesia_hierarchy/tests/hierarchy_recognition.rs": "bc7fe6ac289f8697e65b2ebe9aab179ae0cdb2db655fed18afae454bf2132841",
     "crates/athlesia_mindstone_sparse_cognition/Cargo.lock": "d67e0a5b9f7be917468be052c0febda5861b9c25ce92228c287ab0181d3fb201",
     "crates/athlesia_mindstone_sparse_cognition/Cargo.toml": "5cf3f615255e7419fa2240e54b4f49e9a4cc45d5b142a545fb856a66fc43f401",
-    "crates/athlesia_mindstone_sparse_cognition/src/lib.rs": "ae6d32ac775fb20803f4e47cf173929f27a323c40a6e4eb1281fbc3aa706e7ec",
+    "crates/athlesia_mindstone_sparse_cognition/src/lib.rs": "4e15e20fe90a6d2d2f4884242375e949fe2f4e9958160a10739b43ff470e5a8b",
     "crates/athlesia_mindstone_sparse_cognition/tests/mindstone_sparse_cognition_foundation.rs": "7c6e0ed54b601d97954680f311e19f780717dbb0746d30ff385c0ebc2b07f10b",
     "crates/athlesia_mindstone_sparse_cognition/tests/mindstone_sparse_cognition_novelty_gate.rs": "f07e1d5924abc353bd68b2920b4447f3cc9f99907fbbb8ddaa793197f2a804dc",
+    "crates/athlesia_mindstone_sparse_cognition/tests/mindstone_sparse_cognition_structural_hashing.rs": "682beffce3e7be63e2bccd26a7388b9a36619952e111f3a97e983062a475be0c",
     "crates/athlesia_recursive/Cargo.lock": "eb3234330b5d1f01b30b6d9f1be64743a933ea15a7f5ff2057ba8dc943f7bf44",
     "crates/athlesia_recursive/Cargo.toml": "3aaaefa8e4d7f79d56f15e0a1f789b913bc3c3c45f422151356c0e560e182ae2",
     "crates/athlesia_recursive/src/lib.rs": "a51021e5b2a92dd56b0f7f57a6efe8b782c4dc086b8c287966a4ac786c9ee329",
@@ -471,7 +472,8 @@
       "module_44_recursive_world_model_revision_abstraction_composition_generalization_revision_cycle",
       "module_44_recursive_world_model_revision_abstraction_composition_generalization_freeze",
       "module_45_mindstone_sparse_cognition_foundation",
-      "module_45_mindstone_sparse_cognition_novelty_gate"
+      "module_45_mindstone_sparse_cognition_novelty_gate",
+      "module_45_mindstone_sparse_cognition_structural_hashing"
     ],
     "module_23_integrity": {
       "status": "pass",
@@ -484,8 +486,8 @@
       "status": "frozen",
       "verifier": "tools/verify_module_23_parity.py"
     },
-    "next_layer": "module_45_mindstone_sparse_cognition_structural_hashing",
-    "stage": "module_45_mindstone_sparse_cognition_novelty_gate",
+    "next_layer": "module_45_mindstone_sparse_cognition_streaming_aggregation",
+    "stage": "module_45_mindstone_sparse_cognition_structural_hashing",
     "status": "validated"
   },
   "validated_invariants": [
@@ -2208,6 +2210,18 @@
     "mindstone_known_low_signal_event_suppression",
     "mindstone_known_event_preserves_independent_epistemic_pressure",
     "mindstone_novelty_admission_hard_compute_budget",
-    "mindstone_novelty_gate_determinism_composability_non_mutation"
+    "mindstone_novelty_gate_determinism_composability_non_mutation",
+    "mindstone_structural_compound_nonempty_invariant",
+    "mindstone_structural_hash_order_sensitive_ordered_form",
+    "mindstone_structural_hash_order_invariant_unordered_form",
+    "mindstone_structural_hash_unordered_multiplicity_preservation",
+    "mindstone_structural_hash_kind_separation",
+    "mindstone_structural_hash_nesting_boundary_preservation",
+    "mindstone_structural_hash_determinism_non_mutation",
+    "mindstone_structural_equal_forms_equal_fingerprint",
+    "mindstone_structural_first_observation_novel_without_manual_fingerprint",
+    "mindstone_structural_unordered_reordering_known_identity",
+    "mindstone_structural_ordered_reordering_distinct_identity",
+    "mindstone_structural_novelty_facade_budget_composability"
   ]
 }
