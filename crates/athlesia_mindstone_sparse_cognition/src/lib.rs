@@ -1987,3 +1987,200 @@ impl MindstoneForgettingColdStorage {
         )
     }
 }
+
+impl CognitiveSignal {
+    pub fn compression_gain(original_units: u64, compressed_units: u64) -> Option<Self> {
+        if original_units == 0 {
+            return None;
+        }
+
+        if compressed_units >= original_units {
+            return Some(Self::zero());
+        }
+
+        let saved = original_units.saturating_sub(compressed_units);
+
+        let scaled = u128::from(saved).saturating_mul(u128::from(COGNITIVE_SIGNAL_SCALE))
+            / u128::from(original_units);
+
+        Some(Self(scaled as u16))
+    }
+
+    pub fn controllability(
+        successful_interventions: u64,
+        intervention_attempts: u64,
+    ) -> Option<Self> {
+        if intervention_attempts == 0 || successful_interventions > intervention_attempts {
+            return None;
+        }
+
+        let scaled = u128::from(successful_interventions)
+            .saturating_mul(u128::from(COGNITIVE_SIGNAL_SCALE))
+            / u128::from(intervention_attempts);
+
+        Some(Self(scaled as u16))
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+pub struct MindstoneExtendedSignalProfile {
+    base: MindstoneSignalProfile,
+    compression_gain: CognitiveSignal,
+    controllability: CognitiveSignal,
+}
+
+impl MindstoneExtendedSignalProfile {
+    pub fn new(
+        base: MindstoneSignalProfile,
+        compression_gain: CognitiveSignal,
+        controllability: CognitiveSignal,
+    ) -> Self {
+        Self {
+            base,
+            compression_gain,
+            controllability,
+        }
+    }
+
+    pub fn base(self) -> MindstoneSignalProfile {
+        self.base
+    }
+
+    pub fn compression_gain(self) -> CognitiveSignal {
+        self.compression_gain
+    }
+
+    pub fn controllability(self) -> CognitiveSignal {
+        self.controllability
+    }
+
+    pub fn meta_salience(self) -> CognitiveSalience {
+        let compression = u32::from(self.compression_gain.value());
+
+        let controllability = u32::from(self.controllability.value());
+
+        let peak = compression.max(controllability);
+
+        let total = compression.saturating_add(controllability);
+
+        CognitiveSalience((peak.saturating_mul(2).saturating_add(total) / 4) as u16)
+    }
+
+    pub fn salience(self) -> CognitiveSalience {
+        let base = u32::from(self.base.salience().value());
+
+        let meta = u32::from(self.meta_salience().value());
+
+        let remaining = u32::from(COGNITIVE_SIGNAL_SCALE).saturating_sub(base);
+
+        let augmentation = remaining.saturating_mul(meta) / u32::from(COGNITIVE_SIGNAL_SCALE);
+
+        CognitiveSalience(base.saturating_add(augmentation) as u16)
+    }
+}
+
+impl SparseCognitionPolicy {
+    pub fn classify_extended(
+        self,
+        profile: MindstoneExtendedSignalProfile,
+    ) -> CognitiveAdmissionClass {
+        let salience = profile.salience().value();
+
+        if salience < self.cheap_threshold().value() {
+            CognitiveAdmissionClass::Ignore
+        } else if salience < self.deliberate_threshold().value() {
+            CognitiveAdmissionClass::CheapUpdate
+        } else {
+            CognitiveAdmissionClass::Deliberate
+        }
+    }
+
+    pub fn admit_extended(
+        self,
+        profile: MindstoneExtendedSignalProfile,
+        budget: CognitiveBudget,
+    ) -> CognitiveAdmissionDecision {
+        let salience = profile.salience();
+
+        let class = self.classify_extended(profile);
+
+        let requested_units = match class {
+            CognitiveAdmissionClass::Ignore => 0,
+            CognitiveAdmissionClass::CheapUpdate => self.cheap_compute_units(),
+            CognitiveAdmissionClass::Deliberate => self.deliberate_compute_units(),
+        };
+
+        let granted_units = requested_units.min(budget.units());
+
+        CognitiveAdmissionDecision {
+            class,
+            salience,
+            requested_units,
+            granted_units,
+        }
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct MindstoneCompressionControllabilityResult {
+    base_profile: MindstoneSignalProfile,
+    compression_gain: CognitiveSignal,
+    controllability: CognitiveSignal,
+    extended_profile: MindstoneExtendedSignalProfile,
+    decision: CognitiveAdmissionDecision,
+}
+
+impl MindstoneCompressionControllabilityResult {
+    pub fn base_profile(&self) -> MindstoneSignalProfile {
+        self.base_profile
+    }
+
+    pub fn compression_gain(&self) -> CognitiveSignal {
+        self.compression_gain
+    }
+
+    pub fn controllability(&self) -> CognitiveSignal {
+        self.controllability
+    }
+
+    pub fn extended_profile(&self) -> MindstoneExtendedSignalProfile {
+        self.extended_profile
+    }
+
+    pub fn decision(&self) -> CognitiveAdmissionDecision {
+        self.decision
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, Hash, Ord, PartialEq, PartialOrd)]
+pub struct MindstoneCompressionControllability;
+
+impl MindstoneCompressionControllability {
+    pub fn evaluate(
+        base_profile: MindstoneSignalProfile,
+        original_units: u64,
+        compressed_units: u64,
+        successful_interventions: u64,
+        intervention_attempts: u64,
+        policy: SparseCognitionPolicy,
+        budget: CognitiveBudget,
+    ) -> Option<MindstoneCompressionControllabilityResult> {
+        let compression_gain = CognitiveSignal::compression_gain(original_units, compressed_units)?;
+
+        let controllability =
+            CognitiveSignal::controllability(successful_interventions, intervention_attempts)?;
+
+        let extended_profile =
+            MindstoneExtendedSignalProfile::new(base_profile, compression_gain, controllability);
+
+        let decision = policy.admit_extended(extended_profile, budget);
+
+        Some(MindstoneCompressionControllabilityResult {
+            base_profile,
+            compression_gain,
+            controllability,
+            extended_profile,
+            decision,
+        })
+    }
+}
