@@ -12,8 +12,9 @@
     "Cargo.toml": "e852faab0d9dff23b09e1ee2323d0998955f837450c70ea015382ffe5ec52bff",
     "crates/athlesia_core_knowledge_perceptual_grounding/Cargo.lock": "fbefd559ec01ff3860d153fdf05e9a29f10ecff62eb63206d1b8e643c35ec7b4",
     "crates/athlesia_core_knowledge_perceptual_grounding/Cargo.toml": "04ffcd03f7862aac5423b16466ca1ea5ad1ad65856a76a9f4a4265c6dca64ff8",
-    "crates/athlesia_core_knowledge_perceptual_grounding/src/lib.rs": "1b41c01a1405e01c2594dd004519d4737905cfa52825c3312403768383f93d7d",
+    "crates/athlesia_core_knowledge_perceptual_grounding/src/lib.rs": "f9e565a91959d756336ee0baf0f47592328e63a204bb91f7d8c6e367450a12ee",
     "crates/athlesia_core_knowledge_perceptual_grounding/tests/core_knowledge_perceptual_grounding_action_consequences.rs": "42a0979e1e762a8e5f0e1ac1369ae48aad6c0a28ddf7a30f68910ecde957c08b",
+    "crates/athlesia_core_knowledge_perceptual_grounding/tests/core_knowledge_perceptual_grounding_final_integration_freeze.rs": "e8f163cf46390eb88c9b23be47f95cc59c0e8af870a8a28b4c51edcf156e40ea",
     "crates/athlesia_core_knowledge_perceptual_grounding/tests/core_knowledge_perceptual_grounding_foundation.rs": "a5229032192bdd0bbf0dd58ef55aeeec9410917a164a40ea80d73d63ff32d4cb",
     "crates/athlesia_core_knowledge_perceptual_grounding/tests/core_knowledge_perceptual_grounding_motion_change.rs": "0e192ae3a9e9eede4fc9ce40f79b9a0e93598b29ee956b292f289f2fe6a44371",
     "crates/athlesia_core_knowledge_perceptual_grounding/tests/core_knowledge_perceptual_grounding_persistence_tracking.rs": "a16fbb00c99c8298055f7dd6421d30c173c0dae4e1f96ec96db45528994512cc",
@@ -518,7 +519,8 @@
       "module_46_core_knowledge_perceptual_grounding_persistence_tracking",
       "module_46_core_knowledge_perceptual_grounding_topology_relations",
       "module_46_core_knowledge_perceptual_grounding_motion_change",
-      "module_46_core_knowledge_perceptual_grounding_action_consequences"
+      "module_46_core_knowledge_perceptual_grounding_action_consequences",
+      "module_46_core_knowledge_perceptual_grounding_final_integration_freeze"
     ],
     "module_23_integrity": {
       "status": "pass",
@@ -531,8 +533,8 @@
       "status": "frozen",
       "verifier": "tools/verify_module_23_parity.py"
     },
-    "next_layer": "module_46_core_knowledge_perceptual_grounding_final_integration_freeze",
-    "stage": "module_46_core_knowledge_perceptual_grounding_action_consequences",
+    "next_layer": "module_46_core_knowledge_perceptual_grounding_frozen",
+    "stage": "module_46_core_knowledge_perceptual_grounding_final_integration_freeze",
     "status": "validated"
   },
   "validated_invariants": [
@@ -2507,6 +2509,18 @@
     "perceptual_grounding_action_hard_per_action_bound",
     "perceptual_grounding_action_hard_per_change_bound",
     "perceptual_grounding_action_hard_global_frontier",
-    "perceptual_grounding_action_determinism_non_mutation_facade_equivalence"
+    "perceptual_grounding_action_determinism_non_mutation_facade_equivalence",
+    "perceptual_grounding_final_strict_forward_frame_order",
+    "perceptual_grounding_final_persistence_scene_dependency_closure",
+    "perceptual_grounding_final_topology_scene_dependency_closure",
+    "perceptual_grounding_final_change_persistence_dependency_closure",
+    "perceptual_grounding_final_action_change_dependency_closure",
+    "perceptual_grounding_final_scene_grouping_controls_downstream_identity",
+    "perceptual_grounding_final_scene_ambiguity_can_preserve_downstream_alternatives",
+    "perceptual_grounding_final_hard_bounds_active_all_frontiers",
+    "perceptual_grounding_final_association_without_causal_lift_remains_hypothesis",
+    "perceptual_grounding_final_rejected_upstream_cannot_be_resurrected_downstream",
+    "perceptual_grounding_final_determinism_non_mutation_facade_equivalence",
+    "perceptual_grounding_final_complete_dependency_closed_chain"
   ]
 }

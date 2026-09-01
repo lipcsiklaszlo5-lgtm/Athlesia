@@ -2208,3 +2208,400 @@ impl CoreKnowledgeActionConsequences {
         ActionConsequenceCompetition::select(candidates, policy)
     }
 }
+
+impl PerceptualChangeHypothesis {
+    pub fn same_identity_as(&self, other: &Self) -> bool {
+        self.transition == other.transition
+            && self.kind == other.kind
+            && self.reference == other.reference
+            && self.descriptor == other.descriptor
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct IntegratedPerceptualWorldCandidates {
+    previous_scene_candidates: Vec<SceneInterpretation>,
+    current_scene_candidates: Vec<SceneInterpretation>,
+    persistence_candidates: Vec<PersistenceLinkHypothesis>,
+    topology_candidates: Vec<TopologicalRelationHypothesis>,
+    change_candidates: Vec<PerceptualChangeHypothesis>,
+    action_consequence_candidates: Vec<ActionConsequenceHypothesis>,
+}
+
+impl IntegratedPerceptualWorldCandidates {
+    pub fn new(
+        previous_scene_candidates: Vec<SceneInterpretation>,
+        current_scene_candidates: Vec<SceneInterpretation>,
+        persistence_candidates: Vec<PersistenceLinkHypothesis>,
+        topology_candidates: Vec<TopologicalRelationHypothesis>,
+        change_candidates: Vec<PerceptualChangeHypothesis>,
+        action_consequence_candidates: Vec<ActionConsequenceHypothesis>,
+    ) -> Self {
+        Self {
+            previous_scene_candidates,
+            current_scene_candidates,
+            persistence_candidates,
+            topology_candidates,
+            change_candidates,
+            action_consequence_candidates,
+        }
+    }
+
+    pub fn previous_scene_candidates(&self) -> &[SceneInterpretation] {
+        &self.previous_scene_candidates
+    }
+
+    pub fn current_scene_candidates(&self) -> &[SceneInterpretation] {
+        &self.current_scene_candidates
+    }
+
+    pub fn persistence_candidates(&self) -> &[PersistenceLinkHypothesis] {
+        &self.persistence_candidates
+    }
+
+    pub fn topology_candidates(&self) -> &[TopologicalRelationHypothesis] {
+        &self.topology_candidates
+    }
+
+    pub fn change_candidates(&self) -> &[PerceptualChangeHypothesis] {
+        &self.change_candidates
+    }
+
+    pub fn action_consequence_candidates(&self) -> &[ActionConsequenceHypothesis] {
+        &self.action_consequence_candidates
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct IntegratedPerceptualWorldInput {
+    previous_frame: PerceptualFrame,
+    current_frame: PerceptualFrame,
+    candidates: IntegratedPerceptualWorldCandidates,
+}
+
+impl IntegratedPerceptualWorldInput {
+    pub fn new(
+        previous_frame: PerceptualFrame,
+        current_frame: PerceptualFrame,
+        candidates: IntegratedPerceptualWorldCandidates,
+    ) -> Option<Self> {
+        if previous_frame.observation_index() >= current_frame.observation_index() {
+            return None;
+        }
+
+        Some(Self {
+            previous_frame,
+            current_frame,
+            candidates,
+        })
+    }
+
+    pub fn previous_frame(&self) -> &PerceptualFrame {
+        &self.previous_frame
+    }
+
+    pub fn current_frame(&self) -> &PerceptualFrame {
+        &self.current_frame
+    }
+
+    pub fn candidates(&self) -> &IntegratedPerceptualWorldCandidates {
+        &self.candidates
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+pub struct IntegratedPerceptualWorldContext {
+    scene_policy: PerceptualGroundingPolicy,
+    persistence_policy: PersistenceTrackingPolicy,
+    topology_policy: TopologicalRelationPolicy,
+    change_policy: PerceptualChangePolicy,
+    action_consequence_policy: ActionConsequencePolicy,
+}
+
+impl IntegratedPerceptualWorldContext {
+    pub fn new(
+        scene_policy: PerceptualGroundingPolicy,
+        persistence_policy: PersistenceTrackingPolicy,
+        topology_policy: TopologicalRelationPolicy,
+        change_policy: PerceptualChangePolicy,
+        action_consequence_policy: ActionConsequencePolicy,
+    ) -> Self {
+        Self {
+            scene_policy,
+            persistence_policy,
+            topology_policy,
+            change_policy,
+            action_consequence_policy,
+        }
+    }
+
+    pub fn scene_policy(self) -> PerceptualGroundingPolicy {
+        self.scene_policy
+    }
+
+    pub fn persistence_policy(self) -> PersistenceTrackingPolicy {
+        self.persistence_policy
+    }
+
+    pub fn topology_policy(self) -> TopologicalRelationPolicy {
+        self.topology_policy
+    }
+
+    pub fn change_policy(self) -> PerceptualChangePolicy {
+        self.change_policy
+    }
+
+    pub fn action_consequence_policy(self) -> ActionConsequencePolicy {
+        self.action_consequence_policy
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct IntegratedPerceptualWorldResult {
+    previous_scene: SceneCompetitionResult,
+    current_scene: SceneCompetitionResult,
+    persistence: PersistenceTrackingResult,
+    topology: TopologicalRelationCompetitionResult,
+    changes: PerceptualChangeCompetitionResult,
+    action_consequences: ActionConsequenceCompetitionResult,
+    rejected_persistence_dependency_count: usize,
+    rejected_topology_dependency_count: usize,
+    rejected_change_dependency_count: usize,
+    rejected_action_consequence_dependency_count: usize,
+}
+
+impl IntegratedPerceptualWorldResult {
+    pub fn previous_scene(&self) -> &SceneCompetitionResult {
+        &self.previous_scene
+    }
+
+    pub fn current_scene(&self) -> &SceneCompetitionResult {
+        &self.current_scene
+    }
+
+    pub fn persistence(&self) -> &PersistenceTrackingResult {
+        &self.persistence
+    }
+
+    pub fn topology(&self) -> &TopologicalRelationCompetitionResult {
+        &self.topology
+    }
+
+    pub fn changes(&self) -> &PerceptualChangeCompetitionResult {
+        &self.changes
+    }
+
+    pub fn action_consequences(&self) -> &ActionConsequenceCompetitionResult {
+        &self.action_consequences
+    }
+
+    pub fn rejected_persistence_dependency_count(&self) -> usize {
+        self.rejected_persistence_dependency_count
+    }
+
+    pub fn rejected_topology_dependency_count(&self) -> usize {
+        self.rejected_topology_dependency_count
+    }
+
+    pub fn rejected_change_dependency_count(&self) -> usize {
+        self.rejected_change_dependency_count
+    }
+
+    pub fn rejected_action_consequence_dependency_count(&self) -> usize {
+        self.rejected_action_consequence_dependency_count
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, Hash, Ord, PartialEq, PartialOrd)]
+pub struct IntegratedPerceptualWorld;
+
+impl IntegratedPerceptualWorld {
+    fn scene_observations(
+        frame: &PerceptualFrame,
+        result: &SceneCompetitionResult,
+    ) -> Vec<ObjectObservation> {
+        let mut observations = result
+            .selected()
+            .iter()
+            .flat_map(|scene| scene.hypotheses().iter())
+            .map(|hypothesis| {
+                ObjectObservation::from_hypothesis(frame, hypothesis)
+                    .expect("selected scene hypotheses are grounded in their frame")
+            })
+            .collect::<Vec<_>>();
+
+        observations.sort();
+        observations.dedup();
+
+        observations
+    }
+
+    fn contains_observation(
+        observations: &[ObjectObservation],
+        target: &ObjectObservation,
+    ) -> bool {
+        observations.binary_search(target).is_ok()
+    }
+
+    fn selected_transitions(
+        persistence: &PersistenceTrackingResult,
+    ) -> Vec<ObjectTransitionObservation> {
+        let mut transitions = persistence
+            .selected()
+            .iter()
+            .map(ObjectTransitionObservation::from_persistence_link)
+            .collect::<Vec<_>>();
+
+        transitions.sort();
+        transitions.dedup();
+
+        transitions
+    }
+
+    fn contains_transition(
+        transitions: &[ObjectTransitionObservation],
+        target: &ObjectTransitionObservation,
+    ) -> bool {
+        transitions.binary_search(target).is_ok()
+    }
+
+    pub fn evaluate(
+        input: &IntegratedPerceptualWorldInput,
+        context: IntegratedPerceptualWorldContext,
+    ) -> IntegratedPerceptualWorldResult {
+        let candidates = input.candidates();
+
+        let previous_scene = CompetingSceneInterpretations::select(
+            input.previous_frame(),
+            candidates.previous_scene_candidates(),
+            context.scene_policy(),
+        );
+
+        let current_scene = CompetingSceneInterpretations::select(
+            input.current_frame(),
+            candidates.current_scene_candidates(),
+            context.scene_policy(),
+        );
+
+        let previous_objects = Self::scene_observations(input.previous_frame(), &previous_scene);
+
+        let current_objects = Self::scene_observations(input.current_frame(), &current_scene);
+
+        let eligible_persistence = candidates
+            .persistence_candidates()
+            .iter()
+            .filter(|candidate| {
+                Self::contains_observation(&previous_objects, candidate.previous())
+                    && Self::contains_observation(&current_objects, candidate.current())
+            })
+            .cloned()
+            .collect::<Vec<_>>();
+
+        let rejected_persistence_dependency_count = candidates
+            .persistence_candidates()
+            .len()
+            .saturating_sub(eligible_persistence.len());
+
+        let persistence =
+            PersistenceTracking::select(&eligible_persistence, context.persistence_policy());
+
+        let mut all_scene_objects = previous_objects.clone();
+
+        all_scene_objects.extend(current_objects.iter().cloned());
+
+        all_scene_objects.sort();
+        all_scene_objects.dedup();
+
+        let eligible_topology = candidates
+            .topology_candidates()
+            .iter()
+            .filter(|candidate| {
+                Self::contains_observation(&all_scene_objects, candidate.subject())
+                    && Self::contains_observation(&all_scene_objects, candidate.object())
+            })
+            .cloned()
+            .collect::<Vec<_>>();
+
+        let rejected_topology_dependency_count = candidates
+            .topology_candidates()
+            .len()
+            .saturating_sub(eligible_topology.len());
+
+        let topology =
+            TopologicalRelationCompetition::select(&eligible_topology, context.topology_policy());
+
+        let selected_transitions = Self::selected_transitions(&persistence);
+
+        let eligible_changes = candidates
+            .change_candidates()
+            .iter()
+            .filter(|candidate| {
+                if !Self::contains_transition(&selected_transitions, candidate.transition()) {
+                    return false;
+                }
+
+                if let Some(reference) = candidate.reference() {
+                    return Self::contains_transition(&selected_transitions, reference);
+                }
+
+                true
+            })
+            .cloned()
+            .collect::<Vec<_>>();
+
+        let rejected_change_dependency_count = candidates
+            .change_candidates()
+            .len()
+            .saturating_sub(eligible_changes.len());
+
+        let changes =
+            PerceptualChangeCompetition::select(&eligible_changes, context.change_policy());
+
+        let eligible_action_consequences = candidates
+            .action_consequence_candidates()
+            .iter()
+            .filter(|candidate| {
+                changes
+                    .selected()
+                    .iter()
+                    .any(|selected_change| selected_change.same_identity_as(candidate.change()))
+            })
+            .cloned()
+            .collect::<Vec<_>>();
+
+        let rejected_action_consequence_dependency_count = candidates
+            .action_consequence_candidates()
+            .len()
+            .saturating_sub(eligible_action_consequences.len());
+
+        let action_consequences = ActionConsequenceCompetition::select(
+            &eligible_action_consequences,
+            context.action_consequence_policy(),
+        );
+
+        IntegratedPerceptualWorldResult {
+            previous_scene,
+            current_scene,
+            persistence,
+            topology,
+            changes,
+            action_consequences,
+            rejected_persistence_dependency_count,
+            rejected_topology_dependency_count,
+            rejected_change_dependency_count,
+            rejected_action_consequence_dependency_count,
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, Hash, Ord, PartialEq, PartialOrd)]
+pub struct CoreKnowledgePerceptualWorld;
+
+impl CoreKnowledgePerceptualWorld {
+    pub fn evaluate(
+        input: &IntegratedPerceptualWorldInput,
+        context: IntegratedPerceptualWorldContext,
+    ) -> IntegratedPerceptualWorldResult {
+        IntegratedPerceptualWorld::evaluate(input, context)
+    }
+}
