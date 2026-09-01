@@ -29,6 +29,10 @@
     "crates/athlesia_hierarchy/tests/hierarchy_discovery.rs": "07504754806d1086c9e5a5ab41cb405b2f5f531c8548372a586770e9ecc124b9",
     "crates/athlesia_hierarchy/tests/hierarchy_prediction.rs": "ea8133128eab713a9ee3e38dac1c71766dd948e06171725957f70a125431adc6",
     "crates/athlesia_hierarchy/tests/hierarchy_recognition.rs": "bc7fe6ac289f8697e65b2ebe9aab179ae0cdb2db655fed18afae454bf2132841",
+    "crates/athlesia_mindstone_sparse_cognition/Cargo.lock": "d67e0a5b9f7be917468be052c0febda5861b9c25ce92228c287ab0181d3fb201",
+    "crates/athlesia_mindstone_sparse_cognition/Cargo.toml": "5cf3f615255e7419fa2240e54b4f49e9a4cc45d5b142a545fb856a66fc43f401",
+    "crates/athlesia_mindstone_sparse_cognition/src/lib.rs": "5f7c2cf90a3fd35b86540e9f7d4ff90eee890098b04845eba9f3a4ffbcdf0317",
+    "crates/athlesia_mindstone_sparse_cognition/tests/mindstone_sparse_cognition_foundation.rs": "7c6e0ed54b601d97954680f311e19f780717dbb0746d30ff385c0ebc2b07f10b",
     "crates/athlesia_recursive/Cargo.lock": "eb3234330b5d1f01b30b6d9f1be64743a933ea15a7f5ff2057ba8dc943f7bf44",
     "crates/athlesia_recursive/Cargo.toml": "3aaaefa8e4d7f79d56f15e0a1f789b913bc3c3c45f422151356c0e560e182ae2",
     "crates/athlesia_recursive/src/lib.rs": "a51021e5b2a92dd56b0f7f57a6efe8b782c4dc086b8c287966a4ac786c9ee329",
@@ -464,7 +468,8 @@
       "module_44_recursive_world_model_revision_abstraction_composition_generalization_validation",
       "module_44_recursive_world_model_revision_abstraction_composition_generalization_evidence_scope",
       "module_44_recursive_world_model_revision_abstraction_composition_generalization_revision_cycle",
-      "module_44_recursive_world_model_revision_abstraction_composition_generalization_freeze"
+      "module_44_recursive_world_model_revision_abstraction_composition_generalization_freeze",
+      "module_45_mindstone_sparse_cognition_foundation"
     ],
     "module_23_integrity": {
       "status": "pass",
@@ -477,9 +482,9 @@
       "status": "frozen",
       "verifier": "tools/verify_module_23_parity.py"
     },
-    "next_layer": "module_45_mindstone_sparse_cognition_foundation",
-    "stage": "module_44_recursive_world_model_revision_abstraction_composition_generalization_freeze",
-    "status": "frozen"
+    "next_layer": "module_45_mindstone_sparse_cognition_novelty_gate",
+    "stage": "module_45_mindstone_sparse_cognition_foundation",
+    "status": "validated"
   },
   "validated_invariants": [
     "architecture_name_stability",
@@ -2177,6 +2182,18 @@
     "recursive_world_revision_abstraction_composition_generalization_revision_cycle_full_provenance",
     "recursive_world_revision_abstraction_composition_generalization_revision_cycle_facade_equivalence",
     "recursive_world_revision_abstraction_composition_generalization_revision_cycle_determinism_non_mutation",
-    "recursive_world_revision_abstraction_composition_generalization_module_44_frozen"
+    "recursive_world_revision_abstraction_composition_generalization_module_44_frozen",
+    "mindstone_cognitive_signal_fixed_point_bounds",
+    "mindstone_learning_progress_uncertainty_reduction_only",
+    "mindstone_zero_signal_zero_salience",
+    "mindstone_peak_signal_survives_mean_dilution",
+    "mindstone_salience_domain_neutral_signal_aggregation",
+    "sparse_cognition_policy_threshold_and_budget_shape_validation",
+    "sparse_cognition_predictable_input_zero_compute_admission",
+    "sparse_cognition_medium_salience_cheap_update",
+    "sparse_cognition_high_salience_deliberative_request",
+    "sparse_cognition_hard_compute_budget_cap",
+    "sparse_cognition_positive_budget_invariant",
+    "mindstone_foundation_determinism_non_mutation_facade_equivalence"
   ]
 }
