@@ -2184,3 +2184,412 @@ impl MindstoneCompressionControllability {
         })
     }
 }
+
+#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+pub enum EpistemicSelfClass {
+    Uncertain,
+    Learning,
+    Stable,
+}
+
+#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+pub struct EpistemicSelfPolicy {
+    stable_uncertainty_max: CognitiveSignal,
+    learning_progress_min: CognitiveSignal,
+    compression_gain_min: CognitiveSignal,
+    controllability_min: CognitiveSignal,
+    minimum_observations: u64,
+}
+
+impl EpistemicSelfPolicy {
+    pub fn new(
+        stable_uncertainty_max: CognitiveSignal,
+        learning_progress_min: CognitiveSignal,
+        compression_gain_min: CognitiveSignal,
+        controllability_min: CognitiveSignal,
+        minimum_observations: u64,
+    ) -> Option<Self> {
+        if learning_progress_min == CognitiveSignal::zero()
+            || compression_gain_min == CognitiveSignal::zero()
+            || controllability_min == CognitiveSignal::zero()
+            || minimum_observations == 0
+        {
+            return None;
+        }
+
+        Some(Self {
+            stable_uncertainty_max,
+            learning_progress_min,
+            compression_gain_min,
+            controllability_min,
+            minimum_observations,
+        })
+    }
+
+    pub fn stable_uncertainty_max(self) -> CognitiveSignal {
+        self.stable_uncertainty_max
+    }
+
+    pub fn learning_progress_min(self) -> CognitiveSignal {
+        self.learning_progress_min
+    }
+
+    pub fn compression_gain_min(self) -> CognitiveSignal {
+        self.compression_gain_min
+    }
+
+    pub fn controllability_min(self) -> CognitiveSignal {
+        self.controllability_min
+    }
+
+    pub fn minimum_observations(self) -> u64 {
+        self.minimum_observations
+    }
+
+    pub fn assess(self, record: &EpistemicSelfRecord) -> EpistemicSelfAssessment {
+        let sufficiently_observed = record.observation_count() >= self.minimum_observations;
+
+        let class = if sufficiently_observed && record.uncertainty() <= self.stable_uncertainty_max
+        {
+            EpistemicSelfClass::Stable
+        } else if record.learning_progress() >= self.learning_progress_min {
+            EpistemicSelfClass::Learning
+        } else {
+            EpistemicSelfClass::Uncertain
+        };
+
+        let compressible =
+            sufficiently_observed && record.compression_gain() >= self.compression_gain_min;
+
+        let controllable =
+            sufficiently_observed && record.controllability() >= self.controllability_min;
+
+        EpistemicSelfAssessment {
+            class,
+            compressible,
+            controllable,
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+pub struct EpistemicSelfAssessment {
+    class: EpistemicSelfClass,
+    compressible: bool,
+    controllable: bool,
+}
+
+impl EpistemicSelfAssessment {
+    pub fn class(self) -> EpistemicSelfClass {
+        self.class
+    }
+
+    pub fn is_uncertain(self) -> bool {
+        self.class == EpistemicSelfClass::Uncertain
+    }
+
+    pub fn is_learning(self) -> bool {
+        self.class == EpistemicSelfClass::Learning
+    }
+
+    pub fn is_stable(self) -> bool {
+        self.class == EpistemicSelfClass::Stable
+    }
+
+    pub fn is_compressible(self) -> bool {
+        self.compressible
+    }
+
+    pub fn is_controllable(self) -> bool {
+        self.controllable
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct EpistemicSelfRecord {
+    fingerprint: CognitiveFingerprint,
+    observation_count: u64,
+    first_updated_at: u64,
+    last_updated_at: u64,
+    uncertainty: CognitiveSignal,
+    learning_progress: CognitiveSignal,
+    compression_gain: CognitiveSignal,
+    controllability: CognitiveSignal,
+}
+
+impl EpistemicSelfRecord {
+    fn new(
+        fingerprint: CognitiveFingerprint,
+        update_index: u64,
+        profile: MindstoneExtendedSignalProfile,
+    ) -> Self {
+        let base = profile.base();
+
+        Self {
+            fingerprint,
+            observation_count: 1,
+            first_updated_at: update_index,
+            last_updated_at: update_index,
+            uncertainty: base.uncertainty(),
+            learning_progress: base.learning_progress_signal(),
+            compression_gain: profile.compression_gain(),
+            controllability: profile.controllability(),
+        }
+    }
+
+    fn updated(
+        previous: EpistemicSelfRecord,
+        update_index: u64,
+        profile: MindstoneExtendedSignalProfile,
+    ) -> Self {
+        let base = profile.base();
+
+        Self {
+            fingerprint: previous.fingerprint,
+            observation_count: previous.observation_count.saturating_add(1),
+            first_updated_at: previous.first_updated_at,
+            last_updated_at: update_index,
+            uncertainty: base.uncertainty(),
+            learning_progress: base.learning_progress_signal(),
+            compression_gain: profile.compression_gain(),
+            controllability: profile.controllability(),
+        }
+    }
+
+    pub fn fingerprint(&self) -> CognitiveFingerprint {
+        self.fingerprint
+    }
+
+    pub fn observation_count(&self) -> u64 {
+        self.observation_count
+    }
+
+    pub fn first_updated_at(&self) -> u64 {
+        self.first_updated_at
+    }
+
+    pub fn last_updated_at(&self) -> u64 {
+        self.last_updated_at
+    }
+
+    pub fn uncertainty(&self) -> CognitiveSignal {
+        self.uncertainty
+    }
+
+    pub fn learning_progress(&self) -> CognitiveSignal {
+        self.learning_progress
+    }
+
+    pub fn compression_gain(&self) -> CognitiveSignal {
+        self.compression_gain
+    }
+
+    pub fn controllability(&self) -> CognitiveSignal {
+        self.controllability
+    }
+
+    pub fn assessment(&self, policy: EpistemicSelfPolicy) -> EpistemicSelfAssessment {
+        policy.assess(self)
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct EpistemicSelfState {
+    capacity: usize,
+    last_update_index: Option<u64>,
+    records: std::collections::BTreeMap<CognitiveFingerprint, EpistemicSelfRecord>,
+}
+
+impl EpistemicSelfState {
+    pub fn new(capacity: usize) -> Option<Self> {
+        if capacity == 0 {
+            return None;
+        }
+
+        Some(Self {
+            capacity,
+            last_update_index: None,
+            records: std::collections::BTreeMap::new(),
+        })
+    }
+
+    pub fn capacity(&self) -> usize {
+        self.capacity
+    }
+
+    pub fn len(&self) -> usize {
+        self.records.len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.records.is_empty()
+    }
+
+    pub fn is_full(&self) -> bool {
+        self.len() == self.capacity
+    }
+
+    pub fn last_update_index(&self) -> Option<u64> {
+        self.last_update_index
+    }
+
+    pub fn contains(&self, fingerprint: CognitiveFingerprint) -> bool {
+        self.records.contains_key(&fingerprint)
+    }
+
+    pub fn record(&self, fingerprint: CognitiveFingerprint) -> Option<&EpistemicSelfRecord> {
+        self.records.get(&fingerprint)
+    }
+
+    fn evict_oldest(&mut self) -> Option<CognitiveFingerprint> {
+        let victim = self
+            .records
+            .iter()
+            .min_by_key(|(fingerprint, record)| (record.last_updated_at(), **fingerprint))
+            .map(|(fingerprint, _)| *fingerprint);
+
+        if let Some(fingerprint) = victim {
+            self.records.remove(&fingerprint);
+        }
+
+        victim
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+pub enum EpistemicSelfUpdateStatus {
+    RejectedOutOfOrder,
+    Updated,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct EpistemicSelfUpdateResult {
+    state_before: EpistemicSelfState,
+    state_after: EpistemicSelfState,
+    update_index: u64,
+    fingerprint: CognitiveFingerprint,
+    evicted: Option<CognitiveFingerprint>,
+    record: Option<EpistemicSelfRecord>,
+    assessment: Option<EpistemicSelfAssessment>,
+    status: EpistemicSelfUpdateStatus,
+}
+
+impl EpistemicSelfUpdateResult {
+    pub fn state_before(&self) -> &EpistemicSelfState {
+        &self.state_before
+    }
+
+    pub fn state_after(&self) -> &EpistemicSelfState {
+        &self.state_after
+    }
+
+    pub fn update_index(&self) -> u64 {
+        self.update_index
+    }
+
+    pub fn fingerprint(&self) -> CognitiveFingerprint {
+        self.fingerprint
+    }
+
+    pub fn evicted(&self) -> Option<CognitiveFingerprint> {
+        self.evicted
+    }
+
+    pub fn record(&self) -> Option<&EpistemicSelfRecord> {
+        self.record.as_ref()
+    }
+
+    pub fn assessment(&self) -> Option<EpistemicSelfAssessment> {
+        self.assessment
+    }
+
+    pub fn status(&self) -> EpistemicSelfUpdateStatus {
+        self.status
+    }
+
+    pub fn accepted(&self) -> bool {
+        self.status == EpistemicSelfUpdateStatus::Updated
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, Hash, Ord, PartialEq, PartialOrd)]
+pub struct EpistemicSelfModel;
+
+impl EpistemicSelfModel {
+    pub fn observe(
+        state: EpistemicSelfState,
+        update_index: u64,
+        fingerprint: CognitiveFingerprint,
+        profile: MindstoneExtendedSignalProfile,
+        policy: EpistemicSelfPolicy,
+    ) -> EpistemicSelfUpdateResult {
+        let state_before = state.clone();
+
+        if let Some(previous_index) = state.last_update_index() {
+            if update_index <= previous_index {
+                return EpistemicSelfUpdateResult {
+                    state_before,
+                    state_after: state,
+                    update_index,
+                    fingerprint,
+                    evicted: None,
+                    record: None,
+                    assessment: None,
+                    status: EpistemicSelfUpdateStatus::RejectedOutOfOrder,
+                };
+            }
+        }
+
+        let mut state_after = state;
+
+        let previous = state_after.records.remove(&fingerprint);
+
+        let evicted = if previous.is_none() && state_after.is_full() {
+            state_after.evict_oldest()
+        } else {
+            None
+        };
+
+        let record = match previous {
+            Some(previous_record) => {
+                EpistemicSelfRecord::updated(previous_record, update_index, profile)
+            }
+
+            None => EpistemicSelfRecord::new(fingerprint, update_index, profile),
+        };
+
+        let assessment = record.assessment(policy);
+
+        state_after.records.insert(fingerprint, record.clone());
+
+        state_after.last_update_index = Some(update_index);
+
+        EpistemicSelfUpdateResult {
+            state_before,
+            state_after,
+            update_index,
+            fingerprint,
+            evicted,
+            record: Some(record),
+            assessment: Some(assessment),
+            status: EpistemicSelfUpdateStatus::Updated,
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, Hash, Ord, PartialEq, PartialOrd)]
+pub struct MindstoneEpistemicSelfModel;
+
+impl MindstoneEpistemicSelfModel {
+    pub fn observe_structure(
+        state: EpistemicSelfState,
+        update_index: u64,
+        structure: &CognitiveStructure,
+        profile: MindstoneExtendedSignalProfile,
+        policy: EpistemicSelfPolicy,
+    ) -> EpistemicSelfUpdateResult {
+        let fingerprint = StructuralHasher::fingerprint(structure);
+
+        EpistemicSelfModel::observe(state, update_index, fingerprint, profile, policy)
+    }
+}
