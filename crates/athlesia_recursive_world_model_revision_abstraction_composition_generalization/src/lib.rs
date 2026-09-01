@@ -1536,3 +1536,252 @@ impl RecursiveWorldRevisionAbstractionCompositionGeneralizationEvidenceScoper {
         )
     }
 }
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd)]
+pub enum RecursiveWorldRevisionAbstractionCompositionGeneralizationRevisionCycleStatus {
+    DiscoveryUnavailable,
+    Rejected,
+    Inactive,
+    ActiveNoRevision,
+    Revised,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct RecursiveWorldRevisionAbstractionCompositionGeneralizationRevisionCycleResult {
+    scope:
+        RecursiveWorldRevisionAbstractionCompositionGeneralizationEvidenceScope,
+    model:
+        athlesia_recursive_world_model::RecursiveWorldModel,
+    evidence_state:
+        athlesia_recursive_world_model_evidence::RecursiveWorldEvidenceState,
+    budget:
+        athlesia_recursive_world_model::RecursiveWorldRevisionBudget,
+    discovery_cycle:
+        Option<
+            athlesia_recursive_world_model_revision_discovery::
+                RecursiveWorldRevisionDiscoveryCycleResult,
+        >,
+    status:
+        RecursiveWorldRevisionAbstractionCompositionGeneralizationRevisionCycleStatus,
+}
+
+impl RecursiveWorldRevisionAbstractionCompositionGeneralizationRevisionCycleResult {
+    pub fn scope(
+        &self,
+    ) -> &RecursiveWorldRevisionAbstractionCompositionGeneralizationEvidenceScope {
+        &self.scope
+    }
+
+    pub fn model(&self) -> &athlesia_recursive_world_model::RecursiveWorldModel {
+        &self.model
+    }
+
+    pub fn evidence_state(
+        &self,
+    ) -> &athlesia_recursive_world_model_evidence::RecursiveWorldEvidenceState {
+        &self.evidence_state
+    }
+
+    pub fn budget(&self) -> athlesia_recursive_world_model::RecursiveWorldRevisionBudget {
+        self.budget
+    }
+
+    pub fn discovery_cycle(
+        &self,
+    ) -> Option<
+        &athlesia_recursive_world_model_revision_discovery::
+            RecursiveWorldRevisionDiscoveryCycleResult,
+    >{
+        self.discovery_cycle.as_ref()
+    }
+
+    pub fn status(
+        &self,
+    ) -> RecursiveWorldRevisionAbstractionCompositionGeneralizationRevisionCycleStatus {
+        self.status
+    }
+
+    pub fn has_revision(&self) -> bool {
+        self.status
+            == RecursiveWorldRevisionAbstractionCompositionGeneralizationRevisionCycleStatus::
+                Revised
+    }
+
+    pub fn target(&self) -> &athlesia_recursive_world_model::RecursiveWorldRule {
+        self.scope.target()
+    }
+
+    pub fn replacement(&self) -> Option<&athlesia_recursive_world_model::RecursiveWorldRule> {
+        self.scope.replacement()
+    }
+
+    pub fn active_hypothesis(
+        &self,
+    ) -> Option<
+        &athlesia_recursive_world_model_revision_discovery::
+            RecursiveWorldRevisionDiscoveryHypothesis,
+    >{
+        self.scope.active_hypothesis()
+    }
+
+    pub fn projected_motif(
+        &self,
+    ) -> &RecursiveWorldRevisionAbstractionCompositionGeneralizationProjectedMotif {
+        self.scope.projected_motif()
+    }
+
+    pub fn application_observations(
+        &self,
+    ) -> &[
+        athlesia_recursive_world_model_revision_discovery::
+            RecursiveWorldRevisionDiscoveryObservation
+    ]{
+        self.scope.application_observations()
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct RecursiveWorldRevisionAbstractionCompositionGeneralizationRevisionCycle;
+
+impl RecursiveWorldRevisionAbstractionCompositionGeneralizationRevisionCycle {
+    pub fn evaluate(
+        model: athlesia_recursive_world_model::RecursiveWorldModel,
+        evidence_state: athlesia_recursive_world_model_evidence::RecursiveWorldEvidenceState,
+        target: athlesia_recursive_world_model::RecursiveWorldRule,
+        projected_motif: RecursiveWorldRevisionAbstractionCompositionGeneralizationProjectedMotif,
+        application_observations:
+            Vec<
+                athlesia_recursive_world_model_revision_discovery::
+                    RecursiveWorldRevisionDiscoveryObservation,
+            >,
+        budget: athlesia_recursive_world_model::RecursiveWorldRevisionBudget,
+    ) -> RecursiveWorldRevisionAbstractionCompositionGeneralizationRevisionCycleResult {
+        let scope = RecursiveWorldRevisionAbstractionCompositionGeneralizationEvidenceScope::scope(
+            model.clone(),
+            evidence_state.clone(),
+            target,
+            projected_motif,
+            application_observations,
+        );
+
+        match scope.status() {
+            RecursiveWorldRevisionAbstractionCompositionGeneralizationEvidenceScopeStatus::
+                DiscoveryUnavailable =>
+            {
+                RecursiveWorldRevisionAbstractionCompositionGeneralizationRevisionCycleResult {
+                    scope,
+                    model,
+                    evidence_state,
+                    budget,
+                    discovery_cycle: None,
+                    status:
+                        RecursiveWorldRevisionAbstractionCompositionGeneralizationRevisionCycleStatus::
+                            DiscoveryUnavailable,
+                }
+            }
+
+            RecursiveWorldRevisionAbstractionCompositionGeneralizationEvidenceScopeStatus::
+                Rejected =>
+            {
+                RecursiveWorldRevisionAbstractionCompositionGeneralizationRevisionCycleResult {
+                    scope,
+                    model,
+                    evidence_state,
+                    budget,
+                    discovery_cycle: None,
+                    status:
+                        RecursiveWorldRevisionAbstractionCompositionGeneralizationRevisionCycleStatus::
+                            Rejected,
+                }
+            }
+
+            RecursiveWorldRevisionAbstractionCompositionGeneralizationEvidenceScopeStatus::
+                Inactive =>
+            {
+                RecursiveWorldRevisionAbstractionCompositionGeneralizationRevisionCycleResult {
+                    scope,
+                    model,
+                    evidence_state,
+                    budget,
+                    discovery_cycle: None,
+                    status:
+                        RecursiveWorldRevisionAbstractionCompositionGeneralizationRevisionCycleStatus::
+                            Inactive,
+                }
+            }
+
+            RecursiveWorldRevisionAbstractionCompositionGeneralizationEvidenceScopeStatus::
+                Active =>
+            {
+                let active_hypothesis =
+                    scope
+                        .active_hypothesis()
+                        .cloned()
+                        .expect(
+                            "active generalized composition evidence scope must preserve its hypothesis",
+                        );
+
+                let hypotheses =
+                    athlesia_recursive_world_model_revision_discovery::RecursiveWorldRevisionDiscoveryHypothesisSet::new(vec![active_hypothesis]);
+
+                let discovery_cycle =
+                    athlesia_recursive_world_model_revision_discovery::
+                        RecursiveWorldRevisionDiscoveryCycle::
+                            evaluate(
+                                &model,
+                                &evidence_state,
+                                hypotheses,
+                                budget,
+                            );
+
+                let status =
+                    if discovery_cycle.has_revision() {
+                        RecursiveWorldRevisionAbstractionCompositionGeneralizationRevisionCycleStatus::
+                            Revised
+                    } else {
+                        RecursiveWorldRevisionAbstractionCompositionGeneralizationRevisionCycleStatus::
+                            ActiveNoRevision
+                    };
+
+                RecursiveWorldRevisionAbstractionCompositionGeneralizationRevisionCycleResult {
+                    scope,
+                    model,
+                    evidence_state,
+                    budget,
+                    discovery_cycle:
+                        Some(
+                            discovery_cycle,
+                        ),
+                    status,
+                }
+            }
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct RecursiveWorldRevisionAbstractionCompositionGeneralizationRevisionCycler;
+
+impl RecursiveWorldRevisionAbstractionCompositionGeneralizationRevisionCycler {
+    pub fn evaluate(
+        model: athlesia_recursive_world_model::RecursiveWorldModel,
+        evidence_state: athlesia_recursive_world_model_evidence::RecursiveWorldEvidenceState,
+        target: athlesia_recursive_world_model::RecursiveWorldRule,
+        projected_motif: RecursiveWorldRevisionAbstractionCompositionGeneralizationProjectedMotif,
+        application_observations:
+            Vec<
+                athlesia_recursive_world_model_revision_discovery::
+                    RecursiveWorldRevisionDiscoveryObservation,
+            >,
+        budget: athlesia_recursive_world_model::RecursiveWorldRevisionBudget,
+    ) -> RecursiveWorldRevisionAbstractionCompositionGeneralizationRevisionCycleResult {
+        RecursiveWorldRevisionAbstractionCompositionGeneralizationRevisionCycle::evaluate(
+            model,
+            evidence_state,
+            target,
+            projected_motif,
+            application_observations,
+            budget,
+        )
+    }
+}
