@@ -4849,3 +4849,349 @@ impl MindstoneIntegratedSparseCycle {
         IntegratedSparseCycle::evaluate(state, event_index, structure, profile, context)
     }
 }
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct BoundedHypothesisSearchNode {
+    identity: CollisionSafeStructuralIdentity,
+    score: CognitiveSignal,
+    estimated_cost: u32,
+    depth: u16,
+    path_length: usize,
+}
+
+impl BoundedHypothesisSearchNode {
+    pub fn new(
+        identity: CollisionSafeStructuralIdentity,
+        score: CognitiveSignal,
+        estimated_cost: u32,
+        depth: u16,
+        path_length: usize,
+    ) -> Option<Self> {
+        if score == CognitiveSignal::zero()
+            || estimated_cost == 0
+            || path_length == 0
+            || usize::from(depth) >= path_length
+        {
+            return None;
+        }
+
+        Some(Self {
+            identity,
+            score,
+            estimated_cost,
+            depth,
+            path_length,
+        })
+    }
+
+    pub fn identity(&self) -> &CollisionSafeStructuralIdentity {
+        &self.identity
+    }
+
+    pub fn fingerprint(&self) -> CognitiveFingerprint {
+        self.identity.fingerprint()
+    }
+
+    pub fn structure(&self) -> &CognitiveStructure {
+        self.identity.structure()
+    }
+
+    pub fn score(&self) -> CognitiveSignal {
+        self.score
+    }
+
+    pub fn estimated_cost(&self) -> u32 {
+        self.estimated_cost
+    }
+
+    pub fn depth(&self) -> u16 {
+        self.depth
+    }
+
+    pub fn path_length(&self) -> usize {
+        self.path_length
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+pub struct BoundedHypothesisSearchPolicy {
+    max_hypotheses: usize,
+    max_path_length: usize,
+    max_depth: u16,
+}
+
+impl BoundedHypothesisSearchPolicy {
+    pub fn new(max_hypotheses: usize, max_path_length: usize, max_depth: u16) -> Option<Self> {
+        if max_hypotheses == 0 || max_path_length == 0 {
+            return None;
+        }
+
+        Some(Self {
+            max_hypotheses,
+            max_path_length,
+            max_depth,
+        })
+    }
+
+    pub fn max_hypotheses(self) -> usize {
+        self.max_hypotheses
+    }
+
+    pub fn max_path_length(self) -> usize {
+        self.max_path_length
+    }
+
+    pub fn max_depth(self) -> u16 {
+        self.max_depth
+    }
+
+    pub fn admits(self, node: &BoundedHypothesisSearchNode) -> bool {
+        node.depth() <= self.max_depth && node.path_length() <= self.max_path_length
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct BoundedHypothesisSearchResult {
+    input_count: usize,
+    eligible_count: usize,
+    retained_frontier_count: usize,
+    rejected_by_depth_count: usize,
+    rejected_by_path_count: usize,
+    dropped_by_frontier_count: usize,
+    selected: Vec<BoundedHypothesisSearchNode>,
+    total_selected_cost: u32,
+    truncated_by_compute_budget: bool,
+}
+
+impl BoundedHypothesisSearchResult {
+    pub fn input_count(&self) -> usize {
+        self.input_count
+    }
+
+    pub fn eligible_count(&self) -> usize {
+        self.eligible_count
+    }
+
+    pub fn retained_frontier_count(&self) -> usize {
+        self.retained_frontier_count
+    }
+
+    pub fn rejected_by_depth_count(&self) -> usize {
+        self.rejected_by_depth_count
+    }
+
+    pub fn rejected_by_path_count(&self) -> usize {
+        self.rejected_by_path_count
+    }
+
+    pub fn dropped_by_frontier_count(&self) -> usize {
+        self.dropped_by_frontier_count
+    }
+
+    pub fn selected(&self) -> &[BoundedHypothesisSearchNode] {
+        &self.selected
+    }
+
+    pub fn selected_count(&self) -> usize {
+        self.selected.len()
+    }
+
+    pub fn total_selected_cost(&self) -> u32 {
+        self.total_selected_cost
+    }
+
+    pub fn truncated_by_compute_budget(&self) -> bool {
+        self.truncated_by_compute_budget
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, Hash, Ord, PartialEq, PartialOrd)]
+pub struct BoundedHypothesisPathDepthSearch;
+
+impl BoundedHypothesisPathDepthSearch {
+    fn compare_structure(
+        left: &CognitiveStructure,
+        right: &CognitiveStructure,
+    ) -> std::cmp::Ordering {
+        use std::cmp::Ordering;
+
+        match (left, right) {
+            (CognitiveStructure::Atom(left_value), CognitiveStructure::Atom(right_value)) => {
+                left_value.cmp(right_value)
+            }
+
+            (CognitiveStructure::Atom(_), _) => Ordering::Less,
+
+            (_, CognitiveStructure::Atom(_)) => Ordering::Greater,
+
+            (
+                CognitiveStructure::Ordered(left_values),
+                CognitiveStructure::Ordered(right_values),
+            )
+            | (
+                CognitiveStructure::Unordered(left_values),
+                CognitiveStructure::Unordered(right_values),
+            ) => {
+                let mut left_iterator = left_values.iter();
+
+                let mut right_iterator = right_values.iter();
+
+                loop {
+                    match (left_iterator.next(), right_iterator.next()) {
+                        (Some(left_item), Some(right_item)) => {
+                            let ordering = Self::compare_structure(left_item, right_item);
+
+                            if ordering != Ordering::Equal {
+                                return ordering;
+                            }
+                        }
+
+                        (None, Some(_)) => {
+                            return Ordering::Less;
+                        }
+
+                        (Some(_), None) => {
+                            return Ordering::Greater;
+                        }
+
+                        (None, None) => {
+                            return Ordering::Equal;
+                        }
+                    }
+                }
+            }
+
+            (CognitiveStructure::Ordered(_), CognitiveStructure::Unordered(_)) => Ordering::Less,
+
+            (CognitiveStructure::Unordered(_), CognitiveStructure::Ordered(_)) => Ordering::Greater,
+        }
+    }
+
+    fn ranking(
+        left: &BoundedHypothesisSearchNode,
+        right: &BoundedHypothesisSearchNode,
+    ) -> std::cmp::Ordering {
+        right
+            .score()
+            .cmp(&left.score())
+            .then_with(|| left.depth().cmp(&right.depth()))
+            .then_with(|| left.path_length().cmp(&right.path_length()))
+            .then_with(|| left.estimated_cost().cmp(&right.estimated_cost()))
+            .then_with(|| left.fingerprint().cmp(&right.fingerprint()))
+            .then_with(|| Self::compare_structure(left.structure(), right.structure()))
+    }
+
+    fn exact_identity_position(
+        frontier: &[BoundedHypothesisSearchNode],
+        candidate: &BoundedHypothesisSearchNode,
+    ) -> Option<usize> {
+        frontier.iter().position(|existing| {
+            existing
+                .identity()
+                .semantically_matches(candidate.identity())
+        })
+    }
+
+    pub fn search(
+        candidates: &[BoundedHypothesisSearchNode],
+        policy: BoundedHypothesisSearchPolicy,
+        budget: CognitiveBudget,
+    ) -> BoundedHypothesisSearchResult {
+        let input_count = candidates.len();
+
+        let mut eligible_count = 0_usize;
+
+        let mut rejected_by_depth_count = 0_usize;
+
+        let mut rejected_by_path_count = 0_usize;
+
+        let mut dropped_by_frontier_count = 0_usize;
+
+        let mut frontier: Vec<BoundedHypothesisSearchNode> =
+            Vec::with_capacity(policy.max_hypotheses());
+
+        for candidate in candidates {
+            if candidate.depth() > policy.max_depth() {
+                rejected_by_depth_count = rejected_by_depth_count.saturating_add(1);
+
+                continue;
+            }
+
+            if candidate.path_length() > policy.max_path_length() {
+                rejected_by_path_count = rejected_by_path_count.saturating_add(1);
+
+                continue;
+            }
+
+            eligible_count = eligible_count.saturating_add(1);
+
+            if let Some(position) = Self::exact_identity_position(&frontier, candidate) {
+                if Self::ranking(candidate, &frontier[position]) == std::cmp::Ordering::Less {
+                    frontier[position] = candidate.clone();
+                }
+            } else {
+                frontier.push(candidate.clone());
+            }
+
+            frontier.sort_by(Self::ranking);
+
+            if frontier.len() > policy.max_hypotheses() {
+                frontier.pop();
+
+                dropped_by_frontier_count = dropped_by_frontier_count.saturating_add(1);
+            }
+        }
+
+        let retained_frontier_count = frontier.len();
+
+        let mut selected = Vec::with_capacity(retained_frontier_count);
+
+        let mut total_selected_cost = 0_u32;
+
+        let mut truncated_by_compute_budget = false;
+
+        for candidate in frontier {
+            let Some(next_total) = total_selected_cost.checked_add(candidate.estimated_cost())
+            else {
+                truncated_by_compute_budget = true;
+
+                break;
+            };
+
+            if next_total > budget.units() {
+                truncated_by_compute_budget = true;
+
+                break;
+            }
+
+            total_selected_cost = next_total;
+
+            selected.push(candidate);
+        }
+
+        BoundedHypothesisSearchResult {
+            input_count,
+            eligible_count,
+            retained_frontier_count,
+            rejected_by_depth_count,
+            rejected_by_path_count,
+            dropped_by_frontier_count,
+            selected,
+            total_selected_cost,
+            truncated_by_compute_budget,
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, Hash, Ord, PartialEq, PartialOrd)]
+pub struct MindstoneBoundedHypothesisPathDepthSearch;
+
+impl MindstoneBoundedHypothesisPathDepthSearch {
+    pub fn evaluate(
+        candidates: &[BoundedHypothesisSearchNode],
+        policy: BoundedHypothesisSearchPolicy,
+        budget: CognitiveBudget,
+    ) -> BoundedHypothesisSearchResult {
+        BoundedHypothesisPathDepthSearch::search(candidates, policy, budget)
+    }
+}
