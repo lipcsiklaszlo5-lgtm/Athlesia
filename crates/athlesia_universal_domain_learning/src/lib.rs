@@ -2114,3 +2114,842 @@ impl UniversalTransitionSchemaInduction {
         TransitionSchemaInduction::induce(episodes, invariants, policy)
     }
 }
+
+pub const MAX_CONTEXT_PREMISES: usize = 6;
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ContextPremiseSet {
+    premises: Vec<CognitiveStructure>,
+}
+
+impl ContextPremiseSet {
+    pub fn new(mut premises: Vec<CognitiveStructure>) -> Option<Self> {
+        premises.sort_by(PredicateDiscovery::compare_structure);
+
+        premises.dedup();
+
+        if premises.is_empty() || premises.len() > MAX_CONTEXT_PREMISES {
+            return None;
+        }
+
+        Some(Self { premises })
+    }
+
+    pub fn premises(&self) -> &[CognitiveStructure] {
+        &self.premises
+    }
+
+    pub fn premise_count(&self) -> usize {
+        self.premises.len()
+    }
+
+    pub fn is_satisfied_by(&self, state: &GroundedStateSnapshot) -> bool {
+        self.premises
+            .iter()
+            .all(|premise| state.contains_fact(premise))
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub struct ContextualTransitionEvidenceThresholds {
+    minimum_support: u64,
+    minimum_precision: CognitiveSignal,
+    minimum_association_lift: CognitiveSignal,
+    minimum_incremental_gain: CognitiveSignal,
+}
+
+impl ContextualTransitionEvidenceThresholds {
+    pub fn new(
+        minimum_support: u64,
+        minimum_precision: CognitiveSignal,
+        minimum_association_lift: CognitiveSignal,
+        minimum_incremental_gain: CognitiveSignal,
+    ) -> Option<Self> {
+        if minimum_support == 0
+            || minimum_association_lift == CognitiveSignal::zero()
+            || minimum_incremental_gain == CognitiveSignal::zero()
+        {
+            return None;
+        }
+
+        Some(Self {
+            minimum_support,
+            minimum_precision,
+            minimum_association_lift,
+            minimum_incremental_gain,
+        })
+    }
+
+    pub fn minimum_support(self) -> u64 {
+        self.minimum_support
+    }
+
+    pub fn minimum_precision(self) -> CognitiveSignal {
+        self.minimum_precision
+    }
+
+    pub fn minimum_association_lift(self) -> CognitiveSignal {
+        self.minimum_association_lift
+    }
+
+    pub fn minimum_incremental_gain(self) -> CognitiveSignal {
+        self.minimum_incremental_gain
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub struct ContextualTransitionRulePolicy {
+    max_context_premises: usize,
+    max_candidate_contexts: usize,
+    max_rule_evaluations: usize,
+    max_rules: usize,
+    thresholds: ContextualTransitionEvidenceThresholds,
+}
+
+impl ContextualTransitionRulePolicy {
+    pub fn new(
+        max_context_premises: usize,
+        max_candidate_contexts: usize,
+        max_rule_evaluations: usize,
+        max_rules: usize,
+        thresholds: ContextualTransitionEvidenceThresholds,
+    ) -> Option<Self> {
+        if !(1..=MAX_CONTEXT_PREMISES).contains(&max_context_premises)
+            || max_candidate_contexts == 0
+            || max_rule_evaluations == 0
+            || max_rules == 0
+        {
+            return None;
+        }
+
+        Some(Self {
+            max_context_premises,
+            max_candidate_contexts,
+            max_rule_evaluations,
+            max_rules,
+            thresholds,
+        })
+    }
+
+    pub fn max_context_premises(self) -> usize {
+        self.max_context_premises
+    }
+
+    pub fn max_candidate_contexts(self) -> usize {
+        self.max_candidate_contexts
+    }
+
+    pub fn max_rule_evaluations(self) -> usize {
+        self.max_rule_evaluations
+    }
+
+    pub fn max_rules(self) -> usize {
+        self.max_rules
+    }
+
+    pub fn thresholds(self) -> ContextualTransitionEvidenceThresholds {
+        self.thresholds
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct GroundedContextualTransitionRuleHypothesis {
+    transformation: CognitiveStructure,
+    context: ContextPremiseSet,
+    effect_kind: TransitionEffectKind,
+    effect_fact: CognitiveStructure,
+    support_count: u64,
+    context_opportunity_count: u64,
+    transformation_support_count: u64,
+    transformation_opportunity_count: u64,
+    global_support_count: u64,
+    global_opportunity_count: u64,
+    counterexample_count: u64,
+    precision: CognitiveSignal,
+    transformation_precision: CognitiveSignal,
+    baseline_rate: CognitiveSignal,
+    association_lift: CognitiveSignal,
+    incremental_precision_gain: CognitiveSignal,
+}
+
+impl GroundedContextualTransitionRuleHypothesis {
+    pub fn transformation(&self) -> &CognitiveStructure {
+        &self.transformation
+    }
+
+    pub fn context(&self) -> &ContextPremiseSet {
+        &self.context
+    }
+
+    pub fn effect_kind(&self) -> TransitionEffectKind {
+        self.effect_kind
+    }
+
+    pub fn effect_fact(&self) -> &CognitiveStructure {
+        &self.effect_fact
+    }
+
+    pub fn support_count(&self) -> u64 {
+        self.support_count
+    }
+
+    pub fn context_opportunity_count(&self) -> u64 {
+        self.context_opportunity_count
+    }
+
+    pub fn transformation_support_count(&self) -> u64 {
+        self.transformation_support_count
+    }
+
+    pub fn transformation_opportunity_count(&self) -> u64 {
+        self.transformation_opportunity_count
+    }
+
+    pub fn global_support_count(&self) -> u64 {
+        self.global_support_count
+    }
+
+    pub fn global_opportunity_count(&self) -> u64 {
+        self.global_opportunity_count
+    }
+
+    pub fn counterexample_count(&self) -> u64 {
+        self.counterexample_count
+    }
+
+    pub fn precision(&self) -> CognitiveSignal {
+        self.precision
+    }
+
+    pub fn transformation_precision(&self) -> CognitiveSignal {
+        self.transformation_precision
+    }
+
+    pub fn baseline_rate(&self) -> CognitiveSignal {
+        self.baseline_rate
+    }
+
+    pub fn association_lift(&self) -> CognitiveSignal {
+        self.association_lift
+    }
+
+    pub fn incremental_precision_gain(&self) -> CognitiveSignal {
+        self.incremental_precision_gain
+    }
+
+    pub fn is_supported_by(&self, episode: &GroundedTransformationEpisode) -> bool {
+        episode.transformation() == &self.transformation
+            && self.context.is_satisfied_by(episode.before())
+            && episode.effect_occurs(self.effect_kind, &self.effect_fact)
+    }
+
+    pub fn is_counterexample(&self, episode: &GroundedTransformationEpisode) -> bool {
+        episode.transformation() == &self.transformation
+            && self.context.is_satisfied_by(episode.before())
+            && episode.effect_opportunity(self.effect_kind, &self.effect_fact)
+            && !episode.effect_occurs(self.effect_kind, &self.effect_fact)
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+struct ContextualEffectTarget {
+    transformation: CognitiveStructure,
+    kind: TransitionEffectKind,
+    fact: CognitiveStructure,
+    observed_support: u64,
+    seed_lift: u16,
+    seed_precision: u16,
+    seed_support: u64,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ContextualTransitionRuleResult {
+    vocabulary_fact_count: usize,
+    effect_target_count: usize,
+    schema_seeded_effect_target_count: usize,
+    possible_context_count: usize,
+    generated_context_count: usize,
+    candidate_generation_truncated: bool,
+    possible_rule_evaluation_count: usize,
+    evaluated_rule_candidate_count: usize,
+    rule_evaluation_truncated: bool,
+    admitted_before_frontier: usize,
+    selected: Vec<GroundedContextualTransitionRuleHypothesis>,
+}
+
+impl ContextualTransitionRuleResult {
+    pub fn vocabulary_fact_count(&self) -> usize {
+        self.vocabulary_fact_count
+    }
+
+    pub fn effect_target_count(&self) -> usize {
+        self.effect_target_count
+    }
+
+    pub fn schema_seeded_effect_target_count(&self) -> usize {
+        self.schema_seeded_effect_target_count
+    }
+
+    pub fn possible_context_count(&self) -> usize {
+        self.possible_context_count
+    }
+
+    pub fn generated_context_count(&self) -> usize {
+        self.generated_context_count
+    }
+
+    pub fn candidate_generation_truncated(&self) -> bool {
+        self.candidate_generation_truncated
+    }
+
+    pub fn possible_rule_evaluation_count(&self) -> usize {
+        self.possible_rule_evaluation_count
+    }
+
+    pub fn evaluated_rule_candidate_count(&self) -> usize {
+        self.evaluated_rule_candidate_count
+    }
+
+    pub fn rule_evaluation_truncated(&self) -> bool {
+        self.rule_evaluation_truncated
+    }
+
+    pub fn admitted_before_frontier(&self) -> usize {
+        self.admitted_before_frontier
+    }
+
+    pub fn selected(&self) -> &[GroundedContextualTransitionRuleHypothesis] {
+        &self.selected
+    }
+
+    pub fn selected_count(&self) -> usize {
+        self.selected.len()
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, Hash, PartialEq)]
+pub struct ContextualTransitionRuleInduction;
+
+impl ContextualTransitionRuleInduction {
+    fn scaled_rate(numerator: u64, denominator: u64) -> CognitiveSignal {
+        debug_assert!(denominator > 0);
+
+        let scaled = (u128::from(numerator) * 1000) / u128::from(denominator);
+
+        CognitiveSignal::new(scaled as u16)
+            .expect("bounded contextual transition rate remains on signal scale")
+    }
+
+    fn positive_difference(left: CognitiveSignal, right: CognitiveSignal) -> CognitiveSignal {
+        CognitiveSignal::new(left.value().saturating_sub(right.value()))
+            .expect("bounded contextual transition difference remains on signal scale")
+    }
+
+    fn compare_context(left: &ContextPremiseSet, right: &ContextPremiseSet) -> std::cmp::Ordering {
+        let mut left_iterator = left.premises().iter();
+
+        let mut right_iterator = right.premises().iter();
+
+        loop {
+            match (left_iterator.next(), right_iterator.next()) {
+                (Some(left_value), Some(right_value)) => {
+                    let ordering = PredicateDiscovery::compare_structure(left_value, right_value);
+
+                    if ordering != std::cmp::Ordering::Equal {
+                        return ordering;
+                    }
+                }
+
+                (None, Some(_)) => {
+                    return std::cmp::Ordering::Less;
+                }
+
+                (Some(_), None) => {
+                    return std::cmp::Ordering::Greater;
+                }
+
+                (None, None) => {
+                    return std::cmp::Ordering::Equal;
+                }
+            }
+        }
+    }
+
+    fn compare_target_identity(
+        left: &ContextualEffectTarget,
+        right: &ContextualEffectTarget,
+    ) -> std::cmp::Ordering {
+        PredicateDiscovery::compare_structure(&left.transformation, &right.transformation)
+            .then_with(|| left.kind.cmp(&right.kind))
+            .then_with(|| PredicateDiscovery::compare_structure(&left.fact, &right.fact))
+    }
+
+    fn schema_seed_strength(
+        transformation: &CognitiveStructure,
+        kind: TransitionEffectKind,
+        fact: &CognitiveStructure,
+        schemas: &[GroundedTransitionSchemaHypothesis],
+    ) -> (u16, u16, u64) {
+        schemas
+            .iter()
+            .filter(|schema| {
+                schema.transformation() == transformation
+                    && schema.effect_kind() == kind
+                    && schema.fact() == fact
+            })
+            .map(|schema| {
+                (
+                    schema.association_lift().value(),
+                    schema.precision().value(),
+                    schema.support_count(),
+                )
+            })
+            .max()
+            .unwrap_or((0, 0, 0))
+    }
+
+    fn observed_support(
+        episodes: &[GroundedTransformationEpisode],
+        transformation: &CognitiveStructure,
+        kind: TransitionEffectKind,
+        fact: &CognitiveStructure,
+    ) -> u64 {
+        episodes
+            .iter()
+            .filter(|episode| {
+                episode.transformation() == transformation && episode.effect_occurs(kind, fact)
+            })
+            .count() as u64
+    }
+
+    fn effect_targets(
+        episodes: &[GroundedTransformationEpisode],
+        schemas: &[GroundedTransitionSchemaHypothesis],
+    ) -> Vec<ContextualEffectTarget> {
+        let mut targets = Vec::new();
+
+        for episode in episodes {
+            for fact in episode.after().facts() {
+                if episode.effect_occurs(TransitionEffectKind::Added, fact) {
+                    targets.push(ContextualEffectTarget {
+                        transformation: episode.transformation().clone(),
+                        kind: TransitionEffectKind::Added,
+                        fact: fact.clone(),
+                        observed_support: 0,
+                        seed_lift: 0,
+                        seed_precision: 0,
+                        seed_support: 0,
+                    });
+                }
+            }
+
+            for fact in episode.before().facts() {
+                if episode.effect_occurs(TransitionEffectKind::Removed, fact) {
+                    targets.push(ContextualEffectTarget {
+                        transformation: episode.transformation().clone(),
+                        kind: TransitionEffectKind::Removed,
+                        fact: fact.clone(),
+                        observed_support: 0,
+                        seed_lift: 0,
+                        seed_precision: 0,
+                        seed_support: 0,
+                    });
+                }
+            }
+        }
+
+        targets.sort_by(Self::compare_target_identity);
+
+        targets.dedup_by(|left, right| {
+            Self::compare_target_identity(left, right) == std::cmp::Ordering::Equal
+        });
+
+        for target in &mut targets {
+            target.observed_support =
+                Self::observed_support(episodes, &target.transformation, target.kind, &target.fact);
+
+            let (seed_lift, seed_precision, seed_support) = Self::schema_seed_strength(
+                &target.transformation,
+                target.kind,
+                &target.fact,
+                schemas,
+            );
+
+            target.seed_lift = seed_lift;
+
+            target.seed_precision = seed_precision;
+
+            target.seed_support = seed_support;
+        }
+
+        targets.sort_by(|left, right| {
+            right
+                .seed_lift
+                .cmp(&left.seed_lift)
+                .then_with(|| right.seed_precision.cmp(&left.seed_precision))
+                .then_with(|| right.seed_support.cmp(&left.seed_support))
+                .then_with(|| right.observed_support.cmp(&left.observed_support))
+                .then_with(|| Self::compare_target_identity(left, right))
+        });
+
+        targets
+    }
+
+    fn context_vocabulary(episodes: &[GroundedTransformationEpisode]) -> Vec<CognitiveStructure> {
+        let mut facts = episodes
+            .iter()
+            .flat_map(|episode| episode.before().facts().iter().cloned())
+            .collect::<Vec<_>>();
+
+        facts.sort_by(PredicateDiscovery::compare_structure);
+
+        facts.dedup();
+
+        facts
+    }
+
+    fn binomial_saturating(n: usize, k: usize) -> usize {
+        if k > n {
+            return 0;
+        }
+
+        let effective_k = k.min(n - k);
+
+        let mut value = 1_u128;
+
+        for index in 0..effective_k {
+            value = value.saturating_mul((n - index) as u128) / (index + 1) as u128;
+
+            if value > usize::MAX as u128 {
+                return usize::MAX;
+            }
+        }
+
+        value as usize
+    }
+
+    fn possible_context_count(vocabulary_len: usize, max_context_premises: usize) -> usize {
+        let upper = max_context_premises.min(vocabulary_len);
+
+        (1..=upper).fold(0_usize, |total, size| {
+            total.saturating_add(Self::binomial_saturating(vocabulary_len, size))
+        })
+    }
+
+    fn generate_context_combinations(
+        vocabulary: &[CognitiveStructure],
+        target_size: usize,
+        start: usize,
+        current: &mut Vec<CognitiveStructure>,
+        output: &mut Vec<ContextPremiseSet>,
+        limit: usize,
+    ) {
+        if output.len() >= limit {
+            return;
+        }
+
+        if current.len() == target_size {
+            output.push(
+                ContextPremiseSet::new(current.clone())
+                    .expect("generated contextual premise set is valid"),
+            );
+
+            return;
+        }
+
+        let remaining_needed = target_size.saturating_sub(current.len());
+
+        if vocabulary.len() < start.saturating_add(remaining_needed) {
+            return;
+        }
+
+        let last_start = vocabulary.len() - remaining_needed;
+
+        for index in start..=last_start {
+            if output.len() >= limit {
+                return;
+            }
+
+            current.push(vocabulary[index].clone());
+
+            Self::generate_context_combinations(
+                vocabulary,
+                target_size,
+                index + 1,
+                current,
+                output,
+                limit,
+            );
+
+            current.pop();
+        }
+    }
+
+    fn contexts(
+        vocabulary: &[CognitiveStructure],
+        policy: ContextualTransitionRulePolicy,
+    ) -> (Vec<ContextPremiseSet>, usize, bool) {
+        let possible =
+            Self::possible_context_count(vocabulary.len(), policy.max_context_premises());
+
+        let upper = policy.max_context_premises().min(vocabulary.len());
+
+        let mut generated = Vec::new();
+
+        for target_size in 1..=upper {
+            if generated.len() >= policy.max_candidate_contexts() {
+                break;
+            }
+
+            Self::generate_context_combinations(
+                vocabulary,
+                target_size,
+                0,
+                &mut Vec::new(),
+                &mut generated,
+                policy.max_candidate_contexts(),
+            );
+        }
+
+        let truncated = possible > generated.len();
+
+        (generated, possible, truncated)
+    }
+
+    fn evaluate_rule(
+        episodes: &[GroundedTransformationEpisode],
+        target: &ContextualEffectTarget,
+        context: &ContextPremiseSet,
+        thresholds: ContextualTransitionEvidenceThresholds,
+    ) -> Option<GroundedContextualTransitionRuleHypothesis> {
+        let transformation_opportunity_count = episodes
+            .iter()
+            .filter(|episode| {
+                episode.transformation() == &target.transformation
+                    && episode.effect_opportunity(target.kind, &target.fact)
+            })
+            .count() as u64;
+
+        if transformation_opportunity_count == 0 {
+            return None;
+        }
+
+        let transformation_support_count = episodes
+            .iter()
+            .filter(|episode| {
+                episode.transformation() == &target.transformation
+                    && episode.effect_occurs(target.kind, &target.fact)
+            })
+            .count() as u64;
+
+        let context_opportunity_count = episodes
+            .iter()
+            .filter(|episode| {
+                episode.transformation() == &target.transformation
+                    && context.is_satisfied_by(episode.before())
+                    && episode.effect_opportunity(target.kind, &target.fact)
+            })
+            .count() as u64;
+
+        if context_opportunity_count == 0 {
+            return None;
+        }
+
+        let support_count = episodes
+            .iter()
+            .filter(|episode| {
+                episode.transformation() == &target.transformation
+                    && context.is_satisfied_by(episode.before())
+                    && episode.effect_occurs(target.kind, &target.fact)
+            })
+            .count() as u64;
+
+        if support_count == 0 {
+            return None;
+        }
+
+        let global_opportunity_count = episodes
+            .iter()
+            .filter(|episode| episode.effect_opportunity(target.kind, &target.fact))
+            .count() as u64;
+
+        if global_opportunity_count == 0 {
+            return None;
+        }
+
+        let global_support_count = episodes
+            .iter()
+            .filter(|episode| episode.effect_occurs(target.kind, &target.fact))
+            .count() as u64;
+
+        let counterexample_count = context_opportunity_count.saturating_sub(support_count);
+
+        let precision = Self::scaled_rate(support_count, context_opportunity_count);
+
+        let transformation_precision = Self::scaled_rate(
+            transformation_support_count,
+            transformation_opportunity_count,
+        );
+
+        let baseline_rate = Self::scaled_rate(global_support_count, global_opportunity_count);
+
+        let association_lift = Self::positive_difference(precision, baseline_rate);
+
+        let incremental_precision_gain =
+            Self::positive_difference(precision, transformation_precision);
+
+        if support_count < thresholds.minimum_support()
+            || precision.value() < thresholds.minimum_precision().value()
+            || association_lift.value() < thresholds.minimum_association_lift().value()
+            || incremental_precision_gain.value() < thresholds.minimum_incremental_gain().value()
+        {
+            return None;
+        }
+
+        Some(GroundedContextualTransitionRuleHypothesis {
+            transformation: target.transformation.clone(),
+            context: context.clone(),
+            effect_kind: target.kind,
+            effect_fact: target.fact.clone(),
+            support_count,
+            context_opportunity_count,
+            transformation_support_count,
+            transformation_opportunity_count,
+            global_support_count,
+            global_opportunity_count,
+            counterexample_count,
+            precision,
+            transformation_precision,
+            baseline_rate,
+            association_lift,
+            incremental_precision_gain,
+        })
+    }
+
+    fn ranking(
+        left: &GroundedContextualTransitionRuleHypothesis,
+        right: &GroundedContextualTransitionRuleHypothesis,
+    ) -> std::cmp::Ordering {
+        right
+            .incremental_precision_gain()
+            .value()
+            .cmp(&left.incremental_precision_gain().value())
+            .then_with(|| {
+                right
+                    .association_lift()
+                    .value()
+                    .cmp(&left.association_lift().value())
+            })
+            .then_with(|| right.precision().value().cmp(&left.precision().value()))
+            .then_with(|| right.support_count().cmp(&left.support_count()))
+            .then_with(|| {
+                left.context()
+                    .premise_count()
+                    .cmp(&right.context().premise_count())
+            })
+            .then_with(|| {
+                left.counterexample_count()
+                    .cmp(&right.counterexample_count())
+            })
+            .then_with(|| {
+                PredicateDiscovery::compare_structure(left.transformation(), right.transformation())
+            })
+            .then_with(|| left.effect_kind().cmp(&right.effect_kind()))
+            .then_with(|| {
+                PredicateDiscovery::compare_structure(left.effect_fact(), right.effect_fact())
+            })
+            .then_with(|| Self::compare_context(left.context(), right.context()))
+    }
+
+    pub fn induce(
+        episodes: &[GroundedTransformationEpisode],
+        schema_seeds: &[GroundedTransitionSchemaHypothesis],
+        policy: ContextualTransitionRulePolicy,
+    ) -> ContextualTransitionRuleResult {
+        if episodes.is_empty() {
+            return ContextualTransitionRuleResult {
+                vocabulary_fact_count: 0,
+                effect_target_count: 0,
+                schema_seeded_effect_target_count: 0,
+                possible_context_count: 0,
+                generated_context_count: 0,
+                candidate_generation_truncated: false,
+                possible_rule_evaluation_count: 0,
+                evaluated_rule_candidate_count: 0,
+                rule_evaluation_truncated: false,
+                admitted_before_frontier: 0,
+                selected: Vec::new(),
+            };
+        }
+
+        let vocabulary = Self::context_vocabulary(episodes);
+
+        let targets = Self::effect_targets(episodes, schema_seeds);
+
+        let schema_seeded_effect_target_count = targets
+            .iter()
+            .filter(|target| {
+                target.seed_lift > 0 || target.seed_precision > 0 || target.seed_support > 0
+            })
+            .count();
+
+        let (contexts, possible_context_count, candidate_generation_truncated) =
+            Self::contexts(&vocabulary, policy);
+
+        let possible_rule_evaluation_count = targets.len().saturating_mul(contexts.len());
+
+        let mut evaluated_rule_candidate_count = 0_usize;
+
+        let mut admitted = Vec::new();
+
+        'targets: for target in &targets {
+            for context in &contexts {
+                if evaluated_rule_candidate_count >= policy.max_rule_evaluations() {
+                    break 'targets;
+                }
+
+                evaluated_rule_candidate_count = evaluated_rule_candidate_count.saturating_add(1);
+
+                if let Some(rule) =
+                    Self::evaluate_rule(episodes, target, context, policy.thresholds())
+                {
+                    admitted.push(rule);
+                }
+            }
+        }
+
+        admitted.sort_by(Self::ranking);
+
+        let admitted_before_frontier = admitted.len();
+
+        admitted.truncate(policy.max_rules());
+
+        ContextualTransitionRuleResult {
+            vocabulary_fact_count: vocabulary.len(),
+            effect_target_count: targets.len(),
+            schema_seeded_effect_target_count,
+            possible_context_count,
+            generated_context_count: contexts.len(),
+            candidate_generation_truncated,
+            possible_rule_evaluation_count,
+            evaluated_rule_candidate_count,
+            rule_evaluation_truncated: candidate_generation_truncated
+                || possible_rule_evaluation_count > policy.max_rule_evaluations(),
+            admitted_before_frontier,
+            selected: admitted,
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, Hash, PartialEq)]
+pub struct UniversalContextualTransitionRuleInduction;
+
+impl UniversalContextualTransitionRuleInduction {
+    pub fn evaluate(
+        episodes: &[GroundedTransformationEpisode],
+        schema_seeds: &[GroundedTransitionSchemaHypothesis],
+        policy: ContextualTransitionRulePolicy,
+    ) -> ContextualTransitionRuleResult {
+        ContextualTransitionRuleInduction::induce(episodes, schema_seeds, policy)
+    }
+}
