@@ -10,6 +10,7 @@
   "implementation_language": "Rust",
   "implementation_sha256": {
     "Cargo.toml": "e852faab0d9dff23b09e1ee2323d0998955f837450c70ea015382ffe5ec52bff",
+    "crates/athlesia_core_knowledge_perceptual_grounding/Cargo.lock": "fbefd559ec01ff3860d153fdf05e9a29f10ecff62eb63206d1b8e643c35ec7b4",
     "crates/athlesia_core_knowledge_perceptual_grounding/Cargo.toml": "04ffcd03f7862aac5423b16466ca1ea5ad1ad65856a76a9f4a4265c6dca64ff8",
     "crates/athlesia_core_knowledge_perceptual_grounding/src/lib.rs": "6fe2e890cdc2f5a523e38bfe0576270b3a0d788d5b55a1af7f40636468ab2762",
     "crates/athlesia_core_knowledge_perceptual_grounding/tests/core_knowledge_perceptual_grounding_foundation.rs": "a5229032192bdd0bbf0dd58ef55aeeec9410917a164a40ea80d73d63ff32d4cb",
