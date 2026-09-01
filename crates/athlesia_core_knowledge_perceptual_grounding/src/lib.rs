@@ -896,3 +896,285 @@ impl CoreKnowledgePersistenceTracking {
         PersistenceTracking::select(candidates, policy)
     }
 }
+
+#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+pub enum TopologicalRelationKind {
+    Adjacent,
+    Contact,
+    Contains,
+    Overlap,
+    Separate,
+}
+
+impl TopologicalRelationKind {
+    pub fn is_symmetric(self) -> bool {
+        matches!(
+            self,
+            Self::Adjacent | Self::Contact | Self::Overlap | Self::Separate
+        )
+    }
+}
+
+#[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+struct TopologicalPairKey {
+    first: ObjectObservation,
+    second: ObjectObservation,
+}
+
+impl TopologicalPairKey {
+    fn new(left: &ObjectObservation, right: &ObjectObservation) -> Self {
+        if left <= right {
+            Self {
+                first: left.clone(),
+                second: right.clone(),
+            }
+        } else {
+            Self {
+                first: right.clone(),
+                second: left.clone(),
+            }
+        }
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct TopologicalRelationHypothesis {
+    subject: ObjectObservation,
+    relation: TopologicalRelationKind,
+    object: ObjectObservation,
+    support: CognitiveSignal,
+}
+
+impl TopologicalRelationHypothesis {
+    pub fn new(
+        mut subject: ObjectObservation,
+        relation: TopologicalRelationKind,
+        mut object: ObjectObservation,
+        support: CognitiveSignal,
+    ) -> Option<Self> {
+        if subject.observation_index() != object.observation_index()
+            || subject == object
+            || support == CognitiveSignal::zero()
+        {
+            return None;
+        }
+
+        if relation.is_symmetric() && object < subject {
+            std::mem::swap(&mut subject, &mut object);
+        }
+
+        Some(Self {
+            subject,
+            relation,
+            object,
+            support,
+        })
+    }
+
+    pub fn observation_index(&self) -> u64 {
+        self.subject.observation_index()
+    }
+
+    pub fn subject(&self) -> &ObjectObservation {
+        &self.subject
+    }
+
+    pub fn relation(&self) -> TopologicalRelationKind {
+        self.relation
+    }
+
+    pub fn object(&self) -> &ObjectObservation {
+        &self.object
+    }
+
+    pub fn support(&self) -> CognitiveSignal {
+        self.support
+    }
+
+    pub fn is_directional(&self) -> bool {
+        !self.relation.is_symmetric()
+    }
+
+    fn pair_key(&self) -> TopologicalPairKey {
+        TopologicalPairKey::new(&self.subject, &self.object)
+    }
+
+    fn same_relation_identity(&self, other: &Self) -> bool {
+        self.subject == other.subject
+            && self.relation == other.relation
+            && self.object == other.object
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+pub struct TopologicalRelationPolicy {
+    max_relations_per_pair: usize,
+    max_total_relations: usize,
+}
+
+impl TopologicalRelationPolicy {
+    pub fn new(max_relations_per_pair: usize, max_total_relations: usize) -> Option<Self> {
+        if max_relations_per_pair == 0 || max_total_relations == 0 {
+            return None;
+        }
+
+        Some(Self {
+            max_relations_per_pair,
+            max_total_relations,
+        })
+    }
+
+    pub fn max_relations_per_pair(self) -> usize {
+        self.max_relations_per_pair
+    }
+
+    pub fn max_total_relations(self) -> usize {
+        self.max_total_relations
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct TopologicalRelationCompetitionResult {
+    input_relation_count: usize,
+    canonical_relation_count: usize,
+    duplicate_relation_count: usize,
+    dropped_by_pair_bound_count: usize,
+    dropped_by_global_bound_count: usize,
+    selected: Vec<TopologicalRelationHypothesis>,
+}
+
+impl TopologicalRelationCompetitionResult {
+    pub fn input_relation_count(&self) -> usize {
+        self.input_relation_count
+    }
+
+    pub fn canonical_relation_count(&self) -> usize {
+        self.canonical_relation_count
+    }
+
+    pub fn duplicate_relation_count(&self) -> usize {
+        self.duplicate_relation_count
+    }
+
+    pub fn dropped_by_pair_bound_count(&self) -> usize {
+        self.dropped_by_pair_bound_count
+    }
+
+    pub fn dropped_by_global_bound_count(&self) -> usize {
+        self.dropped_by_global_bound_count
+    }
+
+    pub fn selected(&self) -> &[TopologicalRelationHypothesis] {
+        &self.selected
+    }
+
+    pub fn selected_count(&self) -> usize {
+        self.selected.len()
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, Hash, Ord, PartialEq, PartialOrd)]
+pub struct TopologicalRelationCompetition;
+
+impl TopologicalRelationCompetition {
+    fn ranking(
+        left: &TopologicalRelationHypothesis,
+        right: &TopologicalRelationHypothesis,
+    ) -> std::cmp::Ordering {
+        right
+            .support()
+            .cmp(&left.support())
+            .then_with(|| left.relation().cmp(&right.relation()))
+            .then_with(|| left.subject().cmp(right.subject()))
+            .then_with(|| left.object().cmp(right.object()))
+    }
+
+    pub fn select(
+        candidates: &[TopologicalRelationHypothesis],
+        policy: TopologicalRelationPolicy,
+    ) -> TopologicalRelationCompetitionResult {
+        let input_relation_count = candidates.len();
+
+        let mut canonical: Vec<TopologicalRelationHypothesis> = Vec::new();
+
+        let mut duplicate_relation_count = 0_usize;
+
+        for candidate in candidates {
+            if let Some(position) = canonical
+                .iter()
+                .position(|existing| existing.same_relation_identity(candidate))
+            {
+                duplicate_relation_count = duplicate_relation_count.saturating_add(1);
+
+                if Self::ranking(candidate, &canonical[position]) == std::cmp::Ordering::Less {
+                    canonical[position] = candidate.clone();
+                }
+            } else {
+                canonical.push(candidate.clone());
+            }
+        }
+
+        canonical.sort_by(Self::ranking);
+
+        let canonical_relation_count = canonical.len();
+
+        let mut pair_counts: std::collections::BTreeMap<TopologicalPairKey, usize> =
+            std::collections::BTreeMap::new();
+
+        let mut selected =
+            Vec::with_capacity(policy.max_total_relations().min(canonical_relation_count));
+
+        let mut dropped_by_pair_bound_count = 0_usize;
+
+        let mut dropped_by_global_bound_count = 0_usize;
+
+        for (index, candidate) in canonical.into_iter().enumerate() {
+            if selected.len() >= policy.max_total_relations() {
+                dropped_by_global_bound_count = dropped_by_global_bound_count
+                    .saturating_add(canonical_relation_count.saturating_sub(index));
+
+                break;
+            }
+
+            let pair_key = candidate.pair_key();
+
+            let current_count = pair_counts.get(&pair_key).copied().unwrap_or(0);
+
+            if current_count >= policy.max_relations_per_pair() {
+                dropped_by_pair_bound_count = dropped_by_pair_bound_count.saturating_add(1);
+
+                continue;
+            }
+
+            pair_counts
+                .entry(pair_key)
+                .and_modify(|count| {
+                    *count = count.saturating_add(1);
+                })
+                .or_insert(1);
+
+            selected.push(candidate);
+        }
+
+        TopologicalRelationCompetitionResult {
+            input_relation_count,
+            canonical_relation_count,
+            duplicate_relation_count,
+            dropped_by_pair_bound_count,
+            dropped_by_global_bound_count,
+            selected,
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, Hash, Ord, PartialEq, PartialOrd)]
+pub struct CoreKnowledgeTopologicalRelations;
+
+impl CoreKnowledgeTopologicalRelations {
+    pub fn evaluate(
+        candidates: &[TopologicalRelationHypothesis],
+        policy: TopologicalRelationPolicy,
+    ) -> TopologicalRelationCompetitionResult {
+        TopologicalRelationCompetition::select(candidates, policy)
+    }
+}

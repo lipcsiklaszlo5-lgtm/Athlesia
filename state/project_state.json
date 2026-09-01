@@ -12,9 +12,10 @@
     "Cargo.toml": "e852faab0d9dff23b09e1ee2323d0998955f837450c70ea015382ffe5ec52bff",
     "crates/athlesia_core_knowledge_perceptual_grounding/Cargo.lock": "fbefd559ec01ff3860d153fdf05e9a29f10ecff62eb63206d1b8e643c35ec7b4",
     "crates/athlesia_core_knowledge_perceptual_grounding/Cargo.toml": "04ffcd03f7862aac5423b16466ca1ea5ad1ad65856a76a9f4a4265c6dca64ff8",
-    "crates/athlesia_core_knowledge_perceptual_grounding/src/lib.rs": "04558eaf0e0285afd115f9c37abf2eec66d551a745c76710673573155c832982",
+    "crates/athlesia_core_knowledge_perceptual_grounding/src/lib.rs": "833039fa98f9e23ec9acb8d826e8b879638c7c5b6a87571449e455cfa0a13008",
     "crates/athlesia_core_knowledge_perceptual_grounding/tests/core_knowledge_perceptual_grounding_foundation.rs": "a5229032192bdd0bbf0dd58ef55aeeec9410917a164a40ea80d73d63ff32d4cb",
     "crates/athlesia_core_knowledge_perceptual_grounding/tests/core_knowledge_perceptual_grounding_persistence_tracking.rs": "a16fbb00c99c8298055f7dd6421d30c173c0dae4e1f96ec96db45528994512cc",
+    "crates/athlesia_core_knowledge_perceptual_grounding/tests/core_knowledge_perceptual_grounding_topology_relations.rs": "2596aa80657ffdfaecb1681a5b62a8153f47de0d6d91c76771d76bc9e5bc8fe3",
     "crates/athlesia_cross_level/Cargo.lock": "e7672cfc40c8c81465a5682b0ae831a17215d2bfeefd293b3d570168194e0d38",
     "crates/athlesia_cross_level/Cargo.toml": "d32ebca99f825d3dc7b0ec6d8197457ba47688f2a73bb6fe72acb45c0a5ef04b",
     "crates/athlesia_cross_level/src/lib.rs": "1413fa9de9abe1284130ca3caa5c212b35d647b3009581a1884d3ee344201689",
@@ -512,7 +513,8 @@
       "module_45_mindstone_sparse_cognition_final_integration_freeze",
       "module_45_mindstone_sparse_cognition_frozen",
       "module_46_core_knowledge_perceptual_grounding",
-      "module_46_core_knowledge_perceptual_grounding_persistence_tracking"
+      "module_46_core_knowledge_perceptual_grounding_persistence_tracking",
+      "module_46_core_knowledge_perceptual_grounding_topology_relations"
     ],
     "module_23_integrity": {
       "status": "pass",
@@ -525,8 +527,8 @@
       "status": "frozen",
       "verifier": "tools/verify_module_23_parity.py"
     },
-    "next_layer": "module_46_core_knowledge_perceptual_grounding_topology_relations",
-    "stage": "module_46_core_knowledge_perceptual_grounding_persistence_tracking",
+    "next_layer": "module_46_core_knowledge_perceptual_grounding_motion_change",
+    "stage": "module_46_core_knowledge_perceptual_grounding_topology_relations",
     "status": "validated"
   },
   "validated_invariants": [
@@ -2465,6 +2467,18 @@
     "perceptual_grounding_persistence_hard_global_frontier",
     "perceptual_grounding_persistence_temporal_gap_supported",
     "perceptual_grounding_persistence_merge_split_ambiguity_without_forced_assignment",
-    "perceptual_grounding_persistence_determinism_non_mutation_facade_equivalence"
+    "perceptual_grounding_persistence_determinism_non_mutation_facade_equivalence",
+    "perceptual_grounding_topology_symmetric_directional_relation_capacity",
+    "perceptual_grounding_topology_same_observation_distinct_supported_relation",
+    "perceptual_grounding_topology_symmetric_endpoint_canonicalization",
+    "perceptual_grounding_topology_directional_containment_preservation",
+    "perceptual_grounding_topology_multiple_relation_kinds_same_pair",
+    "perceptual_grounding_topology_duplicate_exact_relation_best_variant",
+    "perceptual_grounding_topology_hard_per_pair_relation_bound",
+    "perceptual_grounding_topology_hard_global_relation_bound",
+    "perceptual_grounding_topology_reverse_symmetric_identity_canonicalization",
+    "perceptual_grounding_topology_overlapping_object_relation_support",
+    "perceptual_grounding_topology_no_forced_single_relation_kind",
+    "perceptual_grounding_topology_determinism_non_mutation_facade_equivalence"
   ]
 }
