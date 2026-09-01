@@ -3654,3 +3654,779 @@ impl UniversalCrossContextGeneralization {
         CrossContextGeneralization::generalize(episodes, seed_rules, policy)
     }
 }
+
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub struct ExceptionRefinementThresholds {
+    minimum_failure_support: u64,
+    minimum_exception_failure_rate: CognitiveSignal,
+    minimum_failure_lift: CognitiveSignal,
+}
+
+impl ExceptionRefinementThresholds {
+    pub fn new(
+        minimum_failure_support: u64,
+        minimum_exception_failure_rate: CognitiveSignal,
+        minimum_failure_lift: CognitiveSignal,
+    ) -> Option<Self> {
+        if minimum_failure_support == 0
+            || minimum_exception_failure_rate == CognitiveSignal::zero()
+            || minimum_failure_lift == CognitiveSignal::zero()
+        {
+            return None;
+        }
+
+        Some(Self {
+            minimum_failure_support,
+            minimum_exception_failure_rate,
+            minimum_failure_lift,
+        })
+    }
+
+    pub fn minimum_failure_support(self) -> u64 {
+        self.minimum_failure_support
+    }
+
+    pub fn minimum_exception_failure_rate(self) -> CognitiveSignal {
+        self.minimum_exception_failure_rate
+    }
+
+    pub fn minimum_failure_lift(self) -> CognitiveSignal {
+        self.minimum_failure_lift
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub struct ExceptionRefinementPolicy {
+    max_seed_generalizations: usize,
+    max_exception_premises: usize,
+    max_candidate_contexts: usize,
+    max_evaluations: usize,
+    max_refinements: usize,
+    thresholds: ExceptionRefinementThresholds,
+}
+
+impl ExceptionRefinementPolicy {
+    pub fn new(
+        max_seed_generalizations: usize,
+        max_exception_premises: usize,
+        max_candidate_contexts: usize,
+        max_evaluations: usize,
+        max_refinements: usize,
+        thresholds: ExceptionRefinementThresholds,
+    ) -> Option<Self> {
+        if max_seed_generalizations == 0
+            || !(1..=MAX_CONTEXT_PREMISES).contains(&max_exception_premises)
+            || max_candidate_contexts == 0
+            || max_evaluations == 0
+            || max_refinements == 0
+        {
+            return None;
+        }
+
+        Some(Self {
+            max_seed_generalizations,
+            max_exception_premises,
+            max_candidate_contexts,
+            max_evaluations,
+            max_refinements,
+            thresholds,
+        })
+    }
+
+    pub fn max_seed_generalizations(self) -> usize {
+        self.max_seed_generalizations
+    }
+
+    pub fn max_exception_premises(self) -> usize {
+        self.max_exception_premises
+    }
+
+    pub fn max_candidate_contexts(self) -> usize {
+        self.max_candidate_contexts
+    }
+
+    pub fn max_evaluations(self) -> usize {
+        self.max_evaluations
+    }
+
+    pub fn max_refinements(self) -> usize {
+        self.max_refinements
+    }
+
+    pub fn thresholds(self) -> ExceptionRefinementThresholds {
+        self.thresholds
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+struct ExceptionCandidate {
+    transformation: CognitiveStructure,
+    base_context: ContextPremiseSet,
+    effect_kind: TransitionEffectKind,
+    effect_fact: CognitiveStructure,
+    exception_context: ContextPremiseSet,
+    failure_seed_support: u64,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct GroundedExceptionRefinementHypothesis {
+    transformation: CognitiveStructure,
+    base_context: ContextPremiseSet,
+    exception_context: ContextPremiseSet,
+    effect_kind: TransitionEffectKind,
+    effect_fact: CognitiveStructure,
+    base_opportunity_count: u64,
+    base_failure_count: u64,
+    exception_opportunity_count: u64,
+    exception_failure_count: u64,
+    exception_success_count: u64,
+    base_failure_rate: CognitiveSignal,
+    exception_failure_rate: CognitiveSignal,
+    failure_lift: CognitiveSignal,
+    failure_coverage: CognitiveSignal,
+}
+
+impl GroundedExceptionRefinementHypothesis {
+    pub fn transformation(&self) -> &CognitiveStructure {
+        &self.transformation
+    }
+
+    pub fn base_context(&self) -> &ContextPremiseSet {
+        &self.base_context
+    }
+
+    pub fn exception_context(&self) -> &ContextPremiseSet {
+        &self.exception_context
+    }
+
+    pub fn effect_kind(&self) -> TransitionEffectKind {
+        self.effect_kind
+    }
+
+    pub fn effect_fact(&self) -> &CognitiveStructure {
+        &self.effect_fact
+    }
+
+    pub fn base_opportunity_count(&self) -> u64 {
+        self.base_opportunity_count
+    }
+
+    pub fn base_failure_count(&self) -> u64 {
+        self.base_failure_count
+    }
+
+    pub fn exception_opportunity_count(&self) -> u64 {
+        self.exception_opportunity_count
+    }
+
+    pub fn exception_failure_count(&self) -> u64 {
+        self.exception_failure_count
+    }
+
+    pub fn exception_success_count(&self) -> u64 {
+        self.exception_success_count
+    }
+
+    pub fn base_failure_rate(&self) -> CognitiveSignal {
+        self.base_failure_rate
+    }
+
+    pub fn exception_failure_rate(&self) -> CognitiveSignal {
+        self.exception_failure_rate
+    }
+
+    pub fn failure_lift(&self) -> CognitiveSignal {
+        self.failure_lift
+    }
+
+    pub fn failure_coverage(&self) -> CognitiveSignal {
+        self.failure_coverage
+    }
+
+    pub fn is_triggered_by(&self, episode: &GroundedTransformationEpisode) -> bool {
+        episode.transformation() == &self.transformation
+            && self.base_context.is_satisfied_by(episode.before())
+            && self.exception_context.is_satisfied_by(episode.before())
+            && episode.effect_opportunity(self.effect_kind, &self.effect_fact)
+    }
+
+    pub fn explains_counterexample(&self, episode: &GroundedTransformationEpisode) -> bool {
+        self.is_triggered_by(episode) && !episode.effect_occurs(self.effect_kind, &self.effect_fact)
+    }
+
+    pub fn leaks_on_support(&self, episode: &GroundedTransformationEpisode) -> bool {
+        self.is_triggered_by(episode) && episode.effect_occurs(self.effect_kind, &self.effect_fact)
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ExceptionRefinementResult {
+    input_seed_count: usize,
+    considered_seed_count: usize,
+    seed_truncated: bool,
+    possible_candidate_context_count: usize,
+    generated_candidate_context_count: usize,
+    candidate_generation_truncated: bool,
+    evaluated_candidate_count: usize,
+    evaluation_truncated: bool,
+    admitted_before_frontier: usize,
+    selected: Vec<GroundedExceptionRefinementHypothesis>,
+}
+
+impl ExceptionRefinementResult {
+    pub fn input_seed_count(&self) -> usize {
+        self.input_seed_count
+    }
+
+    pub fn considered_seed_count(&self) -> usize {
+        self.considered_seed_count
+    }
+
+    pub fn seed_truncated(&self) -> bool {
+        self.seed_truncated
+    }
+
+    pub fn possible_candidate_context_count(&self) -> usize {
+        self.possible_candidate_context_count
+    }
+
+    pub fn generated_candidate_context_count(&self) -> usize {
+        self.generated_candidate_context_count
+    }
+
+    pub fn candidate_generation_truncated(&self) -> bool {
+        self.candidate_generation_truncated
+    }
+
+    pub fn evaluated_candidate_count(&self) -> usize {
+        self.evaluated_candidate_count
+    }
+
+    pub fn evaluation_truncated(&self) -> bool {
+        self.evaluation_truncated
+    }
+
+    pub fn admitted_before_frontier(&self) -> usize {
+        self.admitted_before_frontier
+    }
+
+    pub fn selected(&self) -> &[GroundedExceptionRefinementHypothesis] {
+        &self.selected
+    }
+
+    pub fn selected_count(&self) -> usize {
+        self.selected.len()
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, Hash, PartialEq)]
+pub struct ExceptionRefinement;
+
+impl ExceptionRefinement {
+    fn scaled_rate(numerator: u64, denominator: u64) -> CognitiveSignal {
+        debug_assert!(denominator > 0);
+
+        let scaled = (u128::from(numerator) * 1000) / u128::from(denominator);
+
+        CognitiveSignal::new(scaled as u16)
+            .expect("bounded exception-refinement rate remains on signal scale")
+    }
+
+    fn positive_difference(left: CognitiveSignal, right: CognitiveSignal) -> CognitiveSignal {
+        CognitiveSignal::new(left.value().saturating_sub(right.value()))
+            .expect("bounded exception-refinement lift remains on signal scale")
+    }
+
+    fn compare_context(left: &ContextPremiseSet, right: &ContextPremiseSet) -> std::cmp::Ordering {
+        let mut left_iterator = left.premises().iter();
+
+        let mut right_iterator = right.premises().iter();
+
+        loop {
+            match (left_iterator.next(), right_iterator.next()) {
+                (Some(left_value), Some(right_value)) => {
+                    let ordering = PredicateDiscovery::compare_structure(left_value, right_value);
+
+                    if ordering != std::cmp::Ordering::Equal {
+                        return ordering;
+                    }
+                }
+
+                (None, Some(_)) => {
+                    return std::cmp::Ordering::Less;
+                }
+
+                (Some(_), None) => {
+                    return std::cmp::Ordering::Greater;
+                }
+
+                (None, None) => {
+                    return std::cmp::Ordering::Equal;
+                }
+            }
+        }
+    }
+
+    fn compare_seed(
+        left: &GroundedCrossContextGeneralizationHypothesis,
+        right: &GroundedCrossContextGeneralizationHypothesis,
+    ) -> std::cmp::Ordering {
+        right
+            .incremental_precision_gain()
+            .value()
+            .cmp(&left.incremental_precision_gain().value())
+            .then_with(|| right.precision().value().cmp(&left.precision().value()))
+            .then_with(|| right.support_count().cmp(&left.support_count()))
+            .then_with(|| {
+                PredicateDiscovery::compare_structure(left.transformation(), right.transformation())
+            })
+            .then_with(|| left.effect_kind().cmp(&right.effect_kind()))
+            .then_with(|| {
+                PredicateDiscovery::compare_structure(left.effect_fact(), right.effect_fact())
+            })
+            .then_with(|| {
+                Self::compare_context(left.generalized_context(), right.generalized_context())
+            })
+    }
+
+    fn considered_seeds(
+        seeds: &[GroundedCrossContextGeneralizationHypothesis],
+        policy: ExceptionRefinementPolicy,
+    ) -> Vec<&GroundedCrossContextGeneralizationHypothesis> {
+        let mut considered = seeds.iter().collect::<Vec<_>>();
+
+        considered.sort_by(|left, right| Self::compare_seed(left, right));
+
+        considered.truncate(policy.max_seed_generalizations());
+
+        considered
+    }
+
+    fn binomial_saturating(n: usize, k: usize) -> usize {
+        if k > n {
+            return 0;
+        }
+
+        let effective_k = k.min(n - k);
+
+        let mut value = 1_u128;
+
+        for index in 0..effective_k {
+            value = value.saturating_mul((n - index) as u128) / (index + 1) as u128;
+
+            if value > usize::MAX as u128 {
+                return usize::MAX;
+            }
+        }
+
+        value as usize
+    }
+
+    fn possible_context_count(vocabulary_len: usize, max_exception_premises: usize) -> usize {
+        let upper = vocabulary_len.min(max_exception_premises);
+
+        (1..=upper).fold(0_usize, |total, size| {
+            total.saturating_add(Self::binomial_saturating(vocabulary_len, size))
+        })
+    }
+
+    fn failure_vocabulary(
+        episodes: &[GroundedTransformationEpisode],
+        seed: &GroundedCrossContextGeneralizationHypothesis,
+    ) -> Vec<CognitiveStructure> {
+        let mut counts = Vec::<(CognitiveStructure, u64)>::new();
+
+        for episode in episodes {
+            if !seed.is_counterexample(episode) {
+                continue;
+            }
+
+            for fact in episode.before().facts() {
+                if seed.generalized_context().premises().contains(fact) {
+                    continue;
+                }
+
+                if let Some(existing) = counts
+                    .iter_mut()
+                    .find(|(existing_fact, _)| existing_fact == fact)
+                {
+                    existing.1 = existing.1.saturating_add(1);
+                } else {
+                    counts.push((fact.clone(), 1));
+                }
+            }
+        }
+
+        counts.sort_by(|left, right| {
+            right
+                .1
+                .cmp(&left.1)
+                .then_with(|| PredicateDiscovery::compare_structure(&left.0, &right.0))
+        });
+
+        counts.into_iter().map(|(fact, _)| fact).collect()
+    }
+
+    fn generate_combinations(
+        values: &[CognitiveStructure],
+        target_size: usize,
+        start: usize,
+        current: &mut Vec<CognitiveStructure>,
+        output: &mut Vec<ContextPremiseSet>,
+        limit: usize,
+    ) {
+        if output.len() >= limit {
+            return;
+        }
+
+        if current.len() == target_size {
+            output.push(
+                ContextPremiseSet::new(current.clone())
+                    .expect("generated exception context remains valid"),
+            );
+
+            return;
+        }
+
+        let remaining = target_size.saturating_sub(current.len());
+
+        if values.len() < start.saturating_add(remaining) {
+            return;
+        }
+
+        let last_start = values.len() - remaining;
+
+        for index in start..=last_start {
+            if output.len() >= limit {
+                return;
+            }
+
+            current.push(values[index].clone());
+
+            Self::generate_combinations(values, target_size, index + 1, current, output, limit);
+
+            current.pop();
+        }
+    }
+
+    fn failure_seed_support(
+        episodes: &[GroundedTransformationEpisode],
+        seed: &GroundedCrossContextGeneralizationHypothesis,
+        context: &ContextPremiseSet,
+    ) -> u64 {
+        episodes
+            .iter()
+            .filter(|episode| {
+                seed.is_counterexample(episode) && context.is_satisfied_by(episode.before())
+            })
+            .count() as u64
+    }
+
+    fn candidates(
+        episodes: &[GroundedTransformationEpisode],
+        considered: &[&GroundedCrossContextGeneralizationHypothesis],
+        policy: ExceptionRefinementPolicy,
+    ) -> (Vec<ExceptionCandidate>, usize) {
+        let mut possible_total = 0_usize;
+
+        let mut candidates = Vec::new();
+
+        for seed in considered {
+            let vocabulary = Self::failure_vocabulary(episodes, seed);
+
+            possible_total = possible_total.saturating_add(Self::possible_context_count(
+                vocabulary.len(),
+                policy.max_exception_premises(),
+            ));
+
+            if candidates.len() >= policy.max_candidate_contexts() {
+                continue;
+            }
+
+            let remaining_budget = policy
+                .max_candidate_contexts()
+                .saturating_sub(candidates.len());
+
+            let upper = vocabulary.len().min(policy.max_exception_premises());
+
+            let mut generated = Vec::new();
+
+            for size in 1..=upper {
+                if generated.len() >= remaining_budget {
+                    break;
+                }
+
+                Self::generate_combinations(
+                    &vocabulary,
+                    size,
+                    0,
+                    &mut Vec::new(),
+                    &mut generated,
+                    remaining_budget,
+                );
+            }
+
+            for exception_context in generated {
+                candidates.push(ExceptionCandidate {
+                    transformation: seed.transformation().clone(),
+                    base_context: seed.generalized_context().clone(),
+                    effect_kind: seed.effect_kind(),
+                    effect_fact: seed.effect_fact().clone(),
+                    failure_seed_support: Self::failure_seed_support(
+                        episodes,
+                        seed,
+                        &exception_context,
+                    ),
+                    exception_context,
+                });
+            }
+        }
+
+        candidates.sort_by(|left, right| {
+            right
+                .failure_seed_support
+                .cmp(&left.failure_seed_support)
+                .then_with(|| {
+                    PredicateDiscovery::compare_structure(
+                        &left.transformation,
+                        &right.transformation,
+                    )
+                })
+                .then_with(|| left.effect_kind.cmp(&right.effect_kind))
+                .then_with(|| {
+                    PredicateDiscovery::compare_structure(&left.effect_fact, &right.effect_fact)
+                })
+                .then_with(|| Self::compare_context(&left.base_context, &right.base_context))
+                .then_with(|| {
+                    Self::compare_context(&left.exception_context, &right.exception_context)
+                })
+        });
+
+        (candidates, possible_total)
+    }
+
+    fn evaluate_candidate(
+        episodes: &[GroundedTransformationEpisode],
+        candidate: &ExceptionCandidate,
+        thresholds: ExceptionRefinementThresholds,
+    ) -> Option<GroundedExceptionRefinementHypothesis> {
+        let base_opportunity_count = episodes
+            .iter()
+            .filter(|episode| {
+                episode.transformation() == &candidate.transformation
+                    && candidate.base_context.is_satisfied_by(episode.before())
+                    && episode.effect_opportunity(candidate.effect_kind, &candidate.effect_fact)
+            })
+            .count() as u64;
+
+        if base_opportunity_count == 0 {
+            return None;
+        }
+
+        let base_failure_count = episodes
+            .iter()
+            .filter(|episode| {
+                episode.transformation() == &candidate.transformation
+                    && candidate.base_context.is_satisfied_by(episode.before())
+                    && episode.effect_opportunity(candidate.effect_kind, &candidate.effect_fact)
+                    && !episode.effect_occurs(candidate.effect_kind, &candidate.effect_fact)
+            })
+            .count() as u64;
+
+        if base_failure_count == 0 {
+            return None;
+        }
+
+        let exception_opportunity_count = episodes
+            .iter()
+            .filter(|episode| {
+                episode.transformation() == &candidate.transformation
+                    && candidate.base_context.is_satisfied_by(episode.before())
+                    && candidate
+                        .exception_context
+                        .is_satisfied_by(episode.before())
+                    && episode.effect_opportunity(candidate.effect_kind, &candidate.effect_fact)
+            })
+            .count() as u64;
+
+        if exception_opportunity_count == 0 {
+            return None;
+        }
+
+        let exception_failure_count = episodes
+            .iter()
+            .filter(|episode| {
+                episode.transformation() == &candidate.transformation
+                    && candidate.base_context.is_satisfied_by(episode.before())
+                    && candidate
+                        .exception_context
+                        .is_satisfied_by(episode.before())
+                    && episode.effect_opportunity(candidate.effect_kind, &candidate.effect_fact)
+                    && !episode.effect_occurs(candidate.effect_kind, &candidate.effect_fact)
+            })
+            .count() as u64;
+
+        if exception_failure_count == 0 {
+            return None;
+        }
+
+        let exception_success_count =
+            exception_opportunity_count.saturating_sub(exception_failure_count);
+
+        let base_failure_rate = Self::scaled_rate(base_failure_count, base_opportunity_count);
+
+        let exception_failure_rate =
+            Self::scaled_rate(exception_failure_count, exception_opportunity_count);
+
+        let failure_lift = Self::positive_difference(exception_failure_rate, base_failure_rate);
+
+        let failure_coverage = Self::scaled_rate(exception_failure_count, base_failure_count);
+
+        if exception_failure_count < thresholds.minimum_failure_support()
+            || exception_failure_rate.value() < thresholds.minimum_exception_failure_rate().value()
+            || failure_lift.value() < thresholds.minimum_failure_lift().value()
+        {
+            return None;
+        }
+
+        Some(GroundedExceptionRefinementHypothesis {
+            transformation: candidate.transformation.clone(),
+            base_context: candidate.base_context.clone(),
+            exception_context: candidate.exception_context.clone(),
+            effect_kind: candidate.effect_kind,
+            effect_fact: candidate.effect_fact.clone(),
+            base_opportunity_count,
+            base_failure_count,
+            exception_opportunity_count,
+            exception_failure_count,
+            exception_success_count,
+            base_failure_rate,
+            exception_failure_rate,
+            failure_lift,
+            failure_coverage,
+        })
+    }
+
+    fn ranking(
+        left: &GroundedExceptionRefinementHypothesis,
+        right: &GroundedExceptionRefinementHypothesis,
+    ) -> std::cmp::Ordering {
+        right
+            .failure_lift()
+            .value()
+            .cmp(&left.failure_lift().value())
+            .then_with(|| {
+                right
+                    .exception_failure_rate()
+                    .value()
+                    .cmp(&left.exception_failure_rate().value())
+            })
+            .then_with(|| {
+                right
+                    .failure_coverage()
+                    .value()
+                    .cmp(&left.failure_coverage().value())
+            })
+            .then_with(|| {
+                right
+                    .exception_failure_count()
+                    .cmp(&left.exception_failure_count())
+            })
+            .then_with(|| {
+                left.exception_success_count()
+                    .cmp(&right.exception_success_count())
+            })
+            .then_with(|| {
+                left.exception_context()
+                    .premise_count()
+                    .cmp(&right.exception_context().premise_count())
+            })
+            .then_with(|| {
+                PredicateDiscovery::compare_structure(left.transformation(), right.transformation())
+            })
+            .then_with(|| left.effect_kind().cmp(&right.effect_kind()))
+            .then_with(|| {
+                PredicateDiscovery::compare_structure(left.effect_fact(), right.effect_fact())
+            })
+            .then_with(|| Self::compare_context(left.base_context(), right.base_context()))
+            .then_with(|| {
+                Self::compare_context(left.exception_context(), right.exception_context())
+            })
+    }
+
+    pub fn refine(
+        episodes: &[GroundedTransformationEpisode],
+        seeds: &[GroundedCrossContextGeneralizationHypothesis],
+        policy: ExceptionRefinementPolicy,
+    ) -> ExceptionRefinementResult {
+        if episodes.is_empty() || seeds.is_empty() {
+            return ExceptionRefinementResult {
+                input_seed_count: seeds.len(),
+                considered_seed_count: 0,
+                seed_truncated: false,
+                possible_candidate_context_count: 0,
+                generated_candidate_context_count: 0,
+                candidate_generation_truncated: false,
+                evaluated_candidate_count: 0,
+                evaluation_truncated: false,
+                admitted_before_frontier: 0,
+                selected: Vec::new(),
+            };
+        }
+
+        let considered = Self::considered_seeds(seeds, policy);
+
+        let (candidates, possible_candidate_context_count) =
+            Self::candidates(episodes, &considered, policy);
+
+        let generated_candidate_context_count = candidates.len();
+
+        let candidate_generation_truncated =
+            possible_candidate_context_count > generated_candidate_context_count;
+
+        let evaluated_candidate_count =
+            generated_candidate_context_count.min(policy.max_evaluations());
+
+        let evaluation_truncated = generated_candidate_context_count > evaluated_candidate_count;
+
+        let mut admitted = candidates
+            .iter()
+            .take(policy.max_evaluations())
+            .filter_map(|candidate| {
+                Self::evaluate_candidate(episodes, candidate, policy.thresholds())
+            })
+            .collect::<Vec<_>>();
+
+        admitted.sort_by(Self::ranking);
+
+        let admitted_before_frontier = admitted.len();
+
+        admitted.truncate(policy.max_refinements());
+
+        ExceptionRefinementResult {
+            input_seed_count: seeds.len(),
+            considered_seed_count: considered.len(),
+            seed_truncated: seeds.len() > considered.len(),
+            possible_candidate_context_count,
+            generated_candidate_context_count,
+            candidate_generation_truncated,
+            evaluated_candidate_count,
+            evaluation_truncated,
+            admitted_before_frontier,
+            selected: admitted,
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, Hash, PartialEq)]
+pub struct UniversalExceptionRefinement;
+
+impl UniversalExceptionRefinement {
+    pub fn evaluate(
+        episodes: &[GroundedTransformationEpisode],
+        seeds: &[GroundedCrossContextGeneralizationHypothesis],
+        policy: ExceptionRefinementPolicy,
+    ) -> ExceptionRefinementResult {
+        ExceptionRefinement::refine(episodes, seeds, policy)
+    }
+}

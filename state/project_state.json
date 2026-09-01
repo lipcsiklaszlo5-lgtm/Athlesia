@@ -243,9 +243,10 @@
     "crates/athlesia_revision/tests/revision_policy.rs": "6378aee538bf205e5fd65a1fa7f1413b109f34f4b6f9858015dfb8d046c99773",
     "crates/athlesia_universal_domain_learning/Cargo.lock": "dd15fa520383ab416934233abdaa2337ae0eadfa1483437d7d8392646e2b9de6",
     "crates/athlesia_universal_domain_learning/Cargo.toml": "608f66355321005946091cb7bce202f353496f0b61edc6e457f31728a7de540b",
-    "crates/athlesia_universal_domain_learning/src/lib.rs": "5749840561575c6855d8e82f8ea328e23c11be742fb1dc5f6141b166c25dd246",
+    "crates/athlesia_universal_domain_learning/src/lib.rs": "cc32b1af74c6b1e089b862d86e2cfa1ec30ba2133fd69e39aa3f9440aa297dd6",
     "crates/athlesia_universal_domain_learning/tests/universal_domain_learning_contextual_transition_rules.rs": "8c70371cb2e2c7482294f4dc33cb6fbc7f9451a36f24241950e11c5a2b8ab314",
     "crates/athlesia_universal_domain_learning/tests/universal_domain_learning_cross_context_generalization.rs": "b3dc16eace122f65215d918912ec5f5e6c0558fdbb1551c4e5929323a095f6dd",
+    "crates/athlesia_universal_domain_learning/tests/universal_domain_learning_exception_refinement.rs": "8d59b0ace0f74c67fa6ebee3f0b26f893e180d74ca8cd491dac697eb1617f77f",
     "crates/athlesia_universal_domain_learning/tests/universal_domain_learning_grounded_predicate_discovery.rs": "373d49d4010c873cb98d7a830c0dd31d2fd49179beea3a0a7b3dc3c5f0c1b363",
     "crates/athlesia_universal_domain_learning/tests/universal_domain_learning_invariant_discovery.rs": "ca578477f286abd57567a00efc7679776181d85a9aa3fb2dde4421fde6ed913c",
     "crates/athlesia_universal_domain_learning/tests/universal_domain_learning_rule_induction.rs": "82aa2f1e82ca04dfabaa1251e65f0b58cd37f00970409e8dcb01187e3f86869c",
@@ -537,7 +538,8 @@
       "module_47_universal_domain_learning_invariant_discovery",
       "module_47_universal_domain_learning_transition_schema_induction",
       "module_47_universal_domain_learning_contextual_transition_rules",
-      "module_47_universal_domain_learning_cross_context_generalization"
+      "module_47_universal_domain_learning_cross_context_generalization",
+      "module_47_universal_domain_learning_exception_refinement"
     ],
     "module_23_integrity": {
       "status": "pass",
@@ -550,8 +552,8 @@
       "status": "frozen",
       "verifier": "tools/verify_module_23_parity.py"
     },
-    "next_layer": "module_47_universal_domain_learning_exception_refinement",
-    "stage": "module_47_universal_domain_learning_cross_context_generalization",
+    "next_layer": "module_47_universal_domain_learning_rule_confidence_calibration",
+    "stage": "module_47_universal_domain_learning_exception_refinement",
     "status": "validated"
   },
   "validated_invariants": [
@@ -2610,6 +2612,18 @@
     "universal_learning_cross_context_hard_seed_rule_budget",
     "universal_learning_cross_context_hard_candidate_budget",
     "universal_learning_cross_context_stronger_transfer_frontier_and_input_order_invariance",
-    "universal_learning_cross_context_deterministic_non_mutating_facade_equivalence"
+    "universal_learning_cross_context_deterministic_non_mutating_facade_equivalence",
+    "universal_learning_exception_positive_failure_evidence_and_hard_bounds",
+    "universal_learning_exception_requires_observed_base_counterexamples",
+    "universal_learning_exception_repeated_failure_specific_fact_discovery",
+    "universal_learning_exception_base_failure_lift_coverage_and_leakage_evidence",
+    "universal_learning_exception_base_context_not_reused_as_exception",
+    "universal_learning_exception_minimum_failure_support_guard",
+    "universal_learning_exception_failure_lift_over_base_guard",
+    "universal_learning_exception_conjunctive_refinement",
+    "universal_learning_exception_hard_maximum_exception_arity",
+    "universal_learning_exception_exact_transformation_identity",
+    "universal_learning_exception_hard_search_and_final_frontiers",
+    "universal_learning_exception_deterministic_non_mutating_facade_equivalence"
   ]
 }
