@@ -3801,3 +3801,1051 @@ impl MindstoneCollisionSafeStructuralCognition {
         CollisionSafeStructuralCognition::observe(state, event_index, structure, salience)
     }
 }
+
+impl MindstoneSignalProfile {
+    pub fn with_integrated_novelty(mut self, novelty: CognitiveSignal) -> Self {
+        self.novelty = novelty;
+        self
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct CollisionSafeEpistemicRecord {
+    identity: CollisionSafeStructuralIdentity,
+    observation_count: u64,
+    first_updated_at: u64,
+    last_updated_at: u64,
+    uncertainty: CognitiveSignal,
+    learning_progress: CognitiveSignal,
+    compression_gain: CognitiveSignal,
+    controllability: CognitiveSignal,
+}
+
+impl CollisionSafeEpistemicRecord {
+    fn new(
+        identity: CollisionSafeStructuralIdentity,
+        update_index: u64,
+        profile: MindstoneExtendedSignalProfile,
+    ) -> Self {
+        let base = profile.base();
+
+        Self {
+            identity,
+            observation_count: 1,
+            first_updated_at: update_index,
+            last_updated_at: update_index,
+            uncertainty: base.uncertainty(),
+            learning_progress: base.learning_progress_signal(),
+            compression_gain: profile.compression_gain(),
+            controllability: profile.controllability(),
+        }
+    }
+
+    fn updated(
+        previous: CollisionSafeEpistemicRecord,
+        update_index: u64,
+        profile: MindstoneExtendedSignalProfile,
+    ) -> Self {
+        let base = profile.base();
+
+        Self {
+            identity: previous.identity,
+            observation_count: previous.observation_count.saturating_add(1),
+            first_updated_at: previous.first_updated_at,
+            last_updated_at: update_index,
+            uncertainty: base.uncertainty(),
+            learning_progress: base.learning_progress_signal(),
+            compression_gain: profile.compression_gain(),
+            controllability: profile.controllability(),
+        }
+    }
+
+    pub fn identity(&self) -> &CollisionSafeStructuralIdentity {
+        &self.identity
+    }
+
+    pub fn fingerprint(&self) -> CognitiveFingerprint {
+        self.identity.fingerprint()
+    }
+
+    pub fn structure(&self) -> &CognitiveStructure {
+        self.identity.structure()
+    }
+
+    pub fn observation_count(&self) -> u64 {
+        self.observation_count
+    }
+
+    pub fn first_updated_at(&self) -> u64 {
+        self.first_updated_at
+    }
+
+    pub fn last_updated_at(&self) -> u64 {
+        self.last_updated_at
+    }
+
+    pub fn uncertainty(&self) -> CognitiveSignal {
+        self.uncertainty
+    }
+
+    pub fn learning_progress(&self) -> CognitiveSignal {
+        self.learning_progress
+    }
+
+    pub fn compression_gain(&self) -> CognitiveSignal {
+        self.compression_gain
+    }
+
+    pub fn controllability(&self) -> CognitiveSignal {
+        self.controllability
+    }
+
+    pub fn assessment(&self, policy: EpistemicSelfPolicy) -> EpistemicSelfAssessment {
+        let sufficiently_observed = self.observation_count() >= policy.minimum_observations();
+
+        let class =
+            if sufficiently_observed && self.uncertainty() <= policy.stable_uncertainty_max() {
+                EpistemicSelfClass::Stable
+            } else if self.learning_progress() >= policy.learning_progress_min() {
+                EpistemicSelfClass::Learning
+            } else {
+                EpistemicSelfClass::Uncertain
+            };
+
+        EpistemicSelfAssessment {
+            class,
+            compressible: sufficiently_observed
+                && self.compression_gain() >= policy.compression_gain_min(),
+            controllable: sufficiently_observed
+                && self.controllability() >= policy.controllability_min(),
+        }
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct CollisionSafeEpistemicState {
+    capacity: usize,
+    last_update_index: Option<u64>,
+    buckets: std::collections::BTreeMap<CognitiveFingerprint, Vec<CollisionSafeEpistemicRecord>>,
+}
+
+impl CollisionSafeEpistemicState {
+    pub fn new(capacity: usize) -> Option<Self> {
+        if capacity == 0 {
+            return None;
+        }
+
+        Some(Self {
+            capacity,
+            last_update_index: None,
+            buckets: std::collections::BTreeMap::new(),
+        })
+    }
+
+    pub fn capacity(&self) -> usize {
+        self.capacity
+    }
+
+    pub fn len(&self) -> usize {
+        self.buckets.values().map(Vec::len).sum()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
+
+    pub fn is_full(&self) -> bool {
+        self.len() == self.capacity
+    }
+
+    pub fn last_update_index(&self) -> Option<u64> {
+        self.last_update_index
+    }
+
+    pub fn bucket_len(&self, fingerprint: CognitiveFingerprint) -> usize {
+        self.buckets.get(&fingerprint).map_or(0, Vec::len)
+    }
+
+    pub fn record_for_identity(
+        &self,
+        identity: &CollisionSafeStructuralIdentity,
+    ) -> Option<&CollisionSafeEpistemicRecord> {
+        self.buckets
+            .get(&identity.fingerprint())
+            .and_then(|bucket| {
+                bucket
+                    .iter()
+                    .find(|record| record.identity().semantically_matches(identity))
+            })
+    }
+
+    pub fn records_in_bucket(
+        &self,
+        fingerprint: CognitiveFingerprint,
+    ) -> Option<&[CollisionSafeEpistemicRecord]> {
+        self.buckets.get(&fingerprint).map(Vec::as_slice)
+    }
+
+    fn exact_position(&self, identity: &CollisionSafeStructuralIdentity) -> Option<usize> {
+        self.buckets
+            .get(&identity.fingerprint())
+            .and_then(|bucket| {
+                bucket
+                    .iter()
+                    .position(|record| record.identity().semantically_matches(identity))
+            })
+    }
+
+    fn evict_oldest(&mut self) -> Option<CollisionSafeStructuralIdentity> {
+        let mut victim: Option<(u64, CognitiveFingerprint, usize)> = None;
+
+        for (fingerprint, bucket) in &self.buckets {
+            for (index, record) in bucket.iter().enumerate() {
+                let candidate = (record.last_updated_at(), *fingerprint, index);
+
+                if victim.as_ref().is_none_or(|current| candidate < *current) {
+                    victim = Some(candidate);
+                }
+            }
+        }
+
+        let (_, fingerprint, index) = victim?;
+
+        let (removed, bucket_empty) = {
+            let bucket = self
+                .buckets
+                .get_mut(&fingerprint)
+                .expect("selected epistemic bucket exists");
+
+            let removed = bucket.remove(index);
+
+            (removed, bucket.is_empty())
+        };
+
+        if bucket_empty {
+            self.buckets.remove(&fingerprint);
+        }
+
+        Some(removed.identity)
+    }
+
+    fn all_records(&self) -> impl Iterator<Item = &CollisionSafeEpistemicRecord> {
+        self.buckets.values().flat_map(|bucket| bucket.iter())
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+pub enum CollisionSafeEpistemicUpdateStatus {
+    RejectedOutOfOrder,
+    Updated,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct CollisionSafeEpistemicUpdateResult {
+    state_before: CollisionSafeEpistemicState,
+    state_after: CollisionSafeEpistemicState,
+    identity: CollisionSafeStructuralIdentity,
+    record: Option<CollisionSafeEpistemicRecord>,
+    evicted: Option<CollisionSafeStructuralIdentity>,
+    status: CollisionSafeEpistemicUpdateStatus,
+}
+
+impl CollisionSafeEpistemicUpdateResult {
+    pub fn state_before(&self) -> &CollisionSafeEpistemicState {
+        &self.state_before
+    }
+
+    pub fn state_after(&self) -> &CollisionSafeEpistemicState {
+        &self.state_after
+    }
+
+    pub fn identity(&self) -> &CollisionSafeStructuralIdentity {
+        &self.identity
+    }
+
+    pub fn record(&self) -> Option<&CollisionSafeEpistemicRecord> {
+        self.record.as_ref()
+    }
+
+    pub fn evicted(&self) -> Option<&CollisionSafeStructuralIdentity> {
+        self.evicted.as_ref()
+    }
+
+    pub fn status(&self) -> CollisionSafeEpistemicUpdateStatus {
+        self.status
+    }
+
+    pub fn accepted(&self) -> bool {
+        self.status == CollisionSafeEpistemicUpdateStatus::Updated
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, Hash, Ord, PartialEq, PartialOrd)]
+pub struct CollisionSafeEpistemicSelfModel;
+
+impl CollisionSafeEpistemicSelfModel {
+    pub fn observe(
+        state: CollisionSafeEpistemicState,
+        update_index: u64,
+        identity: CollisionSafeStructuralIdentity,
+        profile: MindstoneExtendedSignalProfile,
+    ) -> CollisionSafeEpistemicUpdateResult {
+        let state_before = state.clone();
+
+        if let Some(previous_index) = state.last_update_index() {
+            if update_index <= previous_index {
+                return CollisionSafeEpistemicUpdateResult {
+                    state_before,
+                    state_after: state,
+                    identity,
+                    record: None,
+                    evicted: None,
+                    status: CollisionSafeEpistemicUpdateStatus::RejectedOutOfOrder,
+                };
+            }
+        }
+
+        let mut state_after = state;
+
+        let fingerprint = identity.fingerprint();
+
+        let existing_position = state_after.exact_position(&identity);
+
+        let (record, evicted) = if let Some(position) = existing_position {
+            let bucket = state_after
+                .buckets
+                .get_mut(&fingerprint)
+                .expect("existing epistemic bucket exists");
+
+            let previous = bucket.remove(position);
+
+            let updated = CollisionSafeEpistemicRecord::updated(previous, update_index, profile);
+
+            bucket.push(updated.clone());
+
+            (updated, None)
+        } else {
+            let evicted = if state_after.is_full() {
+                state_after.evict_oldest()
+            } else {
+                None
+            };
+
+            let record = CollisionSafeEpistemicRecord::new(identity.clone(), update_index, profile);
+
+            state_after
+                .buckets
+                .entry(fingerprint)
+                .or_default()
+                .push(record.clone());
+
+            (record, evicted)
+        };
+
+        state_after.last_update_index = Some(update_index);
+
+        CollisionSafeEpistemicUpdateResult {
+            state_before,
+            state_after,
+            identity,
+            record: Some(record),
+            evicted,
+            status: CollisionSafeEpistemicUpdateStatus::Updated,
+        }
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct CollisionSafeGoalInformationPrediction {
+    identity: CollisionSafeStructuralIdentity,
+    outcomes: Vec<EpistemicOutcomePrediction>,
+}
+
+impl CollisionSafeGoalInformationPrediction {
+    pub fn new(
+        identity: CollisionSafeStructuralIdentity,
+        outcomes: Vec<EpistemicOutcomePrediction>,
+    ) -> Option<Self> {
+        if outcomes.is_empty() {
+            return None;
+        }
+
+        Some(Self { identity, outcomes })
+    }
+
+    pub fn identity(&self) -> &CollisionSafeStructuralIdentity {
+        &self.identity
+    }
+
+    pub fn outcomes(&self) -> &[EpistemicOutcomePrediction] {
+        &self.outcomes
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct CollisionSafeGoalInformationPredictionSet {
+    buckets: std::collections::BTreeMap<
+        CognitiveFingerprint,
+        Vec<CollisionSafeGoalInformationPrediction>,
+    >,
+}
+
+impl CollisionSafeGoalInformationPredictionSet {
+    pub fn new(predictions: Vec<CollisionSafeGoalInformationPrediction>) -> Option<Self> {
+        let mut buckets: std::collections::BTreeMap<
+            CognitiveFingerprint,
+            Vec<CollisionSafeGoalInformationPrediction>,
+        > = std::collections::BTreeMap::new();
+
+        for prediction in predictions {
+            let fingerprint = prediction.identity().fingerprint();
+
+            let bucket = buckets.entry(fingerprint).or_default();
+
+            if bucket.iter().any(|existing| {
+                existing
+                    .identity()
+                    .semantically_matches(prediction.identity())
+            }) {
+                return None;
+            }
+
+            bucket.push(prediction);
+        }
+
+        Some(Self { buckets })
+    }
+
+    pub fn empty() -> Self {
+        Self {
+            buckets: std::collections::BTreeMap::new(),
+        }
+    }
+
+    pub fn len(&self) -> usize {
+        self.buckets.values().map(Vec::len).sum()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
+
+    pub fn outcomes_for(
+        &self,
+        identity: &CollisionSafeStructuralIdentity,
+    ) -> Option<&[EpistemicOutcomePrediction]> {
+        self.buckets
+            .get(&identity.fingerprint())
+            .and_then(|bucket| {
+                bucket
+                    .iter()
+                    .find(|prediction| prediction.identity().semantically_matches(identity))
+            })
+            .map(CollisionSafeGoalInformationPrediction::outcomes)
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct CollisionSafeRankedGoal {
+    identity: CollisionSafeStructuralIdentity,
+    kind: SelfGeneratedGoalKind,
+    base_priority: CognitiveSignal,
+    information_gain: CognitiveSignal,
+    expected_uncertainty: Option<CognitiveSignal>,
+    estimated_cost: u32,
+}
+
+impl CollisionSafeRankedGoal {
+    pub fn identity(&self) -> &CollisionSafeStructuralIdentity {
+        &self.identity
+    }
+
+    pub fn fingerprint(&self) -> CognitiveFingerprint {
+        self.identity.fingerprint()
+    }
+
+    pub fn structure(&self) -> &CognitiveStructure {
+        self.identity.structure()
+    }
+
+    pub fn kind(&self) -> SelfGeneratedGoalKind {
+        self.kind
+    }
+
+    pub fn base_priority(&self) -> CognitiveSignal {
+        self.base_priority
+    }
+
+    pub fn information_gain(&self) -> CognitiveSignal {
+        self.information_gain
+    }
+
+    pub fn expected_uncertainty(&self) -> Option<CognitiveSignal> {
+        self.expected_uncertainty
+    }
+
+    pub fn estimated_cost(&self) -> u32 {
+        self.estimated_cost
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct CollisionSafeGoalFrontierResult {
+    candidate_count: usize,
+    selected: Vec<CollisionSafeRankedGoal>,
+    total_selected_cost: u32,
+    truncated_by_goal_limit: bool,
+    truncated_by_compute_budget: bool,
+}
+
+impl CollisionSafeGoalFrontierResult {
+    fn empty() -> Self {
+        Self {
+            candidate_count: 0,
+            selected: Vec::new(),
+            total_selected_cost: 0,
+            truncated_by_goal_limit: false,
+            truncated_by_compute_budget: false,
+        }
+    }
+
+    pub fn candidate_count(&self) -> usize {
+        self.candidate_count
+    }
+
+    pub fn selected(&self) -> &[CollisionSafeRankedGoal] {
+        &self.selected
+    }
+
+    pub fn selected_count(&self) -> usize {
+        self.selected.len()
+    }
+
+    pub fn total_selected_cost(&self) -> u32 {
+        self.total_selected_cost
+    }
+
+    pub fn truncated_by_goal_limit(&self) -> bool {
+        self.truncated_by_goal_limit
+    }
+
+    pub fn truncated_by_compute_budget(&self) -> bool {
+        self.truncated_by_compute_budget
+    }
+
+    pub fn was_truncated(&self) -> bool {
+        self.truncated_by_goal_limit || self.truncated_by_compute_budget
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, Hash, Ord, PartialEq, PartialOrd)]
+pub struct CollisionSafeInformationGoalEngine;
+
+impl CollisionSafeInformationGoalEngine {
+    fn primary_goal(
+        record: &CollisionSafeEpistemicRecord,
+        assessment: EpistemicSelfAssessment,
+        policy: SelfGeneratedGoalPolicy,
+    ) -> Option<(SelfGeneratedGoalKind, CognitiveSignal, u32)> {
+        let (kind, priority) = if assessment.is_stable() && assessment.is_compressible() {
+            (
+                SelfGeneratedGoalKind::CompressRepresentation,
+                record.compression_gain(),
+            )
+        } else if !assessment.is_stable() && assessment.is_controllable() {
+            (SelfGeneratedGoalKind::TestControl, record.controllability())
+        } else if assessment.is_learning() {
+            (
+                SelfGeneratedGoalKind::ContinueLearning,
+                record.learning_progress(),
+            )
+        } else if assessment.is_uncertain() {
+            (
+                SelfGeneratedGoalKind::ResolveUncertainty,
+                record.uncertainty(),
+            )
+        } else {
+            return None;
+        };
+
+        Some((kind, priority, policy.cost_for(kind)))
+    }
+
+    fn compare_structure(
+        left: &CognitiveStructure,
+        right: &CognitiveStructure,
+    ) -> std::cmp::Ordering {
+        use std::cmp::Ordering;
+
+        match (left, right) {
+            (CognitiveStructure::Atom(left_value), CognitiveStructure::Atom(right_value)) => {
+                left_value.cmp(right_value)
+            }
+
+            (CognitiveStructure::Atom(_), _) => Ordering::Less,
+
+            (_, CognitiveStructure::Atom(_)) => Ordering::Greater,
+
+            (
+                CognitiveStructure::Ordered(left_values),
+                CognitiveStructure::Ordered(right_values),
+            )
+            | (
+                CognitiveStructure::Unordered(left_values),
+                CognitiveStructure::Unordered(right_values),
+            ) => {
+                let mut left_iterator = left_values.iter();
+
+                let mut right_iterator = right_values.iter();
+
+                loop {
+                    match (left_iterator.next(), right_iterator.next()) {
+                        (Some(left_item), Some(right_item)) => {
+                            let ordering = Self::compare_structure(left_item, right_item);
+
+                            if ordering != Ordering::Equal {
+                                return ordering;
+                            }
+                        }
+
+                        (None, Some(_)) => {
+                            return Ordering::Less;
+                        }
+
+                        (Some(_), None) => {
+                            return Ordering::Greater;
+                        }
+
+                        (None, None) => {
+                            return Ordering::Equal;
+                        }
+                    }
+                }
+            }
+
+            (CognitiveStructure::Ordered(_), CognitiveStructure::Unordered(_)) => Ordering::Less,
+
+            (CognitiveStructure::Unordered(_), CognitiveStructure::Ordered(_)) => Ordering::Greater,
+        }
+    }
+
+    fn ranking(
+        left: &CollisionSafeRankedGoal,
+        right: &CollisionSafeRankedGoal,
+    ) -> std::cmp::Ordering {
+        right
+            .information_gain()
+            .cmp(&left.information_gain())
+            .then_with(|| right.base_priority().cmp(&left.base_priority()))
+            .then_with(|| left.estimated_cost().cmp(&right.estimated_cost()))
+            .then_with(|| left.kind().cmp(&right.kind()))
+            .then_with(|| left.fingerprint().cmp(&right.fingerprint()))
+            .then_with(|| Self::compare_structure(left.structure(), right.structure()))
+    }
+
+    pub fn rank(
+        state: &CollisionSafeEpistemicState,
+        epistemic_policy: EpistemicSelfPolicy,
+        goal_policy: SelfGeneratedGoalPolicy,
+        predictions: &CollisionSafeGoalInformationPredictionSet,
+        available_compute_units: u32,
+    ) -> CollisionSafeGoalFrontierResult {
+        let mut candidates = state
+            .all_records()
+            .filter_map(|record| {
+                let assessment = record.assessment(epistemic_policy);
+
+                let (kind, base_priority, estimated_cost) =
+                    Self::primary_goal(record, assessment, goal_policy)?;
+
+                let (information_gain, expected_uncertainty) =
+                    if let Some(outcomes) = predictions.outcomes_for(record.identity()) {
+                        let estimate =
+                            ExpectedInformationGain::estimate(record.uncertainty(), outcomes)
+                                .expect("validated exact prediction has outcomes");
+
+                        (
+                            estimate.information_gain(),
+                            Some(estimate.expected_uncertainty()),
+                        )
+                    } else {
+                        (CognitiveSignal::zero(), None)
+                    };
+
+                Some(CollisionSafeRankedGoal {
+                    identity: record.identity().clone(),
+                    kind,
+                    base_priority,
+                    information_gain,
+                    expected_uncertainty,
+                    estimated_cost,
+                })
+            })
+            .collect::<Vec<_>>();
+
+        candidates.sort_by(Self::ranking);
+
+        let candidate_count = candidates.len();
+
+        let mut selected = Vec::with_capacity(goal_policy.max_goals().min(candidate_count));
+
+        let mut total_selected_cost = 0_u32;
+
+        let mut truncated_by_goal_limit = false;
+
+        let mut truncated_by_compute_budget = false;
+
+        for (index, candidate) in candidates.into_iter().enumerate() {
+            if selected.len() >= goal_policy.max_goals() {
+                truncated_by_goal_limit = index < candidate_count;
+
+                break;
+            }
+
+            let Some(next_total) = total_selected_cost.checked_add(candidate.estimated_cost())
+            else {
+                truncated_by_compute_budget = true;
+
+                break;
+            };
+
+            if next_total > available_compute_units {
+                truncated_by_compute_budget = true;
+
+                break;
+            }
+
+            total_selected_cost = next_total;
+
+            selected.push(candidate);
+        }
+
+        CollisionSafeGoalFrontierResult {
+            candidate_count,
+            selected,
+            total_selected_cost,
+            truncated_by_goal_limit,
+            truncated_by_compute_budget,
+        }
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct IntegratedSparseCycleState {
+    structural: CollisionSafeStructuralState,
+    epistemic: CollisionSafeEpistemicState,
+}
+
+impl IntegratedSparseCycleState {
+    pub fn new(structural_capacity: usize, epistemic_capacity: usize) -> Option<Self> {
+        Some(Self {
+            structural: CollisionSafeStructuralState::new(structural_capacity)?,
+            epistemic: CollisionSafeEpistemicState::new(epistemic_capacity)?,
+        })
+    }
+
+    pub fn structural(&self) -> &CollisionSafeStructuralState {
+        &self.structural
+    }
+
+    pub fn epistemic(&self) -> &CollisionSafeEpistemicState {
+        &self.epistemic
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct IntegratedSparseCycleContext {
+    predictions: CollisionSafeGoalInformationPredictionSet,
+    sparse_policy: SparseCognitionPolicy,
+    epistemic_policy: EpistemicSelfPolicy,
+    goal_policy: SelfGeneratedGoalPolicy,
+    budget: CognitiveBudget,
+}
+
+impl IntegratedSparseCycleContext {
+    pub fn new(
+        predictions: CollisionSafeGoalInformationPredictionSet,
+        sparse_policy: SparseCognitionPolicy,
+        epistemic_policy: EpistemicSelfPolicy,
+        goal_policy: SelfGeneratedGoalPolicy,
+        budget: CognitiveBudget,
+    ) -> Self {
+        Self {
+            predictions,
+            sparse_policy,
+            epistemic_policy,
+            goal_policy,
+            budget,
+        }
+    }
+
+    pub fn predictions(&self) -> &CollisionSafeGoalInformationPredictionSet {
+        &self.predictions
+    }
+
+    pub fn sparse_policy(&self) -> SparseCognitionPolicy {
+        self.sparse_policy
+    }
+
+    pub fn epistemic_policy(&self) -> EpistemicSelfPolicy {
+        self.epistemic_policy
+    }
+
+    pub fn goal_policy(&self) -> SelfGeneratedGoalPolicy {
+        self.goal_policy
+    }
+
+    pub fn budget(&self) -> CognitiveBudget {
+        self.budget
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+pub enum IntegratedSparseCycleStatus {
+    RejectedOutOfOrder,
+    Ignored,
+    Processed,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct IntegratedSparseCycleResult {
+    state_before: IntegratedSparseCycleState,
+    state_after: IntegratedSparseCycleState,
+    event_index: u64,
+    identity: CollisionSafeStructuralIdentity,
+    novelty: CognitiveSignal,
+    current_information_gain: CognitiveSignal,
+    effective_profile: Option<MindstoneExtendedSignalProfile>,
+    admission: Option<CognitiveAdmissionDecision>,
+    epistemic_record: Option<CollisionSafeEpistemicRecord>,
+    goal_compute_units: u32,
+    goals: CollisionSafeGoalFrontierResult,
+    status: IntegratedSparseCycleStatus,
+}
+
+impl IntegratedSparseCycleResult {
+    pub fn state_before(&self) -> &IntegratedSparseCycleState {
+        &self.state_before
+    }
+
+    pub fn state_after(&self) -> &IntegratedSparseCycleState {
+        &self.state_after
+    }
+
+    pub fn event_index(&self) -> u64 {
+        self.event_index
+    }
+
+    pub fn identity(&self) -> &CollisionSafeStructuralIdentity {
+        &self.identity
+    }
+
+    pub fn novelty(&self) -> CognitiveSignal {
+        self.novelty
+    }
+
+    pub fn current_information_gain(&self) -> CognitiveSignal {
+        self.current_information_gain
+    }
+
+    pub fn effective_profile(&self) -> Option<MindstoneExtendedSignalProfile> {
+        self.effective_profile
+    }
+
+    pub fn admission(&self) -> Option<CognitiveAdmissionDecision> {
+        self.admission
+    }
+
+    pub fn epistemic_record(&self) -> Option<&CollisionSafeEpistemicRecord> {
+        self.epistemic_record.as_ref()
+    }
+
+    pub fn goal_compute_units(&self) -> u32 {
+        self.goal_compute_units
+    }
+
+    pub fn goals(&self) -> &CollisionSafeGoalFrontierResult {
+        &self.goals
+    }
+
+    pub fn status(&self) -> IntegratedSparseCycleStatus {
+        self.status
+    }
+
+    pub fn accepted(&self) -> bool {
+        self.status != IntegratedSparseCycleStatus::RejectedOutOfOrder
+    }
+
+    pub fn processed(&self) -> bool {
+        self.status == IntegratedSparseCycleStatus::Processed
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, Hash, Ord, PartialEq, PartialOrd)]
+pub struct IntegratedSparseCycle;
+
+impl IntegratedSparseCycle {
+    fn evaluate_identity(
+        state: IntegratedSparseCycleState,
+        event_index: u64,
+        identity: CollisionSafeStructuralIdentity,
+        profile: MindstoneExtendedSignalProfile,
+        context: &IntegratedSparseCycleContext,
+    ) -> IntegratedSparseCycleResult {
+        let state_before = state.clone();
+
+        let structural_result = CollisionSafeStructuralCognition::observe_with_fingerprint_hint(
+            state.structural.clone(),
+            event_index,
+            identity.fingerprint(),
+            identity.structure().clone(),
+            profile.salience(),
+        );
+
+        if !structural_result.accepted() {
+            return IntegratedSparseCycleResult {
+                state_before,
+                state_after: state,
+                event_index,
+                identity,
+                novelty: CognitiveSignal::zero(),
+                current_information_gain: CognitiveSignal::zero(),
+                effective_profile: None,
+                admission: None,
+                epistemic_record: None,
+                goal_compute_units: 0,
+                goals: CollisionSafeGoalFrontierResult::empty(),
+                status: IntegratedSparseCycleStatus::RejectedOutOfOrder,
+            };
+        }
+
+        let exact_identity = structural_result.identity().clone();
+
+        let current_information_gain = context
+            .predictions()
+            .outcomes_for(&exact_identity)
+            .and_then(|outcomes| {
+                ExpectedInformationGain::estimate(profile.base().uncertainty(), outcomes)
+            })
+            .map_or(CognitiveSignal::zero(), |estimate| {
+                estimate.information_gain()
+            });
+
+        let effective_base = profile
+            .base()
+            .with_integrated_novelty(structural_result.novelty())
+            .with_information_gain(current_information_gain);
+
+        let effective_profile = MindstoneExtendedSignalProfile::new(
+            effective_base,
+            profile.compression_gain(),
+            profile.controllability(),
+        );
+
+        let admission = context
+            .sparse_policy()
+            .admit_extended(effective_profile, context.budget());
+
+        let mut state_after = IntegratedSparseCycleState {
+            structural: structural_result.state_after().clone(),
+            epistemic: state.epistemic,
+        };
+
+        if admission.class() == CognitiveAdmissionClass::Ignore {
+            return IntegratedSparseCycleResult {
+                state_before,
+                state_after,
+                event_index,
+                identity: exact_identity,
+                novelty: structural_result.novelty(),
+                current_information_gain,
+                effective_profile: Some(effective_profile),
+                admission: Some(admission),
+                epistemic_record: None,
+                goal_compute_units: context.budget().units(),
+                goals: CollisionSafeGoalFrontierResult::empty(),
+                status: IntegratedSparseCycleStatus::Ignored,
+            };
+        }
+
+        let epistemic_result = CollisionSafeEpistemicSelfModel::observe(
+            state_after.epistemic.clone(),
+            event_index,
+            exact_identity.clone(),
+            effective_profile,
+        );
+
+        let epistemic_record = epistemic_result.record().cloned();
+
+        state_after.epistemic = epistemic_result.state_after().clone();
+
+        let goal_compute_units = context
+            .budget()
+            .units()
+            .saturating_sub(admission.granted_units());
+
+        let goals = CollisionSafeInformationGoalEngine::rank(
+            &state_after.epistemic,
+            context.epistemic_policy(),
+            context.goal_policy(),
+            context.predictions(),
+            goal_compute_units,
+        );
+
+        IntegratedSparseCycleResult {
+            state_before,
+            state_after,
+            event_index,
+            identity: exact_identity,
+            novelty: structural_result.novelty(),
+            current_information_gain,
+            effective_profile: Some(effective_profile),
+            admission: Some(admission),
+            epistemic_record,
+            goal_compute_units,
+            goals,
+            status: IntegratedSparseCycleStatus::Processed,
+        }
+    }
+
+    pub fn evaluate(
+        state: IntegratedSparseCycleState,
+        event_index: u64,
+        structure: CognitiveStructure,
+        profile: MindstoneExtendedSignalProfile,
+        context: &IntegratedSparseCycleContext,
+    ) -> IntegratedSparseCycleResult {
+        let identity = CollisionSafeStructuralIdentity::from_structure(structure);
+
+        Self::evaluate_identity(state, event_index, identity, profile, context)
+    }
+
+    pub fn evaluate_with_fingerprint_hint(
+        state: IntegratedSparseCycleState,
+        event_index: u64,
+        fingerprint: CognitiveFingerprint,
+        structure: CognitiveStructure,
+        profile: MindstoneExtendedSignalProfile,
+        context: &IntegratedSparseCycleContext,
+    ) -> IntegratedSparseCycleResult {
+        let identity =
+            CollisionSafeStructuralIdentity::with_fingerprint_hint(fingerprint, structure);
+
+        Self::evaluate_identity(state, event_index, identity, profile, context)
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, Hash, Ord, PartialEq, PartialOrd)]
+pub struct MindstoneIntegratedSparseCycle;
+
+impl MindstoneIntegratedSparseCycle {
+    pub fn evaluate(
+        state: IntegratedSparseCycleState,
+        event_index: u64,
+        structure: CognitiveStructure,
+        profile: MindstoneExtendedSignalProfile,
+        context: &IntegratedSparseCycleContext,
+    ) -> IntegratedSparseCycleResult {
+        IntegratedSparseCycle::evaluate(state, event_index, structure, profile, context)
+    }
+}
