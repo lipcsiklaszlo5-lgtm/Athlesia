@@ -2953,3 +2953,704 @@ impl UniversalContextualTransitionRuleInduction {
         ContextualTransitionRuleInduction::induce(episodes, schema_seeds, policy)
     }
 }
+
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub struct CrossContextGeneralizationThresholds {
+    minimum_seed_contexts: usize,
+    minimum_support: u64,
+    minimum_precision: CognitiveSignal,
+    minimum_incremental_gain: CognitiveSignal,
+}
+
+impl CrossContextGeneralizationThresholds {
+    pub fn new(
+        minimum_seed_contexts: usize,
+        minimum_support: u64,
+        minimum_precision: CognitiveSignal,
+        minimum_incremental_gain: CognitiveSignal,
+    ) -> Option<Self> {
+        if minimum_seed_contexts < 2
+            || minimum_support == 0
+            || minimum_incremental_gain == CognitiveSignal::zero()
+        {
+            return None;
+        }
+
+        Some(Self {
+            minimum_seed_contexts,
+            minimum_support,
+            minimum_precision,
+            minimum_incremental_gain,
+        })
+    }
+
+    pub fn minimum_seed_contexts(self) -> usize {
+        self.minimum_seed_contexts
+    }
+
+    pub fn minimum_support(self) -> u64 {
+        self.minimum_support
+    }
+
+    pub fn minimum_precision(self) -> CognitiveSignal {
+        self.minimum_precision
+    }
+
+    pub fn minimum_incremental_gain(self) -> CognitiveSignal {
+        self.minimum_incremental_gain
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub struct CrossContextGeneralizationPolicy {
+    max_seed_rules: usize,
+    max_generalized_premises: usize,
+    max_candidate_generalizations: usize,
+    max_generalizations: usize,
+    thresholds: CrossContextGeneralizationThresholds,
+}
+
+impl CrossContextGeneralizationPolicy {
+    pub fn new(
+        max_seed_rules: usize,
+        max_generalized_premises: usize,
+        max_candidate_generalizations: usize,
+        max_generalizations: usize,
+        thresholds: CrossContextGeneralizationThresholds,
+    ) -> Option<Self> {
+        if max_seed_rules == 0
+            || !(1..=MAX_CONTEXT_PREMISES).contains(&max_generalized_premises)
+            || max_candidate_generalizations == 0
+            || max_generalizations == 0
+        {
+            return None;
+        }
+
+        Some(Self {
+            max_seed_rules,
+            max_generalized_premises,
+            max_candidate_generalizations,
+            max_generalizations,
+            thresholds,
+        })
+    }
+
+    pub fn max_seed_rules(self) -> usize {
+        self.max_seed_rules
+    }
+
+    pub fn max_generalized_premises(self) -> usize {
+        self.max_generalized_premises
+    }
+
+    pub fn max_candidate_generalizations(self) -> usize {
+        self.max_candidate_generalizations
+    }
+
+    pub fn max_generalizations(self) -> usize {
+        self.max_generalizations
+    }
+
+    pub fn thresholds(self) -> CrossContextGeneralizationThresholds {
+        self.thresholds
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+struct CrossContextTarget {
+    transformation: CognitiveStructure,
+    kind: TransitionEffectKind,
+    fact: CognitiveStructure,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+struct CrossContextCandidate {
+    target: CrossContextTarget,
+    generalized_context: ContextPremiseSet,
+    covered_seed_context_count: usize,
+    minimum_premise_reduction: usize,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct GroundedCrossContextGeneralizationHypothesis {
+    transformation: CognitiveStructure,
+    generalized_context: ContextPremiseSet,
+    effect_kind: TransitionEffectKind,
+    effect_fact: CognitiveStructure,
+    covered_seed_context_count: usize,
+    minimum_premise_reduction: usize,
+    support_count: u64,
+    context_opportunity_count: u64,
+    transformation_support_count: u64,
+    transformation_opportunity_count: u64,
+    counterexample_count: u64,
+    precision: CognitiveSignal,
+    transformation_precision: CognitiveSignal,
+    incremental_precision_gain: CognitiveSignal,
+}
+
+impl GroundedCrossContextGeneralizationHypothesis {
+    pub fn transformation(&self) -> &CognitiveStructure {
+        &self.transformation
+    }
+
+    pub fn generalized_context(&self) -> &ContextPremiseSet {
+        &self.generalized_context
+    }
+
+    pub fn effect_kind(&self) -> TransitionEffectKind {
+        self.effect_kind
+    }
+
+    pub fn effect_fact(&self) -> &CognitiveStructure {
+        &self.effect_fact
+    }
+
+    pub fn covered_seed_context_count(&self) -> usize {
+        self.covered_seed_context_count
+    }
+
+    pub fn minimum_premise_reduction(&self) -> usize {
+        self.minimum_premise_reduction
+    }
+
+    pub fn support_count(&self) -> u64 {
+        self.support_count
+    }
+
+    pub fn context_opportunity_count(&self) -> u64 {
+        self.context_opportunity_count
+    }
+
+    pub fn transformation_support_count(&self) -> u64 {
+        self.transformation_support_count
+    }
+
+    pub fn transformation_opportunity_count(&self) -> u64 {
+        self.transformation_opportunity_count
+    }
+
+    pub fn counterexample_count(&self) -> u64 {
+        self.counterexample_count
+    }
+
+    pub fn precision(&self) -> CognitiveSignal {
+        self.precision
+    }
+
+    pub fn transformation_precision(&self) -> CognitiveSignal {
+        self.transformation_precision
+    }
+
+    pub fn incremental_precision_gain(&self) -> CognitiveSignal {
+        self.incremental_precision_gain
+    }
+
+    pub fn is_supported_by(&self, episode: &GroundedTransformationEpisode) -> bool {
+        episode.transformation() == &self.transformation
+            && self.generalized_context.is_satisfied_by(episode.before())
+            && episode.effect_occurs(self.effect_kind, &self.effect_fact)
+    }
+
+    pub fn is_counterexample(&self, episode: &GroundedTransformationEpisode) -> bool {
+        episode.transformation() == &self.transformation
+            && self.generalized_context.is_satisfied_by(episode.before())
+            && episode.effect_opportunity(self.effect_kind, &self.effect_fact)
+            && !episode.effect_occurs(self.effect_kind, &self.effect_fact)
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct CrossContextGeneralizationResult {
+    input_seed_rule_count: usize,
+    considered_seed_rule_count: usize,
+    seed_rule_truncated: bool,
+    possible_candidate_count: usize,
+    evaluated_candidate_count: usize,
+    candidate_generation_truncated: bool,
+    admitted_before_frontier: usize,
+    selected: Vec<GroundedCrossContextGeneralizationHypothesis>,
+}
+
+impl CrossContextGeneralizationResult {
+    pub fn input_seed_rule_count(&self) -> usize {
+        self.input_seed_rule_count
+    }
+
+    pub fn considered_seed_rule_count(&self) -> usize {
+        self.considered_seed_rule_count
+    }
+
+    pub fn seed_rule_truncated(&self) -> bool {
+        self.seed_rule_truncated
+    }
+
+    pub fn possible_candidate_count(&self) -> usize {
+        self.possible_candidate_count
+    }
+
+    pub fn evaluated_candidate_count(&self) -> usize {
+        self.evaluated_candidate_count
+    }
+
+    pub fn candidate_generation_truncated(&self) -> bool {
+        self.candidate_generation_truncated
+    }
+
+    pub fn admitted_before_frontier(&self) -> usize {
+        self.admitted_before_frontier
+    }
+
+    pub fn selected(&self) -> &[GroundedCrossContextGeneralizationHypothesis] {
+        &self.selected
+    }
+
+    pub fn selected_count(&self) -> usize {
+        self.selected.len()
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, Hash, PartialEq)]
+pub struct CrossContextGeneralization;
+
+impl CrossContextGeneralization {
+    fn scaled_rate(numerator: u64, denominator: u64) -> CognitiveSignal {
+        debug_assert!(denominator > 0);
+
+        let scaled = (u128::from(numerator) * 1000) / u128::from(denominator);
+
+        CognitiveSignal::new(scaled as u16)
+            .expect("bounded cross-context rate remains on signal scale")
+    }
+
+    fn positive_difference(left: CognitiveSignal, right: CognitiveSignal) -> CognitiveSignal {
+        CognitiveSignal::new(left.value().saturating_sub(right.value()))
+            .expect("bounded cross-context gain remains on signal scale")
+    }
+
+    fn compare_context(left: &ContextPremiseSet, right: &ContextPremiseSet) -> std::cmp::Ordering {
+        let mut left_iterator = left.premises().iter();
+
+        let mut right_iterator = right.premises().iter();
+
+        loop {
+            match (left_iterator.next(), right_iterator.next()) {
+                (Some(left_value), Some(right_value)) => {
+                    let ordering = PredicateDiscovery::compare_structure(left_value, right_value);
+
+                    if ordering != std::cmp::Ordering::Equal {
+                        return ordering;
+                    }
+                }
+
+                (None, Some(_)) => {
+                    return std::cmp::Ordering::Less;
+                }
+
+                (Some(_), None) => {
+                    return std::cmp::Ordering::Greater;
+                }
+
+                (None, None) => {
+                    return std::cmp::Ordering::Equal;
+                }
+            }
+        }
+    }
+
+    fn target_for_rule(rule: &GroundedContextualTransitionRuleHypothesis) -> CrossContextTarget {
+        CrossContextTarget {
+            transformation: rule.transformation().clone(),
+            kind: rule.effect_kind(),
+            fact: rule.effect_fact().clone(),
+        }
+    }
+
+    fn compare_target(left: &CrossContextTarget, right: &CrossContextTarget) -> std::cmp::Ordering {
+        PredicateDiscovery::compare_structure(&left.transformation, &right.transformation)
+            .then_with(|| left.kind.cmp(&right.kind))
+            .then_with(|| PredicateDiscovery::compare_structure(&left.fact, &right.fact))
+    }
+
+    fn compare_seed_rule(
+        left: &GroundedContextualTransitionRuleHypothesis,
+        right: &GroundedContextualTransitionRuleHypothesis,
+    ) -> std::cmp::Ordering {
+        right
+            .incremental_precision_gain()
+            .value()
+            .cmp(&left.incremental_precision_gain().value())
+            .then_with(|| right.precision().value().cmp(&left.precision().value()))
+            .then_with(|| right.support_count().cmp(&left.support_count()))
+            .then_with(|| {
+                let left_target = Self::target_for_rule(left);
+
+                let right_target = Self::target_for_rule(right);
+
+                Self::compare_target(&left_target, &right_target)
+            })
+            .then_with(|| Self::compare_context(left.context(), right.context()))
+    }
+
+    fn considered_seeds(
+        seed_rules: &[GroundedContextualTransitionRuleHypothesis],
+        policy: CrossContextGeneralizationPolicy,
+    ) -> Vec<&GroundedContextualTransitionRuleHypothesis> {
+        let mut seeds = seed_rules.iter().collect::<Vec<_>>();
+
+        seeds.sort_by(|left, right| Self::compare_seed_rule(left, right));
+
+        seeds.truncate(policy.max_seed_rules());
+
+        seeds
+    }
+
+    fn generate_combinations(
+        values: &[CognitiveStructure],
+        target_size: usize,
+        start: usize,
+        current: &mut Vec<CognitiveStructure>,
+        output: &mut Vec<ContextPremiseSet>,
+    ) {
+        if current.len() == target_size {
+            output.push(
+                ContextPremiseSet::new(current.clone())
+                    .expect("generated generalized context remains valid"),
+            );
+
+            return;
+        }
+
+        let remaining = target_size.saturating_sub(current.len());
+
+        if values.len() < start.saturating_add(remaining) {
+            return;
+        }
+
+        let last_start = values.len() - remaining;
+
+        for index in start..=last_start {
+            current.push(values[index].clone());
+
+            Self::generate_combinations(values, target_size, index + 1, current, output);
+
+            current.pop();
+        }
+    }
+
+    fn strictly_generalizes(candidate: &ContextPremiseSet, seed: &ContextPremiseSet) -> bool {
+        candidate.premise_count() < seed.premise_count()
+            && candidate
+                .premises()
+                .iter()
+                .all(|premise| seed.premises().contains(premise))
+    }
+
+    fn compare_candidate_identity(
+        left: &CrossContextCandidate,
+        right: &CrossContextCandidate,
+    ) -> std::cmp::Ordering {
+        Self::compare_target(&left.target, &right.target).then_with(|| {
+            Self::compare_context(&left.generalized_context, &right.generalized_context)
+        })
+    }
+
+    fn candidates(
+        considered: &[&GroundedContextualTransitionRuleHypothesis],
+        policy: CrossContextGeneralizationPolicy,
+    ) -> Vec<CrossContextCandidate> {
+        let mut raw = Vec::new();
+
+        for seed in considered {
+            let premise_count = seed.context().premise_count();
+
+            if premise_count < 2 {
+                continue;
+            }
+
+            let upper = policy.max_generalized_premises().min(premise_count - 1);
+
+            for size in 1..=upper {
+                let mut subsets = Vec::new();
+
+                Self::generate_combinations(
+                    seed.context().premises(),
+                    size,
+                    0,
+                    &mut Vec::new(),
+                    &mut subsets,
+                );
+
+                for generalized_context in subsets {
+                    raw.push(CrossContextCandidate {
+                        target: Self::target_for_rule(seed),
+                        generalized_context,
+                        covered_seed_context_count: 0,
+                        minimum_premise_reduction: 0,
+                    });
+                }
+            }
+        }
+
+        raw.sort_by(Self::compare_candidate_identity);
+
+        raw.dedup_by(|left, right| {
+            Self::compare_candidate_identity(left, right) == std::cmp::Ordering::Equal
+        });
+
+        let mut qualified = Vec::new();
+
+        for mut candidate in raw {
+            let mut covered_contexts = considered
+                .iter()
+                .filter(|seed| {
+                    Self::target_for_rule(seed) == candidate.target
+                        && Self::strictly_generalizes(
+                            &candidate.generalized_context,
+                            seed.context(),
+                        )
+                })
+                .map(|seed| seed.context().clone())
+                .collect::<Vec<_>>();
+
+            covered_contexts.sort_by(Self::compare_context);
+
+            covered_contexts.dedup();
+
+            if covered_contexts.len() < policy.thresholds().minimum_seed_contexts() {
+                continue;
+            }
+
+            let minimum_premise_reduction = covered_contexts
+                .iter()
+                .map(|context| {
+                    context.premise_count() - candidate.generalized_context.premise_count()
+                })
+                .min()
+                .expect("qualified generalization has covered seed contexts");
+
+            candidate.covered_seed_context_count = covered_contexts.len();
+
+            candidate.minimum_premise_reduction = minimum_premise_reduction;
+
+            qualified.push(candidate);
+        }
+
+        qualified.sort_by(|left, right| {
+            right
+                .covered_seed_context_count
+                .cmp(&left.covered_seed_context_count)
+                .then_with(|| {
+                    right
+                        .minimum_premise_reduction
+                        .cmp(&left.minimum_premise_reduction)
+                })
+                .then_with(|| {
+                    left.generalized_context
+                        .premise_count()
+                        .cmp(&right.generalized_context.premise_count())
+                })
+                .then_with(|| Self::compare_candidate_identity(left, right))
+        });
+
+        qualified
+    }
+
+    fn evaluate_candidate(
+        episodes: &[GroundedTransformationEpisode],
+        candidate: &CrossContextCandidate,
+        thresholds: CrossContextGeneralizationThresholds,
+    ) -> Option<GroundedCrossContextGeneralizationHypothesis> {
+        let transformation_opportunity_count = episodes
+            .iter()
+            .filter(|episode| {
+                episode.transformation() == &candidate.target.transformation
+                    && episode.effect_opportunity(candidate.target.kind, &candidate.target.fact)
+            })
+            .count() as u64;
+
+        if transformation_opportunity_count == 0 {
+            return None;
+        }
+
+        let transformation_support_count = episodes
+            .iter()
+            .filter(|episode| {
+                episode.transformation() == &candidate.target.transformation
+                    && episode.effect_occurs(candidate.target.kind, &candidate.target.fact)
+            })
+            .count() as u64;
+
+        let context_opportunity_count = episodes
+            .iter()
+            .filter(|episode| {
+                episode.transformation() == &candidate.target.transformation
+                    && candidate
+                        .generalized_context
+                        .is_satisfied_by(episode.before())
+                    && episode.effect_opportunity(candidate.target.kind, &candidate.target.fact)
+            })
+            .count() as u64;
+
+        if context_opportunity_count == 0 {
+            return None;
+        }
+
+        let support_count = episodes
+            .iter()
+            .filter(|episode| {
+                episode.transformation() == &candidate.target.transformation
+                    && candidate
+                        .generalized_context
+                        .is_satisfied_by(episode.before())
+                    && episode.effect_occurs(candidate.target.kind, &candidate.target.fact)
+            })
+            .count() as u64;
+
+        if support_count == 0 {
+            return None;
+        }
+
+        let counterexample_count = context_opportunity_count.saturating_sub(support_count);
+
+        let precision = Self::scaled_rate(support_count, context_opportunity_count);
+
+        let transformation_precision = Self::scaled_rate(
+            transformation_support_count,
+            transformation_opportunity_count,
+        );
+
+        let incremental_precision_gain =
+            Self::positive_difference(precision, transformation_precision);
+
+        if support_count < thresholds.minimum_support()
+            || precision.value() < thresholds.minimum_precision().value()
+            || incremental_precision_gain.value() < thresholds.minimum_incremental_gain().value()
+        {
+            return None;
+        }
+
+        Some(GroundedCrossContextGeneralizationHypothesis {
+            transformation: candidate.target.transformation.clone(),
+            generalized_context: candidate.generalized_context.clone(),
+            effect_kind: candidate.target.kind,
+            effect_fact: candidate.target.fact.clone(),
+            covered_seed_context_count: candidate.covered_seed_context_count,
+            minimum_premise_reduction: candidate.minimum_premise_reduction,
+            support_count,
+            context_opportunity_count,
+            transformation_support_count,
+            transformation_opportunity_count,
+            counterexample_count,
+            precision,
+            transformation_precision,
+            incremental_precision_gain,
+        })
+    }
+
+    fn ranking(
+        left: &GroundedCrossContextGeneralizationHypothesis,
+        right: &GroundedCrossContextGeneralizationHypothesis,
+    ) -> std::cmp::Ordering {
+        right
+            .incremental_precision_gain()
+            .value()
+            .cmp(&left.incremental_precision_gain().value())
+            .then_with(|| right.precision().value().cmp(&left.precision().value()))
+            .then_with(|| {
+                right
+                    .covered_seed_context_count()
+                    .cmp(&left.covered_seed_context_count())
+            })
+            .then_with(|| {
+                right
+                    .minimum_premise_reduction()
+                    .cmp(&left.minimum_premise_reduction())
+            })
+            .then_with(|| right.support_count().cmp(&left.support_count()))
+            .then_with(|| {
+                left.generalized_context()
+                    .premise_count()
+                    .cmp(&right.generalized_context().premise_count())
+            })
+            .then_with(|| {
+                PredicateDiscovery::compare_structure(left.transformation(), right.transformation())
+            })
+            .then_with(|| left.effect_kind().cmp(&right.effect_kind()))
+            .then_with(|| {
+                PredicateDiscovery::compare_structure(left.effect_fact(), right.effect_fact())
+            })
+            .then_with(|| {
+                Self::compare_context(left.generalized_context(), right.generalized_context())
+            })
+    }
+
+    pub fn generalize(
+        episodes: &[GroundedTransformationEpisode],
+        seed_rules: &[GroundedContextualTransitionRuleHypothesis],
+        policy: CrossContextGeneralizationPolicy,
+    ) -> CrossContextGeneralizationResult {
+        if episodes.is_empty() || seed_rules.is_empty() {
+            return CrossContextGeneralizationResult {
+                input_seed_rule_count: seed_rules.len(),
+                considered_seed_rule_count: 0,
+                seed_rule_truncated: false,
+                possible_candidate_count: 0,
+                evaluated_candidate_count: 0,
+                candidate_generation_truncated: false,
+                admitted_before_frontier: 0,
+                selected: Vec::new(),
+            };
+        }
+
+        let considered = Self::considered_seeds(seed_rules, policy);
+
+        let candidates = Self::candidates(&considered, policy);
+
+        let possible_candidate_count = candidates.len();
+
+        let evaluated_candidate_count =
+            possible_candidate_count.min(policy.max_candidate_generalizations());
+
+        let candidate_generation_truncated =
+            possible_candidate_count > policy.max_candidate_generalizations();
+
+        let mut admitted = candidates
+            .iter()
+            .take(policy.max_candidate_generalizations())
+            .filter_map(|candidate| {
+                Self::evaluate_candidate(episodes, candidate, policy.thresholds())
+            })
+            .collect::<Vec<_>>();
+
+        admitted.sort_by(Self::ranking);
+
+        let admitted_before_frontier = admitted.len();
+
+        admitted.truncate(policy.max_generalizations());
+
+        CrossContextGeneralizationResult {
+            input_seed_rule_count: seed_rules.len(),
+            considered_seed_rule_count: considered.len(),
+            seed_rule_truncated: seed_rules.len() > considered.len(),
+            possible_candidate_count,
+            evaluated_candidate_count,
+            candidate_generation_truncated,
+            admitted_before_frontier,
+            selected: admitted,
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, Hash, PartialEq)]
+pub struct UniversalCrossContextGeneralization;
+
+impl UniversalCrossContextGeneralization {
+    pub fn evaluate(
+        episodes: &[GroundedTransformationEpisode],
+        seed_rules: &[GroundedContextualTransitionRuleHypothesis],
+        policy: CrossContextGeneralizationPolicy,
+    ) -> CrossContextGeneralizationResult {
+        CrossContextGeneralization::generalize(episodes, seed_rules, policy)
+    }
+}
