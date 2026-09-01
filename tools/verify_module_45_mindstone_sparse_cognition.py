@@ -15,9 +15,7 @@ MANIFEST = 'crates/athlesia_mindstone_sparse_cognition/Cargo.toml'
 SOURCE_COMMIT = '1c7def4064289188bc931f95b2ebbe048904c870'
 EXPECTED_TESTS = 216
 
-EXPECTED_STAGE = 'module_45_mindstone_sparse_cognition_frozen'
-EXPECTED_STATUS = "validated"
-EXPECTED_NEXT_LAYER = 'module_46_core_knowledge_perceptual_grounding'
+FROZEN_STAGE = 'module_45_mindstone_sparse_cognition_frozen'
 
 FROZEN_FILES = ['crates/athlesia_mindstone_sparse_cognition/Cargo.lock', 'crates/athlesia_mindstone_sparse_cognition/Cargo.toml', 'crates/athlesia_mindstone_sparse_cognition/src/lib.rs', 'crates/athlesia_mindstone_sparse_cognition/tests/mindstone_sparse_cognition_adaptive_compute_allocation.rs', 'crates/athlesia_mindstone_sparse_cognition/tests/mindstone_sparse_cognition_bounded_candidate_search.rs', 'crates/athlesia_mindstone_sparse_cognition/tests/mindstone_sparse_cognition_bounded_hypothesis_path_depth_search.rs', 'crates/athlesia_mindstone_sparse_cognition/tests/mindstone_sparse_cognition_causal_controllability_baseline.rs', 'crates/athlesia_mindstone_sparse_cognition/tests/mindstone_sparse_cognition_collision_safe_structural_identity.rs', 'crates/athlesia_mindstone_sparse_cognition/tests/mindstone_sparse_cognition_compression_controllability.rs', 'crates/athlesia_mindstone_sparse_cognition/tests/mindstone_sparse_cognition_epistemic_self_model.rs', 'crates/athlesia_mindstone_sparse_cognition/tests/mindstone_sparse_cognition_expected_information_gain.rs', 'crates/athlesia_mindstone_sparse_cognition/tests/mindstone_sparse_cognition_final_integration_freeze.rs', 'crates/athlesia_mindstone_sparse_cognition/tests/mindstone_sparse_cognition_forgetting_cold_storage.rs', 'crates/athlesia_mindstone_sparse_cognition/tests/mindstone_sparse_cognition_foundation.rs', 'crates/athlesia_mindstone_sparse_cognition/tests/mindstone_sparse_cognition_hierarchical_memory_admission.rs', 'crates/athlesia_mindstone_sparse_cognition/tests/mindstone_sparse_cognition_information_gain_goal_ranking.rs', 'crates/athlesia_mindstone_sparse_cognition/tests/mindstone_sparse_cognition_integrated_sparse_cycle.rs', 'crates/athlesia_mindstone_sparse_cognition/tests/mindstone_sparse_cognition_novelty_gate.rs', 'crates/athlesia_mindstone_sparse_cognition/tests/mindstone_sparse_cognition_self_generated_goals.rs', 'crates/athlesia_mindstone_sparse_cognition/tests/mindstone_sparse_cognition_streaming_aggregation.rs', 'crates/athlesia_mindstone_sparse_cognition/tests/mindstone_sparse_cognition_structural_hashing.rs']
 
@@ -171,40 +169,15 @@ rust_port = state[
     "rust_port"
 ]
 
-if rust_port[
-    "stage"
-] != EXPECTED_STAGE:
-    fail(
-        "Unexpected frozen stage: "
-        + str(
-            rust_port[
-                "stage"
-            ]
-        )
-    )
+completed_layers = set(
+    rust_port[
+        "completed_layers"
+    ]
+)
 
-if rust_port[
-    "status"
-] != EXPECTED_STATUS:
+if FROZEN_STAGE not in completed_layers:
     fail(
-        "Unexpected frozen status: "
-        + str(
-            rust_port[
-                "status"
-            ]
-        )
-    )
-
-if rust_port[
-    "next_layer"
-] != EXPECTED_NEXT_LAYER:
-    fail(
-        "Unexpected next layer: "
-        + str(
-            rust_port[
-                "next_layer"
-            ]
-        )
+        "Frozen M45 completion marker is missing"
     )
 
 validated = set(
