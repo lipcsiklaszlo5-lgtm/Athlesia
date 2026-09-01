@@ -1111,3 +1111,491 @@ impl UniversalRuleInduction {
         RuleInduction::induce(episodes, predicate_seeds, policy)
     }
 }
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct GroundedStateSnapshot {
+    facts: Vec<CognitiveStructure>,
+}
+
+impl GroundedStateSnapshot {
+    pub fn new(mut facts: Vec<CognitiveStructure>) -> Option<Self> {
+        if facts.is_empty() {
+            return None;
+        }
+
+        facts.sort_by(PredicateDiscovery::compare_structure);
+
+        facts.dedup();
+
+        Some(Self { facts })
+    }
+
+    pub fn facts(&self) -> &[CognitiveStructure] {
+        &self.facts
+    }
+
+    pub fn fact_count(&self) -> usize {
+        self.facts.len()
+    }
+
+    pub fn contains_fact(&self, fact: &CognitiveStructure) -> bool {
+        self.facts.iter().any(|candidate| candidate == fact)
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct GroundedTransformationEpisode {
+    before: GroundedStateSnapshot,
+    after: GroundedStateSnapshot,
+    transformation: CognitiveStructure,
+}
+
+impl GroundedTransformationEpisode {
+    pub fn new(
+        before: GroundedStateSnapshot,
+        after: GroundedStateSnapshot,
+        transformation: CognitiveStructure,
+    ) -> Self {
+        Self {
+            before,
+            after,
+            transformation,
+        }
+    }
+
+    pub fn before(&self) -> &GroundedStateSnapshot {
+        &self.before
+    }
+
+    pub fn after(&self) -> &GroundedStateSnapshot {
+        &self.after
+    }
+
+    pub fn transformation(&self) -> &CognitiveStructure {
+        &self.transformation
+    }
+
+    pub fn preserves(&self, fact: &CognitiveStructure) -> bool {
+        self.before.contains_fact(fact) && self.after.contains_fact(fact)
+    }
+
+    pub fn disrupts(&self, fact: &CognitiveStructure) -> bool {
+        self.before.contains_fact(fact) && !self.after.contains_fact(fact)
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub struct InvariantDiscoveryPolicy {
+    minimum_stable_support: u64,
+    minimum_preservation_rate: CognitiveSignal,
+    minimum_distinct_transformations: usize,
+    max_candidate_facts: usize,
+    max_invariants: usize,
+}
+
+impl InvariantDiscoveryPolicy {
+    pub fn new(
+        minimum_stable_support: u64,
+        minimum_preservation_rate: CognitiveSignal,
+        minimum_distinct_transformations: usize,
+        max_candidate_facts: usize,
+        max_invariants: usize,
+    ) -> Option<Self> {
+        if minimum_stable_support == 0
+            || minimum_preservation_rate == CognitiveSignal::zero()
+            || minimum_distinct_transformations == 0
+            || max_candidate_facts == 0
+            || max_invariants == 0
+        {
+            return None;
+        }
+
+        Some(Self {
+            minimum_stable_support,
+            minimum_preservation_rate,
+            minimum_distinct_transformations,
+            max_candidate_facts,
+            max_invariants,
+        })
+    }
+
+    pub fn minimum_stable_support(self) -> u64 {
+        self.minimum_stable_support
+    }
+
+    pub fn minimum_preservation_rate(self) -> CognitiveSignal {
+        self.minimum_preservation_rate
+    }
+
+    pub fn minimum_distinct_transformations(self) -> usize {
+        self.minimum_distinct_transformations
+    }
+
+    pub fn max_candidate_facts(self) -> usize {
+        self.max_candidate_facts
+    }
+
+    pub fn max_invariants(self) -> usize {
+        self.max_invariants
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct GroundedInvariantHypothesis {
+    fact: CognitiveStructure,
+    stable_support_count: u64,
+    opportunity_count: u64,
+    disruption_count: u64,
+    preservation_rate: CognitiveSignal,
+    distinct_stable_transformations: usize,
+    distinct_opportunity_transformations: usize,
+    transformation_stability: CognitiveSignal,
+}
+
+impl GroundedInvariantHypothesis {
+    pub fn fact(&self) -> &CognitiveStructure {
+        &self.fact
+    }
+
+    pub fn stable_support_count(&self) -> u64 {
+        self.stable_support_count
+    }
+
+    pub fn opportunity_count(&self) -> u64 {
+        self.opportunity_count
+    }
+
+    pub fn disruption_count(&self) -> u64 {
+        self.disruption_count
+    }
+
+    pub fn preservation_rate(&self) -> CognitiveSignal {
+        self.preservation_rate
+    }
+
+    pub fn distinct_stable_transformations(&self) -> usize {
+        self.distinct_stable_transformations
+    }
+
+    pub fn distinct_opportunity_transformations(&self) -> usize {
+        self.distinct_opportunity_transformations
+    }
+
+    pub fn transformation_stability(&self) -> CognitiveSignal {
+        self.transformation_stability
+    }
+
+    pub fn is_supported_by(&self, episode: &GroundedTransformationEpisode) -> bool {
+        episode.preserves(&self.fact)
+    }
+
+    pub fn is_counterexample(&self, episode: &GroundedTransformationEpisode) -> bool {
+        episode.disrupts(&self.fact)
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+struct InvariantVocabularyFact {
+    structure: CognitiveStructure,
+    seed_incremental_gain: u16,
+    seed_lift: u16,
+    seed_support: u64,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct InvariantDiscoveryResult {
+    episode_count: usize,
+    vocabulary_fact_count: usize,
+    seeded_vocabulary_fact_count: usize,
+    evaluated_candidate_count: usize,
+    candidate_generation_truncated: bool,
+    admitted_before_frontier: usize,
+    selected: Vec<GroundedInvariantHypothesis>,
+}
+
+impl InvariantDiscoveryResult {
+    pub fn episode_count(&self) -> usize {
+        self.episode_count
+    }
+
+    pub fn vocabulary_fact_count(&self) -> usize {
+        self.vocabulary_fact_count
+    }
+
+    pub fn seeded_vocabulary_fact_count(&self) -> usize {
+        self.seeded_vocabulary_fact_count
+    }
+
+    pub fn evaluated_candidate_count(&self) -> usize {
+        self.evaluated_candidate_count
+    }
+
+    pub fn candidate_generation_truncated(&self) -> bool {
+        self.candidate_generation_truncated
+    }
+
+    pub fn admitted_before_frontier(&self) -> usize {
+        self.admitted_before_frontier
+    }
+
+    pub fn selected(&self) -> &[GroundedInvariantHypothesis] {
+        &self.selected
+    }
+
+    pub fn selected_count(&self) -> usize {
+        self.selected.len()
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, Hash, PartialEq)]
+pub struct InvariantDiscovery;
+
+impl InvariantDiscovery {
+    fn scaled_rate(numerator: usize, denominator: usize) -> CognitiveSignal {
+        debug_assert!(denominator > 0);
+
+        let scaled = (numerator as u128 * 1000) / denominator as u128;
+
+        CognitiveSignal::new(scaled as u16).expect("bounded invariant rate remains on signal scale")
+    }
+
+    fn rule_seed_strength(
+        fact: &CognitiveStructure,
+        rules: &[GroundedRuleHypothesis],
+    ) -> (u16, u16, u64) {
+        rules
+            .iter()
+            .filter(|rule| {
+                rule.premises()
+                    .premises()
+                    .iter()
+                    .any(|premise| premise == fact)
+            })
+            .map(|rule| {
+                (
+                    rule.incremental_precision_gain().value(),
+                    rule.association_lift().value(),
+                    rule.support_count(),
+                )
+            })
+            .max()
+            .unwrap_or((0, 0, 0))
+    }
+
+    fn vocabulary(
+        episodes: &[GroundedTransformationEpisode],
+        rule_seeds: &[GroundedRuleHypothesis],
+    ) -> Vec<InvariantVocabularyFact> {
+        let mut facts = episodes
+            .iter()
+            .flat_map(|episode| episode.before().facts().iter().cloned())
+            .collect::<Vec<_>>();
+
+        facts.sort_by(PredicateDiscovery::compare_structure);
+
+        facts.dedup();
+
+        let mut vocabulary = facts
+            .into_iter()
+            .map(|structure| {
+                let (seed_incremental_gain, seed_lift, seed_support) =
+                    Self::rule_seed_strength(&structure, rule_seeds);
+
+                InvariantVocabularyFact {
+                    structure,
+                    seed_incremental_gain,
+                    seed_lift,
+                    seed_support,
+                }
+            })
+            .collect::<Vec<_>>();
+
+        vocabulary.sort_by(|left, right| {
+            right
+                .seed_incremental_gain
+                .cmp(&left.seed_incremental_gain)
+                .then_with(|| right.seed_lift.cmp(&left.seed_lift))
+                .then_with(|| right.seed_support.cmp(&left.seed_support))
+                .then_with(|| {
+                    PredicateDiscovery::compare_structure(&left.structure, &right.structure)
+                })
+        });
+
+        vocabulary
+    }
+
+    fn distinct_transformations(
+        episodes: &[GroundedTransformationEpisode],
+        fact: &CognitiveStructure,
+        require_preserved: bool,
+    ) -> Vec<CognitiveStructure> {
+        let mut transformations = episodes
+            .iter()
+            .filter(|episode| {
+                if require_preserved {
+                    episode.preserves(fact)
+                } else {
+                    episode.before().contains_fact(fact)
+                }
+            })
+            .map(|episode| episode.transformation().clone())
+            .collect::<Vec<_>>();
+
+        transformations.sort_by(PredicateDiscovery::compare_structure);
+
+        transformations.dedup();
+
+        transformations
+    }
+
+    fn evaluate_candidate(
+        episodes: &[GroundedTransformationEpisode],
+        fact: &CognitiveStructure,
+        policy: InvariantDiscoveryPolicy,
+    ) -> Option<GroundedInvariantHypothesis> {
+        let opportunity_count = episodes
+            .iter()
+            .filter(|episode| episode.before().contains_fact(fact))
+            .count();
+
+        if opportunity_count == 0 {
+            return None;
+        }
+
+        let stable_support_count = episodes
+            .iter()
+            .filter(|episode| episode.preserves(fact))
+            .count();
+
+        if stable_support_count == 0 {
+            return None;
+        }
+
+        let disruption_count = opportunity_count.saturating_sub(stable_support_count);
+
+        let preservation_rate = Self::scaled_rate(stable_support_count, opportunity_count);
+
+        let stable_transformations = Self::distinct_transformations(episodes, fact, true);
+
+        let opportunity_transformations = Self::distinct_transformations(episodes, fact, false);
+
+        let transformation_stability = Self::scaled_rate(
+            stable_transformations.len(),
+            opportunity_transformations.len(),
+        );
+
+        if (stable_support_count as u64) < policy.minimum_stable_support()
+            || preservation_rate.value() < policy.minimum_preservation_rate().value()
+            || stable_transformations.len() < policy.minimum_distinct_transformations()
+        {
+            return None;
+        }
+
+        Some(GroundedInvariantHypothesis {
+            fact: fact.clone(),
+            stable_support_count: stable_support_count as u64,
+            opportunity_count: opportunity_count as u64,
+            disruption_count: disruption_count as u64,
+            preservation_rate,
+            distinct_stable_transformations: stable_transformations.len(),
+            distinct_opportunity_transformations: opportunity_transformations.len(),
+            transformation_stability,
+        })
+    }
+
+    fn ranking(
+        left: &GroundedInvariantHypothesis,
+        right: &GroundedInvariantHypothesis,
+    ) -> std::cmp::Ordering {
+        right
+            .preservation_rate()
+            .value()
+            .cmp(&left.preservation_rate().value())
+            .then_with(|| {
+                right
+                    .transformation_stability()
+                    .value()
+                    .cmp(&left.transformation_stability().value())
+            })
+            .then_with(|| {
+                right
+                    .distinct_stable_transformations()
+                    .cmp(&left.distinct_stable_transformations())
+            })
+            .then_with(|| {
+                right
+                    .stable_support_count()
+                    .cmp(&left.stable_support_count())
+            })
+            .then_with(|| left.disruption_count().cmp(&right.disruption_count()))
+            .then_with(|| PredicateDiscovery::compare_structure(left.fact(), right.fact()))
+    }
+
+    pub fn discover(
+        episodes: &[GroundedTransformationEpisode],
+        rule_seeds: &[GroundedRuleHypothesis],
+        policy: InvariantDiscoveryPolicy,
+    ) -> InvariantDiscoveryResult {
+        if episodes.is_empty() {
+            return InvariantDiscoveryResult {
+                episode_count: 0,
+                vocabulary_fact_count: 0,
+                seeded_vocabulary_fact_count: 0,
+                evaluated_candidate_count: 0,
+                candidate_generation_truncated: false,
+                admitted_before_frontier: 0,
+                selected: Vec::new(),
+            };
+        }
+
+        let vocabulary = Self::vocabulary(episodes, rule_seeds);
+
+        let seeded_vocabulary_fact_count = vocabulary
+            .iter()
+            .filter(|fact| {
+                fact.seed_incremental_gain > 0 || fact.seed_lift > 0 || fact.seed_support > 0
+            })
+            .count();
+
+        let candidate_generation_truncated = vocabulary.len() > policy.max_candidate_facts();
+
+        let evaluated_candidate_count = vocabulary.len().min(policy.max_candidate_facts());
+
+        let mut admitted = vocabulary
+            .iter()
+            .take(policy.max_candidate_facts())
+            .filter_map(|candidate| {
+                Self::evaluate_candidate(episodes, &candidate.structure, policy)
+            })
+            .collect::<Vec<_>>();
+
+        admitted.sort_by(Self::ranking);
+
+        let admitted_before_frontier = admitted.len();
+
+        admitted.truncate(policy.max_invariants());
+
+        InvariantDiscoveryResult {
+            episode_count: episodes.len(),
+            vocabulary_fact_count: vocabulary.len(),
+            seeded_vocabulary_fact_count,
+            evaluated_candidate_count,
+            candidate_generation_truncated,
+            admitted_before_frontier,
+            selected: admitted,
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, Hash, PartialEq)]
+pub struct UniversalInvariantDiscovery;
+
+impl UniversalInvariantDiscovery {
+    pub fn evaluate(
+        episodes: &[GroundedTransformationEpisode],
+        rule_seeds: &[GroundedRuleHypothesis],
+        policy: InvariantDiscoveryPolicy,
+    ) -> InvariantDiscoveryResult {
+        InvariantDiscovery::discover(episodes, rule_seeds, policy)
+    }
+}
