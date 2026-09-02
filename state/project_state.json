@@ -243,10 +243,11 @@
     "crates/athlesia_revision/tests/revision_policy.rs": "6378aee538bf205e5fd65a1fa7f1413b109f34f4b6f9858015dfb8d046c99773",
     "crates/athlesia_universal_domain_learning/Cargo.lock": "dd15fa520383ab416934233abdaa2337ae0eadfa1483437d7d8392646e2b9de6",
     "crates/athlesia_universal_domain_learning/Cargo.toml": "608f66355321005946091cb7bce202f353496f0b61edc6e457f31728a7de540b",
-    "crates/athlesia_universal_domain_learning/src/lib.rs": "6a2b05de870a546d958b76d7dac879bf65b8a9fc18effa11f39a8c3990eb4ea1",
+    "crates/athlesia_universal_domain_learning/src/lib.rs": "5d3312db7fda501dc7215b0866a585d5f56d2a34751931edbdee8eb43628740c",
     "crates/athlesia_universal_domain_learning/tests/universal_domain_learning_causal_contrast_induction.rs": "0e6e6429fb4fce39e52669fab25df498d3a5a9204e5705aede2ae400ca7285c2",
     "crates/athlesia_universal_domain_learning/tests/universal_domain_learning_contextual_transition_rules.rs": "8c70371cb2e2c7482294f4dc33cb6fbc7f9451a36f24241950e11c5a2b8ab314",
     "crates/athlesia_universal_domain_learning/tests/universal_domain_learning_cross_context_generalization.rs": "b3dc16eace122f65215d918912ec5f5e6c0558fdbb1551c4e5929323a095f6dd",
+    "crates/athlesia_universal_domain_learning/tests/universal_domain_learning_cross_domain_transfer.rs": "4c1201bcc564c9ef7d64637b3b640eff9ba228e91fa583924e8f9c2348a721fd",
     "crates/athlesia_universal_domain_learning/tests/universal_domain_learning_exception_refinement.rs": "8d59b0ace0f74c67fa6ebee3f0b26f893e180d74ca8cd491dac697eb1617f77f",
     "crates/athlesia_universal_domain_learning/tests/universal_domain_learning_grounded_predicate_discovery.rs": "373d49d4010c873cb98d7a830c0dd31d2fd49179beea3a0a7b3dc3c5f0c1b363",
     "crates/athlesia_universal_domain_learning/tests/universal_domain_learning_interventional_causal_validation.rs": "1baacc59dfb51266bfaab7a0a55871e318088141c487d8fbbaaf4bbc6b19a145",
@@ -545,7 +546,8 @@
       "module_47_universal_domain_learning_exception_refinement",
       "module_47_universal_domain_learning_rule_confidence_calibration",
       "module_47_universal_domain_learning_causal_contrast_induction",
-      "module_47_universal_domain_learning_interventional_causal_validation"
+      "module_47_universal_domain_learning_interventional_causal_validation",
+      "module_47_universal_domain_learning_cross_domain_transfer"
     ],
     "module_23_integrity": {
       "status": "pass",
@@ -558,8 +560,8 @@
       "status": "frozen",
       "verifier": "tools/verify_module_23_parity.py"
     },
-    "next_layer": "module_47_universal_domain_learning_cross_domain_transfer",
-    "stage": "module_47_universal_domain_learning_interventional_causal_validation",
+    "next_layer": "module_47_universal_domain_learning_domain_model_compression",
+    "stage": "module_47_universal_domain_learning_cross_domain_transfer",
     "status": "validated"
   },
   "validated_invariants": [
@@ -2666,6 +2668,18 @@
     "universal_learning_intervention_small_sample_support_discount",
     "universal_learning_intervention_exact_transformation_identity",
     "universal_learning_intervention_hard_seed_evaluation_and_final_frontiers",
-    "universal_learning_intervention_deterministic_non_mutating_facade_equivalence"
+    "universal_learning_intervention_deterministic_non_mutating_facade_equivalence",
+    "universal_learning_transfer_distinct_domains_nonempty_bijective_mapping",
+    "universal_learning_transfer_exact_canonical_correspondence_identity",
+    "universal_learning_transfer_complete_mapping_required",
+    "universal_learning_transfer_passive_target_evidence_cannot_validate",
+    "universal_learning_transfer_target_interventional_revalidation",
+    "universal_learning_transfer_target_common_effect_zero_lift_rejection",
+    "universal_learning_transfer_explicit_target_counterevidence",
+    "universal_learning_transfer_small_target_sample_support_discount",
+    "universal_learning_transfer_passive_evidence_retained_without_score_inflation",
+    "universal_learning_transfer_exact_source_target_structure_identity",
+    "universal_learning_transfer_hard_source_evaluation_and_final_frontiers",
+    "universal_learning_transfer_deterministic_non_mutating_facade_equivalence"
   ]
 }

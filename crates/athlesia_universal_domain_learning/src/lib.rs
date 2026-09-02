@@ -6655,3 +6655,960 @@ impl UniversalInterventionalCausalValidation {
         InterventionalCausalValidation::validate(evidence, seeds, policy)
     }
 }
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct GroundedTransferCorrespondence {
+    source: CognitiveStructure,
+    target: CognitiveStructure,
+}
+
+impl GroundedTransferCorrespondence {
+    pub fn new(source: CognitiveStructure, target: CognitiveStructure) -> Self {
+        Self { source, target }
+    }
+
+    pub fn source(&self) -> &CognitiveStructure {
+        &self.source
+    }
+
+    pub fn target(&self) -> &CognitiveStructure {
+        &self.target
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct CrossDomainTransferMap {
+    source_domain: CognitiveStructure,
+    target_domain: CognitiveStructure,
+    correspondences: Vec<GroundedTransferCorrespondence>,
+}
+
+impl CrossDomainTransferMap {
+    pub fn new(
+        source_domain: CognitiveStructure,
+        target_domain: CognitiveStructure,
+        mut correspondences: Vec<GroundedTransferCorrespondence>,
+    ) -> Option<Self> {
+        if source_domain == target_domain || correspondences.is_empty() {
+            return None;
+        }
+
+        correspondences.sort_by(|left, right| {
+            PredicateDiscovery::compare_structure(left.source(), right.source())
+                .then_with(|| PredicateDiscovery::compare_structure(left.target(), right.target()))
+        });
+
+        correspondences.dedup();
+
+        let duplicate_source = correspondences
+            .windows(2)
+            .any(|window| window[0].source() == window[1].source());
+
+        if duplicate_source {
+            return None;
+        }
+
+        let mut by_target = correspondences.iter().collect::<Vec<_>>();
+
+        by_target.sort_by(|left, right| {
+            PredicateDiscovery::compare_structure(left.target(), right.target())
+                .then_with(|| PredicateDiscovery::compare_structure(left.source(), right.source()))
+        });
+
+        let duplicate_target = by_target
+            .windows(2)
+            .any(|window| window[0].target() == window[1].target());
+
+        if duplicate_target {
+            return None;
+        }
+
+        Some(Self {
+            source_domain,
+            target_domain,
+            correspondences,
+        })
+    }
+
+    pub fn source_domain(&self) -> &CognitiveStructure {
+        &self.source_domain
+    }
+
+    pub fn target_domain(&self) -> &CognitiveStructure {
+        &self.target_domain
+    }
+
+    pub fn correspondences(&self) -> &[GroundedTransferCorrespondence] {
+        &self.correspondences
+    }
+
+    pub fn correspondence_count(&self) -> usize {
+        self.correspondences.len()
+    }
+
+    pub fn translate(&self, source: &CognitiveStructure) -> Option<&CognitiveStructure> {
+        self.correspondences
+            .iter()
+            .find(|correspondence| correspondence.source() == source)
+            .map(GroundedTransferCorrespondence::target)
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub struct CrossDomainTransferThresholds {
+    minimum_matched_target_states: usize,
+    minimum_target_interventions: u64,
+    minimum_contrast_interventions: u64,
+    minimum_target_lift: CognitiveSignal,
+    minimum_transfer_confidence: CognitiveSignal,
+}
+
+impl CrossDomainTransferThresholds {
+    pub fn new(
+        minimum_matched_target_states: usize,
+        minimum_target_interventions: u64,
+        minimum_contrast_interventions: u64,
+        minimum_target_lift: CognitiveSignal,
+        minimum_transfer_confidence: CognitiveSignal,
+    ) -> Option<Self> {
+        if minimum_matched_target_states == 0
+            || minimum_target_interventions == 0
+            || minimum_contrast_interventions == 0
+            || minimum_target_lift == CognitiveSignal::zero()
+            || minimum_transfer_confidence == CognitiveSignal::zero()
+        {
+            return None;
+        }
+
+        Some(Self {
+            minimum_matched_target_states,
+            minimum_target_interventions,
+            minimum_contrast_interventions,
+            minimum_target_lift,
+            minimum_transfer_confidence,
+        })
+    }
+
+    pub fn minimum_matched_target_states(self) -> usize {
+        self.minimum_matched_target_states
+    }
+
+    pub fn minimum_target_interventions(self) -> u64 {
+        self.minimum_target_interventions
+    }
+
+    pub fn minimum_contrast_interventions(self) -> u64 {
+        self.minimum_contrast_interventions
+    }
+
+    pub fn minimum_target_lift(self) -> CognitiveSignal {
+        self.minimum_target_lift
+    }
+
+    pub fn minimum_transfer_confidence(self) -> CognitiveSignal {
+        self.minimum_transfer_confidence
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub struct CrossDomainTransferPolicy {
+    max_source_hypotheses: usize,
+    max_evaluations: usize,
+    max_transferred_hypotheses: usize,
+    full_confidence_target_interventions: u64,
+    thresholds: CrossDomainTransferThresholds,
+}
+
+impl CrossDomainTransferPolicy {
+    pub fn new(
+        max_source_hypotheses: usize,
+        max_evaluations: usize,
+        max_transferred_hypotheses: usize,
+        full_confidence_target_interventions: u64,
+        thresholds: CrossDomainTransferThresholds,
+    ) -> Option<Self> {
+        if max_source_hypotheses == 0
+            || max_evaluations == 0
+            || max_transferred_hypotheses == 0
+            || full_confidence_target_interventions == 0
+        {
+            return None;
+        }
+
+        Some(Self {
+            max_source_hypotheses,
+            max_evaluations,
+            max_transferred_hypotheses,
+            full_confidence_target_interventions,
+            thresholds,
+        })
+    }
+
+    pub fn max_source_hypotheses(self) -> usize {
+        self.max_source_hypotheses
+    }
+
+    pub fn max_evaluations(self) -> usize {
+        self.max_evaluations
+    }
+
+    pub fn max_transferred_hypotheses(self) -> usize {
+        self.max_transferred_hypotheses
+    }
+
+    pub fn full_confidence_target_interventions(self) -> u64 {
+        self.full_confidence_target_interventions
+    }
+
+    pub fn thresholds(self) -> CrossDomainTransferThresholds {
+        self.thresholds
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+struct TranslatedCausalSeed {
+    source_transformation: CognitiveStructure,
+    source_contrast_transformation: CognitiveStructure,
+    target_transformation: CognitiveStructure,
+    target_contrast_transformation: CognitiveStructure,
+    target_context: ContextPremiseSet,
+    source_effect_fact: CognitiveStructure,
+    target_effect_fact: CognitiveStructure,
+    effect_kind: TransitionEffectKind,
+    source_validated_confidence: CognitiveSignal,
+    source_interventional_lift: CognitiveSignal,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct GroundedCrossDomainTransferHypothesis {
+    source_domain: CognitiveStructure,
+    target_domain: CognitiveStructure,
+    source_transformation: CognitiveStructure,
+    source_contrast_transformation: CognitiveStructure,
+    target_transformation: CognitiveStructure,
+    target_contrast_transformation: CognitiveStructure,
+    target_context: ContextPremiseSet,
+    source_effect_fact: CognitiveStructure,
+    target_effect_fact: CognitiveStructure,
+    effect_kind: TransitionEffectKind,
+    matched_target_state_count: usize,
+    target_intervention_opportunity_count: u64,
+    target_intervention_success_count: u64,
+    target_intervention_failure_count: u64,
+    contrast_intervention_opportunity_count: u64,
+    contrast_intervention_success_count: u64,
+    contrast_intervention_failure_count: u64,
+    target_effect_rate: CognitiveSignal,
+    target_contrast_effect_rate: CognitiveSignal,
+    target_interventional_lift: CognitiveSignal,
+    balanced_target_support: u64,
+    target_support_adequacy: CognitiveSignal,
+    source_validated_confidence: CognitiveSignal,
+    source_interventional_lift: CognitiveSignal,
+    target_evidence_confidence: CognitiveSignal,
+    transfer_confidence: CognitiveSignal,
+    passive_corroborating_count: u64,
+    passive_counterevidence_count: u64,
+}
+
+impl GroundedCrossDomainTransferHypothesis {
+    pub fn source_domain(&self) -> &CognitiveStructure {
+        &self.source_domain
+    }
+
+    pub fn target_domain(&self) -> &CognitiveStructure {
+        &self.target_domain
+    }
+
+    pub fn source_transformation(&self) -> &CognitiveStructure {
+        &self.source_transformation
+    }
+
+    pub fn source_contrast_transformation(&self) -> &CognitiveStructure {
+        &self.source_contrast_transformation
+    }
+
+    pub fn target_transformation(&self) -> &CognitiveStructure {
+        &self.target_transformation
+    }
+
+    pub fn target_contrast_transformation(&self) -> &CognitiveStructure {
+        &self.target_contrast_transformation
+    }
+
+    pub fn target_context(&self) -> &ContextPremiseSet {
+        &self.target_context
+    }
+
+    pub fn source_effect_fact(&self) -> &CognitiveStructure {
+        &self.source_effect_fact
+    }
+
+    pub fn target_effect_fact(&self) -> &CognitiveStructure {
+        &self.target_effect_fact
+    }
+
+    pub fn effect_kind(&self) -> TransitionEffectKind {
+        self.effect_kind
+    }
+
+    pub fn matched_target_state_count(&self) -> usize {
+        self.matched_target_state_count
+    }
+
+    pub fn target_intervention_opportunity_count(&self) -> u64 {
+        self.target_intervention_opportunity_count
+    }
+
+    pub fn target_intervention_success_count(&self) -> u64 {
+        self.target_intervention_success_count
+    }
+
+    pub fn target_intervention_failure_count(&self) -> u64 {
+        self.target_intervention_failure_count
+    }
+
+    pub fn contrast_intervention_opportunity_count(&self) -> u64 {
+        self.contrast_intervention_opportunity_count
+    }
+
+    pub fn contrast_intervention_success_count(&self) -> u64 {
+        self.contrast_intervention_success_count
+    }
+
+    pub fn contrast_intervention_failure_count(&self) -> u64 {
+        self.contrast_intervention_failure_count
+    }
+
+    pub fn target_effect_rate(&self) -> CognitiveSignal {
+        self.target_effect_rate
+    }
+
+    pub fn target_contrast_effect_rate(&self) -> CognitiveSignal {
+        self.target_contrast_effect_rate
+    }
+
+    pub fn target_interventional_lift(&self) -> CognitiveSignal {
+        self.target_interventional_lift
+    }
+
+    pub fn balanced_target_support(&self) -> u64 {
+        self.balanced_target_support
+    }
+
+    pub fn target_support_adequacy(&self) -> CognitiveSignal {
+        self.target_support_adequacy
+    }
+
+    pub fn source_validated_confidence(&self) -> CognitiveSignal {
+        self.source_validated_confidence
+    }
+
+    pub fn source_interventional_lift(&self) -> CognitiveSignal {
+        self.source_interventional_lift
+    }
+
+    pub fn target_evidence_confidence(&self) -> CognitiveSignal {
+        self.target_evidence_confidence
+    }
+
+    pub fn transfer_confidence(&self) -> CognitiveSignal {
+        self.transfer_confidence
+    }
+
+    pub fn passive_corroborating_count(&self) -> u64 {
+        self.passive_corroborating_count
+    }
+
+    pub fn passive_counterevidence_count(&self) -> u64 {
+        self.passive_counterevidence_count
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct CrossDomainTransferResult {
+    input_source_hypothesis_count: usize,
+    considered_source_hypothesis_count: usize,
+    source_frontier_truncated: bool,
+    rejected_incomplete_mapping: usize,
+    evaluated_candidate_count: usize,
+    evaluation_truncated: bool,
+    rejected_without_matched_target_interventions: usize,
+    rejected_below_transfer_threshold: usize,
+    admitted_before_frontier: usize,
+    selected: Vec<GroundedCrossDomainTransferHypothesis>,
+}
+
+impl CrossDomainTransferResult {
+    pub fn input_source_hypothesis_count(&self) -> usize {
+        self.input_source_hypothesis_count
+    }
+
+    pub fn considered_source_hypothesis_count(&self) -> usize {
+        self.considered_source_hypothesis_count
+    }
+
+    pub fn source_frontier_truncated(&self) -> bool {
+        self.source_frontier_truncated
+    }
+
+    pub fn rejected_incomplete_mapping(&self) -> usize {
+        self.rejected_incomplete_mapping
+    }
+
+    pub fn evaluated_candidate_count(&self) -> usize {
+        self.evaluated_candidate_count
+    }
+
+    pub fn evaluation_truncated(&self) -> bool {
+        self.evaluation_truncated
+    }
+
+    pub fn rejected_without_matched_target_interventions(&self) -> usize {
+        self.rejected_without_matched_target_interventions
+    }
+
+    pub fn rejected_below_transfer_threshold(&self) -> usize {
+        self.rejected_below_transfer_threshold
+    }
+
+    pub fn admitted_before_frontier(&self) -> usize {
+        self.admitted_before_frontier
+    }
+
+    pub fn selected(&self) -> &[GroundedCrossDomainTransferHypothesis] {
+        &self.selected
+    }
+
+    pub fn selected_count(&self) -> usize {
+        self.selected.len()
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, Hash, PartialEq)]
+pub struct CrossDomainTransfer;
+
+impl CrossDomainTransfer {
+    fn scaled_rate(numerator: u64, denominator: u64) -> CognitiveSignal {
+        debug_assert!(denominator > 0);
+
+        let scaled = (u128::from(numerator) * 1000) / u128::from(denominator);
+
+        CognitiveSignal::new(scaled as u16).expect("bounded transfer rate remains on signal scale")
+    }
+
+    fn positive_difference(left: CognitiveSignal, right: CognitiveSignal) -> CognitiveSignal {
+        CognitiveSignal::new(left.value().saturating_sub(right.value()))
+            .expect("bounded transfer lift remains on signal scale")
+    }
+
+    fn scaled_product(left: CognitiveSignal, right: CognitiveSignal) -> CognitiveSignal {
+        let scaled = (u32::from(left.value()) * u32::from(right.value())) / 1000;
+
+        CognitiveSignal::new(scaled as u16)
+            .expect("bounded transfer confidence remains on signal scale")
+    }
+
+    fn support_adequacy(support: u64, full_support: u64) -> CognitiveSignal {
+        if support >= full_support {
+            return CognitiveSignal::new(1000)
+                .expect("full transfer support remains on signal scale");
+        }
+
+        Self::scaled_rate(support, full_support)
+    }
+
+    fn compare_context(left: &ContextPremiseSet, right: &ContextPremiseSet) -> std::cmp::Ordering {
+        let mut left_iterator = left.premises().iter();
+
+        let mut right_iterator = right.premises().iter();
+
+        loop {
+            match (left_iterator.next(), right_iterator.next()) {
+                (Some(left_value), Some(right_value)) => {
+                    let ordering = PredicateDiscovery::compare_structure(left_value, right_value);
+
+                    if ordering != std::cmp::Ordering::Equal {
+                        return ordering;
+                    }
+                }
+
+                (None, Some(_)) => {
+                    return std::cmp::Ordering::Less;
+                }
+
+                (Some(_), None) => {
+                    return std::cmp::Ordering::Greater;
+                }
+
+                (None, None) => {
+                    return std::cmp::Ordering::Equal;
+                }
+            }
+        }
+    }
+
+    fn compare_source(
+        left: &GroundedInterventionalCausalHypothesis,
+        right: &GroundedInterventionalCausalHypothesis,
+    ) -> std::cmp::Ordering {
+        right
+            .validated_causal_confidence()
+            .value()
+            .cmp(&left.validated_causal_confidence().value())
+            .then_with(|| {
+                right
+                    .interventional_lift()
+                    .value()
+                    .cmp(&left.interventional_lift().value())
+            })
+            .then_with(|| {
+                right
+                    .matched_intervention_state_count()
+                    .cmp(&left.matched_intervention_state_count())
+            })
+            .then_with(|| {
+                PredicateDiscovery::compare_structure(left.transformation(), right.transformation())
+            })
+            .then_with(|| {
+                PredicateDiscovery::compare_structure(
+                    left.contrast_transformation(),
+                    right.contrast_transformation(),
+                )
+            })
+            .then_with(|| left.effect_kind().cmp(&right.effect_kind()))
+            .then_with(|| {
+                PredicateDiscovery::compare_structure(left.effect_fact(), right.effect_fact())
+            })
+            .then_with(|| Self::compare_context(left.context(), right.context()))
+    }
+
+    fn considered_sources(
+        source_hypotheses: &[GroundedInterventionalCausalHypothesis],
+        policy: CrossDomainTransferPolicy,
+    ) -> Vec<&GroundedInterventionalCausalHypothesis> {
+        let mut considered = source_hypotheses.iter().collect::<Vec<_>>();
+
+        considered.sort_by(|left, right| Self::compare_source(left, right));
+
+        considered.truncate(policy.max_source_hypotheses());
+
+        considered
+    }
+
+    fn translate_context(
+        context: &ContextPremiseSet,
+        transfer_map: &CrossDomainTransferMap,
+    ) -> Option<ContextPremiseSet> {
+        let translated = context
+            .premises()
+            .iter()
+            .map(|premise| transfer_map.translate(premise).cloned())
+            .collect::<Option<Vec<_>>>()?;
+
+        ContextPremiseSet::new(translated)
+    }
+
+    fn translate_seed(
+        source: &GroundedInterventionalCausalHypothesis,
+        transfer_map: &CrossDomainTransferMap,
+    ) -> Option<TranslatedCausalSeed> {
+        let target_transformation = transfer_map.translate(source.transformation())?.clone();
+
+        let target_contrast_transformation = transfer_map
+            .translate(source.contrast_transformation())?
+            .clone();
+
+        let target_effect_fact = transfer_map.translate(source.effect_fact())?.clone();
+
+        let target_context = Self::translate_context(source.context(), transfer_map)?;
+
+        Some(TranslatedCausalSeed {
+            source_transformation: source.transformation().clone(),
+            source_contrast_transformation: source.contrast_transformation().clone(),
+            target_transformation,
+            target_contrast_transformation,
+            target_context,
+            source_effect_fact: source.effect_fact().clone(),
+            target_effect_fact,
+            effect_kind: source.effect_kind(),
+            source_validated_confidence: source.validated_causal_confidence(),
+            source_interventional_lift: source.interventional_lift(),
+        })
+    }
+
+    fn controlled_matches(
+        candidate: &TranslatedCausalSeed,
+        transformation: &CognitiveStructure,
+        evidence: &InterventionalTransformationEpisode,
+    ) -> bool {
+        let episode = evidence.episode();
+
+        evidence.is_controlled()
+            && episode.transformation() == transformation
+            && candidate.target_context.is_satisfied_by(episode.before())
+            && episode.effect_opportunity(candidate.effect_kind, &candidate.target_effect_fact)
+    }
+
+    fn matched_target_states(
+        target_evidence: &[InterventionalTransformationEpisode],
+        candidate: &TranslatedCausalSeed,
+    ) -> Vec<GroundedStateSnapshot> {
+        let mut states = Vec::new();
+
+        for target_item in target_evidence {
+            if !Self::controlled_matches(candidate, &candidate.target_transformation, target_item) {
+                continue;
+            }
+
+            let state = target_item.episode().before();
+
+            let has_contrast = target_evidence.iter().any(|contrast_item| {
+                contrast_item.episode().before() == state
+                    && Self::controlled_matches(
+                        candidate,
+                        &candidate.target_contrast_transformation,
+                        contrast_item,
+                    )
+            });
+
+            if has_contrast && !states.contains(state) {
+                states.push(state.clone());
+            }
+        }
+
+        states
+    }
+
+    fn in_matched_states(
+        evidence: &InterventionalTransformationEpisode,
+        states: &[GroundedStateSnapshot],
+    ) -> bool {
+        states.contains(evidence.episode().before())
+    }
+
+    fn passive_counts(
+        target_evidence: &[InterventionalTransformationEpisode],
+        candidate: &TranslatedCausalSeed,
+    ) -> (u64, u64) {
+        let mut corroborating = 0_u64;
+
+        let mut counterevidence = 0_u64;
+
+        for item in target_evidence {
+            if item.is_controlled() {
+                continue;
+            }
+
+            let episode = item.episode();
+
+            if !candidate.target_context.is_satisfied_by(episode.before())
+                || !episode.effect_opportunity(candidate.effect_kind, &candidate.target_effect_fact)
+            {
+                continue;
+            }
+
+            if episode.transformation() == &candidate.target_transformation {
+                if episode.effect_occurs(candidate.effect_kind, &candidate.target_effect_fact) {
+                    corroborating = corroborating.saturating_add(1);
+                } else {
+                    counterevidence = counterevidence.saturating_add(1);
+                }
+            } else if episode.transformation() == &candidate.target_contrast_transformation {
+                if episode.effect_occurs(candidate.effect_kind, &candidate.target_effect_fact) {
+                    counterevidence = counterevidence.saturating_add(1);
+                } else {
+                    corroborating = corroborating.saturating_add(1);
+                }
+            }
+        }
+
+        (corroborating, counterevidence)
+    }
+
+    fn evaluate_candidate(
+        target_evidence: &[InterventionalTransformationEpisode],
+        candidate: &TranslatedCausalSeed,
+        transfer_map: &CrossDomainTransferMap,
+        policy: CrossDomainTransferPolicy,
+    ) -> Option<GroundedCrossDomainTransferHypothesis> {
+        let matched_states = Self::matched_target_states(target_evidence, candidate);
+
+        if matched_states.len() < policy.thresholds().minimum_matched_target_states() {
+            return None;
+        }
+
+        let target_intervention_opportunity_count = target_evidence
+            .iter()
+            .filter(|item| {
+                Self::controlled_matches(candidate, &candidate.target_transformation, item)
+                    && Self::in_matched_states(item, &matched_states)
+            })
+            .count() as u64;
+
+        let contrast_intervention_opportunity_count = target_evidence
+            .iter()
+            .filter(|item| {
+                Self::controlled_matches(candidate, &candidate.target_contrast_transformation, item)
+                    && Self::in_matched_states(item, &matched_states)
+            })
+            .count() as u64;
+
+        if target_intervention_opportunity_count
+            < policy.thresholds().minimum_target_interventions()
+            || contrast_intervention_opportunity_count
+                < policy.thresholds().minimum_contrast_interventions()
+        {
+            return None;
+        }
+
+        let target_intervention_success_count = target_evidence
+            .iter()
+            .filter(|item| {
+                Self::controlled_matches(candidate, &candidate.target_transformation, item)
+                    && Self::in_matched_states(item, &matched_states)
+                    && item
+                        .episode()
+                        .effect_occurs(candidate.effect_kind, &candidate.target_effect_fact)
+            })
+            .count() as u64;
+
+        let contrast_intervention_success_count = target_evidence
+            .iter()
+            .filter(|item| {
+                Self::controlled_matches(candidate, &candidate.target_contrast_transformation, item)
+                    && Self::in_matched_states(item, &matched_states)
+                    && item
+                        .episode()
+                        .effect_occurs(candidate.effect_kind, &candidate.target_effect_fact)
+            })
+            .count() as u64;
+
+        let target_intervention_failure_count =
+            target_intervention_opportunity_count.saturating_sub(target_intervention_success_count);
+
+        let contrast_intervention_failure_count = contrast_intervention_opportunity_count
+            .saturating_sub(contrast_intervention_success_count);
+
+        let target_effect_rate = Self::scaled_rate(
+            target_intervention_success_count,
+            target_intervention_opportunity_count,
+        );
+
+        let target_contrast_effect_rate = Self::scaled_rate(
+            contrast_intervention_success_count,
+            contrast_intervention_opportunity_count,
+        );
+
+        let target_interventional_lift =
+            Self::positive_difference(target_effect_rate, target_contrast_effect_rate);
+
+        if target_interventional_lift.value() < policy.thresholds().minimum_target_lift().value() {
+            return None;
+        }
+
+        let balanced_target_support =
+            target_intervention_opportunity_count.min(contrast_intervention_opportunity_count);
+
+        let target_support_adequacy = Self::support_adequacy(
+            balanced_target_support,
+            policy.full_confidence_target_interventions(),
+        );
+
+        let target_evidence_confidence =
+            Self::scaled_product(target_interventional_lift, target_support_adequacy);
+
+        let transfer_confidence = Self::scaled_product(
+            candidate.source_validated_confidence,
+            target_evidence_confidence,
+        );
+
+        if transfer_confidence.value() < policy.thresholds().minimum_transfer_confidence().value() {
+            return None;
+        }
+
+        let (passive_corroborating_count, passive_counterevidence_count) =
+            Self::passive_counts(target_evidence, candidate);
+
+        Some(GroundedCrossDomainTransferHypothesis {
+            source_domain: transfer_map.source_domain().clone(),
+            target_domain: transfer_map.target_domain().clone(),
+            source_transformation: candidate.source_transformation.clone(),
+            source_contrast_transformation: candidate.source_contrast_transformation.clone(),
+            target_transformation: candidate.target_transformation.clone(),
+            target_contrast_transformation: candidate.target_contrast_transformation.clone(),
+            target_context: candidate.target_context.clone(),
+            source_effect_fact: candidate.source_effect_fact.clone(),
+            target_effect_fact: candidate.target_effect_fact.clone(),
+            effect_kind: candidate.effect_kind,
+            matched_target_state_count: matched_states.len(),
+            target_intervention_opportunity_count,
+            target_intervention_success_count,
+            target_intervention_failure_count,
+            contrast_intervention_opportunity_count,
+            contrast_intervention_success_count,
+            contrast_intervention_failure_count,
+            target_effect_rate,
+            target_contrast_effect_rate,
+            target_interventional_lift,
+            balanced_target_support,
+            target_support_adequacy,
+            source_validated_confidence: candidate.source_validated_confidence,
+            source_interventional_lift: candidate.source_interventional_lift,
+            target_evidence_confidence,
+            transfer_confidence,
+            passive_corroborating_count,
+            passive_counterevidence_count,
+        })
+    }
+
+    fn ranking(
+        left: &GroundedCrossDomainTransferHypothesis,
+        right: &GroundedCrossDomainTransferHypothesis,
+    ) -> std::cmp::Ordering {
+        right
+            .transfer_confidence()
+            .value()
+            .cmp(&left.transfer_confidence().value())
+            .then_with(|| {
+                right
+                    .target_interventional_lift()
+                    .value()
+                    .cmp(&left.target_interventional_lift().value())
+            })
+            .then_with(|| {
+                right
+                    .target_support_adequacy()
+                    .value()
+                    .cmp(&left.target_support_adequacy().value())
+            })
+            .then_with(|| {
+                right
+                    .source_validated_confidence()
+                    .value()
+                    .cmp(&left.source_validated_confidence().value())
+            })
+            .then_with(|| {
+                right
+                    .matched_target_state_count()
+                    .cmp(&left.matched_target_state_count())
+            })
+            .then_with(|| {
+                PredicateDiscovery::compare_structure(
+                    left.target_transformation(),
+                    right.target_transformation(),
+                )
+            })
+            .then_with(|| {
+                PredicateDiscovery::compare_structure(
+                    left.target_contrast_transformation(),
+                    right.target_contrast_transformation(),
+                )
+            })
+            .then_with(|| left.effect_kind().cmp(&right.effect_kind()))
+            .then_with(|| {
+                PredicateDiscovery::compare_structure(
+                    left.target_effect_fact(),
+                    right.target_effect_fact(),
+                )
+            })
+            .then_with(|| Self::compare_context(left.target_context(), right.target_context()))
+    }
+
+    pub fn transfer(
+        target_evidence: &[InterventionalTransformationEpisode],
+        source_hypotheses: &[GroundedInterventionalCausalHypothesis],
+        transfer_map: &CrossDomainTransferMap,
+        policy: CrossDomainTransferPolicy,
+    ) -> CrossDomainTransferResult {
+        if target_evidence.is_empty() || source_hypotheses.is_empty() {
+            return CrossDomainTransferResult {
+                input_source_hypothesis_count: source_hypotheses.len(),
+                considered_source_hypothesis_count: 0,
+                source_frontier_truncated: false,
+                rejected_incomplete_mapping: 0,
+                evaluated_candidate_count: 0,
+                evaluation_truncated: false,
+                rejected_without_matched_target_interventions: 0,
+                rejected_below_transfer_threshold: 0,
+                admitted_before_frontier: 0,
+                selected: Vec::new(),
+            };
+        }
+
+        let considered = Self::considered_sources(source_hypotheses, policy);
+
+        let mut rejected_incomplete_mapping = 0_usize;
+
+        let mut translated = Vec::new();
+
+        for source in &considered {
+            if let Some(candidate) = Self::translate_seed(source, transfer_map) {
+                translated.push(candidate);
+            } else {
+                rejected_incomplete_mapping = rejected_incomplete_mapping.saturating_add(1);
+            }
+        }
+
+        let evaluated_candidate_count = translated.len().min(policy.max_evaluations());
+
+        let mut rejected_without_matched_target_interventions = 0_usize;
+
+        let mut rejected_below_transfer_threshold = 0_usize;
+
+        let mut admitted = Vec::new();
+
+        for candidate in translated.iter().take(policy.max_evaluations()) {
+            let matched_states = Self::matched_target_states(target_evidence, candidate);
+
+            if matched_states.len() < policy.thresholds().minimum_matched_target_states() {
+                rejected_without_matched_target_interventions =
+                    rejected_without_matched_target_interventions.saturating_add(1);
+
+                continue;
+            }
+
+            if let Some(hypothesis) =
+                Self::evaluate_candidate(target_evidence, candidate, transfer_map, policy)
+            {
+                admitted.push(hypothesis);
+            } else {
+                rejected_below_transfer_threshold =
+                    rejected_below_transfer_threshold.saturating_add(1);
+            }
+        }
+
+        admitted.sort_by(Self::ranking);
+
+        let admitted_before_frontier = admitted.len();
+
+        admitted.truncate(policy.max_transferred_hypotheses());
+
+        CrossDomainTransferResult {
+            input_source_hypothesis_count: source_hypotheses.len(),
+            considered_source_hypothesis_count: considered.len(),
+            source_frontier_truncated: source_hypotheses.len() > considered.len(),
+            rejected_incomplete_mapping,
+            evaluated_candidate_count,
+            evaluation_truncated: translated.len() > evaluated_candidate_count,
+            rejected_without_matched_target_interventions,
+            rejected_below_transfer_threshold,
+            admitted_before_frontier,
+            selected: admitted,
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, Hash, PartialEq)]
+pub struct UniversalCrossDomainTransfer;
+
+impl UniversalCrossDomainTransfer {
+    pub fn evaluate(
+        target_evidence: &[InterventionalTransformationEpisode],
+        source_hypotheses: &[GroundedInterventionalCausalHypothesis],
+        transfer_map: &CrossDomainTransferMap,
+        policy: CrossDomainTransferPolicy,
+    ) -> CrossDomainTransferResult {
+        CrossDomainTransfer::transfer(target_evidence, source_hypotheses, transfer_map, policy)
+    }
+}
