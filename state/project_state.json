@@ -31,10 +31,11 @@
     "crates/athlesia_cross_level/tests/cross_level_recognition.rs": "395c6ce92aeea1be7ff294b609fcf9d175f778a2d9201ad481182831d83b02eb",
     "crates/athlesia_executive_agency/Cargo.lock": "da178d1345c1ad8d43f73b08ee997d5a093f9ae6f7bc713f6338c4e9e23207aa",
     "crates/athlesia_executive_agency/Cargo.toml": "7fa2a02601b37038f11c2406b289c51af8338988d73fea784ae13a0dccd49cc1",
-    "crates/athlesia_executive_agency/src/lib.rs": "678708c1a7b3ea8700b9a9b2bf70a7d9f255519399c94850a75c084c562be511",
+    "crates/athlesia_executive_agency/src/lib.rs": "31ac4059b1c02995dd236f1ca95b756d9e2137c552e96faba1ddb199b07eeddc",
     "crates/athlesia_executive_agency/tests/executive_agency_foundation.rs": "763fcb4d72809c9f2314b45f15e3593de68ea8f18388b2550a7ee5277d5d0920",
     "crates/athlesia_executive_agency/tests/executive_agency_goal_conflict_arbitration.rs": "14582d55e38f6985849aaef41a4fffe0a1c15f5d2bd246b67fef193e131afa63",
     "crates/athlesia_executive_agency/tests/executive_agency_goal_persistence.rs": "3ba2700464c9ab6a8a75ea9654ec97d51067e4ff5a35d5e3ffb879866a409a0f",
+    "crates/athlesia_executive_agency/tests/executive_agency_intention_execution_monitoring.rs": "5fb7c3f57e5529ed54dae707cace2c9974127e445697b7814cbe012f7c25ec00",
     "crates/athlesia_executive_agency/tests/executive_agency_multi_step_intention.rs": "d12e96689fb501314687e125a22a961c80a894acee2d80babe1c1c55e740c246",
     "crates/athlesia_hierarchy/Cargo.toml": "6853cd5d63d5be93d8c1fa37d8961514bf1f48801ae59f90bf4fd0e6da49b3ee",
     "crates/athlesia_hierarchy/src/lib.rs": "dfcea2b7af7a59a1c4e214372e098408ef2411b1c81fb5f0d147e73acd403f7d",
@@ -563,7 +564,8 @@
       "module_48_executive_agency_foundation",
       "module_48_executive_agency_goal_persistence",
       "module_48_executive_agency_goal_conflict_arbitration",
-      "module_48_executive_agency_multi_step_intention"
+      "module_48_executive_agency_multi_step_intention",
+      "module_48_executive_agency_intention_execution_monitoring"
     ],
     "module_23_integrity": {
       "status": "pass",
@@ -576,8 +578,8 @@
       "status": "frozen",
       "verifier": "tools/verify_module_23_parity.py"
     },
-    "next_layer": "module_48_executive_agency_intention_execution_monitoring",
-    "stage": "module_48_executive_agency_multi_step_intention",
+    "next_layer": "module_48_executive_agency_deviation_replanning",
+    "stage": "module_48_executive_agency_intention_execution_monitoring",
     "status": "validated"
   },
   "validated_invariants": [
@@ -2768,6 +2770,18 @@
     "executive_agency_multi_step_intention_exact_opaque_step_identity",
     "executive_agency_multi_step_intention_hard_step_length_bound",
     "executive_agency_multi_step_intention_hard_source_candidate_step_and_final_frontiers",
-    "executive_agency_multi_step_intention_deterministic_non_mutating_facade_equivalence"
+    "executive_agency_multi_step_intention_deterministic_non_mutating_facade_equivalence",
+    "executive_agency_execution_monitoring_positive_policy_bounds_and_confidence",
+    "executive_agency_execution_monitoring_absent_observation_pending",
+    "executive_agency_execution_monitoring_low_confidence_inconclusive",
+    "executive_agency_execution_monitoring_exact_step_advancement",
+    "executive_agency_execution_monitoring_exact_sequence_completion",
+    "executive_agency_execution_monitoring_explicit_state_deviation",
+    "executive_agency_execution_monitoring_explicit_action_deviation",
+    "executive_agency_execution_monitoring_explicit_outcome_prediction_error",
+    "executive_agency_execution_monitoring_first_deviation_halts_continuation",
+    "executive_agency_execution_monitoring_exact_opaque_identity",
+    "executive_agency_execution_monitoring_hard_step_and_observation_frontiers",
+    "executive_agency_execution_monitoring_deterministic_non_mutating_facade_equivalence"
   ]
 }

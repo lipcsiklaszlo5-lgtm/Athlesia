@@ -2565,3 +2565,376 @@ impl UniversalMultiStepIntention {
         MultiStepIntention::select(source_intents, candidates, policy)
     }
 }
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct GroundedExecutionObservation {
+    observed_state: CognitiveStructure,
+    observed_action: CognitiveStructure,
+    observed_outcome: CognitiveStructure,
+    observation_confidence: CognitiveSignal,
+}
+
+impl GroundedExecutionObservation {
+    pub fn new(
+        observed_state: CognitiveStructure,
+        observed_action: CognitiveStructure,
+        observed_outcome: CognitiveStructure,
+        observation_confidence: CognitiveSignal,
+    ) -> Self {
+        Self {
+            observed_state,
+            observed_action,
+            observed_outcome,
+            observation_confidence,
+        }
+    }
+
+    pub fn observed_state(&self) -> &CognitiveStructure {
+        &self.observed_state
+    }
+
+    pub fn observed_action(&self) -> &CognitiveStructure {
+        &self.observed_action
+    }
+
+    pub fn observed_outcome(&self) -> &CognitiveStructure {
+        &self.observed_outcome
+    }
+
+    pub fn observation_confidence(&self) -> CognitiveSignal {
+        self.observation_confidence
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub enum ExecutionDeviationKind {
+    StateMismatch,
+    ActionMismatch,
+    OutcomeMismatch,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct IntentionExecutionDeviation {
+    step_index: usize,
+    kind: ExecutionDeviationKind,
+    expected_state: CognitiveStructure,
+    observed_state: CognitiveStructure,
+    expected_action: CognitiveStructure,
+    observed_action: CognitiveStructure,
+    expected_outcome: CognitiveStructure,
+    observed_outcome: CognitiveStructure,
+    observation_confidence: CognitiveSignal,
+}
+
+impl IntentionExecutionDeviation {
+    pub fn step_index(&self) -> usize {
+        self.step_index
+    }
+
+    pub fn kind(&self) -> ExecutionDeviationKind {
+        self.kind
+    }
+
+    pub fn expected_state(&self) -> &CognitiveStructure {
+        &self.expected_state
+    }
+
+    pub fn observed_state(&self) -> &CognitiveStructure {
+        &self.observed_state
+    }
+
+    pub fn expected_action(&self) -> &CognitiveStructure {
+        &self.expected_action
+    }
+
+    pub fn observed_action(&self) -> &CognitiveStructure {
+        &self.observed_action
+    }
+
+    pub fn expected_outcome(&self) -> &CognitiveStructure {
+        &self.expected_outcome
+    }
+
+    pub fn observed_outcome(&self) -> &CognitiveStructure {
+        &self.observed_outcome
+    }
+
+    pub fn observation_confidence(&self) -> CognitiveSignal {
+        self.observation_confidence
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub enum IntentionExecutionStatus {
+    Pending,
+    Inconclusive,
+    Advanced,
+    Completed,
+    Deviated,
+    StepBoundExceeded,
+}
+
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub struct IntentionExecutionMonitoringPolicy {
+    max_steps_per_intention: usize,
+    max_observations: usize,
+    minimum_observation_confidence: CognitiveSignal,
+}
+
+impl IntentionExecutionMonitoringPolicy {
+    pub fn new(
+        max_steps_per_intention: usize,
+        max_observations: usize,
+        minimum_observation_confidence: CognitiveSignal,
+    ) -> Option<Self> {
+        if max_steps_per_intention == 0
+            || max_observations == 0
+            || minimum_observation_confidence == CognitiveSignal::zero()
+        {
+            return None;
+        }
+
+        Some(Self {
+            max_steps_per_intention,
+            max_observations,
+            minimum_observation_confidence,
+        })
+    }
+
+    pub fn max_steps_per_intention(self) -> usize {
+        self.max_steps_per_intention
+    }
+
+    pub fn max_observations(self) -> usize {
+        self.max_observations
+    }
+
+    pub fn minimum_observation_confidence(self) -> CognitiveSignal {
+        self.minimum_observation_confidence
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct IntentionExecutionMonitoringResult {
+    status: IntentionExecutionStatus,
+    input_observation_count: usize,
+    considered_observation_count: usize,
+    observation_frontier_truncated: bool,
+    confirmed_step_count: usize,
+    low_confidence_observation_count: usize,
+    next_step_index: Option<usize>,
+    remaining_step_count: usize,
+    deviation: Option<IntentionExecutionDeviation>,
+}
+
+impl IntentionExecutionMonitoringResult {
+    pub fn status(&self) -> IntentionExecutionStatus {
+        self.status
+    }
+
+    pub fn input_observation_count(&self) -> usize {
+        self.input_observation_count
+    }
+
+    pub fn considered_observation_count(&self) -> usize {
+        self.considered_observation_count
+    }
+
+    pub fn observation_frontier_truncated(&self) -> bool {
+        self.observation_frontier_truncated
+    }
+
+    pub fn confirmed_step_count(&self) -> usize {
+        self.confirmed_step_count
+    }
+
+    pub fn low_confidence_observation_count(&self) -> usize {
+        self.low_confidence_observation_count
+    }
+
+    pub fn next_step_index(&self) -> Option<usize> {
+        self.next_step_index
+    }
+
+    pub fn remaining_step_count(&self) -> usize {
+        self.remaining_step_count
+    }
+
+    pub fn deviation(&self) -> Option<&IntentionExecutionDeviation> {
+        self.deviation.as_ref()
+    }
+
+    pub fn completed(&self) -> bool {
+        self.status == IntentionExecutionStatus::Completed
+    }
+
+    pub fn deviated(&self) -> bool {
+        self.status == IntentionExecutionStatus::Deviated
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, Hash, PartialEq)]
+pub struct IntentionExecutionMonitor;
+
+impl IntentionExecutionMonitor {
+    fn deviation(
+        step_index: usize,
+        expected: &GroundedIntentionStep,
+        observation: &GroundedExecutionObservation,
+    ) -> Option<IntentionExecutionDeviation> {
+        let kind = if observation.observed_state() != expected.required_state() {
+            Some(ExecutionDeviationKind::StateMismatch)
+        } else if observation.observed_action() != expected.action() {
+            Some(ExecutionDeviationKind::ActionMismatch)
+        } else if observation.observed_outcome() != expected.predicted_outcome() {
+            Some(ExecutionDeviationKind::OutcomeMismatch)
+        } else {
+            None
+        };
+
+        kind.map(|kind| IntentionExecutionDeviation {
+            step_index,
+            kind,
+            expected_state: expected.required_state().clone(),
+            observed_state: observation.observed_state().clone(),
+            expected_action: expected.action().clone(),
+            observed_action: observation.observed_action().clone(),
+            expected_outcome: expected.predicted_outcome().clone(),
+            observed_outcome: observation.observed_outcome().clone(),
+            observation_confidence: observation.observation_confidence(),
+        })
+    }
+
+    fn result_status(
+        confirmed_step_count: usize,
+        low_confidence_observation_count: usize,
+    ) -> IntentionExecutionStatus {
+        if confirmed_step_count > 0 {
+            IntentionExecutionStatus::Advanced
+        } else if low_confidence_observation_count > 0 {
+            IntentionExecutionStatus::Inconclusive
+        } else {
+            IntentionExecutionStatus::Pending
+        }
+    }
+
+    pub fn monitor(
+        intention: &ExecutableMultiStepIntention,
+        observations: &[GroundedExecutionObservation],
+        policy: IntentionExecutionMonitoringPolicy,
+    ) -> IntentionExecutionMonitoringResult {
+        let input_observation_count = observations.len();
+
+        if intention.step_count() > policy.max_steps_per_intention() {
+            return IntentionExecutionMonitoringResult {
+                status: IntentionExecutionStatus::StepBoundExceeded,
+                input_observation_count,
+                considered_observation_count: 0,
+                observation_frontier_truncated: false,
+                confirmed_step_count: 0,
+                low_confidence_observation_count: 0,
+                next_step_index: None,
+                remaining_step_count: intention.step_count(),
+                deviation: None,
+            };
+        }
+
+        let observation_limit = observations.len().min(policy.max_observations());
+
+        let observation_frontier_truncated = observations.len() > observation_limit;
+
+        let mut confirmed_step_count = 0_usize;
+
+        let mut considered_observation_count = 0_usize;
+
+        let mut low_confidence_observation_count = 0_usize;
+
+        let mut deviation = None;
+
+        for observation in observations.iter().take(observation_limit) {
+            if confirmed_step_count >= intention.step_count() {
+                break;
+            }
+
+            considered_observation_count = considered_observation_count.saturating_add(1);
+
+            if observation.observation_confidence().value()
+                < policy.minimum_observation_confidence().value()
+            {
+                low_confidence_observation_count =
+                    low_confidence_observation_count.saturating_add(1);
+
+                continue;
+            }
+
+            let expected = &intention.steps()[confirmed_step_count];
+
+            if let Some(detected) = Self::deviation(confirmed_step_count, expected, observation) {
+                deviation = Some(detected);
+
+                break;
+            }
+
+            confirmed_step_count = confirmed_step_count.saturating_add(1);
+
+            if confirmed_step_count == intention.step_count() {
+                break;
+            }
+        }
+
+        if deviation.is_some() {
+            let remaining_step_count = intention.step_count().saturating_sub(confirmed_step_count);
+
+            return IntentionExecutionMonitoringResult {
+                status: IntentionExecutionStatus::Deviated,
+                input_observation_count,
+                considered_observation_count,
+                observation_frontier_truncated,
+                confirmed_step_count,
+                low_confidence_observation_count,
+                next_step_index: Some(confirmed_step_count),
+                remaining_step_count,
+                deviation,
+            };
+        }
+
+        if confirmed_step_count == intention.step_count() {
+            return IntentionExecutionMonitoringResult {
+                status: IntentionExecutionStatus::Completed,
+                input_observation_count,
+                considered_observation_count,
+                observation_frontier_truncated,
+                confirmed_step_count,
+                low_confidence_observation_count,
+                next_step_index: None,
+                remaining_step_count: 0,
+                deviation: None,
+            };
+        }
+
+        IntentionExecutionMonitoringResult {
+            status: Self::result_status(confirmed_step_count, low_confidence_observation_count),
+            input_observation_count,
+            considered_observation_count,
+            observation_frontier_truncated,
+            confirmed_step_count,
+            low_confidence_observation_count,
+            next_step_index: Some(confirmed_step_count),
+            remaining_step_count: intention.step_count().saturating_sub(confirmed_step_count),
+            deviation: None,
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, Hash, PartialEq)]
+pub struct UniversalIntentionExecutionMonitor;
+
+impl UniversalIntentionExecutionMonitor {
+    pub fn evaluate(
+        intention: &ExecutableMultiStepIntention,
+        observations: &[GroundedExecutionObservation],
+        policy: IntentionExecutionMonitoringPolicy,
+    ) -> IntentionExecutionMonitoringResult {
+        IntentionExecutionMonitor::monitor(intention, observations, policy)
+    }
+}
