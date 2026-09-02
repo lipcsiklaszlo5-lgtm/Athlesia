@@ -12,7 +12,7 @@
     "Cargo.toml": "e852faab0d9dff23b09e1ee2323d0998955f837450c70ea015382ffe5ec52bff",
     "crates/athlesia_autonomous_active_experimentation/Cargo.lock": "1c12abed42af5b27b1bea85545134dfa5356790380225f867fa22410c5c6291a",
     "crates/athlesia_autonomous_active_experimentation/Cargo.toml": "49498766817cc955e460692355ff4c0b30cbe6cb5c8add30139fd646632ce666",
-    "crates/athlesia_autonomous_active_experimentation/src/lib.rs": "3448614b6ccb8215189fc2cbebbf92160430a11b0c0b60bd2be68e50f977fb9a",
+    "crates/athlesia_autonomous_active_experimentation/src/lib.rs": "a68d198b3a3e45238b697ee1ae6a7d83b82cd13f5fc534025160c1d0a3558fb3",
     "crates/athlesia_autonomous_active_experimentation/tests/autonomous_active_experimentation_foundation.rs": "7c3a148fc604232d9e66f4f4fa9a023a920ad0b8bc36be0759e71d074731d62c",
     "crates/athlesia_core_knowledge_perceptual_grounding/Cargo.lock": "fbefd559ec01ff3860d153fdf05e9a29f10ecff62eb63206d1b8e643c35ec7b4",
     "crates/athlesia_core_knowledge_perceptual_grounding/Cargo.toml": "04ffcd03f7862aac5423b16466ca1ea5ad1ad65856a76a9f4a4265c6dca64ff8",
@@ -601,7 +601,8 @@
       "module_49_meta_learning_skill_memory_consolidation_and_forgetting",
       "module_49_meta_learning_integrated_skill_learning_cycle",
       "module_49_meta_learning_skill_memory_frozen",
-      "module_50_autonomous_active_experimentation_foundation"
+      "module_50_autonomous_active_experimentation_foundation",
+      "module_50_autonomous_active_experimentation_hypothesis_discrimination"
     ],
     "module_23_integrity": {
       "status": "pass",
@@ -614,8 +615,8 @@
       "status": "frozen",
       "verifier": "tools/verify_module_23_parity.py"
     },
-    "next_layer": "module_50_autonomous_active_experimentation_hypothesis_discrimination",
-    "stage": "module_50_autonomous_active_experimentation_foundation",
+    "next_layer": "module_50_autonomous_active_experimentation_outcome_evidence_update",
+    "stage": "module_50_autonomous_active_experimentation_hypothesis_discrimination",
     "status": "validated"
   },
   "validated_invariants": [
@@ -2998,6 +2999,18 @@
     "autonomous_active_experimentation_distinct_action_preservation",
     "autonomous_active_experimentation_information_gain_ranking",
     "autonomous_active_experimentation_hard_frontiers",
-    "autonomous_active_experimentation_deterministic_facade_equivalence"
+    "autonomous_active_experimentation_deterministic_facade_equivalence",
+    "autonomous_experimentation_discrimination_competing_hypothesis_contract",
+    "autonomous_experimentation_discrimination_distinct_prediction_selection",
+    "autonomous_experimentation_discrimination_identical_outcome_abstention",
+    "autonomous_experimentation_discrimination_prediction_confidence_gate",
+    "autonomous_experimentation_discrimination_conflicting_prediction_rejection",
+    "autonomous_experimentation_discrimination_duplicate_prediction_deduplication",
+    "autonomous_experimentation_discrimination_pairwise_gain",
+    "autonomous_experimentation_discrimination_gain_priority",
+    "autonomous_experimentation_discrimination_foundation_gate_preservation",
+    "autonomous_experimentation_discrimination_no_partial_frontier_guessing",
+    "autonomous_experimentation_discrimination_hard_frontiers",
+    "autonomous_experimentation_discrimination_deterministic_facade_equivalence"
   ]
 }
