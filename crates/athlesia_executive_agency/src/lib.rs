@@ -1876,3 +1876,692 @@ impl UniversalGoalConflictArbitration {
         GoalConflictArbitration::arbitrate(intents, conflicts, commitment, policy)
     }
 }
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct GroundedIntentionStep {
+    required_state: CognitiveStructure,
+    action: CognitiveStructure,
+    predicted_outcome: CognitiveStructure,
+    evidence_confidence: CognitiveSignal,
+    controllability: CognitiveSignal,
+    execution_cost: CognitiveSignal,
+}
+
+impl GroundedIntentionStep {
+    pub fn new(
+        required_state: CognitiveStructure,
+        action: CognitiveStructure,
+        predicted_outcome: CognitiveStructure,
+        evidence_confidence: CognitiveSignal,
+        controllability: CognitiveSignal,
+        execution_cost: CognitiveSignal,
+    ) -> Self {
+        Self {
+            required_state,
+            action,
+            predicted_outcome,
+            evidence_confidence,
+            controllability,
+            execution_cost,
+        }
+    }
+
+    pub fn required_state(&self) -> &CognitiveStructure {
+        &self.required_state
+    }
+
+    pub fn action(&self) -> &CognitiveStructure {
+        &self.action
+    }
+
+    pub fn predicted_outcome(&self) -> &CognitiveStructure {
+        &self.predicted_outcome
+    }
+
+    pub fn evidence_confidence(&self) -> CognitiveSignal {
+        self.evidence_confidence
+    }
+
+    pub fn controllability(&self) -> CognitiveSignal {
+        self.controllability
+    }
+
+    pub fn execution_cost(&self) -> CognitiveSignal {
+        self.execution_cost
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct MultiStepIntentionCandidate {
+    goal_identity: CognitiveStructure,
+    steps: Vec<GroundedIntentionStep>,
+    terminal_goal_alignment: CognitiveSignal,
+}
+
+impl MultiStepIntentionCandidate {
+    pub fn new(
+        goal_identity: CognitiveStructure,
+        steps: Vec<GroundedIntentionStep>,
+        terminal_goal_alignment: CognitiveSignal,
+    ) -> Option<Self> {
+        if steps.len() < 2 || terminal_goal_alignment == CognitiveSignal::zero() {
+            return None;
+        }
+
+        Some(Self {
+            goal_identity,
+            steps,
+            terminal_goal_alignment,
+        })
+    }
+
+    pub fn goal_identity(&self) -> &CognitiveStructure {
+        &self.goal_identity
+    }
+
+    pub fn steps(&self) -> &[GroundedIntentionStep] {
+        &self.steps
+    }
+
+    pub fn step_count(&self) -> usize {
+        self.steps.len()
+    }
+
+    pub fn terminal_goal_alignment(&self) -> CognitiveSignal {
+        self.terminal_goal_alignment
+    }
+
+    pub fn first_step(&self) -> &GroundedIntentionStep {
+        &self.steps[0]
+    }
+
+    fn raw_cost(&self) -> u32 {
+        self.steps
+            .iter()
+            .map(|step| u32::from(step.execution_cost().value()))
+            .sum()
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub struct MultiStepIntentionThresholds {
+    minimum_step_evidence_confidence: CognitiveSignal,
+    minimum_step_controllability: CognitiveSignal,
+    minimum_terminal_goal_alignment: CognitiveSignal,
+    minimum_plan_confidence: CognitiveSignal,
+}
+
+impl MultiStepIntentionThresholds {
+    pub fn new(
+        minimum_step_evidence_confidence: CognitiveSignal,
+        minimum_step_controllability: CognitiveSignal,
+        minimum_terminal_goal_alignment: CognitiveSignal,
+        minimum_plan_confidence: CognitiveSignal,
+    ) -> Option<Self> {
+        if minimum_step_evidence_confidence == CognitiveSignal::zero()
+            || minimum_step_controllability == CognitiveSignal::zero()
+            || minimum_terminal_goal_alignment == CognitiveSignal::zero()
+            || minimum_plan_confidence == CognitiveSignal::zero()
+        {
+            return None;
+        }
+
+        Some(Self {
+            minimum_step_evidence_confidence,
+            minimum_step_controllability,
+            minimum_terminal_goal_alignment,
+            minimum_plan_confidence,
+        })
+    }
+
+    pub fn minimum_step_evidence_confidence(self) -> CognitiveSignal {
+        self.minimum_step_evidence_confidence
+    }
+
+    pub fn minimum_step_controllability(self) -> CognitiveSignal {
+        self.minimum_step_controllability
+    }
+
+    pub fn minimum_terminal_goal_alignment(self) -> CognitiveSignal {
+        self.minimum_terminal_goal_alignment
+    }
+
+    pub fn minimum_plan_confidence(self) -> CognitiveSignal {
+        self.minimum_plan_confidence
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub struct MultiStepIntentionPolicy {
+    max_source_intents: usize,
+    max_candidates: usize,
+    max_steps_per_intention: usize,
+    max_step_evaluations: usize,
+    max_selected_intentions: usize,
+    thresholds: MultiStepIntentionThresholds,
+}
+
+impl MultiStepIntentionPolicy {
+    pub fn new(
+        max_source_intents: usize,
+        max_candidates: usize,
+        max_steps_per_intention: usize,
+        max_step_evaluations: usize,
+        max_selected_intentions: usize,
+        thresholds: MultiStepIntentionThresholds,
+    ) -> Option<Self> {
+        if max_source_intents == 0
+            || max_candidates == 0
+            || max_steps_per_intention < 2
+            || max_step_evaluations == 0
+            || max_selected_intentions == 0
+        {
+            return None;
+        }
+
+        Some(Self {
+            max_source_intents,
+            max_candidates,
+            max_steps_per_intention,
+            max_step_evaluations,
+            max_selected_intentions,
+            thresholds,
+        })
+    }
+
+    pub fn max_source_intents(self) -> usize {
+        self.max_source_intents
+    }
+
+    pub fn max_candidates(self) -> usize {
+        self.max_candidates
+    }
+
+    pub fn max_steps_per_intention(self) -> usize {
+        self.max_steps_per_intention
+    }
+
+    pub fn max_step_evaluations(self) -> usize {
+        self.max_step_evaluations
+    }
+
+    pub fn max_selected_intentions(self) -> usize {
+        self.max_selected_intentions
+    }
+
+    pub fn thresholds(self) -> MultiStepIntentionThresholds {
+        self.thresholds
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ExecutableMultiStepIntention {
+    source_intent: ArbitratedExecutiveIntent,
+    goal_identity: CognitiveStructure,
+    steps: Vec<GroundedIntentionStep>,
+    weakest_step_evidence_confidence: CognitiveSignal,
+    weakest_step_controllability: CognitiveSignal,
+    terminal_goal_alignment: CognitiveSignal,
+    path_confidence: CognitiveSignal,
+    execution_cost_penalty: CognitiveSignal,
+    net_intention_score: CognitiveSignal,
+}
+
+impl ExecutableMultiStepIntention {
+    pub fn source_intent(&self) -> &ArbitratedExecutiveIntent {
+        &self.source_intent
+    }
+
+    pub fn goal_identity(&self) -> &CognitiveStructure {
+        &self.goal_identity
+    }
+
+    pub fn steps(&self) -> &[GroundedIntentionStep] {
+        &self.steps
+    }
+
+    pub fn step_count(&self) -> usize {
+        self.steps.len()
+    }
+
+    pub fn first_step(&self) -> &GroundedIntentionStep {
+        &self.steps[0]
+    }
+
+    pub fn weakest_step_evidence_confidence(&self) -> CognitiveSignal {
+        self.weakest_step_evidence_confidence
+    }
+
+    pub fn weakest_step_controllability(&self) -> CognitiveSignal {
+        self.weakest_step_controllability
+    }
+
+    pub fn terminal_goal_alignment(&self) -> CognitiveSignal {
+        self.terminal_goal_alignment
+    }
+
+    pub fn path_confidence(&self) -> CognitiveSignal {
+        self.path_confidence
+    }
+
+    pub fn execution_cost_penalty(&self) -> CognitiveSignal {
+        self.execution_cost_penalty
+    }
+
+    pub fn net_intention_score(&self) -> CognitiveSignal {
+        self.net_intention_score
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct MultiStepIntentionResult {
+    input_source_intent_count: usize,
+    considered_source_intent_count: usize,
+    source_frontier_truncated: bool,
+    input_candidate_count: usize,
+    unique_candidate_count: usize,
+    considered_candidate_count: usize,
+    candidate_frontier_truncated: bool,
+    step_evaluation_count: usize,
+    step_evaluation_truncated: bool,
+    rejected_source_mismatch_count: usize,
+    rejected_over_step_bound_count: usize,
+    rejected_structural_chain_count: usize,
+    rejected_threshold_count: usize,
+    admitted_before_frontier: usize,
+    selected: Vec<ExecutableMultiStepIntention>,
+}
+
+impl MultiStepIntentionResult {
+    pub fn input_source_intent_count(&self) -> usize {
+        self.input_source_intent_count
+    }
+
+    pub fn considered_source_intent_count(&self) -> usize {
+        self.considered_source_intent_count
+    }
+
+    pub fn source_frontier_truncated(&self) -> bool {
+        self.source_frontier_truncated
+    }
+
+    pub fn input_candidate_count(&self) -> usize {
+        self.input_candidate_count
+    }
+
+    pub fn unique_candidate_count(&self) -> usize {
+        self.unique_candidate_count
+    }
+
+    pub fn considered_candidate_count(&self) -> usize {
+        self.considered_candidate_count
+    }
+
+    pub fn candidate_frontier_truncated(&self) -> bool {
+        self.candidate_frontier_truncated
+    }
+
+    pub fn step_evaluation_count(&self) -> usize {
+        self.step_evaluation_count
+    }
+
+    pub fn step_evaluation_truncated(&self) -> bool {
+        self.step_evaluation_truncated
+    }
+
+    pub fn rejected_source_mismatch_count(&self) -> usize {
+        self.rejected_source_mismatch_count
+    }
+
+    pub fn rejected_over_step_bound_count(&self) -> usize {
+        self.rejected_over_step_bound_count
+    }
+
+    pub fn rejected_structural_chain_count(&self) -> usize {
+        self.rejected_structural_chain_count
+    }
+
+    pub fn rejected_threshold_count(&self) -> usize {
+        self.rejected_threshold_count
+    }
+
+    pub fn admitted_before_frontier(&self) -> usize {
+        self.admitted_before_frontier
+    }
+
+    pub fn selected(&self) -> &[ExecutableMultiStepIntention] {
+        &self.selected
+    }
+
+    pub fn selected_count(&self) -> usize {
+        self.selected.len()
+    }
+
+    pub fn abstained(&self) -> bool {
+        self.selected.is_empty()
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, Hash, PartialEq)]
+pub struct MultiStepIntention;
+
+impl MultiStepIntention {
+    fn exact_tiebreak(left: &CognitiveStructure, right: &CognitiveStructure) -> std::cmp::Ordering {
+        format!("{left:?}").cmp(&format!("{right:?}"))
+    }
+
+    fn compare_source(
+        left: &ArbitratedExecutiveIntent,
+        right: &ArbitratedExecutiveIntent,
+    ) -> std::cmp::Ordering {
+        right
+            .arbitration_score()
+            .value()
+            .cmp(&left.arbitration_score().value())
+            .then_with(|| {
+                right
+                    .base_utility()
+                    .value()
+                    .cmp(&left.base_utility().value())
+            })
+            .then_with(|| Self::exact_tiebreak(left.goal_identity(), right.goal_identity()))
+            .then_with(|| Self::exact_tiebreak(left.action(), right.action()))
+            .then_with(|| Self::exact_tiebreak(left.predicted_outcome(), right.predicted_outcome()))
+    }
+
+    fn compare_candidate(
+        left: &MultiStepIntentionCandidate,
+        right: &MultiStepIntentionCandidate,
+    ) -> std::cmp::Ordering {
+        right
+            .terminal_goal_alignment()
+            .value()
+            .cmp(&left.terminal_goal_alignment().value())
+            .then_with(|| left.raw_cost().cmp(&right.raw_cost()))
+            .then_with(|| left.step_count().cmp(&right.step_count()))
+            .then_with(|| Self::exact_tiebreak(left.goal_identity(), right.goal_identity()))
+            .then_with(|| format!("{left:?}").cmp(&format!("{right:?}")))
+    }
+
+    fn compare_selected(
+        left: &ExecutableMultiStepIntention,
+        right: &ExecutableMultiStepIntention,
+    ) -> std::cmp::Ordering {
+        right
+            .net_intention_score()
+            .value()
+            .cmp(&left.net_intention_score().value())
+            .then_with(|| {
+                right
+                    .path_confidence()
+                    .value()
+                    .cmp(&left.path_confidence().value())
+            })
+            .then_with(|| {
+                left.execution_cost_penalty()
+                    .value()
+                    .cmp(&right.execution_cost_penalty().value())
+            })
+            .then_with(|| {
+                right
+                    .source_intent()
+                    .arbitration_score()
+                    .value()
+                    .cmp(&left.source_intent().arbitration_score().value())
+            })
+            .then_with(|| Self::exact_tiebreak(left.goal_identity(), right.goal_identity()))
+            .then_with(|| format!("{left:?}").cmp(&format!("{right:?}")))
+    }
+
+    fn ranked_sources(
+        source_intents: &[ArbitratedExecutiveIntent],
+        policy: MultiStepIntentionPolicy,
+    ) -> Vec<ArbitratedExecutiveIntent> {
+        let mut ranked = source_intents.to_vec();
+
+        ranked.sort_by(Self::compare_source);
+
+        ranked.truncate(policy.max_source_intents());
+
+        ranked
+    }
+
+    fn ranked_candidates(
+        candidates: &[MultiStepIntentionCandidate],
+        policy: MultiStepIntentionPolicy,
+    ) -> (usize, Vec<MultiStepIntentionCandidate>) {
+        let mut ranked = candidates.to_vec();
+
+        ranked.sort_by(Self::compare_candidate);
+
+        ranked.dedup();
+
+        let unique_count = ranked.len();
+
+        ranked.truncate(policy.max_candidates());
+
+        (unique_count, ranked)
+    }
+
+    fn source_for_candidate<'a>(
+        source_intents: &'a [ArbitratedExecutiveIntent],
+        candidate: &MultiStepIntentionCandidate,
+    ) -> Option<&'a ArbitratedExecutiveIntent> {
+        let first = candidate.first_step();
+
+        source_intents.iter().find(|source| {
+            source.goal_identity() == candidate.goal_identity()
+                && source.action() == first.action()
+                && source.predicted_outcome() == first.predicted_outcome()
+        })
+    }
+
+    fn structurally_continuous(candidate: &MultiStepIntentionCandidate) -> bool {
+        candidate
+            .steps()
+            .windows(2)
+            .all(|pair| pair[1].required_state() == pair[0].predicted_outcome())
+    }
+
+    fn signal_from_value(value: u16) -> CognitiveSignal {
+        CognitiveSignal::new(value).expect("bounded cognitive value remains valid")
+    }
+
+    fn weakest_evidence(candidate: &MultiStepIntentionCandidate) -> CognitiveSignal {
+        let value = candidate
+            .steps()
+            .iter()
+            .map(|step| step.evidence_confidence().value())
+            .min()
+            .expect("multi-step candidate always has steps");
+
+        Self::signal_from_value(value)
+    }
+
+    fn weakest_controllability(candidate: &MultiStepIntentionCandidate) -> CognitiveSignal {
+        let value = candidate
+            .steps()
+            .iter()
+            .map(|step| step.controllability().value())
+            .min()
+            .expect("multi-step candidate always has steps");
+
+        Self::signal_from_value(value)
+    }
+
+    fn cost_penalty(candidate: &MultiStepIntentionCandidate) -> CognitiveSignal {
+        Self::signal_from_value(candidate.raw_cost().min(1000) as u16)
+    }
+
+    fn path_confidence(
+        source: &ArbitratedExecutiveIntent,
+        weakest_evidence: CognitiveSignal,
+        weakest_controllability: CognitiveSignal,
+        terminal_goal_alignment: CognitiveSignal,
+    ) -> CognitiveSignal {
+        let source_and_evidence =
+            ExecutiveAgency::scaled_product(source.arbitration_score(), weakest_evidence);
+
+        let controlled =
+            ExecutiveAgency::scaled_product(source_and_evidence, weakest_controllability);
+
+        ExecutiveAgency::scaled_product(controlled, terminal_goal_alignment)
+    }
+
+    fn evaluate_candidate(
+        source: &ArbitratedExecutiveIntent,
+        candidate: &MultiStepIntentionCandidate,
+        policy: MultiStepIntentionPolicy,
+    ) -> Option<ExecutableMultiStepIntention> {
+        let thresholds = policy.thresholds();
+
+        let weakest_step_evidence_confidence = Self::weakest_evidence(candidate);
+
+        let weakest_step_controllability = Self::weakest_controllability(candidate);
+
+        if weakest_step_evidence_confidence.value()
+            < thresholds.minimum_step_evidence_confidence().value()
+            || weakest_step_controllability.value()
+                < thresholds.minimum_step_controllability().value()
+            || candidate.terminal_goal_alignment().value()
+                < thresholds.minimum_terminal_goal_alignment().value()
+        {
+            return None;
+        }
+
+        let path_confidence = Self::path_confidence(
+            source,
+            weakest_step_evidence_confidence,
+            weakest_step_controllability,
+            candidate.terminal_goal_alignment(),
+        );
+
+        if path_confidence.value() < thresholds.minimum_plan_confidence().value() {
+            return None;
+        }
+
+        let execution_cost_penalty = Self::cost_penalty(candidate);
+
+        let net_intention_score = Self::signal_from_value(
+            path_confidence
+                .value()
+                .saturating_sub(execution_cost_penalty.value()),
+        );
+
+        Some(ExecutableMultiStepIntention {
+            source_intent: source.clone(),
+            goal_identity: candidate.goal_identity().clone(),
+            steps: candidate.steps().to_vec(),
+            weakest_step_evidence_confidence,
+            weakest_step_controllability,
+            terminal_goal_alignment: candidate.terminal_goal_alignment(),
+            path_confidence,
+            execution_cost_penalty,
+            net_intention_score,
+        })
+    }
+
+    pub fn select(
+        source_intents: &[ArbitratedExecutiveIntent],
+        candidates: &[MultiStepIntentionCandidate],
+        policy: MultiStepIntentionPolicy,
+    ) -> MultiStepIntentionResult {
+        let ranked_sources = Self::ranked_sources(source_intents, policy);
+
+        let considered_source_intent_count = ranked_sources.len();
+
+        let (unique_candidate_count, ranked_candidates) =
+            Self::ranked_candidates(candidates, policy);
+
+        let considered_candidate_count = ranked_candidates.len();
+
+        let mut step_evaluation_count = 0_usize;
+
+        let mut step_evaluation_truncated = false;
+
+        let mut rejected_source_mismatch_count = 0_usize;
+
+        let mut rejected_over_step_bound_count = 0_usize;
+
+        let mut rejected_structural_chain_count = 0_usize;
+
+        let mut rejected_threshold_count = 0_usize;
+
+        let mut admitted: Vec<ExecutableMultiStepIntention> = Vec::new();
+
+        for candidate in ranked_candidates {
+            let Some(source) = Self::source_for_candidate(&ranked_sources, &candidate) else {
+                rejected_source_mismatch_count = rejected_source_mismatch_count.saturating_add(1);
+
+                continue;
+            };
+
+            if candidate.step_count() > policy.max_steps_per_intention() {
+                rejected_over_step_bound_count = rejected_over_step_bound_count.saturating_add(1);
+
+                continue;
+            }
+
+            let required_evaluations = candidate.step_count();
+
+            if step_evaluation_count.saturating_add(required_evaluations)
+                > policy.max_step_evaluations()
+            {
+                step_evaluation_truncated = true;
+
+                break;
+            }
+
+            step_evaluation_count = step_evaluation_count.saturating_add(required_evaluations);
+
+            if !Self::structurally_continuous(&candidate) {
+                rejected_structural_chain_count = rejected_structural_chain_count.saturating_add(1);
+
+                continue;
+            }
+
+            if let Some(intention) = Self::evaluate_candidate(source, &candidate, policy) {
+                admitted.push(intention);
+            } else {
+                rejected_threshold_count = rejected_threshold_count.saturating_add(1);
+            }
+        }
+
+        admitted.sort_by(Self::compare_selected);
+
+        let admitted_before_frontier = admitted.len();
+
+        admitted.truncate(policy.max_selected_intentions());
+
+        MultiStepIntentionResult {
+            input_source_intent_count: source_intents.len(),
+            considered_source_intent_count,
+            source_frontier_truncated: source_intents.len() > considered_source_intent_count,
+            input_candidate_count: candidates.len(),
+            unique_candidate_count,
+            considered_candidate_count,
+            candidate_frontier_truncated: unique_candidate_count > considered_candidate_count,
+            step_evaluation_count,
+            step_evaluation_truncated,
+            rejected_source_mismatch_count,
+            rejected_over_step_bound_count,
+            rejected_structural_chain_count,
+            rejected_threshold_count,
+            admitted_before_frontier,
+            selected: admitted,
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, Hash, PartialEq)]
+pub struct UniversalMultiStepIntention;
+
+impl UniversalMultiStepIntention {
+    pub fn evaluate(
+        source_intents: &[ArbitratedExecutiveIntent],
+        candidates: &[MultiStepIntentionCandidate],
+        policy: MultiStepIntentionPolicy,
+    ) -> MultiStepIntentionResult {
+        MultiStepIntention::select(source_intents, candidates, policy)
+    }
+}

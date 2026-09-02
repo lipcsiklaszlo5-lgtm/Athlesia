@@ -31,10 +31,11 @@
     "crates/athlesia_cross_level/tests/cross_level_recognition.rs": "395c6ce92aeea1be7ff294b609fcf9d175f778a2d9201ad481182831d83b02eb",
     "crates/athlesia_executive_agency/Cargo.lock": "da178d1345c1ad8d43f73b08ee997d5a093f9ae6f7bc713f6338c4e9e23207aa",
     "crates/athlesia_executive_agency/Cargo.toml": "7fa2a02601b37038f11c2406b289c51af8338988d73fea784ae13a0dccd49cc1",
-    "crates/athlesia_executive_agency/src/lib.rs": "c943cf3c8e7f835798462d17ab4315daa5267a613740d285710c2123f046668a",
+    "crates/athlesia_executive_agency/src/lib.rs": "678708c1a7b3ea8700b9a9b2bf70a7d9f255519399c94850a75c084c562be511",
     "crates/athlesia_executive_agency/tests/executive_agency_foundation.rs": "763fcb4d72809c9f2314b45f15e3593de68ea8f18388b2550a7ee5277d5d0920",
     "crates/athlesia_executive_agency/tests/executive_agency_goal_conflict_arbitration.rs": "14582d55e38f6985849aaef41a4fffe0a1c15f5d2bd246b67fef193e131afa63",
     "crates/athlesia_executive_agency/tests/executive_agency_goal_persistence.rs": "3ba2700464c9ab6a8a75ea9654ec97d51067e4ff5a35d5e3ffb879866a409a0f",
+    "crates/athlesia_executive_agency/tests/executive_agency_multi_step_intention.rs": "d12e96689fb501314687e125a22a961c80a894acee2d80babe1c1c55e740c246",
     "crates/athlesia_hierarchy/Cargo.toml": "6853cd5d63d5be93d8c1fa37d8961514bf1f48801ae59f90bf4fd0e6da49b3ee",
     "crates/athlesia_hierarchy/src/lib.rs": "dfcea2b7af7a59a1c4e214372e098408ef2411b1c81fb5f0d147e73acd403f7d",
     "crates/athlesia_hierarchy/tests/hierarchical_memory_foundation.rs": "6e49dda50a6c06d191e5bcfd0637be862ad57bee36a82c5994d33252631124da",
@@ -561,7 +562,8 @@
       "module_47_universal_domain_learning_frozen",
       "module_48_executive_agency_foundation",
       "module_48_executive_agency_goal_persistence",
-      "module_48_executive_agency_goal_conflict_arbitration"
+      "module_48_executive_agency_goal_conflict_arbitration",
+      "module_48_executive_agency_multi_step_intention"
     ],
     "module_23_integrity": {
       "status": "pass",
@@ -574,8 +576,8 @@
       "status": "frozen",
       "verifier": "tools/verify_module_23_parity.py"
     },
-    "next_layer": "module_48_executive_agency_multi_step_intention",
-    "stage": "module_48_executive_agency_goal_conflict_arbitration",
+    "next_layer": "module_48_executive_agency_intention_execution_monitoring",
+    "stage": "module_48_executive_agency_multi_step_intention",
     "status": "validated"
   },
   "validated_invariants": [
@@ -2754,6 +2756,18 @@
     "executive_agency_goal_conflict_hard_evidence_frontier",
     "executive_agency_goal_conflict_hard_intent_pair_and_final_frontiers",
     "executive_agency_goal_conflict_explicit_suppression_provenance",
-    "executive_agency_goal_conflict_deterministic_non_mutating_facade_equivalence"
+    "executive_agency_goal_conflict_deterministic_non_mutating_facade_equivalence",
+    "executive_agency_multi_step_intention_positive_policy_and_minimum_length_contract",
+    "executive_agency_multi_step_intention_exact_source_action_outcome_binding",
+    "executive_agency_multi_step_intention_exact_state_chain_continuity",
+    "executive_agency_multi_step_intention_ordered_sequence_retention",
+    "executive_agency_multi_step_intention_weakest_evidence_path_confidence",
+    "executive_agency_multi_step_intention_weakest_controllability_threshold",
+    "executive_agency_multi_step_intention_terminal_goal_alignment_confidence",
+    "executive_agency_multi_step_intention_explicit_execution_cost_penalty",
+    "executive_agency_multi_step_intention_exact_opaque_step_identity",
+    "executive_agency_multi_step_intention_hard_step_length_bound",
+    "executive_agency_multi_step_intention_hard_source_candidate_step_and_final_frontiers",
+    "executive_agency_multi_step_intention_deterministic_non_mutating_facade_equivalence"
   ]
 }
