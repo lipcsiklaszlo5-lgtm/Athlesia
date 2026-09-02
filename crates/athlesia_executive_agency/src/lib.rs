@@ -746,3 +746,574 @@ impl UniversalExecutiveAgency {
         ExecutiveAgency::select(goals, candidates, policy)
     }
 }
+
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub struct GoalPersistencePolicy {
+    max_stalled_cycles: usize,
+    switch_margin: CognitiveSignal,
+    max_challengers: usize,
+}
+
+impl GoalPersistencePolicy {
+    pub fn new(
+        max_stalled_cycles: usize,
+        switch_margin: CognitiveSignal,
+        max_challengers: usize,
+    ) -> Option<Self> {
+        if max_stalled_cycles == 0
+            || switch_margin == CognitiveSignal::zero()
+            || max_challengers == 0
+        {
+            return None;
+        }
+
+        Some(Self {
+            max_stalled_cycles,
+            switch_margin,
+            max_challengers,
+        })
+    }
+
+    pub fn max_stalled_cycles(self) -> usize {
+        self.max_stalled_cycles
+    }
+
+    pub fn switch_margin(self) -> CognitiveSignal {
+        self.switch_margin
+    }
+
+    pub fn max_challengers(self) -> usize {
+        self.max_challengers
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub enum GoalPersistenceDecision {
+    Abstained,
+    Established,
+    Continued,
+    SwitchedChallenge,
+    SwitchedGoalSatisfied,
+    SwitchedGoalUnavailable,
+    SwitchedIncumbentUnavailable,
+    SwitchedStalled,
+    ReleasedGoalSatisfied,
+    ReleasedGoalUnavailable,
+    ReleasedIncumbentUnavailable,
+    ReleasedStalled,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct PersistentExecutiveCommitment {
+    goal_identity: CognitiveStructure,
+    action: CognitiveStructure,
+    predicted_outcome: CognitiveStructure,
+    last_satisfaction: CognitiveSignal,
+    stalled_cycles: usize,
+    age_cycles: usize,
+    current_priority_adjusted_utility: CognitiveSignal,
+}
+
+impl PersistentExecutiveCommitment {
+    fn from_intent(intent: &ExecutiveIntent, satisfaction: CognitiveSignal) -> Self {
+        Self {
+            goal_identity: intent.goal_identity().clone(),
+            action: intent.action().clone(),
+            predicted_outcome: intent.predicted_outcome().clone(),
+            last_satisfaction: satisfaction,
+            stalled_cycles: 0,
+            age_cycles: 1,
+            current_priority_adjusted_utility: intent.priority_adjusted_utility(),
+        }
+    }
+
+    fn refreshed(
+        &self,
+        intent: &ExecutiveIntent,
+        satisfaction: CognitiveSignal,
+        stalled_cycles: usize,
+    ) -> Self {
+        Self {
+            goal_identity: self.goal_identity.clone(),
+            action: self.action.clone(),
+            predicted_outcome: self.predicted_outcome.clone(),
+            last_satisfaction: satisfaction,
+            stalled_cycles,
+            age_cycles: self.age_cycles.saturating_add(1),
+            current_priority_adjusted_utility: intent.priority_adjusted_utility(),
+        }
+    }
+
+    pub fn goal_identity(&self) -> &CognitiveStructure {
+        &self.goal_identity
+    }
+
+    pub fn action(&self) -> &CognitiveStructure {
+        &self.action
+    }
+
+    pub fn predicted_outcome(&self) -> &CognitiveStructure {
+        &self.predicted_outcome
+    }
+
+    pub fn last_satisfaction(&self) -> CognitiveSignal {
+        self.last_satisfaction
+    }
+
+    pub fn stalled_cycles(&self) -> usize {
+        self.stalled_cycles
+    }
+
+    pub fn age_cycles(&self) -> usize {
+        self.age_cycles
+    }
+
+    pub fn current_priority_adjusted_utility(&self) -> CognitiveSignal {
+        self.current_priority_adjusted_utility
+    }
+
+    pub fn matches_intent(&self, intent: &ExecutiveIntent) -> bool {
+        self.goal_identity() == intent.goal_identity()
+            && self.action() == intent.action()
+            && self.predicted_outcome() == intent.predicted_outcome()
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct GoalPersistenceResult {
+    input_had_commitment: bool,
+    decision: GoalPersistenceDecision,
+    incumbent_available: bool,
+    progress_observed: bool,
+    total_challenger_count: usize,
+    considered_challenger_count: usize,
+    challenger_frontier_truncated: bool,
+    switch_margin_satisfied: bool,
+    commitment: Option<PersistentExecutiveCommitment>,
+}
+
+impl GoalPersistenceResult {
+    pub fn input_had_commitment(&self) -> bool {
+        self.input_had_commitment
+    }
+
+    pub fn decision(&self) -> GoalPersistenceDecision {
+        self.decision
+    }
+
+    pub fn incumbent_available(&self) -> bool {
+        self.incumbent_available
+    }
+
+    pub fn progress_observed(&self) -> bool {
+        self.progress_observed
+    }
+
+    pub fn total_challenger_count(&self) -> usize {
+        self.total_challenger_count
+    }
+
+    pub fn considered_challenger_count(&self) -> usize {
+        self.considered_challenger_count
+    }
+
+    pub fn challenger_frontier_truncated(&self) -> bool {
+        self.challenger_frontier_truncated
+    }
+
+    pub fn switch_margin_satisfied(&self) -> bool {
+        self.switch_margin_satisfied
+    }
+
+    pub fn commitment(&self) -> Option<&PersistentExecutiveCommitment> {
+        self.commitment.as_ref()
+    }
+
+    pub fn has_commitment(&self) -> bool {
+        self.commitment.is_some()
+    }
+
+    pub fn abstained(&self) -> bool {
+        self.commitment.is_none()
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+struct GoalPersistenceTransitionContext {
+    input_had_commitment: bool,
+    decision: GoalPersistenceDecision,
+    incumbent_available: bool,
+    progress_observed: bool,
+    total_challenger_count: usize,
+    considered_challenger_count: usize,
+    switch_margin_satisfied: bool,
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, Hash, PartialEq)]
+pub struct GoalPersistence;
+
+impl GoalPersistence {
+    fn expanded_agency_policy(policy: ExecutiveAgencyPolicy) -> ExecutiveAgencyPolicy {
+        ExecutiveAgencyPolicy::new(
+            policy.max_goals(),
+            policy.max_actions_per_goal(),
+            policy.max_action_evaluations(),
+            policy.max_action_evaluations(),
+            policy.weights(),
+            policy.thresholds(),
+        )
+        .expect(
+            "validated executive agency policy expands final frontier within existing evaluation bound",
+        )
+    }
+
+    fn goal_for_commitment<'a>(
+        goals: &'a [ExecutiveGoal],
+        commitment: &PersistentExecutiveCommitment,
+    ) -> Option<&'a ExecutiveGoal> {
+        goals
+            .iter()
+            .find(|goal| goal.identity() == commitment.goal_identity())
+    }
+
+    fn incumbent_intent<'a>(
+        intents: &'a [ExecutiveIntent],
+        commitment: &PersistentExecutiveCommitment,
+    ) -> Option<&'a ExecutiveIntent> {
+        intents
+            .iter()
+            .find(|intent| commitment.matches_intent(intent))
+    }
+
+    fn bounded_challengers<'a>(
+        intents: &'a [ExecutiveIntent],
+        commitment: Option<&PersistentExecutiveCommitment>,
+        max_challengers: usize,
+    ) -> (usize, Vec<&'a ExecutiveIntent>) {
+        let mut challengers = intents
+            .iter()
+            .filter(|intent| {
+                commitment
+                    .map(|incumbent| !incumbent.matches_intent(intent))
+                    .unwrap_or(true)
+            })
+            .collect::<Vec<_>>();
+
+        let total = challengers.len();
+
+        challengers.truncate(max_challengers);
+
+        (total, challengers)
+    }
+
+    fn satisfaction_for_intent(
+        goals: &[ExecutiveGoal],
+        intent: &ExecutiveIntent,
+    ) -> CognitiveSignal {
+        goals
+            .iter()
+            .find(|goal| goal.identity() == intent.goal_identity())
+            .map(ExecutiveGoal::satisfaction)
+            .unwrap_or_else(CognitiveSignal::zero)
+    }
+
+    fn switch_margin_satisfied(
+        incumbent: &ExecutiveIntent,
+        challenger: &ExecutiveIntent,
+        margin: CognitiveSignal,
+    ) -> bool {
+        u32::from(challenger.priority_adjusted_utility().value())
+            >= u32::from(incumbent.priority_adjusted_utility().value()) + u32::from(margin.value())
+    }
+
+    fn switched_result(
+        context: GoalPersistenceTransitionContext,
+        challenger: &ExecutiveIntent,
+        goals: &[ExecutiveGoal],
+    ) -> GoalPersistenceResult {
+        let satisfaction = Self::satisfaction_for_intent(goals, challenger);
+
+        GoalPersistenceResult {
+            input_had_commitment: context.input_had_commitment,
+            decision: context.decision,
+            incumbent_available: context.incumbent_available,
+            progress_observed: context.progress_observed,
+            total_challenger_count: context.total_challenger_count,
+            considered_challenger_count: context.considered_challenger_count,
+            challenger_frontier_truncated: context.total_challenger_count
+                > context.considered_challenger_count,
+            switch_margin_satisfied: context.switch_margin_satisfied,
+            commitment: Some(PersistentExecutiveCommitment::from_intent(
+                challenger,
+                satisfaction,
+            )),
+        }
+    }
+
+    fn released_result(
+        decision: GoalPersistenceDecision,
+        incumbent_available: bool,
+        progress_observed: bool,
+        total_challenger_count: usize,
+        considered_challenger_count: usize,
+    ) -> GoalPersistenceResult {
+        GoalPersistenceResult {
+            input_had_commitment: true,
+            decision,
+            incumbent_available,
+            progress_observed,
+            total_challenger_count,
+            considered_challenger_count,
+            challenger_frontier_truncated: total_challenger_count > considered_challenger_count,
+            switch_margin_satisfied: false,
+            commitment: None,
+        }
+    }
+
+    pub fn select(
+        prior: Option<&PersistentExecutiveCommitment>,
+        goals: &[ExecutiveGoal],
+        candidates: &[GroundedExecutiveActionCandidate],
+        agency_policy: ExecutiveAgencyPolicy,
+        persistence_policy: GoalPersistencePolicy,
+    ) -> GoalPersistenceResult {
+        let expanded_policy = Self::expanded_agency_policy(agency_policy);
+
+        let agency = ExecutiveAgency::select(goals, candidates, expanded_policy);
+
+        let intents = agency.selected();
+
+        let Some(incumbent) = prior else {
+            let (total_challenger_count, challengers) =
+                Self::bounded_challengers(intents, None, persistence_policy.max_challengers());
+
+            let considered_challenger_count = challengers.len();
+
+            if let Some(challenger) = challengers.first() {
+                return Self::switched_result(
+                    GoalPersistenceTransitionContext {
+                        input_had_commitment: false,
+                        decision: GoalPersistenceDecision::Established,
+                        incumbent_available: false,
+                        progress_observed: false,
+                        total_challenger_count,
+                        considered_challenger_count,
+                        switch_margin_satisfied: false,
+                    },
+                    challenger,
+                    goals,
+                );
+            }
+
+            return GoalPersistenceResult {
+                input_had_commitment: false,
+                decision: GoalPersistenceDecision::Abstained,
+                incumbent_available: false,
+                progress_observed: false,
+                total_challenger_count,
+                considered_challenger_count,
+                challenger_frontier_truncated: total_challenger_count > considered_challenger_count,
+                switch_margin_satisfied: false,
+                commitment: None,
+            };
+        };
+
+        let current_goal = Self::goal_for_commitment(goals, incumbent);
+
+        if current_goal.is_none() {
+            let (total_challenger_count, challengers) = Self::bounded_challengers(
+                intents,
+                Some(incumbent),
+                persistence_policy.max_challengers(),
+            );
+
+            let considered_challenger_count = challengers.len();
+
+            if let Some(challenger) = challengers.first() {
+                return Self::switched_result(
+                    GoalPersistenceTransitionContext {
+                        input_had_commitment: true,
+                        decision: GoalPersistenceDecision::SwitchedGoalUnavailable,
+                        incumbent_available: false,
+                        progress_observed: false,
+                        total_challenger_count,
+                        considered_challenger_count,
+                        switch_margin_satisfied: false,
+                    },
+                    challenger,
+                    goals,
+                );
+            }
+
+            return Self::released_result(
+                GoalPersistenceDecision::ReleasedGoalUnavailable,
+                false,
+                false,
+                total_challenger_count,
+                considered_challenger_count,
+            );
+        }
+
+        let current_goal = current_goal.expect("goal existence checked");
+
+        if current_goal.is_satisfied() {
+            let (total_challenger_count, challengers) = Self::bounded_challengers(
+                intents,
+                Some(incumbent),
+                persistence_policy.max_challengers(),
+            );
+
+            let considered_challenger_count = challengers.len();
+
+            if let Some(challenger) = challengers.first() {
+                return Self::switched_result(
+                    GoalPersistenceTransitionContext {
+                        input_had_commitment: true,
+                        decision: GoalPersistenceDecision::SwitchedGoalSatisfied,
+                        incumbent_available: false,
+                        progress_observed: true,
+                        total_challenger_count,
+                        considered_challenger_count,
+                        switch_margin_satisfied: false,
+                    },
+                    challenger,
+                    goals,
+                );
+            }
+
+            return Self::released_result(
+                GoalPersistenceDecision::ReleasedGoalSatisfied,
+                false,
+                true,
+                total_challenger_count,
+                considered_challenger_count,
+            );
+        }
+
+        let progress_observed =
+            current_goal.satisfaction().value() > incumbent.last_satisfaction().value();
+
+        let next_stalled_cycles = if progress_observed {
+            0
+        } else {
+            incumbent.stalled_cycles().saturating_add(1)
+        };
+
+        let current_incumbent_intent = Self::incumbent_intent(intents, incumbent);
+
+        let (total_challenger_count, challengers) = Self::bounded_challengers(
+            intents,
+            Some(incumbent),
+            persistence_policy.max_challengers(),
+        );
+
+        let considered_challenger_count = challengers.len();
+
+        let Some(current_incumbent_intent) = current_incumbent_intent else {
+            if let Some(challenger) = challengers.first() {
+                return Self::switched_result(
+                    GoalPersistenceTransitionContext {
+                        input_had_commitment: true,
+                        decision: GoalPersistenceDecision::SwitchedIncumbentUnavailable,
+                        incumbent_available: false,
+                        progress_observed,
+                        total_challenger_count,
+                        considered_challenger_count,
+                        switch_margin_satisfied: false,
+                    },
+                    challenger,
+                    goals,
+                );
+            }
+
+            return Self::released_result(
+                GoalPersistenceDecision::ReleasedIncumbentUnavailable,
+                false,
+                progress_observed,
+                total_challenger_count,
+                considered_challenger_count,
+            );
+        };
+
+        if next_stalled_cycles >= persistence_policy.max_stalled_cycles() {
+            if let Some(challenger) = challengers.first() {
+                return Self::switched_result(
+                    GoalPersistenceTransitionContext {
+                        input_had_commitment: true,
+                        decision: GoalPersistenceDecision::SwitchedStalled,
+                        incumbent_available: true,
+                        progress_observed,
+                        total_challenger_count,
+                        considered_challenger_count,
+                        switch_margin_satisfied: false,
+                    },
+                    challenger,
+                    goals,
+                );
+            }
+
+            return Self::released_result(
+                GoalPersistenceDecision::ReleasedStalled,
+                true,
+                progress_observed,
+                total_challenger_count,
+                considered_challenger_count,
+            );
+        }
+
+        if let Some(challenger) = challengers.first() {
+            let switch_margin_satisfied = Self::switch_margin_satisfied(
+                current_incumbent_intent,
+                challenger,
+                persistence_policy.switch_margin(),
+            );
+
+            if switch_margin_satisfied {
+                return Self::switched_result(
+                    GoalPersistenceTransitionContext {
+                        input_had_commitment: true,
+                        decision: GoalPersistenceDecision::SwitchedChallenge,
+                        incumbent_available: true,
+                        progress_observed,
+                        total_challenger_count,
+                        considered_challenger_count,
+                        switch_margin_satisfied: true,
+                    },
+                    challenger,
+                    goals,
+                );
+            }
+        }
+
+        GoalPersistenceResult {
+            input_had_commitment: true,
+            decision: GoalPersistenceDecision::Continued,
+            incumbent_available: true,
+            progress_observed,
+            total_challenger_count,
+            considered_challenger_count,
+            challenger_frontier_truncated: total_challenger_count > considered_challenger_count,
+            switch_margin_satisfied: false,
+            commitment: Some(incumbent.refreshed(
+                current_incumbent_intent,
+                current_goal.satisfaction(),
+                next_stalled_cycles,
+            )),
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, Hash, PartialEq)]
+pub struct UniversalGoalPersistence;
+
+impl UniversalGoalPersistence {
+    pub fn evaluate(
+        prior: Option<&PersistentExecutiveCommitment>,
+        goals: &[ExecutiveGoal],
+        candidates: &[GroundedExecutiveActionCandidate],
+        agency_policy: ExecutiveAgencyPolicy,
+        persistence_policy: GoalPersistencePolicy,
+    ) -> GoalPersistenceResult {
+        GoalPersistence::select(prior, goals, candidates, agency_policy, persistence_policy)
+    }
+}
