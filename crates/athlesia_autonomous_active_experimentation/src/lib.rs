@@ -1361,3 +1361,807 @@ mod hypothesis_discrimination_tests {
         assert_eq!(items, before);
     }
 }
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ExperimentOutcomeObservation {
+    source_state: CognitiveStructure,
+    action: CognitiveStructure,
+    observed_outcome: CognitiveStructure,
+    confidence: CognitiveSignal,
+}
+
+impl ExperimentOutcomeObservation {
+    pub fn new(
+        source_state: CognitiveStructure,
+        action: CognitiveStructure,
+        observed_outcome: CognitiveStructure,
+        confidence: CognitiveSignal,
+    ) -> Option<Self> {
+        if confidence == CognitiveSignal::zero() {
+            return None;
+        }
+
+        Some(Self {
+            source_state,
+            action,
+            observed_outcome,
+            confidence,
+        })
+    }
+
+    pub fn source_state(&self) -> &CognitiveStructure {
+        &self.source_state
+    }
+
+    pub fn action(&self) -> &CognitiveStructure {
+        &self.action
+    }
+
+    pub fn observed_outcome(&self) -> &CognitiveStructure {
+        &self.observed_outcome
+    }
+
+    pub fn confidence(&self) -> CognitiveSignal {
+        self.confidence
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct OutcomeEvidenceUpdatePolicy {
+    max_prediction_updates: usize,
+    minimum_observation_confidence: CognitiveSignal,
+    minimum_prediction_confidence: CognitiveSignal,
+    support_recovery: u16,
+    contradiction_penalty: u16,
+}
+
+impl OutcomeEvidenceUpdatePolicy {
+    pub fn new(
+        max_prediction_updates: usize,
+        minimum_observation_confidence: CognitiveSignal,
+        minimum_prediction_confidence: CognitiveSignal,
+        support_recovery: u16,
+        contradiction_penalty: u16,
+    ) -> Option<Self> {
+        if max_prediction_updates == 0
+            || minimum_observation_confidence == CognitiveSignal::zero()
+            || minimum_prediction_confidence == CognitiveSignal::zero()
+            || support_recovery == 0
+            || contradiction_penalty == 0
+        {
+            return None;
+        }
+
+        Some(Self {
+            max_prediction_updates,
+            minimum_observation_confidence,
+            minimum_prediction_confidence,
+            support_recovery,
+            contradiction_penalty,
+        })
+    }
+
+    pub fn max_prediction_updates(self) -> usize {
+        self.max_prediction_updates
+    }
+
+    pub fn minimum_observation_confidence(self) -> CognitiveSignal {
+        self.minimum_observation_confidence
+    }
+
+    pub fn minimum_prediction_confidence(self) -> CognitiveSignal {
+        self.minimum_prediction_confidence
+    }
+
+    pub fn support_recovery(self) -> u16 {
+        self.support_recovery
+    }
+
+    pub fn contradiction_penalty(self) -> u16 {
+        self.contradiction_penalty
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum HypothesisOutcomeEvidenceDisposition {
+    Supported,
+    Contradicted,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct HypothesisOutcomeEvidenceUpdate {
+    hypothesis: CognitiveStructure,
+    predicted_outcome: CognitiveStructure,
+    prior_confidence: CognitiveSignal,
+    revised_confidence: CognitiveSignal,
+    disposition: HypothesisOutcomeEvidenceDisposition,
+}
+
+impl HypothesisOutcomeEvidenceUpdate {
+    pub fn hypothesis(&self) -> &CognitiveStructure {
+        &self.hypothesis
+    }
+
+    pub fn predicted_outcome(&self) -> &CognitiveStructure {
+        &self.predicted_outcome
+    }
+
+    pub fn prior_confidence(&self) -> CognitiveSignal {
+        self.prior_confidence
+    }
+
+    pub fn revised_confidence(&self) -> CognitiveSignal {
+        self.revised_confidence
+    }
+
+    pub fn disposition(&self) -> HypothesisOutcomeEvidenceDisposition {
+        self.disposition
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum OutcomeEvidenceUpdateStatus {
+    Applied,
+    AttributionMismatch,
+    ObservationConfidenceInsufficient,
+    PredictionFrontierExceeded,
+    ConflictingPredictionEvidence,
+    NoQualifyingPredictions,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct OutcomeEvidenceUpdateResult {
+    status: OutcomeEvidenceUpdateStatus,
+    input_prediction_count: usize,
+    qualifying_prediction_count: usize,
+    rejected_prediction_confidence_count: usize,
+    supported_count: usize,
+    contradicted_count: usize,
+    updates: Vec<HypothesisOutcomeEvidenceUpdate>,
+}
+
+impl OutcomeEvidenceUpdateResult {
+    pub fn status(&self) -> OutcomeEvidenceUpdateStatus {
+        self.status
+    }
+
+    pub fn input_prediction_count(&self) -> usize {
+        self.input_prediction_count
+    }
+
+    pub fn qualifying_prediction_count(&self) -> usize {
+        self.qualifying_prediction_count
+    }
+
+    pub fn rejected_prediction_confidence_count(&self) -> usize {
+        self.rejected_prediction_confidence_count
+    }
+
+    pub fn supported_count(&self) -> usize {
+        self.supported_count
+    }
+
+    pub fn contradicted_count(&self) -> usize {
+        self.contradicted_count
+    }
+
+    pub fn updates(&self) -> &[HypothesisOutcomeEvidenceUpdate] {
+        &self.updates
+    }
+
+    pub fn applied(&self) -> bool {
+        self.status == OutcomeEvidenceUpdateStatus::Applied
+    }
+
+    pub fn abstained(&self) -> bool {
+        !self.applied()
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct AutonomousOutcomeEvidenceUpdate;
+
+impl AutonomousOutcomeEvidenceUpdate {
+    fn signal(value: u16) -> CognitiveSignal {
+        if value == 0 {
+            CognitiveSignal::zero()
+        } else {
+            CognitiveSignal::new(value).expect("bounded outcome evidence signal")
+        }
+    }
+
+    fn empty(
+        status: OutcomeEvidenceUpdateStatus,
+        input_prediction_count: usize,
+        rejected_prediction_confidence_count: usize,
+    ) -> OutcomeEvidenceUpdateResult {
+        OutcomeEvidenceUpdateResult {
+            status,
+            input_prediction_count,
+            qualifying_prediction_count: 0,
+            rejected_prediction_confidence_count,
+            supported_count: 0,
+            contradicted_count: 0,
+            updates: Vec::new(),
+        }
+    }
+
+    pub fn update(
+        candidate: &HypothesisDiscriminationCandidate,
+        selected: &SelectedHypothesisDiscriminatingExperiment,
+        observation: &ExperimentOutcomeObservation,
+        policy: OutcomeEvidenceUpdatePolicy,
+    ) -> OutcomeEvidenceUpdateResult {
+        let input_prediction_count = candidate.predictions().len();
+
+        if candidate.experiment() != selected.experiment()
+            || observation.source_state() != selected.experiment().source_state()
+            || observation.action() != selected.experiment().action()
+        {
+            return Self::empty(
+                OutcomeEvidenceUpdateStatus::AttributionMismatch,
+                input_prediction_count,
+                0,
+            );
+        }
+
+        if observation.confidence().value() < policy.minimum_observation_confidence().value() {
+            return Self::empty(
+                OutcomeEvidenceUpdateStatus::ObservationConfidenceInsufficient,
+                input_prediction_count,
+                0,
+            );
+        }
+
+        if input_prediction_count > policy.max_prediction_updates() {
+            return Self::empty(
+                OutcomeEvidenceUpdateStatus::PredictionFrontierExceeded,
+                input_prediction_count,
+                0,
+            );
+        }
+
+        let mut predictions = candidate.predictions().to_vec();
+
+        predictions.sort_by(|left, right| {
+            format!("{:?}", left.hypothesis())
+                .cmp(&format!("{:?}", right.hypothesis()))
+                .then_with(|| right.confidence().value().cmp(&left.confidence().value()))
+                .then_with(|| {
+                    format!("{:?}", left.predicted_outcome())
+                        .cmp(&format!("{:?}", right.predicted_outcome()))
+                })
+        });
+
+        let mut canonical: Vec<CompetingHypothesisPrediction> = Vec::new();
+
+        let mut rejected_prediction_confidence_count = 0;
+
+        for prediction in predictions {
+            if prediction.confidence().value() < policy.minimum_prediction_confidence().value() {
+                rejected_prediction_confidence_count += 1;
+                continue;
+            }
+
+            if let Some(existing) = canonical
+                .iter()
+                .find(|existing| existing.hypothesis() == prediction.hypothesis())
+            {
+                if existing.predicted_outcome() != prediction.predicted_outcome() {
+                    return Self::empty(
+                        OutcomeEvidenceUpdateStatus::ConflictingPredictionEvidence,
+                        input_prediction_count,
+                        rejected_prediction_confidence_count,
+                    );
+                }
+
+                continue;
+            }
+
+            canonical.push(prediction);
+        }
+
+        if canonical.is_empty() {
+            return Self::empty(
+                OutcomeEvidenceUpdateStatus::NoQualifyingPredictions,
+                input_prediction_count,
+                rejected_prediction_confidence_count,
+            );
+        }
+
+        let qualifying_prediction_count = canonical.len();
+
+        let mut supported_count = 0;
+        let mut contradicted_count = 0;
+
+        let mut updates = Vec::new();
+
+        for prediction in canonical {
+            let prior = prediction.confidence();
+
+            let (disposition, revised) =
+                if prediction.predicted_outcome() == observation.observed_outcome() {
+                    supported_count += 1;
+
+                    let value = prior
+                        .value()
+                        .saturating_add(policy.support_recovery())
+                        .min(1000);
+
+                    (
+                        HypothesisOutcomeEvidenceDisposition::Supported,
+                        Self::signal(value),
+                    )
+                } else {
+                    contradicted_count += 1;
+
+                    let value = prior.value().saturating_sub(policy.contradiction_penalty());
+
+                    (
+                        HypothesisOutcomeEvidenceDisposition::Contradicted,
+                        Self::signal(value),
+                    )
+                };
+
+            updates.push(HypothesisOutcomeEvidenceUpdate {
+                hypothesis: prediction.hypothesis().clone(),
+                predicted_outcome: prediction.predicted_outcome().clone(),
+                prior_confidence: prior,
+                revised_confidence: revised,
+                disposition,
+            });
+        }
+
+        updates.sort_by(|left, right| {
+            format!("{:?}", left.hypothesis()).cmp(&format!("{:?}", right.hypothesis()))
+        });
+
+        OutcomeEvidenceUpdateResult {
+            status: OutcomeEvidenceUpdateStatus::Applied,
+            input_prediction_count,
+            qualifying_prediction_count,
+            rejected_prediction_confidence_count,
+            supported_count,
+            contradicted_count,
+            updates,
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct UniversalAutonomousOutcomeEvidenceUpdate;
+
+impl UniversalAutonomousOutcomeEvidenceUpdate {
+    pub fn evaluate(
+        candidate: &HypothesisDiscriminationCandidate,
+        selected: &SelectedHypothesisDiscriminatingExperiment,
+        observation: &ExperimentOutcomeObservation,
+        policy: OutcomeEvidenceUpdatePolicy,
+    ) -> OutcomeEvidenceUpdateResult {
+        AutonomousOutcomeEvidenceUpdate::update(candidate, selected, observation, policy)
+    }
+}
+
+#[cfg(test)]
+mod outcome_evidence_update_tests {
+    use super::*;
+
+    fn s(value: u16) -> CognitiveSignal {
+        if value == 0 {
+            CognitiveSignal::zero()
+        } else {
+            CognitiveSignal::new(value).unwrap()
+        }
+    }
+
+    fn a(value: u64) -> CognitiveStructure {
+        CognitiveStructure::atom(value)
+    }
+
+    fn experiment(action: u64) -> AutonomousExperimentProposal {
+        AutonomousExperimentProposal::new(
+            a(1),
+            a(action),
+            a(900),
+            ExperimentEvidence::new(s(800), s(900), s(900), s(900), s(100)).unwrap(),
+        )
+    }
+
+    fn prediction(hypothesis: u64, outcome: u64, confidence: u16) -> CompetingHypothesisPrediction {
+        CompetingHypothesisPrediction::new(a(hypothesis), a(outcome), s(confidence)).unwrap()
+    }
+
+    fn candidate(
+        action: u64,
+        predictions: Vec<CompetingHypothesisPrediction>,
+    ) -> HypothesisDiscriminationCandidate {
+        HypothesisDiscriminationCandidate::new(experiment(action), predictions).unwrap()
+    }
+
+    fn discrimination_policy() -> HypothesisDiscriminationPolicy {
+        HypothesisDiscriminationPolicy::new(
+            ActiveExperimentPolicy::new(
+                ActiveExperimentBounds::new(16, 16, 16).unwrap(),
+                ActiveExperimentThresholds::new(s(500), s(500), s(500), s(500)).unwrap(),
+            ),
+            HypothesisDiscriminationBounds::new(16, 16, 16, 16).unwrap(),
+            HypothesisDiscriminationThresholds::new(2, 2, s(500), s(500)).unwrap(),
+        )
+    }
+
+    fn selected(
+        item: &HypothesisDiscriminationCandidate,
+    ) -> SelectedHypothesisDiscriminatingExperiment {
+        AutonomousHypothesisDiscrimination::discriminate(
+            std::slice::from_ref(item),
+            discrimination_policy(),
+        )
+        .selected()[0]
+            .clone()
+    }
+
+    fn observation(action: u64, outcome: u64, confidence: u16) -> ExperimentOutcomeObservation {
+        ExperimentOutcomeObservation::new(a(1), a(action), a(outcome), s(confidence)).unwrap()
+    }
+
+    fn policy() -> OutcomeEvidenceUpdatePolicy {
+        OutcomeEvidenceUpdatePolicy::new(16, s(500), s(500), 100, 200).unwrap()
+    }
+
+    #[test]
+    fn outcome_update_requires_positive_policy_and_observation_confidence() {
+        assert_eq!(
+            ExperimentOutcomeObservation::new(a(1), a(2), a(3), s(0),),
+            None
+        );
+
+        assert_eq!(
+            OutcomeEvidenceUpdatePolicy::new(0, s(500), s(500), 100, 100,),
+            None
+        );
+
+        assert_eq!(
+            OutcomeEvidenceUpdatePolicy::new(1, s(500), s(500), 0, 100,),
+            None
+        );
+    }
+
+    #[test]
+    fn exact_observed_outcome_supports_matching_and_contradicts_competitor() {
+        let item = candidate(
+            10,
+            vec![prediction(100, 200, 800), prediction(101, 201, 800)],
+        );
+
+        let chosen = selected(&item);
+
+        let result = AutonomousOutcomeEvidenceUpdate::update(
+            &item,
+            &chosen,
+            &observation(10, 200, 900),
+            policy(),
+        );
+
+        assert!(result.applied());
+        assert_eq!(result.supported_count(), 1);
+        assert_eq!(result.contradicted_count(), 1);
+
+        let supported = result
+            .updates()
+            .iter()
+            .find(|update| update.disposition() == HypothesisOutcomeEvidenceDisposition::Supported)
+            .unwrap();
+
+        assert_eq!(supported.revised_confidence(), s(900));
+    }
+
+    #[test]
+    fn source_state_mismatch_prevents_outcome_attribution() {
+        let item = candidate(
+            10,
+            vec![prediction(100, 200, 800), prediction(101, 201, 800)],
+        );
+
+        let chosen = selected(&item);
+
+        let wrong = ExperimentOutcomeObservation::new(a(999), a(10), a(200), s(900)).unwrap();
+
+        let result = AutonomousOutcomeEvidenceUpdate::update(&item, &chosen, &wrong, policy());
+
+        assert_eq!(
+            result.status(),
+            OutcomeEvidenceUpdateStatus::AttributionMismatch
+        );
+
+        assert!(result.updates().is_empty());
+    }
+
+    #[test]
+    fn action_mismatch_prevents_outcome_attribution() {
+        let item = candidate(
+            10,
+            vec![prediction(100, 200, 800), prediction(101, 201, 800)],
+        );
+
+        let chosen = selected(&item);
+
+        let result = AutonomousOutcomeEvidenceUpdate::update(
+            &item,
+            &chosen,
+            &observation(11, 200, 900),
+            policy(),
+        );
+
+        assert_eq!(
+            result.status(),
+            OutcomeEvidenceUpdateStatus::AttributionMismatch
+        );
+    }
+
+    #[test]
+    fn low_confidence_observation_cannot_revise_hypotheses() {
+        let item = candidate(
+            10,
+            vec![prediction(100, 200, 800), prediction(101, 201, 800)],
+        );
+
+        let chosen = selected(&item);
+
+        let result = AutonomousOutcomeEvidenceUpdate::update(
+            &item,
+            &chosen,
+            &observation(10, 200, 400),
+            policy(),
+        );
+
+        assert_eq!(
+            result.status(),
+            OutcomeEvidenceUpdateStatus::ObservationConfidenceInsufficient
+        );
+
+        assert!(result.updates().is_empty());
+    }
+
+    #[test]
+    fn selected_experiment_must_belong_to_candidate_being_revised() {
+        let first = candidate(
+            10,
+            vec![prediction(100, 200, 800), prediction(101, 201, 800)],
+        );
+
+        let second = candidate(
+            11,
+            vec![prediction(110, 210, 800), prediction(111, 211, 800)],
+        );
+
+        let wrong_selected = selected(&second);
+
+        let result = AutonomousOutcomeEvidenceUpdate::update(
+            &first,
+            &wrong_selected,
+            &observation(10, 200, 900),
+            policy(),
+        );
+
+        assert_eq!(
+            result.status(),
+            OutcomeEvidenceUpdateStatus::AttributionMismatch
+        );
+    }
+
+    #[test]
+    fn exact_duplicate_prediction_is_deduplicated_without_fake_evidence() {
+        let duplicate = prediction(100, 200, 800);
+
+        let item = candidate(
+            10,
+            vec![duplicate.clone(), duplicate, prediction(101, 201, 800)],
+        );
+
+        let chosen = selected(&item);
+
+        let result = AutonomousOutcomeEvidenceUpdate::update(
+            &item,
+            &chosen,
+            &observation(10, 200, 900),
+            policy(),
+        );
+
+        assert_eq!(result.input_prediction_count(), 3);
+
+        assert_eq!(result.qualifying_prediction_count(), 2);
+
+        assert_eq!(result.updates().len(), 2);
+    }
+
+    #[test]
+    fn conflicting_predictions_from_same_hypothesis_abort_update() {
+        let item = HypothesisDiscriminationCandidate::new(
+            experiment(10),
+            vec![
+                prediction(100, 200, 800),
+                prediction(100, 201, 800),
+                prediction(101, 202, 800),
+            ],
+        )
+        .unwrap();
+
+        let selected = SelectedHypothesisDiscriminatingExperiment {
+            experiment: item.experiment().clone(),
+            qualifying_hypothesis_count: 2,
+            distinct_outcome_count: 2,
+            discrimination_gain: s(1000),
+        };
+
+        let result = AutonomousOutcomeEvidenceUpdate::update(
+            &item,
+            &selected,
+            &observation(10, 200, 900),
+            policy(),
+        );
+
+        assert_eq!(
+            result.status(),
+            OutcomeEvidenceUpdateStatus::ConflictingPredictionEvidence
+        );
+
+        assert!(result.updates().is_empty());
+    }
+
+    #[test]
+    fn low_confidence_predictions_are_excluded_from_revision() {
+        let item = HypothesisDiscriminationCandidate::new(
+            experiment(10),
+            vec![prediction(100, 200, 800), prediction(101, 201, 400)],
+        )
+        .unwrap();
+
+        let selected = SelectedHypothesisDiscriminatingExperiment {
+            experiment: item.experiment().clone(),
+            qualifying_hypothesis_count: 2,
+            distinct_outcome_count: 2,
+            discrimination_gain: s(1000),
+        };
+
+        let result = AutonomousOutcomeEvidenceUpdate::update(
+            &item,
+            &selected,
+            &observation(10, 200, 900),
+            policy(),
+        );
+
+        assert!(result.applied());
+
+        assert_eq!(result.rejected_prediction_confidence_count(), 1);
+
+        assert_eq!(result.qualifying_prediction_count(), 1);
+
+        assert_eq!(result.updates().len(), 1);
+    }
+
+    #[test]
+    fn support_and_contradiction_confidence_updates_are_bounded() {
+        let item = candidate(
+            10,
+            vec![prediction(100, 200, 950), prediction(101, 201, 100)],
+        );
+
+        let selected = SelectedHypothesisDiscriminatingExperiment {
+            experiment: item.experiment().clone(),
+            qualifying_hypothesis_count: 2,
+            distinct_outcome_count: 2,
+            discrimination_gain: s(1000),
+        };
+
+        let permissive = OutcomeEvidenceUpdatePolicy::new(16, s(500), s(1), 200, 200).unwrap();
+
+        let result = AutonomousOutcomeEvidenceUpdate::update(
+            &item,
+            &selected,
+            &observation(10, 200, 900),
+            permissive,
+        );
+
+        let support = result
+            .updates()
+            .iter()
+            .find(|update| update.hypothesis() == &a(100))
+            .unwrap();
+
+        let contradiction = result
+            .updates()
+            .iter()
+            .find(|update| update.hypothesis() == &a(101))
+            .unwrap();
+
+        assert_eq!(support.revised_confidence(), s(1000));
+
+        assert_eq!(contradiction.revised_confidence(), s(0));
+    }
+
+    #[test]
+    fn hard_prediction_frontier_abstains_without_partial_revision() {
+        let item = candidate(
+            10,
+            vec![
+                prediction(100, 200, 800),
+                prediction(101, 201, 800),
+                prediction(102, 202, 800),
+            ],
+        );
+
+        let selected = SelectedHypothesisDiscriminatingExperiment {
+            experiment: item.experiment().clone(),
+            qualifying_hypothesis_count: 3,
+            distinct_outcome_count: 3,
+            discrimination_gain: s(1000),
+        };
+
+        let bounded = OutcomeEvidenceUpdatePolicy::new(2, s(500), s(500), 100, 200).unwrap();
+
+        let result = AutonomousOutcomeEvidenceUpdate::update(
+            &item,
+            &selected,
+            &observation(10, 200, 900),
+            bounded,
+        );
+
+        assert_eq!(
+            result.status(),
+            OutcomeEvidenceUpdateStatus::PredictionFrontierExceeded
+        );
+
+        assert!(result.updates().is_empty());
+    }
+
+    #[test]
+    fn outcome_update_is_order_invariant_non_mutating_and_facade_equivalent() {
+        let predictions = vec![
+            prediction(100, 200, 800),
+            prediction(101, 201, 800),
+            prediction(102, 202, 800),
+        ];
+
+        let item =
+            HypothesisDiscriminationCandidate::new(experiment(10), predictions.clone()).unwrap();
+
+        let mut reversed_predictions = predictions;
+
+        reversed_predictions.reverse();
+
+        let reversed =
+            HypothesisDiscriminationCandidate::new(experiment(10), reversed_predictions).unwrap();
+
+        let selected = SelectedHypothesisDiscriminatingExperiment {
+            experiment: item.experiment().clone(),
+            qualifying_hypothesis_count: 3,
+            distinct_outcome_count: 3,
+            discrimination_gain: s(1000),
+        };
+
+        let observation = observation(10, 201, 900);
+
+        let before_item = item.clone();
+
+        let before_selected = selected.clone();
+
+        let p = policy();
+
+        let direct = AutonomousOutcomeEvidenceUpdate::update(&item, &selected, &observation, p);
+
+        let reordered =
+            AutonomousOutcomeEvidenceUpdate::update(&reversed, &selected, &observation, p);
+
+        let facade =
+            UniversalAutonomousOutcomeEvidenceUpdate::evaluate(&item, &selected, &observation, p);
+
+        let repeated =
+            UniversalAutonomousOutcomeEvidenceUpdate::evaluate(&item, &selected, &observation, p);
+
+        assert_eq!(direct, reordered);
+        assert_eq!(direct, facade);
+        assert_eq!(facade, repeated);
+        assert_eq!(item, before_item);
+        assert_eq!(selected, before_selected);
+    }
+}
