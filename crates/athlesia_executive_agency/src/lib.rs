@@ -3402,3 +3402,520 @@ impl UniversalDeviationReplanner {
         DeviationReplanner::replan(prior_intention, monitoring, candidates, policy)
     }
 }
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ContinuationAssessment {
+    goal_identity: CognitiveStructure,
+    expected_goal_progress: CognitiveSignal,
+    evidence_confidence: CognitiveSignal,
+    controllability: CognitiveSignal,
+    execution_cost: CognitiveSignal,
+}
+
+impl ContinuationAssessment {
+    pub fn new(
+        goal_identity: CognitiveStructure,
+        expected_goal_progress: CognitiveSignal,
+        evidence_confidence: CognitiveSignal,
+        controllability: CognitiveSignal,
+        execution_cost: CognitiveSignal,
+    ) -> Self {
+        Self {
+            goal_identity,
+            expected_goal_progress,
+            evidence_confidence,
+            controllability,
+            execution_cost,
+        }
+    }
+
+    pub fn goal_identity(&self) -> &CognitiveStructure {
+        &self.goal_identity
+    }
+
+    pub fn expected_goal_progress(&self) -> CognitiveSignal {
+        self.expected_goal_progress
+    }
+
+    pub fn evidence_confidence(&self) -> CognitiveSignal {
+        self.evidence_confidence
+    }
+
+    pub fn controllability(&self) -> CognitiveSignal {
+        self.controllability
+    }
+
+    pub fn execution_cost(&self) -> CognitiveSignal {
+        self.execution_cost
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, Hash, PartialEq)]
+pub struct ReconsiderationState {
+    cycles: usize,
+}
+
+impl ReconsiderationState {
+    pub fn new(cycles: usize) -> Self {
+        Self { cycles }
+    }
+
+    pub fn cycles(self) -> usize {
+        self.cycles
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub struct StopReconsiderationPolicy {
+    max_reconsideration_cycles: usize,
+    minimum_evidence_confidence: CognitiveSignal,
+    minimum_controllability: CognitiveSignal,
+    minimum_net_continuation_value: CognitiveSignal,
+}
+
+impl StopReconsiderationPolicy {
+    pub fn new(
+        max_reconsideration_cycles: usize,
+        minimum_evidence_confidence: CognitiveSignal,
+        minimum_controllability: CognitiveSignal,
+        minimum_net_continuation_value: CognitiveSignal,
+    ) -> Option<Self> {
+        if max_reconsideration_cycles == 0
+            || minimum_evidence_confidence == CognitiveSignal::zero()
+            || minimum_controllability == CognitiveSignal::zero()
+            || minimum_net_continuation_value == CognitiveSignal::zero()
+        {
+            return None;
+        }
+
+        Some(Self {
+            max_reconsideration_cycles,
+            minimum_evidence_confidence,
+            minimum_controllability,
+            minimum_net_continuation_value,
+        })
+    }
+
+    pub fn max_reconsideration_cycles(self) -> usize {
+        self.max_reconsideration_cycles
+    }
+
+    pub fn minimum_evidence_confidence(self) -> CognitiveSignal {
+        self.minimum_evidence_confidence
+    }
+
+    pub fn minimum_controllability(self) -> CognitiveSignal {
+        self.minimum_controllability
+    }
+
+    pub fn minimum_net_continuation_value(self) -> CognitiveSignal {
+        self.minimum_net_continuation_value
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub enum StopReconsiderationDecision {
+    ContinueCurrent,
+    ContinueReplacement,
+    StopGoalSatisfied,
+    StopLowContinuationValue,
+    StopReconsiderationLimit,
+    ReconsiderIntentionCompleted,
+    ReconsiderInsufficientObservation,
+    ReconsiderExecutionBound,
+    ReconsiderDeviation,
+    ReconsiderRecoveryExhausted,
+    ReconsiderMissingIntention,
+    ReconsiderMissingAssessment,
+    ReconsiderGoalMismatch,
+    ReconsiderWeakEvidence,
+    ReconsiderWeakControllability,
+}
+
+impl StopReconsiderationDecision {
+    pub fn should_continue(self) -> bool {
+        matches!(self, Self::ContinueCurrent | Self::ContinueReplacement)
+    }
+
+    pub fn should_stop(self) -> bool {
+        matches!(
+            self,
+            Self::StopGoalSatisfied
+                | Self::StopLowContinuationValue
+                | Self::StopReconsiderationLimit
+        )
+    }
+
+    pub fn should_reconsider(self) -> bool {
+        !self.should_continue() && !self.should_stop()
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct StopReconsiderationResult {
+    decision: StopReconsiderationDecision,
+    previous_reconsideration_cycles: usize,
+    next_reconsideration_cycles: usize,
+    goal_satisfied: bool,
+    monitoring_status: IntentionExecutionStatus,
+    replanning_status: Option<DeviationReplanningStatus>,
+    net_continuation_value: Option<CognitiveSignal>,
+    selected_replacement: Option<ExecutableMultiStepIntention>,
+}
+
+impl StopReconsiderationResult {
+    pub fn decision(&self) -> StopReconsiderationDecision {
+        self.decision
+    }
+
+    pub fn previous_reconsideration_cycles(&self) -> usize {
+        self.previous_reconsideration_cycles
+    }
+
+    pub fn next_reconsideration_cycles(&self) -> usize {
+        self.next_reconsideration_cycles
+    }
+
+    pub fn goal_satisfied(&self) -> bool {
+        self.goal_satisfied
+    }
+
+    pub fn monitoring_status(&self) -> IntentionExecutionStatus {
+        self.monitoring_status
+    }
+
+    pub fn replanning_status(&self) -> Option<DeviationReplanningStatus> {
+        self.replanning_status
+    }
+
+    pub fn net_continuation_value(&self) -> Option<CognitiveSignal> {
+        self.net_continuation_value
+    }
+
+    pub fn selected_replacement(&self) -> Option<&ExecutableMultiStepIntention> {
+        self.selected_replacement.as_ref()
+    }
+
+    pub fn should_continue(&self) -> bool {
+        self.decision.should_continue()
+    }
+
+    pub fn should_stop(&self) -> bool {
+        self.decision.should_stop()
+    }
+
+    pub fn should_reconsider(&self) -> bool {
+        self.decision.should_reconsider()
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, Hash, PartialEq)]
+pub struct StopReconsideration;
+
+impl StopReconsideration {
+    fn reconsider(
+        decision: StopReconsiderationDecision,
+        goal_satisfied: bool,
+        monitoring_status: IntentionExecutionStatus,
+        replanning_status: Option<DeviationReplanningStatus>,
+        state: ReconsiderationState,
+        policy: StopReconsiderationPolicy,
+    ) -> StopReconsiderationResult {
+        if state.cycles() >= policy.max_reconsideration_cycles() {
+            return StopReconsiderationResult {
+                decision: StopReconsiderationDecision::StopReconsiderationLimit,
+                previous_reconsideration_cycles: state.cycles(),
+                next_reconsideration_cycles: state.cycles(),
+                goal_satisfied,
+                monitoring_status,
+                replanning_status,
+                net_continuation_value: None,
+                selected_replacement: None,
+            };
+        }
+
+        StopReconsiderationResult {
+            decision,
+            previous_reconsideration_cycles: state.cycles(),
+            next_reconsideration_cycles: state.cycles().saturating_add(1),
+            goal_satisfied,
+            monitoring_status,
+            replanning_status,
+            net_continuation_value: None,
+            selected_replacement: None,
+        }
+    }
+
+    fn continuation_value(assessment: &ContinuationAssessment) -> CognitiveSignal {
+        let evidence_weighted = ExecutiveAgency::scaled_product(
+            assessment.expected_goal_progress(),
+            assessment.evidence_confidence(),
+        );
+
+        let controlled =
+            ExecutiveAgency::scaled_product(evidence_weighted, assessment.controllability());
+
+        CognitiveSignal::new(
+            controlled
+                .value()
+                .saturating_sub(assessment.execution_cost().value()),
+        )
+        .expect("saturating continuation value remains on signal scale")
+    }
+
+    pub fn evaluate(
+        goal: &ExecutiveGoal,
+        current_intention: Option<&ExecutableMultiStepIntention>,
+        monitoring: &IntentionExecutionMonitoringResult,
+        replanning: Option<&DeviationReplanningResult>,
+        assessment: Option<&ContinuationAssessment>,
+        state: ReconsiderationState,
+        policy: StopReconsiderationPolicy,
+    ) -> StopReconsiderationResult {
+        let goal_satisfied = goal.is_satisfied();
+
+        let monitoring_status = monitoring.status();
+
+        let replanning_status = replanning.map(DeviationReplanningResult::status);
+
+        if goal_satisfied {
+            return StopReconsiderationResult {
+                decision: StopReconsiderationDecision::StopGoalSatisfied,
+                previous_reconsideration_cycles: state.cycles(),
+                next_reconsideration_cycles: state.cycles(),
+                goal_satisfied: true,
+                monitoring_status,
+                replanning_status,
+                net_continuation_value: None,
+                selected_replacement: None,
+            };
+        }
+
+        match monitoring_status {
+            IntentionExecutionStatus::Deviated => {
+                if let Some(replan) = replanning {
+                    match replan.status() {
+                        DeviationReplanningStatus::ReplacementSelected => {
+                            let Some(selected) = replan.selected().first() else {
+                                return Self::reconsider(
+                                    StopReconsiderationDecision::ReconsiderRecoveryExhausted,
+                                    false,
+                                    monitoring_status,
+                                    replanning_status,
+                                    state,
+                                    policy,
+                                );
+                            };
+
+                            if selected.replacement().goal_identity() != goal.identity() {
+                                return Self::reconsider(
+                                    StopReconsiderationDecision::ReconsiderGoalMismatch,
+                                    false,
+                                    monitoring_status,
+                                    replanning_status,
+                                    state,
+                                    policy,
+                                );
+                            }
+
+                            return StopReconsiderationResult {
+                                decision: StopReconsiderationDecision::ContinueReplacement,
+                                previous_reconsideration_cycles: state.cycles(),
+                                next_reconsideration_cycles: 0,
+                                goal_satisfied: false,
+                                monitoring_status,
+                                replanning_status,
+                                net_continuation_value: Some(selected.adjusted_replan_score()),
+                                selected_replacement: Some(selected.replacement().clone()),
+                            };
+                        }
+
+                        DeviationReplanningStatus::NoViableReplacement => {
+                            return Self::reconsider(
+                                StopReconsiderationDecision::ReconsiderRecoveryExhausted,
+                                false,
+                                monitoring_status,
+                                replanning_status,
+                                state,
+                                policy,
+                            );
+                        }
+
+                        DeviationReplanningStatus::EvidenceInsufficient
+                        | DeviationReplanningStatus::NotTriggered => {
+                            return Self::reconsider(
+                                StopReconsiderationDecision::ReconsiderDeviation,
+                                false,
+                                monitoring_status,
+                                replanning_status,
+                                state,
+                                policy,
+                            );
+                        }
+                    }
+                }
+
+                return Self::reconsider(
+                    StopReconsiderationDecision::ReconsiderDeviation,
+                    false,
+                    monitoring_status,
+                    replanning_status,
+                    state,
+                    policy,
+                );
+            }
+
+            IntentionExecutionStatus::Inconclusive => {
+                return Self::reconsider(
+                    StopReconsiderationDecision::ReconsiderInsufficientObservation,
+                    false,
+                    monitoring_status,
+                    replanning_status,
+                    state,
+                    policy,
+                );
+            }
+
+            IntentionExecutionStatus::Completed => {
+                return Self::reconsider(
+                    StopReconsiderationDecision::ReconsiderIntentionCompleted,
+                    false,
+                    monitoring_status,
+                    replanning_status,
+                    state,
+                    policy,
+                );
+            }
+
+            IntentionExecutionStatus::StepBoundExceeded => {
+                return Self::reconsider(
+                    StopReconsiderationDecision::ReconsiderExecutionBound,
+                    false,
+                    monitoring_status,
+                    replanning_status,
+                    state,
+                    policy,
+                );
+            }
+
+            IntentionExecutionStatus::Pending | IntentionExecutionStatus::Advanced => {}
+        }
+
+        let Some(intention) = current_intention else {
+            return Self::reconsider(
+                StopReconsiderationDecision::ReconsiderMissingIntention,
+                false,
+                monitoring_status,
+                replanning_status,
+                state,
+                policy,
+            );
+        };
+
+        if intention.goal_identity() != goal.identity() {
+            return Self::reconsider(
+                StopReconsiderationDecision::ReconsiderGoalMismatch,
+                false,
+                monitoring_status,
+                replanning_status,
+                state,
+                policy,
+            );
+        }
+
+        let Some(assessment) = assessment else {
+            return Self::reconsider(
+                StopReconsiderationDecision::ReconsiderMissingAssessment,
+                false,
+                monitoring_status,
+                replanning_status,
+                state,
+                policy,
+            );
+        };
+
+        if assessment.goal_identity() != goal.identity() {
+            return Self::reconsider(
+                StopReconsiderationDecision::ReconsiderGoalMismatch,
+                false,
+                monitoring_status,
+                replanning_status,
+                state,
+                policy,
+            );
+        }
+
+        if assessment.evidence_confidence().value() < policy.minimum_evidence_confidence().value() {
+            return Self::reconsider(
+                StopReconsiderationDecision::ReconsiderWeakEvidence,
+                false,
+                monitoring_status,
+                replanning_status,
+                state,
+                policy,
+            );
+        }
+
+        if assessment.controllability().value() < policy.minimum_controllability().value() {
+            return Self::reconsider(
+                StopReconsiderationDecision::ReconsiderWeakControllability,
+                false,
+                monitoring_status,
+                replanning_status,
+                state,
+                policy,
+            );
+        }
+
+        let net_continuation_value = Self::continuation_value(assessment);
+
+        if net_continuation_value.value() < policy.minimum_net_continuation_value().value() {
+            return StopReconsiderationResult {
+                decision: StopReconsiderationDecision::StopLowContinuationValue,
+                previous_reconsideration_cycles: state.cycles(),
+                next_reconsideration_cycles: state.cycles(),
+                goal_satisfied: false,
+                monitoring_status,
+                replanning_status,
+                net_continuation_value: Some(net_continuation_value),
+                selected_replacement: None,
+            };
+        }
+
+        StopReconsiderationResult {
+            decision: StopReconsiderationDecision::ContinueCurrent,
+            previous_reconsideration_cycles: state.cycles(),
+            next_reconsideration_cycles: 0,
+            goal_satisfied: false,
+            monitoring_status,
+            replanning_status,
+            net_continuation_value: Some(net_continuation_value),
+            selected_replacement: None,
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, Hash, PartialEq)]
+pub struct UniversalStopReconsideration;
+
+impl UniversalStopReconsideration {
+    pub fn evaluate(
+        goal: &ExecutiveGoal,
+        current_intention: Option<&ExecutableMultiStepIntention>,
+        monitoring: &IntentionExecutionMonitoringResult,
+        replanning: Option<&DeviationReplanningResult>,
+        assessment: Option<&ContinuationAssessment>,
+        state: ReconsiderationState,
+        policy: StopReconsiderationPolicy,
+    ) -> StopReconsiderationResult {
+        StopReconsideration::evaluate(
+            goal,
+            current_intention,
+            monitoring,
+            replanning,
+            assessment,
+            state,
+            policy,
+        )
+    }
+}

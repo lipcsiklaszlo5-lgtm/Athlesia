@@ -31,13 +31,14 @@
     "crates/athlesia_cross_level/tests/cross_level_recognition.rs": "395c6ce92aeea1be7ff294b609fcf9d175f778a2d9201ad481182831d83b02eb",
     "crates/athlesia_executive_agency/Cargo.lock": "da178d1345c1ad8d43f73b08ee997d5a093f9ae6f7bc713f6338c4e9e23207aa",
     "crates/athlesia_executive_agency/Cargo.toml": "7fa2a02601b37038f11c2406b289c51af8338988d73fea784ae13a0dccd49cc1",
-    "crates/athlesia_executive_agency/src/lib.rs": "995edcdb6f85e467fc3fba03a716d333ca8d22d97489590c200299599ae6b0e7",
+    "crates/athlesia_executive_agency/src/lib.rs": "e8c4442af1d2701aa7c56a63cb0caf290bb9adf5e821481f0de789e7dcc7af48",
     "crates/athlesia_executive_agency/tests/executive_agency_deviation_replanning.rs": "47d78aaa24946978fe4bfa4f4aeb419627b1656f576c5299bf7ee251121e884b",
     "crates/athlesia_executive_agency/tests/executive_agency_foundation.rs": "763fcb4d72809c9f2314b45f15e3593de68ea8f18388b2550a7ee5277d5d0920",
     "crates/athlesia_executive_agency/tests/executive_agency_goal_conflict_arbitration.rs": "14582d55e38f6985849aaef41a4fffe0a1c15f5d2bd246b67fef193e131afa63",
     "crates/athlesia_executive_agency/tests/executive_agency_goal_persistence.rs": "3ba2700464c9ab6a8a75ea9654ec97d51067e4ff5a35d5e3ffb879866a409a0f",
     "crates/athlesia_executive_agency/tests/executive_agency_intention_execution_monitoring.rs": "5fb7c3f57e5529ed54dae707cace2c9974127e445697b7814cbe012f7c25ec00",
     "crates/athlesia_executive_agency/tests/executive_agency_multi_step_intention.rs": "d12e96689fb501314687e125a22a961c80a894acee2d80babe1c1c55e740c246",
+    "crates/athlesia_executive_agency/tests/executive_agency_stop_and_reconsideration.rs": "dd7ecec8cfd9d9c85ad487bc2655a26cc7c0fad8b2de62bda0e32c028063081c",
     "crates/athlesia_hierarchy/Cargo.toml": "6853cd5d63d5be93d8c1fa37d8961514bf1f48801ae59f90bf4fd0e6da49b3ee",
     "crates/athlesia_hierarchy/src/lib.rs": "dfcea2b7af7a59a1c4e214372e098408ef2411b1c81fb5f0d147e73acd403f7d",
     "crates/athlesia_hierarchy/tests/hierarchical_memory_foundation.rs": "6e49dda50a6c06d191e5bcfd0637be862ad57bee36a82c5994d33252631124da",
@@ -567,7 +568,8 @@
       "module_48_executive_agency_goal_conflict_arbitration",
       "module_48_executive_agency_multi_step_intention",
       "module_48_executive_agency_intention_execution_monitoring",
-      "module_48_executive_agency_deviation_replanning"
+      "module_48_executive_agency_deviation_replanning",
+      "module_48_executive_agency_stop_and_reconsideration"
     ],
     "module_23_integrity": {
       "status": "pass",
@@ -580,8 +582,8 @@
       "status": "frozen",
       "verifier": "tools/verify_module_23_parity.py"
     },
-    "next_layer": "module_48_executive_agency_stop_and_reconsideration",
-    "stage": "module_48_executive_agency_deviation_replanning",
+    "next_layer": "module_48_executive_agency_exploration_exploitation_control",
+    "stage": "module_48_executive_agency_stop_and_reconsideration",
     "status": "validated"
   },
   "validated_invariants": [
@@ -2796,6 +2798,18 @@
     "executive_agency_deviation_replanning_observation_discounted_score",
     "executive_agency_deviation_replanning_stronger_replacement_priority",
     "executive_agency_deviation_replanning_hard_candidate_evaluation_step_and_final_frontiers",
-    "executive_agency_deviation_replanning_deterministic_non_mutating_facade_equivalence"
+    "executive_agency_deviation_replanning_deterministic_non_mutating_facade_equivalence",
+    "executive_agency_stop_reconsideration_positive_policy_bounds_and_thresholds",
+    "executive_agency_stop_reconsideration_goal_satisfaction_dominates_continuation",
+    "executive_agency_stop_reconsideration_strong_continuation_and_cycle_reset",
+    "executive_agency_stop_reconsideration_weak_evidence_gate",
+    "executive_agency_stop_reconsideration_weak_controllability_gate",
+    "executive_agency_stop_reconsideration_low_net_value_stop",
+    "executive_agency_stop_reconsideration_inconclusive_observation_gate",
+    "executive_agency_stop_reconsideration_completed_intention_without_false_goal_success",
+    "executive_agency_stop_reconsideration_replacement_continuation",
+    "executive_agency_stop_reconsideration_hard_reconsideration_cycle_limit",
+    "executive_agency_stop_reconsideration_exact_opaque_goal_identity",
+    "executive_agency_stop_reconsideration_execution_bound_deterministic_non_mutating_facade_equivalence"
   ]
 }
