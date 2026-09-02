@@ -1540,3 +1540,751 @@ mod perceptual_grounding_ingestion_tests {
         assert_eq!(world_input.current_frame(), &before_current);
     }
 }
+
+use athlesia_universal_domain_learning::{
+    CompressedDomainModel, GroundedInterventionalCausalHypothesis, IntegratedDomainModelPolicy,
+    IntegratedDomainModelResult, UniversalIntegratedDomainModel,
+};
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct UniversalDomainLearningIngestionRequest {
+    domain: CognitiveStructure,
+    anchor_state: CognitiveStructure,
+    learned_state: CognitiveStructure,
+    provenance: CognitiveStructure,
+    confidence: CognitiveSignal,
+    compute_cost: CognitiveSignal,
+}
+
+impl UniversalDomainLearningIngestionRequest {
+    pub fn new(
+        domain: CognitiveStructure,
+        anchor_state: CognitiveStructure,
+        learned_state: CognitiveStructure,
+        provenance: CognitiveStructure,
+        confidence: CognitiveSignal,
+        compute_cost: CognitiveSignal,
+    ) -> Option<Self> {
+        if confidence == CognitiveSignal::zero() {
+            return None;
+        }
+
+        Some(Self {
+            domain,
+            anchor_state,
+            learned_state,
+            provenance,
+            confidence,
+            compute_cost,
+        })
+    }
+
+    pub fn domain(&self) -> &CognitiveStructure {
+        &self.domain
+    }
+
+    pub fn anchor_state(&self) -> &CognitiveStructure {
+        &self.anchor_state
+    }
+
+    pub fn learned_state(&self) -> &CognitiveStructure {
+        &self.learned_state
+    }
+
+    pub fn provenance(&self) -> &CognitiveStructure {
+        &self.provenance
+    }
+
+    pub fn confidence(&self) -> CognitiveSignal {
+        self.confidence
+    }
+
+    pub fn compute_cost(&self) -> CognitiveSignal {
+        self.compute_cost
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct UniversalDomainLearningIngestionBounds {
+    max_input_local_hypotheses: usize,
+    max_input_transferred_models: usize,
+    max_relations: usize,
+    max_rejected_domain_mismatches: usize,
+}
+
+impl UniversalDomainLearningIngestionBounds {
+    pub fn new(
+        max_input_local_hypotheses: usize,
+        max_input_transferred_models: usize,
+        max_relations: usize,
+        max_rejected_domain_mismatches: usize,
+    ) -> Option<Self> {
+        if max_input_local_hypotheses == 0
+            || max_input_transferred_models == 0
+            || max_relations == 0
+        {
+            return None;
+        }
+
+        Some(Self {
+            max_input_local_hypotheses,
+            max_input_transferred_models,
+            max_relations,
+            max_rejected_domain_mismatches,
+        })
+    }
+
+    pub fn max_input_local_hypotheses(self) -> usize {
+        self.max_input_local_hypotheses
+    }
+
+    pub fn max_input_transferred_models(self) -> usize {
+        self.max_input_transferred_models
+    }
+
+    pub fn max_relations(self) -> usize {
+        self.max_relations
+    }
+
+    pub fn max_rejected_domain_mismatches(self) -> usize {
+        self.max_rejected_domain_mismatches
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct UniversalDomainLearningIngestionPolicy {
+    bounds: UniversalDomainLearningIngestionBounds,
+}
+
+impl UniversalDomainLearningIngestionPolicy {
+    pub fn new(bounds: UniversalDomainLearningIngestionBounds) -> Self {
+        Self { bounds }
+    }
+
+    pub fn bounds(self) -> UniversalDomainLearningIngestionBounds {
+        self.bounds
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct UniversalDomainLearningDigest {
+    domain: CognitiveStructure,
+    input_local_hypothesis_count: usize,
+    considered_local_hypothesis_count: usize,
+    local_frontier_truncated: bool,
+    input_transferred_model_count: usize,
+    matching_transferred_model_count: usize,
+    considered_transferred_model_count: usize,
+    transferred_frontier_truncated: bool,
+    rejected_target_domain_mismatch: usize,
+    admitted_before_frontier: usize,
+    relation_count: usize,
+}
+
+impl UniversalDomainLearningDigest {
+    pub fn from_model(model: &IntegratedDomainModelResult) -> Self {
+        Self {
+            domain: model.domain().clone(),
+            input_local_hypothesis_count: model.input_local_hypothesis_count(),
+            considered_local_hypothesis_count: model.considered_local_hypothesis_count(),
+            local_frontier_truncated: model.local_frontier_truncated(),
+            input_transferred_model_count: model.input_transferred_model_count(),
+            matching_transferred_model_count: model.matching_transferred_model_count(),
+            considered_transferred_model_count: model.considered_transferred_model_count(),
+            transferred_frontier_truncated: model.transferred_frontier_truncated(),
+            rejected_target_domain_mismatch: model.rejected_target_domain_mismatch(),
+            admitted_before_frontier: model.admitted_before_frontier(),
+            relation_count: model.relation_count(),
+        }
+    }
+
+    pub fn domain(&self) -> &CognitiveStructure {
+        &self.domain
+    }
+
+    pub fn input_local_hypothesis_count(&self) -> usize {
+        self.input_local_hypothesis_count
+    }
+
+    pub fn considered_local_hypothesis_count(&self) -> usize {
+        self.considered_local_hypothesis_count
+    }
+
+    pub fn local_frontier_truncated(&self) -> bool {
+        self.local_frontier_truncated
+    }
+
+    pub fn input_transferred_model_count(&self) -> usize {
+        self.input_transferred_model_count
+    }
+
+    pub fn matching_transferred_model_count(&self) -> usize {
+        self.matching_transferred_model_count
+    }
+
+    pub fn considered_transferred_model_count(&self) -> usize {
+        self.considered_transferred_model_count
+    }
+
+    pub fn transferred_frontier_truncated(&self) -> bool {
+        self.transferred_frontier_truncated
+    }
+
+    pub fn rejected_target_domain_mismatch(&self) -> usize {
+        self.rejected_target_domain_mismatch
+    }
+
+    pub fn admitted_before_frontier(&self) -> usize {
+        self.admitted_before_frontier
+    }
+
+    pub fn relation_count(&self) -> usize {
+        self.relation_count
+    }
+
+    pub fn frontier_truncated(&self) -> bool {
+        self.local_frontier_truncated || self.transferred_frontier_truncated
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum UniversalDomainLearningIngestionStatus {
+    Ingested,
+    InputFrontierExceeded,
+    RelationFrontierExceeded,
+    DomainMismatchFrontierExceeded,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct UniversalDomainLearningIngestionResult {
+    status: UniversalDomainLearningIngestionStatus,
+    digest: Option<UniversalDomainLearningDigest>,
+    contribution: Option<IntegratedLayerContribution>,
+}
+
+impl UniversalDomainLearningIngestionResult {
+    pub fn status(&self) -> UniversalDomainLearningIngestionStatus {
+        self.status
+    }
+
+    pub fn digest(&self) -> Option<&UniversalDomainLearningDigest> {
+        self.digest.as_ref()
+    }
+
+    pub fn contribution(&self) -> Option<&IntegratedLayerContribution> {
+        self.contribution.as_ref()
+    }
+
+    pub fn ingested(&self) -> bool {
+        self.status == UniversalDomainLearningIngestionStatus::Ingested
+    }
+
+    pub fn abstained(&self) -> bool {
+        self.contribution.is_none()
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct AutonomousUniversalDomainLearningIngestion;
+
+impl AutonomousUniversalDomainLearningIngestion {
+    fn abstain(
+        status: UniversalDomainLearningIngestionStatus,
+        digest: Option<UniversalDomainLearningDigest>,
+    ) -> UniversalDomainLearningIngestionResult {
+        UniversalDomainLearningIngestionResult {
+            status,
+            digest,
+            contribution: None,
+        }
+    }
+
+    pub fn ingest(
+        request: &UniversalDomainLearningIngestionRequest,
+        local: &[GroundedInterventionalCausalHypothesis],
+        transferred: &[CompressedDomainModel],
+        domain_policy: IntegratedDomainModelPolicy,
+        policy: UniversalDomainLearningIngestionPolicy,
+    ) -> UniversalDomainLearningIngestionResult {
+        let bounds = policy.bounds();
+
+        if local.len() > bounds.max_input_local_hypotheses()
+            || transferred.len() > bounds.max_input_transferred_models()
+        {
+            return Self::abstain(
+                UniversalDomainLearningIngestionStatus::InputFrontierExceeded,
+                None,
+            );
+        }
+
+        let model = UniversalIntegratedDomainModel::evaluate(
+            request.domain(),
+            local,
+            transferred,
+            domain_policy,
+        );
+
+        let digest = UniversalDomainLearningDigest::from_model(&model);
+
+        if digest.relation_count() > bounds.max_relations() {
+            return Self::abstain(
+                UniversalDomainLearningIngestionStatus::RelationFrontierExceeded,
+                Some(digest),
+            );
+        }
+
+        if digest.rejected_target_domain_mismatch() > bounds.max_rejected_domain_mismatches() {
+            return Self::abstain(
+                UniversalDomainLearningIngestionStatus::DomainMismatchFrontierExceeded,
+                Some(digest),
+            );
+        }
+
+        let contribution = IntegratedLayerContribution::new(
+            IntegratedCognitiveLayer::UniversalDomainLearning,
+            request.anchor_state().clone(),
+            request.learned_state().clone(),
+            request.provenance().clone(),
+            request.confidence(),
+            request.compute_cost(),
+        )
+        .expect("domain-learning request enforces positive confidence");
+
+        UniversalDomainLearningIngestionResult {
+            status: UniversalDomainLearningIngestionStatus::Ingested,
+            digest: Some(digest),
+            contribution: Some(contribution),
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct UniversalDomainLearningAgentIngestion;
+
+impl UniversalDomainLearningAgentIngestion {
+    pub fn evaluate(
+        request: &UniversalDomainLearningIngestionRequest,
+        local: &[GroundedInterventionalCausalHypothesis],
+        transferred: &[CompressedDomainModel],
+        domain_policy: IntegratedDomainModelPolicy,
+        policy: UniversalDomainLearningIngestionPolicy,
+    ) -> UniversalDomainLearningIngestionResult {
+        AutonomousUniversalDomainLearningIngestion::ingest(
+            request,
+            local,
+            transferred,
+            domain_policy,
+            policy,
+        )
+    }
+}
+
+#[cfg(test)]
+mod universal_domain_learning_ingestion_tests {
+    use super::*;
+
+    use athlesia_universal_domain_learning::IntegratedDomainModel;
+
+    fn s(value: u16) -> CognitiveSignal {
+        if value == 0 {
+            CognitiveSignal::zero()
+        } else {
+            CognitiveSignal::new(value).unwrap()
+        }
+    }
+
+    fn a(value: u64) -> CognitiveStructure {
+        CognitiveStructure::atom(value)
+    }
+
+    fn request() -> UniversalDomainLearningIngestionRequest {
+        UniversalDomainLearningIngestionRequest::new(
+            a(7000),
+            a(1000),
+            a(1002),
+            a(9100),
+            s(900),
+            s(250),
+        )
+        .unwrap()
+    }
+
+    fn domain_policy() -> IntegratedDomainModelPolicy {
+        IntegratedDomainModelPolicy::new(8, 8, 16).unwrap()
+    }
+
+    fn ingestion_policy() -> UniversalDomainLearningIngestionPolicy {
+        UniversalDomainLearningIngestionPolicy::new(
+            UniversalDomainLearningIngestionBounds::new(8, 8, 16, 8).unwrap(),
+        )
+    }
+
+    #[test]
+    fn domain_learning_ingestion_contract_requires_positive_confidence_and_hard_bounds() {
+        assert_eq!(
+            UniversalDomainLearningIngestionRequest::new(a(1), a(2), a(3), a(4), s(0), s(10),),
+            None
+        );
+
+        assert_eq!(
+            UniversalDomainLearningIngestionBounds::new(0, 8, 16, 8,),
+            None
+        );
+
+        assert_eq!(
+            UniversalDomainLearningIngestionBounds::new(8, 0, 16, 8,),
+            None
+        );
+
+        assert_eq!(
+            UniversalDomainLearningIngestionBounds::new(8, 8, 0, 8,),
+            None
+        );
+
+        assert_eq!(IntegratedDomainModelPolicy::new(0, 8, 16,), None);
+    }
+
+    #[test]
+    fn real_m47_integrated_domain_model_is_ingested() {
+        let result = AutonomousUniversalDomainLearningIngestion::ingest(
+            &request(),
+            &[],
+            &[],
+            domain_policy(),
+            ingestion_policy(),
+        );
+
+        assert!(result.ingested());
+
+        assert!(result.digest().is_some());
+
+        assert!(result.contribution().is_some());
+    }
+
+    #[test]
+    fn m47_integrated_model_preserves_exact_domain_identity() {
+        let req = request();
+
+        let result = AutonomousUniversalDomainLearningIngestion::ingest(
+            &req,
+            &[],
+            &[],
+            domain_policy(),
+            ingestion_policy(),
+        );
+
+        assert_eq!(result.digest().unwrap().domain(), req.domain());
+
+        assert_eq!(result.digest().unwrap().domain(), &a(7000));
+    }
+
+    #[test]
+    fn empty_m47_model_does_not_fabricate_domain_relations() {
+        let result = AutonomousUniversalDomainLearningIngestion::ingest(
+            &request(),
+            &[],
+            &[],
+            domain_policy(),
+            ingestion_policy(),
+        );
+
+        let digest = result.digest().unwrap();
+
+        assert_eq!(digest.input_local_hypothesis_count(), 0);
+
+        assert_eq!(digest.input_transferred_model_count(), 0);
+
+        assert_eq!(digest.relation_count(), 0);
+
+        assert_eq!(digest.admitted_before_frontier(), 0);
+    }
+
+    #[test]
+    fn empty_m47_model_reports_no_truncation_or_domain_mismatch() {
+        let result = AutonomousUniversalDomainLearningIngestion::ingest(
+            &request(),
+            &[],
+            &[],
+            domain_policy(),
+            ingestion_policy(),
+        );
+
+        let digest = result.digest().unwrap();
+
+        assert_eq!(digest.considered_local_hypothesis_count(), 0);
+
+        assert_eq!(digest.matching_transferred_model_count(), 0);
+
+        assert_eq!(digest.considered_transferred_model_count(), 0);
+
+        assert!(!digest.local_frontier_truncated());
+
+        assert!(!digest.transferred_frontier_truncated());
+
+        assert!(!digest.frontier_truncated());
+
+        assert_eq!(digest.rejected_target_domain_mismatch(), 0);
+    }
+
+    #[test]
+    fn domain_learning_contribution_preserves_exact_agent_state_and_provenance() {
+        let req = UniversalDomainLearningIngestionRequest::new(
+            a(777),
+            a(500),
+            a(501),
+            a(999),
+            s(850),
+            s(175),
+        )
+        .unwrap();
+
+        let result = AutonomousUniversalDomainLearningIngestion::ingest(
+            &req,
+            &[],
+            &[],
+            domain_policy(),
+            ingestion_policy(),
+        );
+
+        let contribution = result.contribution().unwrap();
+
+        assert_eq!(
+            contribution.layer(),
+            IntegratedCognitiveLayer::UniversalDomainLearning
+        );
+
+        assert_eq!(contribution.anchor_state(), &a(500));
+
+        assert_eq!(contribution.result_state(), &a(501));
+
+        assert_eq!(contribution.provenance(), &a(999));
+
+        assert_eq!(contribution.confidence(), s(850));
+
+        assert_eq!(contribution.compute_cost(), s(175));
+    }
+
+    #[test]
+    fn opaque_domain_identity_changes_identity_without_inventing_semantics() {
+        let first_request = UniversalDomainLearningIngestionRequest::new(
+            a(111),
+            a(1000),
+            a(1002),
+            a(9100),
+            s(900),
+            s(250),
+        )
+        .unwrap();
+
+        let second_request = UniversalDomainLearningIngestionRequest::new(
+            a(999),
+            a(1000),
+            a(1002),
+            a(9100),
+            s(900),
+            s(250),
+        )
+        .unwrap();
+
+        let first = AutonomousUniversalDomainLearningIngestion::ingest(
+            &first_request,
+            &[],
+            &[],
+            domain_policy(),
+            ingestion_policy(),
+        );
+
+        let second = AutonomousUniversalDomainLearningIngestion::ingest(
+            &second_request,
+            &[],
+            &[],
+            domain_policy(),
+            ingestion_policy(),
+        );
+
+        assert_ne!(
+            first.digest().unwrap().domain(),
+            second.digest().unwrap().domain()
+        );
+
+        assert_eq!(
+            first.digest().unwrap().relation_count(),
+            second.digest().unwrap().relation_count()
+        );
+
+        assert_eq!(first.contribution(), second.contribution());
+    }
+
+    #[test]
+    fn universal_and_direct_m47_facades_produce_identical_domain_digest() {
+        let domain = a(7000);
+
+        let direct = IntegratedDomainModel::build(&domain, &[], &[], domain_policy());
+
+        let universal =
+            UniversalIntegratedDomainModel::evaluate(&domain, &[], &[], domain_policy());
+
+        let direct_digest = UniversalDomainLearningDigest::from_model(&direct);
+
+        let universal_digest = UniversalDomainLearningDigest::from_model(&universal);
+
+        assert_eq!(direct_digest, universal_digest);
+    }
+
+    #[test]
+    fn domain_learning_contribution_combines_with_real_perceptual_layer_in_agent_frame() {
+        let learned = AutonomousUniversalDomainLearningIngestion::ingest(
+            &request(),
+            &[],
+            &[],
+            domain_policy(),
+            ingestion_policy(),
+        );
+
+        let perceptual = IntegratedLayerContribution::new(
+            IntegratedCognitiveLayer::PerceptualGrounding,
+            a(1000),
+            a(1001),
+            a(9000),
+            s(900),
+            s(200),
+        )
+        .unwrap();
+
+        let integrated = IntegratedCognitiveAgentFoundation::integrate(
+            &a(1000),
+            &[perceptual, learned.contribution().unwrap().clone()],
+            IntegratedAgentPolicy::new(
+                IntegratedAgentBounds::new(5, 1000).unwrap(),
+                IntegratedAgentThresholds::new(s(500)).unwrap(),
+            ),
+        );
+
+        assert!(integrated.integrated());
+
+        let frame = integrated.frame().unwrap();
+
+        assert!(frame
+            .contribution(IntegratedCognitiveLayer::PerceptualGrounding)
+            .is_some());
+
+        assert!(frame
+            .contribution(IntegratedCognitiveLayer::UniversalDomainLearning)
+            .is_some());
+    }
+
+    #[test]
+    fn mismatched_agent_anchor_rejects_domain_learning_from_integrated_frame() {
+        let learned = AutonomousUniversalDomainLearningIngestion::ingest(
+            &request(),
+            &[],
+            &[],
+            domain_policy(),
+            ingestion_policy(),
+        );
+
+        let integrated = IntegratedCognitiveAgentFoundation::integrate(
+            &a(9999),
+            &[learned.contribution().unwrap().clone()],
+            IntegratedAgentPolicy::new(
+                IntegratedAgentBounds::new(5, 1000).unwrap(),
+                IntegratedAgentThresholds::new(s(500)).unwrap(),
+            ),
+        );
+
+        assert_eq!(
+            integrated.status(),
+            IntegratedAgentFoundationStatus::NoQualifyingContributions
+        );
+
+        assert_eq!(integrated.rejected_anchor_count(), 1);
+    }
+
+    #[test]
+    fn exact_cross_layer_provenance_conflict_abstains_atomically() {
+        let learned_request = UniversalDomainLearningIngestionRequest::new(
+            a(7000),
+            a(1000),
+            a(1002),
+            a(9000),
+            s(900),
+            s(250),
+        )
+        .unwrap();
+
+        let learned = AutonomousUniversalDomainLearningIngestion::ingest(
+            &learned_request,
+            &[],
+            &[],
+            domain_policy(),
+            ingestion_policy(),
+        );
+
+        let perceptual = IntegratedLayerContribution::new(
+            IntegratedCognitiveLayer::PerceptualGrounding,
+            a(1000),
+            a(1001),
+            a(9000),
+            s(900),
+            s(200),
+        )
+        .unwrap();
+
+        let integrated = IntegratedCognitiveAgentFoundation::integrate(
+            &a(1000),
+            &[perceptual, learned.contribution().unwrap().clone()],
+            IntegratedAgentPolicy::new(
+                IntegratedAgentBounds::new(5, 1000).unwrap(),
+                IntegratedAgentThresholds::new(s(500)).unwrap(),
+            ),
+        );
+
+        assert_eq!(
+            integrated.status(),
+            IntegratedAgentFoundationStatus::ConflictingProvenance
+        );
+
+        assert!(integrated.frame().is_none());
+    }
+
+    #[test]
+    fn domain_learning_ingestion_is_deterministic_non_mutating_and_facade_equivalent() {
+        let local: Vec<GroundedInterventionalCausalHypothesis> = Vec::new();
+
+        let transferred: Vec<CompressedDomainModel> = Vec::new();
+
+        let req = request();
+
+        let direct = AutonomousUniversalDomainLearningIngestion::ingest(
+            &req,
+            &local,
+            &transferred,
+            domain_policy(),
+            ingestion_policy(),
+        );
+
+        let facade = UniversalDomainLearningAgentIngestion::evaluate(
+            &req,
+            &local,
+            &transferred,
+            domain_policy(),
+            ingestion_policy(),
+        );
+
+        let repeated = UniversalDomainLearningAgentIngestion::evaluate(
+            &req,
+            &local,
+            &transferred,
+            domain_policy(),
+            ingestion_policy(),
+        );
+
+        assert_eq!(direct, facade);
+
+        assert_eq!(facade, repeated);
+
+        assert!(local.is_empty());
+
+        assert!(transferred.is_empty());
+    }
+}
