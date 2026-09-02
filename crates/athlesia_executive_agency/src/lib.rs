@@ -3919,3 +3919,605 @@ impl UniversalStopReconsideration {
         )
     }
 }
+
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub struct ExplorationSignals {
+    expected_information_gain: CognitiveSignal,
+    learning_progress: CognitiveSignal,
+    controllability: CognitiveSignal,
+    evidence_confidence: CognitiveSignal,
+    execution_cost: CognitiveSignal,
+}
+
+impl ExplorationSignals {
+    pub fn new(
+        expected_information_gain: CognitiveSignal,
+        learning_progress: CognitiveSignal,
+        controllability: CognitiveSignal,
+        evidence_confidence: CognitiveSignal,
+        execution_cost: CognitiveSignal,
+    ) -> Self {
+        Self {
+            expected_information_gain,
+            learning_progress,
+            controllability,
+            evidence_confidence,
+            execution_cost,
+        }
+    }
+
+    pub fn expected_information_gain(self) -> CognitiveSignal {
+        self.expected_information_gain
+    }
+
+    pub fn learning_progress(self) -> CognitiveSignal {
+        self.learning_progress
+    }
+
+    pub fn controllability(self) -> CognitiveSignal {
+        self.controllability
+    }
+
+    pub fn evidence_confidence(self) -> CognitiveSignal {
+        self.evidence_confidence
+    }
+
+    pub fn execution_cost(self) -> CognitiveSignal {
+        self.execution_cost
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct GroundedExplorationCandidate {
+    goal_identity: CognitiveStructure,
+    action: CognitiveStructure,
+    predicted_outcome: CognitiveStructure,
+    signals: ExplorationSignals,
+}
+
+impl GroundedExplorationCandidate {
+    pub fn new(
+        goal_identity: CognitiveStructure,
+        action: CognitiveStructure,
+        predicted_outcome: CognitiveStructure,
+        signals: ExplorationSignals,
+    ) -> Self {
+        Self {
+            goal_identity,
+            action,
+            predicted_outcome,
+            signals,
+        }
+    }
+
+    pub fn goal_identity(&self) -> &CognitiveStructure {
+        &self.goal_identity
+    }
+
+    pub fn action(&self) -> &CognitiveStructure {
+        &self.action
+    }
+
+    pub fn predicted_outcome(&self) -> &CognitiveStructure {
+        &self.predicted_outcome
+    }
+
+    pub fn signals(&self) -> ExplorationSignals {
+        self.signals
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub struct ExplorationExploitationThresholds {
+    minimum_evidence_confidence: CognitiveSignal,
+    minimum_controllability: CognitiveSignal,
+    minimum_learning_progress: CognitiveSignal,
+    minimum_exploration_value: CognitiveSignal,
+    exploration_advantage_margin: CognitiveSignal,
+}
+
+impl ExplorationExploitationThresholds {
+    pub fn new(
+        minimum_evidence_confidence: CognitiveSignal,
+        minimum_controllability: CognitiveSignal,
+        minimum_learning_progress: CognitiveSignal,
+        minimum_exploration_value: CognitiveSignal,
+        exploration_advantage_margin: CognitiveSignal,
+    ) -> Option<Self> {
+        if minimum_evidence_confidence == CognitiveSignal::zero()
+            || minimum_controllability == CognitiveSignal::zero()
+            || minimum_learning_progress == CognitiveSignal::zero()
+            || minimum_exploration_value == CognitiveSignal::zero()
+            || exploration_advantage_margin == CognitiveSignal::zero()
+        {
+            return None;
+        }
+
+        Some(Self {
+            minimum_evidence_confidence,
+            minimum_controllability,
+            minimum_learning_progress,
+            minimum_exploration_value,
+            exploration_advantage_margin,
+        })
+    }
+
+    pub fn minimum_evidence_confidence(self) -> CognitiveSignal {
+        self.minimum_evidence_confidence
+    }
+
+    pub fn minimum_controllability(self) -> CognitiveSignal {
+        self.minimum_controllability
+    }
+
+    pub fn minimum_learning_progress(self) -> CognitiveSignal {
+        self.minimum_learning_progress
+    }
+
+    pub fn minimum_exploration_value(self) -> CognitiveSignal {
+        self.minimum_exploration_value
+    }
+
+    pub fn exploration_advantage_margin(self) -> CognitiveSignal {
+        self.exploration_advantage_margin
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub struct ExplorationExploitationPolicy {
+    max_exploration_candidates: usize,
+    max_candidate_evaluations: usize,
+    thresholds: ExplorationExploitationThresholds,
+}
+
+impl ExplorationExploitationPolicy {
+    pub fn new(
+        max_exploration_candidates: usize,
+        max_candidate_evaluations: usize,
+        thresholds: ExplorationExploitationThresholds,
+    ) -> Option<Self> {
+        if max_exploration_candidates == 0 || max_candidate_evaluations == 0 {
+            return None;
+        }
+
+        Some(Self {
+            max_exploration_candidates,
+            max_candidate_evaluations,
+            thresholds,
+        })
+    }
+
+    pub fn max_exploration_candidates(self) -> usize {
+        self.max_exploration_candidates
+    }
+
+    pub fn max_candidate_evaluations(self) -> usize {
+        self.max_candidate_evaluations
+    }
+
+    pub fn thresholds(self) -> ExplorationExploitationThresholds {
+        self.thresholds
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub enum ExplorationExploitationDecision {
+    DeferredByExecutiveControl,
+    ExploitCurrent,
+    ExploitReplacement,
+    Explore,
+    NoViableOption,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct RankedExplorationCandidate {
+    candidate: GroundedExplorationCandidate,
+    net_exploration_value: CognitiveSignal,
+}
+
+impl RankedExplorationCandidate {
+    pub fn candidate(&self) -> &GroundedExplorationCandidate {
+        &self.candidate
+    }
+
+    pub fn net_exploration_value(&self) -> CognitiveSignal {
+        self.net_exploration_value
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ExplorationExploitationResult {
+    decision: ExplorationExploitationDecision,
+    input_candidate_count: usize,
+    unique_candidate_count: usize,
+    considered_candidate_count: usize,
+    candidate_frontier_truncated: bool,
+    candidate_evaluation_count: usize,
+    candidate_evaluation_truncated: bool,
+    rejected_goal_mismatch_count: usize,
+    rejected_threshold_count: usize,
+    exploit_value: Option<CognitiveSignal>,
+    exploration_advantage_satisfied: bool,
+    selected_exploration: Option<RankedExplorationCandidate>,
+    selected_exploitation: Option<ExecutableMultiStepIntention>,
+}
+
+impl ExplorationExploitationResult {
+    pub fn decision(&self) -> ExplorationExploitationDecision {
+        self.decision
+    }
+
+    pub fn input_candidate_count(&self) -> usize {
+        self.input_candidate_count
+    }
+
+    pub fn unique_candidate_count(&self) -> usize {
+        self.unique_candidate_count
+    }
+
+    pub fn considered_candidate_count(&self) -> usize {
+        self.considered_candidate_count
+    }
+
+    pub fn candidate_frontier_truncated(&self) -> bool {
+        self.candidate_frontier_truncated
+    }
+
+    pub fn candidate_evaluation_count(&self) -> usize {
+        self.candidate_evaluation_count
+    }
+
+    pub fn candidate_evaluation_truncated(&self) -> bool {
+        self.candidate_evaluation_truncated
+    }
+
+    pub fn rejected_goal_mismatch_count(&self) -> usize {
+        self.rejected_goal_mismatch_count
+    }
+
+    pub fn rejected_threshold_count(&self) -> usize {
+        self.rejected_threshold_count
+    }
+
+    pub fn exploit_value(&self) -> Option<CognitiveSignal> {
+        self.exploit_value
+    }
+
+    pub fn exploration_advantage_satisfied(&self) -> bool {
+        self.exploration_advantage_satisfied
+    }
+
+    pub fn selected_exploration(&self) -> Option<&RankedExplorationCandidate> {
+        self.selected_exploration.as_ref()
+    }
+
+    pub fn selected_exploitation(&self) -> Option<&ExecutableMultiStepIntention> {
+        self.selected_exploitation.as_ref()
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, Hash, PartialEq)]
+pub struct ExplorationExploitationController;
+
+impl ExplorationExploitationController {
+    fn exact_tiebreak(left: &CognitiveStructure, right: &CognitiveStructure) -> std::cmp::Ordering {
+        format!("{left:?}").cmp(&format!("{right:?}"))
+    }
+
+    fn exploration_value(candidate: &GroundedExplorationCandidate) -> CognitiveSignal {
+        let signals = candidate.signals();
+
+        let progress_weighted_information = ExecutiveAgency::scaled_product(
+            signals.expected_information_gain(),
+            signals.learning_progress(),
+        );
+
+        let evidence_weighted = ExecutiveAgency::scaled_product(
+            progress_weighted_information,
+            signals.evidence_confidence(),
+        );
+
+        let controlled =
+            ExecutiveAgency::scaled_product(evidence_weighted, signals.controllability());
+
+        CognitiveSignal::new(
+            controlled
+                .value()
+                .saturating_sub(signals.execution_cost().value()),
+        )
+        .expect("bounded exploration value remains on cognitive scale")
+    }
+
+    fn compare_candidate(
+        left: &GroundedExplorationCandidate,
+        right: &GroundedExplorationCandidate,
+    ) -> std::cmp::Ordering {
+        let left_value = Self::exploration_value(left);
+
+        let right_value = Self::exploration_value(right);
+
+        right_value
+            .value()
+            .cmp(&left_value.value())
+            .then_with(|| {
+                right
+                    .signals()
+                    .learning_progress()
+                    .value()
+                    .cmp(&left.signals().learning_progress().value())
+            })
+            .then_with(|| {
+                right
+                    .signals()
+                    .expected_information_gain()
+                    .value()
+                    .cmp(&left.signals().expected_information_gain().value())
+            })
+            .then_with(|| {
+                right
+                    .signals()
+                    .evidence_confidence()
+                    .value()
+                    .cmp(&left.signals().evidence_confidence().value())
+            })
+            .then_with(|| {
+                right
+                    .signals()
+                    .controllability()
+                    .value()
+                    .cmp(&left.signals().controllability().value())
+            })
+            .then_with(|| {
+                left.signals()
+                    .execution_cost()
+                    .value()
+                    .cmp(&right.signals().execution_cost().value())
+            })
+            .then_with(|| Self::exact_tiebreak(left.goal_identity(), right.goal_identity()))
+            .then_with(|| Self::exact_tiebreak(left.action(), right.action()))
+            .then_with(|| Self::exact_tiebreak(left.predicted_outcome(), right.predicted_outcome()))
+    }
+
+    fn ranked_candidates(
+        candidates: &[GroundedExplorationCandidate],
+        policy: ExplorationExploitationPolicy,
+    ) -> (usize, Vec<GroundedExplorationCandidate>) {
+        let mut ranked = candidates.to_vec();
+
+        ranked.sort_by(Self::compare_candidate);
+
+        ranked.dedup();
+
+        let unique_count = ranked.len();
+
+        ranked.truncate(policy.max_exploration_candidates());
+
+        (unique_count, ranked)
+    }
+
+    fn exploitation_context(
+        goal: &ExecutiveGoal,
+        current_intention: &ExecutableMultiStepIntention,
+        executive_control: &StopReconsiderationResult,
+    ) -> Option<(
+        ExplorationExploitationDecision,
+        CognitiveSignal,
+        ExecutableMultiStepIntention,
+    )> {
+        let exploit_value = executive_control.net_continuation_value()?;
+
+        match executive_control.decision() {
+            StopReconsiderationDecision::ContinueCurrent => {
+                if current_intention.goal_identity() != goal.identity() {
+                    return None;
+                }
+
+                Some((
+                    ExplorationExploitationDecision::ExploitCurrent,
+                    exploit_value,
+                    current_intention.clone(),
+                ))
+            }
+
+            StopReconsiderationDecision::ContinueReplacement => {
+                let replacement = executive_control.selected_replacement()?;
+
+                if replacement.goal_identity() != goal.identity() {
+                    return None;
+                }
+
+                Some((
+                    ExplorationExploitationDecision::ExploitReplacement,
+                    exploit_value,
+                    replacement.clone(),
+                ))
+            }
+
+            _ => None,
+        }
+    }
+
+    fn deferred_result(input_candidate_count: usize) -> ExplorationExploitationResult {
+        ExplorationExploitationResult {
+            decision: ExplorationExploitationDecision::DeferredByExecutiveControl,
+            input_candidate_count,
+            unique_candidate_count: 0,
+            considered_candidate_count: 0,
+            candidate_frontier_truncated: false,
+            candidate_evaluation_count: 0,
+            candidate_evaluation_truncated: false,
+            rejected_goal_mismatch_count: 0,
+            rejected_threshold_count: 0,
+            exploit_value: None,
+            exploration_advantage_satisfied: false,
+            selected_exploration: None,
+            selected_exploitation: None,
+        }
+    }
+
+    pub fn evaluate(
+        goal: &ExecutiveGoal,
+        current_intention: &ExecutableMultiStepIntention,
+        executive_control: &StopReconsiderationResult,
+        exploration_candidates: &[GroundedExplorationCandidate],
+        policy: ExplorationExploitationPolicy,
+    ) -> ExplorationExploitationResult {
+        let input_candidate_count = exploration_candidates.len();
+
+        if !executive_control.should_continue() {
+            return Self::deferred_result(input_candidate_count);
+        }
+
+        let Some((exploit_decision, exploit_value, exploitation_intention)) =
+            Self::exploitation_context(goal, current_intention, executive_control)
+        else {
+            return ExplorationExploitationResult {
+                decision: ExplorationExploitationDecision::NoViableOption,
+                input_candidate_count,
+                unique_candidate_count: 0,
+                considered_candidate_count: 0,
+                candidate_frontier_truncated: false,
+                candidate_evaluation_count: 0,
+                candidate_evaluation_truncated: false,
+                rejected_goal_mismatch_count: 0,
+                rejected_threshold_count: 0,
+                exploit_value: executive_control.net_continuation_value(),
+                exploration_advantage_satisfied: false,
+                selected_exploration: None,
+                selected_exploitation: None,
+            };
+        };
+
+        let (unique_candidate_count, ranked_candidates) =
+            Self::ranked_candidates(exploration_candidates, policy);
+
+        let considered_candidate_count = ranked_candidates.len();
+
+        let mut candidate_evaluation_count = 0_usize;
+
+        let mut candidate_evaluation_truncated = false;
+
+        let mut rejected_goal_mismatch_count = 0_usize;
+
+        let mut rejected_threshold_count = 0_usize;
+
+        let mut admitted: Vec<RankedExplorationCandidate> = Vec::new();
+
+        let thresholds = policy.thresholds();
+
+        for candidate in ranked_candidates {
+            if candidate_evaluation_count >= policy.max_candidate_evaluations() {
+                candidate_evaluation_truncated = true;
+
+                break;
+            }
+
+            candidate_evaluation_count = candidate_evaluation_count.saturating_add(1);
+
+            if candidate.goal_identity() != goal.identity() {
+                rejected_goal_mismatch_count = rejected_goal_mismatch_count.saturating_add(1);
+
+                continue;
+            }
+
+            let signals = candidate.signals();
+
+            if signals.evidence_confidence().value()
+                < thresholds.minimum_evidence_confidence().value()
+                || signals.controllability().value() < thresholds.minimum_controllability().value()
+                || signals.learning_progress().value()
+                    < thresholds.minimum_learning_progress().value()
+            {
+                rejected_threshold_count = rejected_threshold_count.saturating_add(1);
+
+                continue;
+            }
+
+            let net_exploration_value = Self::exploration_value(&candidate);
+
+            if net_exploration_value.value() < thresholds.minimum_exploration_value().value() {
+                rejected_threshold_count = rejected_threshold_count.saturating_add(1);
+
+                continue;
+            }
+
+            admitted.push(RankedExplorationCandidate {
+                candidate,
+                net_exploration_value,
+            });
+        }
+
+        admitted.sort_by(|left, right| {
+            right
+                .net_exploration_value()
+                .value()
+                .cmp(&left.net_exploration_value().value())
+                .then_with(|| Self::compare_candidate(left.candidate(), right.candidate()))
+        });
+
+        let best_exploration = admitted.first().cloned();
+
+        let exploration_advantage_satisfied =
+            best_exploration.as_ref().is_some_and(|exploration| {
+                u32::from(exploration.net_exploration_value().value())
+                    >= u32::from(exploit_value.value()).saturating_add(u32::from(
+                        thresholds.exploration_advantage_margin().value(),
+                    ))
+            });
+
+        if exploration_advantage_satisfied {
+            return ExplorationExploitationResult {
+                decision: ExplorationExploitationDecision::Explore,
+                input_candidate_count,
+                unique_candidate_count,
+                considered_candidate_count,
+                candidate_frontier_truncated: unique_candidate_count > considered_candidate_count,
+                candidate_evaluation_count,
+                candidate_evaluation_truncated,
+                rejected_goal_mismatch_count,
+                rejected_threshold_count,
+                exploit_value: Some(exploit_value),
+                exploration_advantage_satisfied: true,
+                selected_exploration: best_exploration,
+                selected_exploitation: None,
+            };
+        }
+
+        ExplorationExploitationResult {
+            decision: exploit_decision,
+            input_candidate_count,
+            unique_candidate_count,
+            considered_candidate_count,
+            candidate_frontier_truncated: unique_candidate_count > considered_candidate_count,
+            candidate_evaluation_count,
+            candidate_evaluation_truncated,
+            rejected_goal_mismatch_count,
+            rejected_threshold_count,
+            exploit_value: Some(exploit_value),
+            exploration_advantage_satisfied: false,
+            selected_exploration: None,
+            selected_exploitation: Some(exploitation_intention),
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, Hash, PartialEq)]
+pub struct UniversalExplorationExploitationController;
+
+impl UniversalExplorationExploitationController {
+    pub fn evaluate(
+        goal: &ExecutiveGoal,
+        current_intention: &ExecutableMultiStepIntention,
+        executive_control: &StopReconsiderationResult,
+        exploration_candidates: &[GroundedExplorationCandidate],
+        policy: ExplorationExploitationPolicy,
+    ) -> ExplorationExploitationResult {
+        ExplorationExploitationController::evaluate(
+            goal,
+            current_intention,
+            executive_control,
+            exploration_candidates,
+            policy,
+        )
+    }
+}
