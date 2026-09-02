@@ -4648,3 +4648,514 @@ mod autonomous_experimentation_ingestion_tests {
         );
     }
 }
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct CognitiveCyclePhase {
+    layer: IntegratedCognitiveLayer,
+    result_state: CognitiveStructure,
+    provenance: CognitiveStructure,
+    confidence: CognitiveSignal,
+    compute_cost: CognitiveSignal,
+}
+
+impl CognitiveCyclePhase {
+    fn from_contribution(contribution: &IntegratedLayerContribution) -> Self {
+        Self {
+            layer: contribution.layer(),
+            result_state: contribution.result_state().clone(),
+            provenance: contribution.provenance().clone(),
+            confidence: contribution.confidence(),
+            compute_cost: contribution.compute_cost(),
+        }
+    }
+
+    pub fn layer(&self) -> IntegratedCognitiveLayer {
+        self.layer
+    }
+
+    pub fn result_state(&self) -> &CognitiveStructure {
+        &self.result_state
+    }
+
+    pub fn provenance(&self) -> &CognitiveStructure {
+        &self.provenance
+    }
+
+    pub fn confidence(&self) -> CognitiveSignal {
+        self.confidence
+    }
+
+    pub fn compute_cost(&self) -> CognitiveSignal {
+        self.compute_cost
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum IntegratedCognitiveCycleStatus {
+    Integrated,
+    FoundationRejected,
+    MissingRequiredLayer,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct IntegratedCognitiveCycleResult {
+    status: IntegratedCognitiveCycleStatus,
+    foundation_status: IntegratedAgentFoundationStatus,
+    anchor_state: CognitiveStructure,
+    phases: Vec<CognitiveCyclePhase>,
+}
+
+impl IntegratedCognitiveCycleResult {
+    pub fn status(&self) -> IntegratedCognitiveCycleStatus {
+        self.status
+    }
+
+    pub fn foundation_status(&self) -> &IntegratedAgentFoundationStatus {
+        &self.foundation_status
+    }
+
+    pub fn anchor_state(&self) -> &CognitiveStructure {
+        &self.anchor_state
+    }
+
+    pub fn phases(&self) -> &[CognitiveCyclePhase] {
+        &self.phases
+    }
+
+    pub fn phase_count(&self) -> usize {
+        self.phases.len()
+    }
+
+    pub fn phase(&self, layer: IntegratedCognitiveLayer) -> Option<&CognitiveCyclePhase> {
+        self.phases.iter().find(|phase| phase.layer() == layer)
+    }
+
+    pub fn integrated(&self) -> bool {
+        self.status == IntegratedCognitiveCycleStatus::Integrated
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct IntegratedCognitiveCycle;
+
+impl IntegratedCognitiveCycle {
+    pub const PHASE_COUNT: usize = 5;
+
+    pub fn required_layers() -> [IntegratedCognitiveLayer; Self::PHASE_COUNT] {
+        [
+            IntegratedCognitiveLayer::PerceptualGrounding,
+            IntegratedCognitiveLayer::UniversalDomainLearning,
+            IntegratedCognitiveLayer::ExecutiveAgency,
+            IntegratedCognitiveLayer::MetaLearningSkillMemory,
+            IntegratedCognitiveLayer::AutonomousExperimentation,
+        ]
+    }
+
+    pub fn run(
+        anchor_state: &CognitiveStructure,
+        contributions: &[IntegratedLayerContribution],
+        policy: IntegratedAgentPolicy,
+    ) -> IntegratedCognitiveCycleResult {
+        let foundation =
+            IntegratedCognitiveAgentFoundation::integrate(anchor_state, contributions, policy);
+
+        let foundation_status = foundation.status();
+
+        let Some(frame) = foundation.frame() else {
+            return IntegratedCognitiveCycleResult {
+                status: IntegratedCognitiveCycleStatus::FoundationRejected,
+                foundation_status,
+                anchor_state: anchor_state.clone(),
+                phases: Vec::new(),
+            };
+        };
+
+        let mut phases = Vec::with_capacity(Self::PHASE_COUNT);
+
+        for layer in Self::required_layers() {
+            let Some(contribution) = frame.contribution(layer) else {
+                return IntegratedCognitiveCycleResult {
+                    status: IntegratedCognitiveCycleStatus::MissingRequiredLayer,
+                    foundation_status,
+                    anchor_state: anchor_state.clone(),
+                    phases: Vec::new(),
+                };
+            };
+
+            phases.push(CognitiveCyclePhase::from_contribution(contribution));
+        }
+
+        IntegratedCognitiveCycleResult {
+            status: IntegratedCognitiveCycleStatus::Integrated,
+            foundation_status,
+            anchor_state: anchor_state.clone(),
+            phases,
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct UniversalIntegratedCognitiveCycle;
+
+impl UniversalIntegratedCognitiveCycle {
+    pub fn evaluate(
+        anchor_state: &CognitiveStructure,
+        contributions: &[IntegratedLayerContribution],
+        policy: IntegratedAgentPolicy,
+    ) -> IntegratedCognitiveCycleResult {
+        IntegratedCognitiveCycle::run(anchor_state, contributions, policy)
+    }
+}
+
+#[cfg(test)]
+mod integrated_cognitive_cycle_tests {
+    use super::*;
+
+    fn s(value: u16) -> CognitiveSignal {
+        if value == 0 {
+            CognitiveSignal::zero()
+        } else {
+            CognitiveSignal::new(value).unwrap()
+        }
+    }
+
+    fn a(value: u64) -> CognitiveStructure {
+        CognitiveStructure::atom(value)
+    }
+
+    fn policy() -> IntegratedAgentPolicy {
+        IntegratedAgentPolicy::new(
+            IntegratedAgentBounds::new(5, 2000).unwrap(),
+            IntegratedAgentThresholds::new(s(500)).unwrap(),
+        )
+    }
+
+    fn contribution(
+        layer: IntegratedCognitiveLayer,
+        result_state: u64,
+        provenance: u64,
+        confidence: u16,
+        compute_cost: u16,
+    ) -> IntegratedLayerContribution {
+        IntegratedLayerContribution::new(
+            layer,
+            a(1000),
+            a(result_state),
+            a(provenance),
+            s(confidence),
+            s(compute_cost),
+        )
+        .unwrap()
+    }
+
+    fn five() -> Vec<IntegratedLayerContribution> {
+        vec![
+            contribution(
+                IntegratedCognitiveLayer::PerceptualGrounding,
+                1001,
+                9001,
+                900,
+                200,
+            ),
+            contribution(
+                IntegratedCognitiveLayer::UniversalDomainLearning,
+                1002,
+                9002,
+                900,
+                250,
+            ),
+            contribution(
+                IntegratedCognitiveLayer::ExecutiveAgency,
+                1003,
+                9003,
+                900,
+                225,
+            ),
+            contribution(
+                IntegratedCognitiveLayer::MetaLearningSkillMemory,
+                1004,
+                9004,
+                900,
+                200,
+            ),
+            contribution(
+                IntegratedCognitiveLayer::AutonomousExperimentation,
+                1005,
+                9005,
+                900,
+                225,
+            ),
+        ]
+    }
+
+    #[test]
+    fn cognitive_cycle_requires_all_five_frozen_layers() {
+        let mut contributions = five();
+
+        contributions.pop();
+
+        let result = IntegratedCognitiveCycle::run(&a(1000), &contributions, policy());
+
+        assert_eq!(
+            result.status(),
+            IntegratedCognitiveCycleStatus::MissingRequiredLayer
+        );
+
+        assert!(result.phases().is_empty());
+    }
+
+    #[test]
+    fn cognitive_cycle_uses_fixed_canonical_phase_order() {
+        let result = IntegratedCognitiveCycle::run(&a(1000), &five(), policy());
+
+        assert!(result.integrated());
+
+        let layers: Vec<IntegratedCognitiveLayer> =
+            result.phases().iter().map(|phase| phase.layer()).collect();
+
+        assert_eq!(layers, IntegratedCognitiveCycle::required_layers().to_vec());
+    }
+
+    #[test]
+    fn cognitive_cycle_preserves_exact_layer_result_states() {
+        let result = IntegratedCognitiveCycle::run(&a(1000), &five(), policy());
+
+        for (layer, expected) in [
+            (IntegratedCognitiveLayer::PerceptualGrounding, 1001),
+            (IntegratedCognitiveLayer::UniversalDomainLearning, 1002),
+            (IntegratedCognitiveLayer::ExecutiveAgency, 1003),
+            (IntegratedCognitiveLayer::MetaLearningSkillMemory, 1004),
+            (IntegratedCognitiveLayer::AutonomousExperimentation, 1005),
+        ] {
+            assert_eq!(result.phase(layer).unwrap().result_state(), &a(expected));
+        }
+    }
+
+    #[test]
+    fn cognitive_cycle_preserves_exact_provenance_confidence_and_compute_signals() {
+        let result = IntegratedCognitiveCycle::run(&a(1000), &five(), policy());
+
+        let perceptual = result
+            .phase(IntegratedCognitiveLayer::PerceptualGrounding)
+            .unwrap();
+
+        let domain = result
+            .phase(IntegratedCognitiveLayer::UniversalDomainLearning)
+            .unwrap();
+
+        let executive = result
+            .phase(IntegratedCognitiveLayer::ExecutiveAgency)
+            .unwrap();
+
+        let memory = result
+            .phase(IntegratedCognitiveLayer::MetaLearningSkillMemory)
+            .unwrap();
+
+        let experimentation = result
+            .phase(IntegratedCognitiveLayer::AutonomousExperimentation)
+            .unwrap();
+
+        assert_eq!(executive.provenance(), &a(9003));
+
+        assert_eq!(executive.confidence(), s(900));
+
+        assert_eq!(perceptual.compute_cost(), s(200));
+
+        assert_eq!(domain.compute_cost(), s(250));
+
+        assert_eq!(executive.compute_cost(), s(225));
+
+        assert_eq!(memory.compute_cost(), s(200));
+
+        assert_eq!(experimentation.compute_cost(), s(225));
+    }
+
+    #[test]
+    fn mismatched_anchor_is_filtered_and_cycle_abstains_on_missing_layer() {
+        let mut contributions = five();
+
+        contributions[0] = IntegratedLayerContribution::new(
+            IntegratedCognitiveLayer::PerceptualGrounding,
+            a(9999),
+            a(1001),
+            a(9001),
+            s(900),
+            s(200),
+        )
+        .unwrap();
+
+        let result = IntegratedCognitiveCycle::run(&a(1000), &contributions, policy());
+
+        assert_eq!(
+            result.status(),
+            IntegratedCognitiveCycleStatus::MissingRequiredLayer
+        );
+
+        assert_eq!(result.phase_count(), 0);
+    }
+
+    #[test]
+    fn duplicate_layer_is_rejected_before_cycle_materialization() {
+        let mut contributions = five();
+
+        contributions[4] = contribution(
+            IntegratedCognitiveLayer::PerceptualGrounding,
+            7777,
+            9777,
+            900,
+            100,
+        );
+
+        let result = IntegratedCognitiveCycle::run(&a(1000), &contributions, policy());
+
+        assert_eq!(
+            result.status(),
+            IntegratedCognitiveCycleStatus::FoundationRejected
+        );
+
+        assert_eq!(
+            result.foundation_status(),
+            &IntegratedAgentFoundationStatus::DuplicateLayerContribution
+        );
+
+        assert_eq!(result.phase_count(), 0);
+    }
+
+    #[test]
+    fn cross_layer_provenance_collision_remains_atomic() {
+        let mut contributions = five();
+
+        contributions[4] = contribution(
+            IntegratedCognitiveLayer::AutonomousExperimentation,
+            1005,
+            9001,
+            900,
+            225,
+        );
+
+        let result = IntegratedCognitiveCycle::run(&a(1000), &contributions, policy());
+
+        assert_eq!(
+            result.status(),
+            IntegratedCognitiveCycleStatus::FoundationRejected
+        );
+
+        assert_eq!(
+            result.foundation_status(),
+            &IntegratedAgentFoundationStatus::ConflictingProvenance
+        );
+
+        assert!(result.phases().is_empty());
+    }
+
+    #[test]
+    fn compute_budget_failure_prevents_partial_cycle() {
+        let contributions = five()
+            .into_iter()
+            .map(|item| {
+                IntegratedLayerContribution::new(
+                    item.layer(),
+                    item.anchor_state().clone(),
+                    item.result_state().clone(),
+                    item.provenance().clone(),
+                    item.confidence(),
+                    s(500),
+                )
+                .unwrap()
+            })
+            .collect::<Vec<_>>();
+
+        let result = IntegratedCognitiveCycle::run(&a(1000), &contributions, policy());
+
+        assert_eq!(
+            result.status(),
+            IntegratedCognitiveCycleStatus::FoundationRejected
+        );
+
+        assert_eq!(
+            result.foundation_status(),
+            &IntegratedAgentFoundationStatus::ComputeBudgetExceeded
+        );
+
+        assert_eq!(result.phase_count(), 0);
+    }
+
+    #[test]
+    fn low_confidence_layer_cannot_manufacture_complete_cycle() {
+        let mut contributions = five();
+
+        contributions[3] = contribution(
+            IntegratedCognitiveLayer::MetaLearningSkillMemory,
+            1004,
+            9004,
+            400,
+            200,
+        );
+
+        let result = IntegratedCognitiveCycle::run(&a(1000), &contributions, policy());
+
+        assert_eq!(
+            result.status(),
+            IntegratedCognitiveCycleStatus::MissingRequiredLayer
+        );
+
+        assert_eq!(result.phase_count(), 0);
+    }
+
+    #[test]
+    fn equal_opaque_result_states_remain_distinct_by_cognitive_layer() {
+        let contributions = IntegratedCognitiveCycle::required_layers()
+            .into_iter()
+            .enumerate()
+            .map(|(index, layer)| contribution(layer, 4444, 9100 + index as u64, 900, 100))
+            .collect::<Vec<_>>();
+
+        let result = IntegratedCognitiveCycle::run(&a(1000), &contributions, policy());
+
+        assert!(result.integrated());
+
+        assert_eq!(result.phase_count(), 5);
+
+        for phase in result.phases() {
+            assert_eq!(phase.result_state(), &a(4444));
+        }
+    }
+
+    #[test]
+    fn input_order_cannot_change_canonical_cycle() {
+        let original = five();
+
+        let mut reversed = original.clone();
+
+        reversed.reverse();
+
+        let first = IntegratedCognitiveCycle::run(&a(1000), &original, policy());
+
+        let second = IntegratedCognitiveCycle::run(&a(1000), &reversed, policy());
+
+        assert_eq!(first, second);
+    }
+
+    #[test]
+    fn cognitive_cycle_is_deterministic_non_mutating_and_facade_equivalent() {
+        let contributions = five();
+
+        let before = contributions.clone();
+
+        let direct = IntegratedCognitiveCycle::run(&a(1000), &contributions, policy());
+
+        let facade =
+            UniversalIntegratedCognitiveCycle::evaluate(&a(1000), &contributions, policy());
+
+        let repeated =
+            UniversalIntegratedCognitiveCycle::evaluate(&a(1000), &contributions, policy());
+
+        assert_eq!(direct, facade);
+
+        assert_eq!(facade, repeated);
+
+        assert_eq!(contributions, before);
+
+        assert_eq!(facade.anchor_state(), &a(1000));
+    }
+}
