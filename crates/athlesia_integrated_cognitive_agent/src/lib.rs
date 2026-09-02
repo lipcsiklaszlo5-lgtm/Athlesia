@@ -5704,3 +5704,492 @@ mod cognitive_cycle_state_transition_tests {
         assert_eq!(facade.next_anchor_state(), Some(&a(1005)));
     }
 }
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum ClosedLoopAgentStepStatus {
+    Advanced,
+    Preserved,
+    RejectedCycle,
+    RejectedTransition,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ClosedLoopAgentStepResult {
+    status: ClosedLoopAgentStepStatus,
+    cycle: IntegratedCognitiveCycleResult,
+    transition: CognitiveCycleStateTransitionResult,
+}
+
+impl ClosedLoopAgentStepResult {
+    pub fn status(&self) -> ClosedLoopAgentStepStatus {
+        self.status
+    }
+
+    pub fn cycle(&self) -> &IntegratedCognitiveCycleResult {
+        &self.cycle
+    }
+
+    pub fn transition(&self) -> &CognitiveCycleStateTransitionResult {
+        &self.transition
+    }
+
+    pub fn previous_anchor_state(&self) -> &CognitiveStructure {
+        self.transition.previous_anchor_state()
+    }
+
+    pub fn next_anchor_state(&self) -> Option<&CognitiveStructure> {
+        self.transition.next_anchor_state()
+    }
+
+    pub fn advanced(&self) -> bool {
+        self.status == ClosedLoopAgentStepStatus::Advanced
+    }
+
+    pub fn preserved(&self) -> bool {
+        self.status == ClosedLoopAgentStepStatus::Preserved
+    }
+
+    pub fn rejected(&self) -> bool {
+        matches!(
+            self.status,
+            ClosedLoopAgentStepStatus::RejectedCycle
+                | ClosedLoopAgentStepStatus::RejectedTransition
+        )
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct ClosedLoopAgentStep;
+
+impl ClosedLoopAgentStep {
+    pub fn run(
+        anchor_state: &CognitiveStructure,
+        contributions: &[IntegratedLayerContribution],
+        cycle_policy: IntegratedAgentPolicy,
+        transition_request: &CognitiveCycleStateTransitionRequest,
+    ) -> ClosedLoopAgentStepResult {
+        let cycle = IntegratedCognitiveCycle::run(anchor_state, contributions, cycle_policy);
+
+        let transition = CognitiveCycleStateTransition::apply(&cycle, transition_request);
+
+        let status = if !cycle.integrated() {
+            ClosedLoopAgentStepStatus::RejectedCycle
+        } else {
+            match transition.status() {
+                CognitiveCycleStateTransitionStatus::Transitioned => {
+                    ClosedLoopAgentStepStatus::Advanced
+                }
+
+                CognitiveCycleStateTransitionStatus::PreservedAnchor => {
+                    ClosedLoopAgentStepStatus::Preserved
+                }
+
+                _ => ClosedLoopAgentStepStatus::RejectedTransition,
+            }
+        };
+
+        ClosedLoopAgentStepResult {
+            status,
+            cycle,
+            transition,
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct UniversalClosedLoopAgentStep;
+
+impl UniversalClosedLoopAgentStep {
+    pub fn evaluate(
+        anchor_state: &CognitiveStructure,
+        contributions: &[IntegratedLayerContribution],
+        cycle_policy: IntegratedAgentPolicy,
+        transition_request: &CognitiveCycleStateTransitionRequest,
+    ) -> ClosedLoopAgentStepResult {
+        ClosedLoopAgentStep::run(
+            anchor_state,
+            contributions,
+            cycle_policy,
+            transition_request,
+        )
+    }
+}
+
+#[cfg(test)]
+mod closed_loop_agent_step_tests {
+    use super::*;
+
+    fn s(value: u16) -> CognitiveSignal {
+        if value == 0 {
+            CognitiveSignal::zero()
+        } else {
+            CognitiveSignal::new(value).unwrap()
+        }
+    }
+
+    fn a(value: u64) -> CognitiveStructure {
+        CognitiveStructure::atom(value)
+    }
+
+    fn policy() -> IntegratedAgentPolicy {
+        IntegratedAgentPolicy::new(
+            IntegratedAgentBounds::new(5, 2000).unwrap(),
+            IntegratedAgentThresholds::new(s(500)).unwrap(),
+        )
+    }
+
+    fn contribution(
+        layer: IntegratedCognitiveLayer,
+        result_state: u64,
+        provenance: u64,
+        confidence: u16,
+        compute_cost: u16,
+    ) -> IntegratedLayerContribution {
+        IntegratedLayerContribution::new(
+            layer,
+            a(1000),
+            a(result_state),
+            a(provenance),
+            s(confidence),
+            s(compute_cost),
+        )
+        .unwrap()
+    }
+
+    fn contributions() -> Vec<IntegratedLayerContribution> {
+        vec![
+            contribution(
+                IntegratedCognitiveLayer::PerceptualGrounding,
+                1001,
+                9001,
+                900,
+                200,
+            ),
+            contribution(
+                IntegratedCognitiveLayer::UniversalDomainLearning,
+                1002,
+                9002,
+                900,
+                250,
+            ),
+            contribution(
+                IntegratedCognitiveLayer::ExecutiveAgency,
+                1003,
+                9003,
+                900,
+                225,
+            ),
+            contribution(
+                IntegratedCognitiveLayer::MetaLearningSkillMemory,
+                1004,
+                9004,
+                900,
+                200,
+            ),
+            contribution(
+                IntegratedCognitiveLayer::AutonomousExperimentation,
+                1005,
+                9005,
+                900,
+                225,
+            ),
+        ]
+    }
+
+    fn adopt(
+        layer: IntegratedCognitiveLayer,
+        provenance: u64,
+    ) -> CognitiveCycleStateTransitionRequest {
+        CognitiveCycleStateTransitionRequest::new(
+            a(1000),
+            CognitiveCycleTransitionAuthority::AdoptLayer(layer),
+            Some(a(provenance)),
+        )
+        .unwrap()
+    }
+
+    fn preserve() -> CognitiveCycleStateTransitionRequest {
+        CognitiveCycleStateTransitionRequest::new(
+            a(1000),
+            CognitiveCycleTransitionAuthority::PreserveAnchor,
+            None,
+        )
+        .unwrap()
+    }
+
+    #[test]
+    fn closed_loop_step_advances_by_explicit_executive_authority() {
+        let result = ClosedLoopAgentStep::run(
+            &a(1000),
+            &contributions(),
+            policy(),
+            &adopt(IntegratedCognitiveLayer::ExecutiveAgency, 9003),
+        );
+
+        assert!(result.advanced());
+
+        assert_eq!(result.status(), ClosedLoopAgentStepStatus::Advanced);
+
+        assert_eq!(result.previous_anchor_state(), &a(1000));
+
+        assert_eq!(result.next_anchor_state(), Some(&a(1003)));
+    }
+
+    #[test]
+    fn preserve_anchor_is_successful_closed_loop_step() {
+        let result = ClosedLoopAgentStep::run(&a(1000), &contributions(), policy(), &preserve());
+
+        assert!(result.preserved());
+
+        assert!(!result.advanced());
+
+        assert_eq!(result.next_anchor_state(), Some(&a(1000)));
+
+        assert_eq!(
+            result.transition().authority(),
+            CognitiveCycleTransitionAuthority::PreserveAnchor
+        );
+    }
+
+    #[test]
+    fn rejected_cycle_cannot_emit_next_anchor() {
+        let mut input = contributions();
+
+        input.pop();
+
+        let result = ClosedLoopAgentStep::run(
+            &a(1000),
+            &input,
+            policy(),
+            &adopt(IntegratedCognitiveLayer::ExecutiveAgency, 9003),
+        );
+
+        assert_eq!(result.status(), ClosedLoopAgentStepStatus::RejectedCycle);
+
+        assert!(result.rejected());
+
+        assert!(result.next_anchor_state().is_none());
+
+        assert_eq!(
+            result.transition().status(),
+            CognitiveCycleStateTransitionStatus::CycleNotIntegrated
+        );
+    }
+
+    #[test]
+    fn stale_transition_anchor_rejects_after_valid_cycle() {
+        let request = CognitiveCycleStateTransitionRequest::new(
+            a(9999),
+            CognitiveCycleTransitionAuthority::AdoptLayer(
+                IntegratedCognitiveLayer::ExecutiveAgency,
+            ),
+            Some(a(9003)),
+        )
+        .unwrap();
+
+        let result = ClosedLoopAgentStep::run(&a(1000), &contributions(), policy(), &request);
+
+        assert!(result.cycle().integrated());
+
+        assert_eq!(
+            result.status(),
+            ClosedLoopAgentStepStatus::RejectedTransition
+        );
+
+        assert_eq!(
+            result.transition().status(),
+            CognitiveCycleStateTransitionStatus::AnchorMismatch
+        );
+
+        assert!(result.next_anchor_state().is_none());
+    }
+
+    #[test]
+    fn stale_transition_provenance_rejects_after_valid_cycle() {
+        let result = ClosedLoopAgentStep::run(
+            &a(1000),
+            &contributions(),
+            policy(),
+            &adopt(IntegratedCognitiveLayer::ExecutiveAgency, 9999),
+        );
+
+        assert!(result.cycle().integrated());
+
+        assert_eq!(
+            result.status(),
+            ClosedLoopAgentStepStatus::RejectedTransition
+        );
+
+        assert_eq!(
+            result.transition().status(),
+            CognitiveCycleStateTransitionStatus::AuthorityProvenanceMismatch
+        );
+
+        assert!(result.next_anchor_state().is_none());
+    }
+
+    #[test]
+    fn every_layer_can_drive_exact_closed_loop_transition() {
+        for (layer, provenance, state) in [
+            (IntegratedCognitiveLayer::PerceptualGrounding, 9001, 1001),
+            (
+                IntegratedCognitiveLayer::UniversalDomainLearning,
+                9002,
+                1002,
+            ),
+            (IntegratedCognitiveLayer::ExecutiveAgency, 9003, 1003),
+            (
+                IntegratedCognitiveLayer::MetaLearningSkillMemory,
+                9004,
+                1004,
+            ),
+            (
+                IntegratedCognitiveLayer::AutonomousExperimentation,
+                9005,
+                1005,
+            ),
+        ] {
+            let result = ClosedLoopAgentStep::run(
+                &a(1000),
+                &contributions(),
+                policy(),
+                &adopt(layer, provenance),
+            );
+
+            assert!(result.advanced());
+
+            assert_eq!(result.next_anchor_state(), Some(&a(state)));
+        }
+    }
+
+    #[test]
+    fn closed_loop_preserves_transition_authority_and_provenance() {
+        let result = ClosedLoopAgentStep::run(
+            &a(1000),
+            &contributions(),
+            policy(),
+            &adopt(IntegratedCognitiveLayer::MetaLearningSkillMemory, 9004),
+        );
+
+        assert_eq!(
+            result.transition().authority(),
+            CognitiveCycleTransitionAuthority::AdoptLayer(
+                IntegratedCognitiveLayer::MetaLearningSkillMemory
+            )
+        );
+
+        assert_eq!(result.transition().authority_provenance(), Some(&a(9004)));
+
+        assert_eq!(result.next_anchor_state(), Some(&a(1004)));
+    }
+
+    #[test]
+    fn cycle_input_order_cannot_change_closed_loop_step_result() {
+        let original = contributions();
+
+        let mut reversed = original.clone();
+
+        reversed.reverse();
+
+        let request = adopt(IntegratedCognitiveLayer::AutonomousExperimentation, 9005);
+
+        let first = ClosedLoopAgentStep::run(&a(1000), &original, policy(), &request);
+
+        let second = ClosedLoopAgentStep::run(&a(1000), &reversed, policy(), &request);
+
+        assert_eq!(first, second);
+    }
+
+    #[test]
+    fn low_confidence_filtering_rejects_step_atomically() {
+        let mut input = contributions();
+
+        input[2] = contribution(
+            IntegratedCognitiveLayer::ExecutiveAgency,
+            1003,
+            9003,
+            400,
+            225,
+        );
+
+        let result = ClosedLoopAgentStep::run(
+            &a(1000),
+            &input,
+            policy(),
+            &adopt(IntegratedCognitiveLayer::ExecutiveAgency, 9003),
+        );
+
+        assert_eq!(result.status(), ClosedLoopAgentStepStatus::RejectedCycle);
+
+        assert_eq!(
+            result.cycle().status(),
+            IntegratedCognitiveCycleStatus::MissingRequiredLayer
+        );
+
+        assert!(result.next_anchor_state().is_none());
+    }
+
+    #[test]
+    fn duplicate_layer_rejection_remains_visible_through_step() {
+        let mut input = contributions();
+
+        input[4] = contribution(
+            IntegratedCognitiveLayer::PerceptualGrounding,
+            7777,
+            9777,
+            900,
+            100,
+        );
+
+        let result = ClosedLoopAgentStep::run(&a(1000), &input, policy(), &preserve());
+
+        assert_eq!(result.status(), ClosedLoopAgentStepStatus::RejectedCycle);
+
+        assert_eq!(
+            result.cycle().foundation_status(),
+            &IntegratedAgentFoundationStatus::DuplicateLayerContribution
+        );
+
+        assert!(result.next_anchor_state().is_none());
+    }
+
+    #[test]
+    fn closed_loop_step_does_not_mutate_inputs() {
+        let input = contributions();
+
+        let before = input.clone();
+
+        let request = adopt(IntegratedCognitiveLayer::UniversalDomainLearning, 9002);
+
+        let request_before = request.clone();
+
+        let result = ClosedLoopAgentStep::run(&a(1000), &input, policy(), &request);
+
+        assert!(result.advanced());
+
+        assert_eq!(input, before);
+
+        assert_eq!(request, request_before);
+    }
+
+    #[test]
+    fn closed_loop_step_is_deterministic_and_universal_facade_equivalent() {
+        let input = contributions();
+
+        let request = adopt(IntegratedCognitiveLayer::AutonomousExperimentation, 9005);
+
+        let direct = ClosedLoopAgentStep::run(&a(1000), &input, policy(), &request);
+
+        let facade = UniversalClosedLoopAgentStep::evaluate(&a(1000), &input, policy(), &request);
+
+        let repeated = UniversalClosedLoopAgentStep::evaluate(&a(1000), &input, policy(), &request);
+
+        assert_eq!(direct, facade);
+
+        assert_eq!(facade, repeated);
+
+        assert_eq!(facade.status(), ClosedLoopAgentStepStatus::Advanced);
+
+        assert_eq!(facade.next_anchor_state(), Some(&a(1005)));
+    }
+}
