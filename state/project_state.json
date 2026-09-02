@@ -10,6 +10,10 @@
   "implementation_language": "Rust",
   "implementation_sha256": {
     "Cargo.toml": "e852faab0d9dff23b09e1ee2323d0998955f837450c70ea015382ffe5ec52bff",
+    "crates/athlesia_autonomous_active_experimentation/Cargo.lock": "1c12abed42af5b27b1bea85545134dfa5356790380225f867fa22410c5c6291a",
+    "crates/athlesia_autonomous_active_experimentation/Cargo.toml": "49498766817cc955e460692355ff4c0b30cbe6cb5c8add30139fd646632ce666",
+    "crates/athlesia_autonomous_active_experimentation/src/lib.rs": "3448614b6ccb8215189fc2cbebbf92160430a11b0c0b60bd2be68e50f977fb9a",
+    "crates/athlesia_autonomous_active_experimentation/tests/autonomous_active_experimentation_foundation.rs": "7c3a148fc604232d9e66f4f4fa9a023a920ad0b8bc36be0759e71d074731d62c",
     "crates/athlesia_core_knowledge_perceptual_grounding/Cargo.lock": "fbefd559ec01ff3860d153fdf05e9a29f10ecff62eb63206d1b8e643c35ec7b4",
     "crates/athlesia_core_knowledge_perceptual_grounding/Cargo.toml": "04ffcd03f7862aac5423b16466ca1ea5ad1ad65856a76a9f4a4265c6dca64ff8",
     "crates/athlesia_core_knowledge_perceptual_grounding/src/lib.rs": "f9e565a91959d756336ee0baf0f47592328e63a204bb91f7d8c6e367450a12ee",
@@ -596,7 +600,8 @@
       "module_49_meta_learning_skill_revision_application_and_memory_update",
       "module_49_meta_learning_skill_memory_consolidation_and_forgetting",
       "module_49_meta_learning_integrated_skill_learning_cycle",
-      "module_49_meta_learning_skill_memory_frozen"
+      "module_49_meta_learning_skill_memory_frozen",
+      "module_50_autonomous_active_experimentation_foundation"
     ],
     "module_23_integrity": {
       "status": "pass",
@@ -609,8 +614,8 @@
       "status": "frozen",
       "verifier": "tools/verify_module_23_parity.py"
     },
-    "next_layer": "module_50_autonomous_active_experimentation_foundation",
-    "stage": "module_49_meta_learning_skill_memory_frozen",
+    "next_layer": "module_50_autonomous_active_experimentation_hypothesis_discrimination",
+    "stage": "module_50_autonomous_active_experimentation_foundation",
     "status": "validated"
   },
   "validated_invariants": [
@@ -2981,6 +2986,18 @@
     "meta_learning_integrated_cycle_post_revision_consolidation",
     "meta_learning_integrated_cycle_retrieval_bound_downstream_gate",
     "meta_learning_integrated_cycle_failure_driven_forgetting",
-    "meta_learning_integrated_cycle_deterministic_facade_equivalence"
+    "meta_learning_integrated_cycle_deterministic_facade_equivalence",
+    "autonomous_active_experimentation_positive_policy_and_evidence_contract",
+    "autonomous_active_experimentation_grounded_informative_selection",
+    "autonomous_active_experimentation_information_gain_over_uncertainty",
+    "autonomous_active_experimentation_controllability_gate",
+    "autonomous_active_experimentation_grounding_gate",
+    "autonomous_active_experimentation_execution_cost_gate",
+    "autonomous_active_experimentation_exact_semantic_deduplication",
+    "autonomous_active_experimentation_distinct_outcome_preservation",
+    "autonomous_active_experimentation_distinct_action_preservation",
+    "autonomous_active_experimentation_information_gain_ranking",
+    "autonomous_active_experimentation_hard_frontiers",
+    "autonomous_active_experimentation_deterministic_facade_equivalence"
   ]
 }

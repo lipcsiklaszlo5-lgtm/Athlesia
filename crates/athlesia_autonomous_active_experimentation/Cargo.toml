@@ -1,0 +1,9 @@
+[package]
+name = "athlesia_autonomous_active_experimentation"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+athlesia_mindstone_sparse_cognition = { path = "../athlesia_mindstone_sparse_cognition" }
+
+[workspace]
