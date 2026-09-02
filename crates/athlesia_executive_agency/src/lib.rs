@@ -4521,3 +4521,385 @@ impl UniversalExplorationExploitationController {
         )
     }
 }
+
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub enum IntegratedExecutiveSelectionSource {
+    CurrentIntention,
+    ReplacementIntention,
+    Exploration,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct IntegratedExecutiveSelection {
+    source: IntegratedExecutiveSelectionSource,
+    goal_identity: CognitiveStructure,
+    action: CognitiveStructure,
+    predicted_outcome: CognitiveStructure,
+    intention_step_index: Option<usize>,
+    control_value: CognitiveSignal,
+}
+
+impl IntegratedExecutiveSelection {
+    pub fn source(&self) -> IntegratedExecutiveSelectionSource {
+        self.source
+    }
+
+    pub fn goal_identity(&self) -> &CognitiveStructure {
+        &self.goal_identity
+    }
+
+    pub fn action(&self) -> &CognitiveStructure {
+        &self.action
+    }
+
+    pub fn predicted_outcome(&self) -> &CognitiveStructure {
+        &self.predicted_outcome
+    }
+
+    pub fn intention_step_index(&self) -> Option<usize> {
+        self.intention_step_index
+    }
+
+    pub fn control_value(&self) -> CognitiveSignal {
+        self.control_value
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub enum IntegratedExecutiveControlDecision {
+    Stop,
+    Reconsider,
+    ExecuteCurrent,
+    ExecuteReplacement,
+    ExecuteExploration,
+    NoViableOption,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct IntegratedExecutiveControlPolicy {
+    stop_reconsideration: StopReconsiderationPolicy,
+    exploration_exploitation: ExplorationExploitationPolicy,
+}
+
+impl IntegratedExecutiveControlPolicy {
+    pub fn new(
+        stop_reconsideration: StopReconsiderationPolicy,
+        exploration_exploitation: ExplorationExploitationPolicy,
+    ) -> Self {
+        Self {
+            stop_reconsideration,
+            exploration_exploitation,
+        }
+    }
+
+    pub fn stop_reconsideration(self) -> StopReconsiderationPolicy {
+        self.stop_reconsideration
+    }
+
+    pub fn exploration_exploitation(self) -> ExplorationExploitationPolicy {
+        self.exploration_exploitation
+    }
+}
+
+#[derive(Clone, Copy, Debug)]
+pub struct IntegratedExecutiveControlContext<'a> {
+    goal: &'a ExecutiveGoal,
+    current_intention: Option<&'a ExecutableMultiStepIntention>,
+    monitoring: &'a IntentionExecutionMonitoringResult,
+    replanning: Option<&'a DeviationReplanningResult>,
+    continuation: Option<&'a ContinuationAssessment>,
+    reconsideration_state: ReconsiderationState,
+    exploration_candidates: &'a [GroundedExplorationCandidate],
+}
+
+impl<'a> IntegratedExecutiveControlContext<'a> {
+    pub fn new(
+        goal: &'a ExecutiveGoal,
+        current_intention: Option<&'a ExecutableMultiStepIntention>,
+        monitoring: &'a IntentionExecutionMonitoringResult,
+        replanning: Option<&'a DeviationReplanningResult>,
+        continuation: Option<&'a ContinuationAssessment>,
+        reconsideration_state: ReconsiderationState,
+        exploration_candidates: &'a [GroundedExplorationCandidate],
+    ) -> Self {
+        Self {
+            goal,
+            current_intention,
+            monitoring,
+            replanning,
+            continuation,
+            reconsideration_state,
+            exploration_candidates,
+        }
+    }
+
+    pub fn goal(self) -> &'a ExecutiveGoal {
+        self.goal
+    }
+
+    pub fn current_intention(self) -> Option<&'a ExecutableMultiStepIntention> {
+        self.current_intention
+    }
+
+    pub fn monitoring(self) -> &'a IntentionExecutionMonitoringResult {
+        self.monitoring
+    }
+
+    pub fn replanning(self) -> Option<&'a DeviationReplanningResult> {
+        self.replanning
+    }
+
+    pub fn continuation(self) -> Option<&'a ContinuationAssessment> {
+        self.continuation
+    }
+
+    pub fn reconsideration_state(self) -> ReconsiderationState {
+        self.reconsideration_state
+    }
+
+    pub fn exploration_candidates(self) -> &'a [GroundedExplorationCandidate] {
+        self.exploration_candidates
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct IntegratedExecutiveControlResult {
+    decision: IntegratedExecutiveControlDecision,
+    stop_reconsideration: StopReconsiderationResult,
+    exploration_exploitation: Option<ExplorationExploitationResult>,
+    selection: Option<IntegratedExecutiveSelection>,
+}
+
+impl IntegratedExecutiveControlResult {
+    pub fn decision(&self) -> IntegratedExecutiveControlDecision {
+        self.decision
+    }
+
+    pub fn stop_reconsideration(&self) -> &StopReconsiderationResult {
+        &self.stop_reconsideration
+    }
+
+    pub fn exploration_exploitation(&self) -> Option<&ExplorationExploitationResult> {
+        self.exploration_exploitation.as_ref()
+    }
+
+    pub fn selection(&self) -> Option<&IntegratedExecutiveSelection> {
+        self.selection.as_ref()
+    }
+
+    pub fn should_execute(&self) -> bool {
+        matches!(
+            self.decision,
+            IntegratedExecutiveControlDecision::ExecuteCurrent
+                | IntegratedExecutiveControlDecision::ExecuteReplacement
+                | IntegratedExecutiveControlDecision::ExecuteExploration
+        )
+    }
+
+    pub fn should_stop(&self) -> bool {
+        self.decision == IntegratedExecutiveControlDecision::Stop
+    }
+
+    pub fn should_reconsider(&self) -> bool {
+        self.decision == IntegratedExecutiveControlDecision::Reconsider
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, Hash, PartialEq)]
+pub struct IntegratedExecutiveControl;
+
+impl IntegratedExecutiveControl {
+    fn current_selection(
+        intention: &ExecutableMultiStepIntention,
+        monitoring: &IntentionExecutionMonitoringResult,
+        control_value: CognitiveSignal,
+    ) -> Option<IntegratedExecutiveSelection> {
+        let step_index = monitoring.next_step_index()?;
+
+        let step = intention.steps().get(step_index)?;
+
+        Some(IntegratedExecutiveSelection {
+            source: IntegratedExecutiveSelectionSource::CurrentIntention,
+            goal_identity: intention.goal_identity().clone(),
+            action: step.action().clone(),
+            predicted_outcome: step.predicted_outcome().clone(),
+            intention_step_index: Some(step_index),
+            control_value,
+        })
+    }
+
+    fn replacement_selection(
+        intention: &ExecutableMultiStepIntention,
+        control_value: CognitiveSignal,
+    ) -> IntegratedExecutiveSelection {
+        let step = intention.first_step();
+
+        IntegratedExecutiveSelection {
+            source: IntegratedExecutiveSelectionSource::ReplacementIntention,
+            goal_identity: intention.goal_identity().clone(),
+            action: step.action().clone(),
+            predicted_outcome: step.predicted_outcome().clone(),
+            intention_step_index: Some(0),
+            control_value,
+        }
+    }
+
+    fn exploration_selection(ranked: &RankedExplorationCandidate) -> IntegratedExecutiveSelection {
+        let candidate = ranked.candidate();
+
+        IntegratedExecutiveSelection {
+            source: IntegratedExecutiveSelectionSource::Exploration,
+            goal_identity: candidate.goal_identity().clone(),
+            action: candidate.action().clone(),
+            predicted_outcome: candidate.predicted_outcome().clone(),
+            intention_step_index: None,
+            control_value: ranked.net_exploration_value(),
+        }
+    }
+
+    fn terminal_result(
+        decision: IntegratedExecutiveControlDecision,
+        stop_reconsideration: StopReconsiderationResult,
+    ) -> IntegratedExecutiveControlResult {
+        IntegratedExecutiveControlResult {
+            decision,
+            stop_reconsideration,
+            exploration_exploitation: None,
+            selection: None,
+        }
+    }
+
+    pub fn evaluate(
+        context: IntegratedExecutiveControlContext<'_>,
+        policy: IntegratedExecutiveControlPolicy,
+    ) -> IntegratedExecutiveControlResult {
+        let stop_reconsideration = StopReconsideration::evaluate(
+            context.goal(),
+            context.current_intention(),
+            context.monitoring(),
+            context.replanning(),
+            context.continuation(),
+            context.reconsideration_state(),
+            policy.stop_reconsideration(),
+        );
+
+        if stop_reconsideration.should_stop() {
+            return Self::terminal_result(
+                IntegratedExecutiveControlDecision::Stop,
+                stop_reconsideration,
+            );
+        }
+
+        if stop_reconsideration.should_reconsider() {
+            return Self::terminal_result(
+                IntegratedExecutiveControlDecision::Reconsider,
+                stop_reconsideration,
+            );
+        }
+
+        let exploration_anchor = match stop_reconsideration.decision() {
+            StopReconsiderationDecision::ContinueCurrent => context.current_intention(),
+
+            StopReconsiderationDecision::ContinueReplacement => {
+                stop_reconsideration.selected_replacement()
+            }
+
+            _ => None,
+        };
+
+        let Some(exploration_anchor) = exploration_anchor else {
+            return Self::terminal_result(
+                IntegratedExecutiveControlDecision::NoViableOption,
+                stop_reconsideration,
+            );
+        };
+
+        let exploration_exploitation = ExplorationExploitationController::evaluate(
+            context.goal(),
+            exploration_anchor,
+            &stop_reconsideration,
+            context.exploration_candidates(),
+            policy.exploration_exploitation(),
+        );
+
+        let (decision, selection) = match exploration_exploitation.decision() {
+            ExplorationExploitationDecision::Explore => {
+                let selection = exploration_exploitation
+                    .selected_exploration()
+                    .map(Self::exploration_selection);
+
+                (
+                    if selection.is_some() {
+                        IntegratedExecutiveControlDecision::ExecuteExploration
+                    } else {
+                        IntegratedExecutiveControlDecision::NoViableOption
+                    },
+                    selection,
+                )
+            }
+
+            ExplorationExploitationDecision::ExploitCurrent => {
+                let selection =
+                    exploration_exploitation
+                        .selected_exploitation()
+                        .and_then(|intention| {
+                            exploration_exploitation.exploit_value().and_then(|value| {
+                                Self::current_selection(intention, context.monitoring(), value)
+                            })
+                        });
+
+                (
+                    if selection.is_some() {
+                        IntegratedExecutiveControlDecision::ExecuteCurrent
+                    } else {
+                        IntegratedExecutiveControlDecision::NoViableOption
+                    },
+                    selection,
+                )
+            }
+
+            ExplorationExploitationDecision::ExploitReplacement => {
+                let selection = exploration_exploitation
+                    .selected_exploitation()
+                    .zip(exploration_exploitation.exploit_value())
+                    .map(|(intention, value)| Self::replacement_selection(intention, value));
+
+                (
+                    if selection.is_some() {
+                        IntegratedExecutiveControlDecision::ExecuteReplacement
+                    } else {
+                        IntegratedExecutiveControlDecision::NoViableOption
+                    },
+                    selection,
+                )
+            }
+
+            ExplorationExploitationDecision::DeferredByExecutiveControl => {
+                (IntegratedExecutiveControlDecision::Reconsider, None)
+            }
+
+            ExplorationExploitationDecision::NoViableOption => {
+                (IntegratedExecutiveControlDecision::NoViableOption, None)
+            }
+        };
+
+        IntegratedExecutiveControlResult {
+            decision,
+            stop_reconsideration,
+            exploration_exploitation: Some(exploration_exploitation),
+            selection,
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, Hash, PartialEq)]
+pub struct UniversalIntegratedExecutiveControl;
+
+impl UniversalIntegratedExecutiveControl {
+    pub fn evaluate(
+        context: IntegratedExecutiveControlContext<'_>,
+        policy: IntegratedExecutiveControlPolicy,
+    ) -> IntegratedExecutiveControlResult {
+        IntegratedExecutiveControl::evaluate(context, policy)
+    }
+}
