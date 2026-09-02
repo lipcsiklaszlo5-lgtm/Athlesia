@@ -1317,3 +1317,562 @@ impl UniversalGoalPersistence {
         GoalPersistence::select(prior, goals, candidates, agency_policy, persistence_policy)
     }
 }
+
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub struct GoalConflictArbitrationThresholds {
+    minimum_conflict_strength: CognitiveSignal,
+    minimum_evidence_confidence: CognitiveSignal,
+}
+
+impl GoalConflictArbitrationThresholds {
+    pub fn new(
+        minimum_conflict_strength: CognitiveSignal,
+        minimum_evidence_confidence: CognitiveSignal,
+    ) -> Option<Self> {
+        if minimum_conflict_strength == CognitiveSignal::zero()
+            || minimum_evidence_confidence == CognitiveSignal::zero()
+        {
+            return None;
+        }
+
+        Some(Self {
+            minimum_conflict_strength,
+            minimum_evidence_confidence,
+        })
+    }
+
+    pub fn minimum_conflict_strength(self) -> CognitiveSignal {
+        self.minimum_conflict_strength
+    }
+
+    pub fn minimum_evidence_confidence(self) -> CognitiveSignal {
+        self.minimum_evidence_confidence
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub struct GoalConflictArbitrationPolicy {
+    max_conflicts: usize,
+    max_intents: usize,
+    max_pair_evaluations: usize,
+    max_selected_intents: usize,
+    continuity_bonus: CognitiveSignal,
+    thresholds: GoalConflictArbitrationThresholds,
+}
+
+impl GoalConflictArbitrationPolicy {
+    pub fn new(
+        max_conflicts: usize,
+        max_intents: usize,
+        max_pair_evaluations: usize,
+        max_selected_intents: usize,
+        continuity_bonus: CognitiveSignal,
+        thresholds: GoalConflictArbitrationThresholds,
+    ) -> Option<Self> {
+        if max_conflicts == 0
+            || max_intents == 0
+            || max_pair_evaluations == 0
+            || max_selected_intents == 0
+        {
+            return None;
+        }
+
+        Some(Self {
+            max_conflicts,
+            max_intents,
+            max_pair_evaluations,
+            max_selected_intents,
+            continuity_bonus,
+            thresholds,
+        })
+    }
+
+    pub fn max_conflicts(self) -> usize {
+        self.max_conflicts
+    }
+
+    pub fn max_intents(self) -> usize {
+        self.max_intents
+    }
+
+    pub fn max_pair_evaluations(self) -> usize {
+        self.max_pair_evaluations
+    }
+
+    pub fn max_selected_intents(self) -> usize {
+        self.max_selected_intents
+    }
+
+    pub fn continuity_bonus(self) -> CognitiveSignal {
+        self.continuity_bonus
+    }
+
+    pub fn thresholds(self) -> GoalConflictArbitrationThresholds {
+        self.thresholds
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct GoalConflictEvidence {
+    left_goal: CognitiveStructure,
+    right_goal: CognitiveStructure,
+    conflict_strength: CognitiveSignal,
+    evidence_confidence: CognitiveSignal,
+}
+
+impl GoalConflictEvidence {
+    pub fn new(
+        left_goal: CognitiveStructure,
+        right_goal: CognitiveStructure,
+        conflict_strength: CognitiveSignal,
+        evidence_confidence: CognitiveSignal,
+    ) -> Option<Self> {
+        if left_goal == right_goal
+            || conflict_strength == CognitiveSignal::zero()
+            || evidence_confidence == CognitiveSignal::zero()
+        {
+            return None;
+        }
+
+        Some(Self {
+            left_goal,
+            right_goal,
+            conflict_strength,
+            evidence_confidence,
+        })
+    }
+
+    pub fn left_goal(&self) -> &CognitiveStructure {
+        &self.left_goal
+    }
+
+    pub fn right_goal(&self) -> &CognitiveStructure {
+        &self.right_goal
+    }
+
+    pub fn conflict_strength(&self) -> CognitiveSignal {
+        self.conflict_strength
+    }
+
+    pub fn evidence_confidence(&self) -> CognitiveSignal {
+        self.evidence_confidence
+    }
+
+    pub fn conflicts(&self, first: &CognitiveStructure, second: &CognitiveStructure) -> bool {
+        (self.left_goal() == first && self.right_goal() == second)
+            || (self.left_goal() == second && self.right_goal() == first)
+    }
+
+    fn equivalent(&self, other: &Self) -> bool {
+        self.conflict_strength() == other.conflict_strength()
+            && self.evidence_confidence() == other.evidence_confidence()
+            && self.conflicts(other.left_goal(), other.right_goal())
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ArbitratedExecutiveIntent {
+    intent: ExecutiveIntent,
+    continuity_applied: bool,
+    arbitration_score: CognitiveSignal,
+}
+
+impl ArbitratedExecutiveIntent {
+    pub fn intent(&self) -> &ExecutiveIntent {
+        &self.intent
+    }
+
+    pub fn goal_identity(&self) -> &CognitiveStructure {
+        self.intent.goal_identity()
+    }
+
+    pub fn action(&self) -> &CognitiveStructure {
+        self.intent.action()
+    }
+
+    pub fn predicted_outcome(&self) -> &CognitiveStructure {
+        self.intent.predicted_outcome()
+    }
+
+    pub fn base_utility(&self) -> CognitiveSignal {
+        self.intent.priority_adjusted_utility()
+    }
+
+    pub fn continuity_applied(&self) -> bool {
+        self.continuity_applied
+    }
+
+    pub fn arbitration_score(&self) -> CognitiveSignal {
+        self.arbitration_score
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct SuppressedGoalConflict {
+    winner_goal: CognitiveStructure,
+    loser_goal: CognitiveStructure,
+    conflict_strength: CognitiveSignal,
+    evidence_confidence: CognitiveSignal,
+}
+
+impl SuppressedGoalConflict {
+    pub fn winner_goal(&self) -> &CognitiveStructure {
+        &self.winner_goal
+    }
+
+    pub fn loser_goal(&self) -> &CognitiveStructure {
+        &self.loser_goal
+    }
+
+    pub fn conflict_strength(&self) -> CognitiveSignal {
+        self.conflict_strength
+    }
+
+    pub fn evidence_confidence(&self) -> CognitiveSignal {
+        self.evidence_confidence
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct GoalConflictArbitrationResult {
+    input_intent_count: usize,
+    considered_intent_count: usize,
+    intent_frontier_truncated: bool,
+    input_conflict_count: usize,
+    eligible_conflict_count: usize,
+    considered_conflict_count: usize,
+    conflict_frontier_truncated: bool,
+    evaluated_intent_count: usize,
+    pair_evaluation_count: usize,
+    pair_evaluation_truncated: bool,
+    admitted_before_frontier: usize,
+    selected: Vec<ArbitratedExecutiveIntent>,
+    suppressed: Vec<SuppressedGoalConflict>,
+}
+
+impl GoalConflictArbitrationResult {
+    pub fn input_intent_count(&self) -> usize {
+        self.input_intent_count
+    }
+
+    pub fn considered_intent_count(&self) -> usize {
+        self.considered_intent_count
+    }
+
+    pub fn intent_frontier_truncated(&self) -> bool {
+        self.intent_frontier_truncated
+    }
+
+    pub fn input_conflict_count(&self) -> usize {
+        self.input_conflict_count
+    }
+
+    pub fn eligible_conflict_count(&self) -> usize {
+        self.eligible_conflict_count
+    }
+
+    pub fn considered_conflict_count(&self) -> usize {
+        self.considered_conflict_count
+    }
+
+    pub fn conflict_frontier_truncated(&self) -> bool {
+        self.conflict_frontier_truncated
+    }
+
+    pub fn evaluated_intent_count(&self) -> usize {
+        self.evaluated_intent_count
+    }
+
+    pub fn pair_evaluation_count(&self) -> usize {
+        self.pair_evaluation_count
+    }
+
+    pub fn pair_evaluation_truncated(&self) -> bool {
+        self.pair_evaluation_truncated
+    }
+
+    pub fn admitted_before_frontier(&self) -> usize {
+        self.admitted_before_frontier
+    }
+
+    pub fn selected(&self) -> &[ArbitratedExecutiveIntent] {
+        &self.selected
+    }
+
+    pub fn selected_count(&self) -> usize {
+        self.selected.len()
+    }
+
+    pub fn suppressed(&self) -> &[SuppressedGoalConflict] {
+        &self.suppressed
+    }
+
+    pub fn suppressed_count(&self) -> usize {
+        self.suppressed.len()
+    }
+
+    pub fn abstained(&self) -> bool {
+        self.selected.is_empty()
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, Hash, PartialEq)]
+pub struct GoalConflictArbitration;
+
+impl GoalConflictArbitration {
+    fn exact_tiebreak(left: &CognitiveStructure, right: &CognitiveStructure) -> std::cmp::Ordering {
+        format!("{left:?}").cmp(&format!("{right:?}"))
+    }
+
+    fn canonical_pair<'a>(
+        first: &'a CognitiveStructure,
+        second: &'a CognitiveStructure,
+    ) -> (&'a CognitiveStructure, &'a CognitiveStructure) {
+        if Self::exact_tiebreak(first, second) != std::cmp::Ordering::Greater {
+            (first, second)
+        } else {
+            (second, first)
+        }
+    }
+
+    fn compare_conflict(
+        left: &GoalConflictEvidence,
+        right: &GoalConflictEvidence,
+    ) -> std::cmp::Ordering {
+        let (left_first, left_second) = Self::canonical_pair(left.left_goal(), left.right_goal());
+
+        let (right_first, right_second) =
+            Self::canonical_pair(right.left_goal(), right.right_goal());
+
+        right
+            .conflict_strength()
+            .value()
+            .cmp(&left.conflict_strength().value())
+            .then_with(|| {
+                right
+                    .evidence_confidence()
+                    .value()
+                    .cmp(&left.evidence_confidence().value())
+            })
+            .then_with(|| Self::exact_tiebreak(left_first, right_first))
+            .then_with(|| Self::exact_tiebreak(left_second, right_second))
+    }
+
+    fn matches_commitment(
+        intent: &ExecutiveIntent,
+        commitment: &PersistentExecutiveCommitment,
+    ) -> bool {
+        intent.goal_identity() == commitment.goal_identity()
+            && intent.action() == commitment.action()
+            && intent.predicted_outcome() == commitment.predicted_outcome()
+    }
+
+    fn adjusted_score(
+        intent: &ExecutiveIntent,
+        commitment: Option<&PersistentExecutiveCommitment>,
+        continuity_bonus: CognitiveSignal,
+    ) -> (bool, CognitiveSignal) {
+        let continuity_applied = commitment
+            .map(|current| Self::matches_commitment(intent, current))
+            .unwrap_or(false);
+
+        let base = u32::from(intent.priority_adjusted_utility().value());
+
+        let bonus = if continuity_applied {
+            u32::from(continuity_bonus.value())
+        } else {
+            0
+        };
+
+        let score = CognitiveSignal::new(base.saturating_add(bonus).min(1000) as u16)
+            .expect("bounded arbitration score remains on signal scale");
+
+        (continuity_applied, score)
+    }
+
+    fn compare_intent(
+        left: &ArbitratedExecutiveIntent,
+        right: &ArbitratedExecutiveIntent,
+    ) -> std::cmp::Ordering {
+        right
+            .arbitration_score()
+            .value()
+            .cmp(&left.arbitration_score().value())
+            .then_with(|| right.continuity_applied().cmp(&left.continuity_applied()))
+            .then_with(|| {
+                right
+                    .base_utility()
+                    .value()
+                    .cmp(&left.base_utility().value())
+            })
+            .then_with(|| {
+                right
+                    .intent()
+                    .goal_pressure()
+                    .value()
+                    .cmp(&left.intent().goal_pressure().value())
+            })
+            .then_with(|| Self::exact_tiebreak(left.goal_identity(), right.goal_identity()))
+            .then_with(|| Self::exact_tiebreak(left.action(), right.action()))
+            .then_with(|| Self::exact_tiebreak(left.predicted_outcome(), right.predicted_outcome()))
+    }
+
+    fn ranked_intents(
+        intents: &[ExecutiveIntent],
+        commitment: Option<&PersistentExecutiveCommitment>,
+        policy: GoalConflictArbitrationPolicy,
+    ) -> Vec<ArbitratedExecutiveIntent> {
+        let mut ranked = intents
+            .iter()
+            .map(|intent| {
+                let (continuity_applied, arbitration_score) =
+                    Self::adjusted_score(intent, commitment, policy.continuity_bonus());
+
+                ArbitratedExecutiveIntent {
+                    intent: intent.clone(),
+                    continuity_applied,
+                    arbitration_score,
+                }
+            })
+            .collect::<Vec<_>>();
+
+        ranked.sort_by(Self::compare_intent);
+
+        ranked.truncate(policy.max_intents());
+
+        ranked
+    }
+
+    fn considered_conflicts(
+        conflicts: &[GoalConflictEvidence],
+        policy: GoalConflictArbitrationPolicy,
+    ) -> (usize, Vec<&GoalConflictEvidence>) {
+        let thresholds = policy.thresholds();
+
+        let mut eligible = conflicts
+            .iter()
+            .filter(|evidence| {
+                evidence.conflict_strength().value()
+                    >= thresholds.minimum_conflict_strength().value()
+                    && evidence.evidence_confidence().value()
+                        >= thresholds.minimum_evidence_confidence().value()
+            })
+            .collect::<Vec<_>>();
+
+        eligible.sort_by(|left, right| Self::compare_conflict(left, right));
+
+        eligible.dedup_by(|left, right| left.equivalent(right));
+
+        let eligible_count = eligible.len();
+
+        eligible.truncate(policy.max_conflicts());
+
+        (eligible_count, eligible)
+    }
+
+    fn find_conflict<'a>(
+        conflicts: &'a [&GoalConflictEvidence],
+        first: &CognitiveStructure,
+        second: &CognitiveStructure,
+    ) -> Option<&'a GoalConflictEvidence> {
+        conflicts
+            .iter()
+            .copied()
+            .find(|evidence| evidence.conflicts(first, second))
+    }
+
+    pub fn arbitrate(
+        intents: &[ExecutiveIntent],
+        conflicts: &[GoalConflictEvidence],
+        commitment: Option<&PersistentExecutiveCommitment>,
+        policy: GoalConflictArbitrationPolicy,
+    ) -> GoalConflictArbitrationResult {
+        let ranked = Self::ranked_intents(intents, commitment, policy);
+
+        let considered_intent_count = ranked.len();
+
+        let (eligible_conflict_count, considered_conflicts) =
+            Self::considered_conflicts(conflicts, policy);
+
+        let considered_conflict_count = considered_conflicts.len();
+
+        let mut admitted: Vec<ArbitratedExecutiveIntent> = Vec::new();
+
+        let mut suppressed: Vec<SuppressedGoalConflict> = Vec::new();
+
+        let mut evaluated_intent_count = 0_usize;
+
+        let mut pair_evaluation_count = 0_usize;
+
+        let mut pair_evaluation_truncated = false;
+
+        'candidate_loop: for candidate in ranked {
+            if !considered_conflicts.is_empty() {
+                for winner in &admitted {
+                    if pair_evaluation_count >= policy.max_pair_evaluations() {
+                        pair_evaluation_truncated = true;
+
+                        break 'candidate_loop;
+                    }
+
+                    pair_evaluation_count = pair_evaluation_count.saturating_add(1);
+
+                    if let Some(evidence) = Self::find_conflict(
+                        &considered_conflicts,
+                        winner.goal_identity(),
+                        candidate.goal_identity(),
+                    ) {
+                        evaluated_intent_count = evaluated_intent_count.saturating_add(1);
+
+                        suppressed.push(SuppressedGoalConflict {
+                            winner_goal: winner.goal_identity().clone(),
+                            loser_goal: candidate.goal_identity().clone(),
+                            conflict_strength: evidence.conflict_strength(),
+                            evidence_confidence: evidence.evidence_confidence(),
+                        });
+
+                        continue 'candidate_loop;
+                    }
+                }
+            }
+
+            evaluated_intent_count = evaluated_intent_count.saturating_add(1);
+
+            admitted.push(candidate);
+        }
+
+        let admitted_before_frontier = admitted.len();
+
+        admitted.truncate(policy.max_selected_intents());
+
+        GoalConflictArbitrationResult {
+            input_intent_count: intents.len(),
+            considered_intent_count,
+            intent_frontier_truncated: intents.len() > considered_intent_count,
+            input_conflict_count: conflicts.len(),
+            eligible_conflict_count,
+            considered_conflict_count,
+            conflict_frontier_truncated: eligible_conflict_count > considered_conflict_count,
+            evaluated_intent_count,
+            pair_evaluation_count,
+            pair_evaluation_truncated,
+            admitted_before_frontier,
+            selected: admitted,
+            suppressed,
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, Hash, PartialEq)]
+pub struct UniversalGoalConflictArbitration;
+
+impl UniversalGoalConflictArbitration {
+    pub fn evaluate(
+        intents: &[ExecutiveIntent],
+        conflicts: &[GoalConflictEvidence],
+        commitment: Option<&PersistentExecutiveCommitment>,
+        policy: GoalConflictArbitrationPolicy,
+    ) -> GoalConflictArbitrationResult {
+        GoalConflictArbitration::arbitrate(intents, conflicts, commitment, policy)
+    }
+}

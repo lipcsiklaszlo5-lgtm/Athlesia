@@ -31,8 +31,9 @@
     "crates/athlesia_cross_level/tests/cross_level_recognition.rs": "395c6ce92aeea1be7ff294b609fcf9d175f778a2d9201ad481182831d83b02eb",
     "crates/athlesia_executive_agency/Cargo.lock": "da178d1345c1ad8d43f73b08ee997d5a093f9ae6f7bc713f6338c4e9e23207aa",
     "crates/athlesia_executive_agency/Cargo.toml": "7fa2a02601b37038f11c2406b289c51af8338988d73fea784ae13a0dccd49cc1",
-    "crates/athlesia_executive_agency/src/lib.rs": "11ecfe1b1dbd73dcbf07d42f23f488aa7d846d66b3c17423cba85a0c917b5624",
+    "crates/athlesia_executive_agency/src/lib.rs": "c943cf3c8e7f835798462d17ab4315daa5267a613740d285710c2123f046668a",
     "crates/athlesia_executive_agency/tests/executive_agency_foundation.rs": "763fcb4d72809c9f2314b45f15e3593de68ea8f18388b2550a7ee5277d5d0920",
+    "crates/athlesia_executive_agency/tests/executive_agency_goal_conflict_arbitration.rs": "14582d55e38f6985849aaef41a4fffe0a1c15f5d2bd246b67fef193e131afa63",
     "crates/athlesia_executive_agency/tests/executive_agency_goal_persistence.rs": "3ba2700464c9ab6a8a75ea9654ec97d51067e4ff5a35d5e3ffb879866a409a0f",
     "crates/athlesia_hierarchy/Cargo.toml": "6853cd5d63d5be93d8c1fa37d8961514bf1f48801ae59f90bf4fd0e6da49b3ee",
     "crates/athlesia_hierarchy/src/lib.rs": "dfcea2b7af7a59a1c4e214372e098408ef2411b1c81fb5f0d147e73acd403f7d",
@@ -559,7 +560,8 @@
       "module_47_universal_domain_learning_integrated_domain_model",
       "module_47_universal_domain_learning_frozen",
       "module_48_executive_agency_foundation",
-      "module_48_executive_agency_goal_persistence"
+      "module_48_executive_agency_goal_persistence",
+      "module_48_executive_agency_goal_conflict_arbitration"
     ],
     "module_23_integrity": {
       "status": "pass",
@@ -572,8 +574,8 @@
       "status": "frozen",
       "verifier": "tools/verify_module_23_parity.py"
     },
-    "next_layer": "module_48_executive_agency_goal_conflict_arbitration",
-    "stage": "module_48_executive_agency_goal_persistence",
+    "next_layer": "module_48_executive_agency_multi_step_intention",
+    "stage": "module_48_executive_agency_goal_conflict_arbitration",
     "status": "validated"
   },
   "validated_invariants": [
@@ -2740,6 +2742,18 @@
     "executive_agency_goal_persistence_unavailable_incumbent_abstention",
     "executive_agency_goal_persistence_exact_opaque_action_identity",
     "executive_agency_goal_persistence_hard_challenger_frontier",
-    "executive_agency_goal_persistence_deterministic_non_mutating_facade_equivalence"
+    "executive_agency_goal_persistence_deterministic_non_mutating_facade_equivalence",
+    "executive_agency_goal_conflict_positive_policy_threshold_and_distinct_pair_contract",
+    "executive_agency_goal_conflict_absent_evidence_preserves_viable_intents",
+    "executive_agency_goal_conflict_exact_symmetric_suppression",
+    "executive_agency_goal_conflict_subthreshold_evidence_non_authoritative",
+    "executive_agency_goal_conflict_exact_opaque_goal_identity",
+    "executive_agency_goal_conflict_continuity_bonus_preserves_close_incumbent",
+    "executive_agency_goal_conflict_continuity_bonus_cannot_override_stronger_challenger",
+    "executive_agency_goal_conflict_non_conflicting_intent_coexistence",
+    "executive_agency_goal_conflict_hard_evidence_frontier",
+    "executive_agency_goal_conflict_hard_intent_pair_and_final_frontiers",
+    "executive_agency_goal_conflict_explicit_suppression_provenance",
+    "executive_agency_goal_conflict_deterministic_non_mutating_facade_equivalence"
   ]
 }
