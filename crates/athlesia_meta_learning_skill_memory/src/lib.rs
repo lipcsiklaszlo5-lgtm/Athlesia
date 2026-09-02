@@ -3238,3 +3238,589 @@ impl UniversalSkillRetrievalAndReuse {
         SkillRetrievalAndReuse::retrieve(records, request, policy)
     }
 }
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum SkillRevisionDisposition {
+    Abstain,
+    Reinforce,
+    Retain,
+    Weaken,
+    Suspend,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct SkillExecutionObservation {
+    required_state: CognitiveStructure,
+    action: CognitiveStructure,
+    observed_outcome: CognitiveStructure,
+    evidence_confidence: CognitiveSignal,
+}
+
+impl SkillExecutionObservation {
+    pub fn new(
+        required_state: CognitiveStructure,
+        action: CognitiveStructure,
+        observed_outcome: CognitiveStructure,
+        evidence_confidence: CognitiveSignal,
+    ) -> Option<Self> {
+        if evidence_confidence == CognitiveSignal::zero() {
+            return None;
+        }
+
+        Some(Self {
+            required_state,
+            action,
+            observed_outcome,
+            evidence_confidence,
+        })
+    }
+
+    pub fn required_state(&self) -> &CognitiveStructure {
+        &self.required_state
+    }
+
+    pub fn action(&self) -> &CognitiveStructure {
+        &self.action
+    }
+
+    pub fn observed_outcome(&self) -> &CognitiveStructure {
+        &self.observed_outcome
+    }
+
+    pub fn evidence_confidence(&self) -> CognitiveSignal {
+        self.evidence_confidence
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct SkillOutcomeFeedbackPolicy {
+    max_observations: usize,
+    max_step_evaluations: usize,
+    minimum_observation_confidence: CognitiveSignal,
+}
+
+impl SkillOutcomeFeedbackPolicy {
+    pub fn new(
+        max_observations: usize,
+        max_step_evaluations: usize,
+        minimum_observation_confidence: CognitiveSignal,
+    ) -> Option<Self> {
+        if max_observations == 0
+            || max_step_evaluations == 0
+            || minimum_observation_confidence == CognitiveSignal::zero()
+        {
+            return None;
+        }
+
+        Some(Self {
+            max_observations,
+            max_step_evaluations,
+            minimum_observation_confidence,
+        })
+    }
+
+    pub fn max_observations(self) -> usize {
+        self.max_observations
+    }
+
+    pub fn max_step_evaluations(self) -> usize {
+        self.max_step_evaluations
+    }
+
+    pub fn minimum_observation_confidence(self) -> CognitiveSignal {
+        self.minimum_observation_confidence
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct SkillOutcomeFeedbackResult {
+    input_observation_count: usize,
+    considered_observation_count: usize,
+    observation_frontier_truncated: bool,
+    evaluation_count: usize,
+    evaluation_frontier_truncated: bool,
+    low_confidence_count: usize,
+    exact_step_count: usize,
+    execution_mismatch_count: usize,
+    outcome_mismatch_count: usize,
+    missing_plan_step_count: usize,
+    extra_observation_count: usize,
+    feedback_confidence_floor: Option<CognitiveSignal>,
+    disposition: SkillRevisionDisposition,
+}
+
+impl SkillOutcomeFeedbackResult {
+    pub fn input_observation_count(&self) -> usize {
+        self.input_observation_count
+    }
+
+    pub fn considered_observation_count(&self) -> usize {
+        self.considered_observation_count
+    }
+
+    pub fn observation_frontier_truncated(&self) -> bool {
+        self.observation_frontier_truncated
+    }
+
+    pub fn evaluation_count(&self) -> usize {
+        self.evaluation_count
+    }
+
+    pub fn evaluation_frontier_truncated(&self) -> bool {
+        self.evaluation_frontier_truncated
+    }
+
+    pub fn low_confidence_count(&self) -> usize {
+        self.low_confidence_count
+    }
+
+    pub fn exact_step_count(&self) -> usize {
+        self.exact_step_count
+    }
+
+    pub fn execution_mismatch_count(&self) -> usize {
+        self.execution_mismatch_count
+    }
+
+    pub fn outcome_mismatch_count(&self) -> usize {
+        self.outcome_mismatch_count
+    }
+
+    pub fn missing_plan_step_count(&self) -> usize {
+        self.missing_plan_step_count
+    }
+
+    pub fn extra_observation_count(&self) -> usize {
+        self.extra_observation_count
+    }
+
+    pub fn feedback_confidence_floor(&self) -> Option<CognitiveSignal> {
+        self.feedback_confidence_floor
+    }
+
+    pub fn disposition(&self) -> SkillRevisionDisposition {
+        self.disposition
+    }
+
+    pub fn abstained(&self) -> bool {
+        self.disposition == SkillRevisionDisposition::Abstain
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct SkillOutcomeFeedbackAndRevision;
+
+impl SkillOutcomeFeedbackAndRevision {
+    fn floor(left: CognitiveSignal, right: CognitiveSignal) -> CognitiveSignal {
+        if left.value() <= right.value() {
+            left
+        } else {
+            right
+        }
+    }
+
+    pub fn evaluate(
+        plan: &GroundedSkillReusePlan,
+        observations: &[SkillExecutionObservation],
+        policy: SkillOutcomeFeedbackPolicy,
+    ) -> SkillOutcomeFeedbackResult {
+        let input_observation_count = observations.len();
+
+        let considered: Vec<_> = observations
+            .iter()
+            .take(policy.max_observations())
+            .cloned()
+            .collect();
+
+        let considered_observation_count = considered.len();
+
+        let observation_frontier_truncated = input_observation_count > considered_observation_count;
+
+        let low_confidence_count = considered
+            .iter()
+            .filter(|observation| {
+                observation.evidence_confidence().value()
+                    < policy.minimum_observation_confidence().value()
+            })
+            .count();
+
+        let feedback_confidence_floor = considered
+            .iter()
+            .map(SkillExecutionObservation::evidence_confidence)
+            .reduce(Self::floor);
+
+        let missing_plan_step_count = plan
+            .step_count()
+            .saturating_sub(considered_observation_count);
+
+        let extra_observation_count =
+            considered_observation_count.saturating_sub(plan.step_count());
+
+        if low_confidence_count > 0 {
+            return SkillOutcomeFeedbackResult {
+                input_observation_count,
+                considered_observation_count,
+                observation_frontier_truncated,
+                evaluation_count: 0,
+                evaluation_frontier_truncated: false,
+                low_confidence_count,
+                exact_step_count: 0,
+                execution_mismatch_count: 0,
+                outcome_mismatch_count: 0,
+                missing_plan_step_count,
+                extra_observation_count,
+                feedback_confidence_floor,
+                disposition: SkillRevisionDisposition::Abstain,
+            };
+        }
+
+        let comparable_count = plan.step_count().min(considered_observation_count);
+
+        let evaluation_count = comparable_count.min(policy.max_step_evaluations());
+
+        let evaluation_frontier_truncated = comparable_count > evaluation_count;
+
+        let mut exact_step_count = 0;
+        let mut execution_mismatch_count = 0;
+        let mut outcome_mismatch_count = 0;
+
+        for (expected, actual) in plan
+            .steps()
+            .iter()
+            .zip(considered.iter())
+            .take(evaluation_count)
+        {
+            let state_matches = expected.required_state() == actual.required_state();
+
+            let action_matches = expected.action() == actual.action();
+
+            let outcome_matches = expected.predicted_outcome() == actual.observed_outcome();
+
+            if !state_matches || !action_matches {
+                execution_mismatch_count += 1;
+            }
+
+            if !outcome_matches {
+                outcome_mismatch_count += 1;
+            }
+
+            if state_matches && action_matches && outcome_matches {
+                exact_step_count += 1;
+            }
+        }
+
+        let disposition = if observation_frontier_truncated
+            || evaluation_frontier_truncated
+            || evaluation_count == 0
+        {
+            SkillRevisionDisposition::Abstain
+        } else if extra_observation_count > 0 || execution_mismatch_count > 0 {
+            SkillRevisionDisposition::Suspend
+        } else if outcome_mismatch_count == 0 {
+            if missing_plan_step_count == 0 && considered_observation_count == plan.step_count() {
+                SkillRevisionDisposition::Reinforce
+            } else {
+                SkillRevisionDisposition::Retain
+            }
+        } else if outcome_mismatch_count == evaluation_count && missing_plan_step_count == 0 {
+            SkillRevisionDisposition::Suspend
+        } else {
+            SkillRevisionDisposition::Weaken
+        };
+
+        SkillOutcomeFeedbackResult {
+            input_observation_count,
+            considered_observation_count,
+            observation_frontier_truncated,
+            evaluation_count,
+            evaluation_frontier_truncated,
+            low_confidence_count,
+            exact_step_count,
+            execution_mismatch_count,
+            outcome_mismatch_count,
+            missing_plan_step_count,
+            extra_observation_count,
+            feedback_confidence_floor,
+            disposition,
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct UniversalSkillOutcomeFeedbackAndRevision;
+
+impl UniversalSkillOutcomeFeedbackAndRevision {
+    pub fn evaluate(
+        plan: &GroundedSkillReusePlan,
+        observations: &[SkillExecutionObservation],
+        policy: SkillOutcomeFeedbackPolicy,
+    ) -> SkillOutcomeFeedbackResult {
+        SkillOutcomeFeedbackAndRevision::evaluate(plan, observations, policy)
+    }
+}
+
+#[cfg(test)]
+mod skill_outcome_feedback_revision_tests {
+    use super::*;
+
+    fn s(value: u16) -> CognitiveSignal {
+        CognitiveSignal::new(value).unwrap()
+    }
+
+    fn a(value: u64) -> CognitiveStructure {
+        CognitiveStructure::atom(value)
+    }
+
+    fn record() -> CompressedSkillRecord {
+        CompressedSkillRecord {
+            invariant_dictionary: vec![a(7)],
+            initial_state: CompressedSkillTerm::StructuralSlot(0),
+            goal_identity: CompressedSkillTerm::InvariantRef(0),
+            steps: vec![
+                CompressedSkillStep {
+                    required_state: CompressedSkillTerm::StructuralSlot(0),
+                    action: CompressedSkillTerm::StructuralSlot(1),
+                    observed_outcome: CompressedSkillTerm::StructuralSlot(2),
+                },
+                CompressedSkillStep {
+                    required_state: CompressedSkillTerm::StructuralSlot(2),
+                    action: CompressedSkillTerm::InvariantRef(0),
+                    observed_outcome: CompressedSkillTerm::InvariantRef(0),
+                },
+            ],
+            structural_slot_count: 3,
+            context_slot_count: 0,
+            invariant_occurrence_count: 3,
+            compression_gain: 2,
+            source_generalization_count: 2,
+            source_support_sum: 8,
+            success_confidence_floor: s(900),
+            step_confidence_floor: s(900),
+        }
+    }
+
+    fn plan() -> GroundedSkillReusePlan {
+        GroundedSkillReusePlan {
+            source_record: record(),
+            initial_state: a(900),
+            goal_identity: a(7),
+            steps: vec![
+                GroundedReusableSkillStep {
+                    required_state: a(900),
+                    action: a(910),
+                    predicted_outcome: a(1010),
+                },
+                GroundedReusableSkillStep {
+                    required_state: a(1010),
+                    action: a(7),
+                    predicted_outcome: a(7),
+                },
+            ],
+            effective_confidence_floor: s(900),
+        }
+    }
+
+    fn observation(
+        required_state: u64,
+        action: u64,
+        outcome: u64,
+        confidence: u16,
+    ) -> SkillExecutionObservation {
+        SkillExecutionObservation::new(a(required_state), a(action), a(outcome), s(confidence))
+            .unwrap()
+    }
+
+    fn exact_observations() -> Vec<SkillExecutionObservation> {
+        vec![
+            observation(900, 910, 1010, 900),
+            observation(1010, 7, 7, 900),
+        ]
+    }
+
+    fn policy() -> SkillOutcomeFeedbackPolicy {
+        SkillOutcomeFeedbackPolicy::new(16, 16, s(500)).unwrap()
+    }
+
+    #[test]
+    fn feedback_policy_and_observation_require_positive_evidence() {
+        assert_eq!(SkillOutcomeFeedbackPolicy::new(0, 1, s(1)), None);
+
+        assert_eq!(SkillExecutionObservation::new(a(1), a(2), a(3), s(0)), None);
+
+        assert!(SkillOutcomeFeedbackPolicy::new(1, 1, s(1)).is_some());
+    }
+
+    #[test]
+    fn complete_exact_outcome_feedback_reinforces_skill() {
+        let result =
+            SkillOutcomeFeedbackAndRevision::evaluate(&plan(), &exact_observations(), policy());
+
+        assert_eq!(result.disposition(), SkillRevisionDisposition::Reinforce);
+
+        assert_eq!(result.exact_step_count(), 2);
+
+        assert_eq!(result.outcome_mismatch_count(), 0);
+    }
+
+    #[test]
+    fn partial_exact_feedback_retains_without_false_reinforcement() {
+        let observations = vec![observation(900, 910, 1010, 900)];
+
+        let result = SkillOutcomeFeedbackAndRevision::evaluate(&plan(), &observations, policy());
+
+        assert_eq!(result.disposition(), SkillRevisionDisposition::Retain);
+
+        assert_eq!(result.missing_plan_step_count(), 1);
+    }
+
+    #[test]
+    fn isolated_outcome_prediction_error_weakens_skill() {
+        let observations = vec![
+            observation(900, 910, 999, 900),
+            observation(1010, 7, 7, 900),
+        ];
+
+        let result = SkillOutcomeFeedbackAndRevision::evaluate(&plan(), &observations, policy());
+
+        assert_eq!(result.disposition(), SkillRevisionDisposition::Weaken);
+
+        assert_eq!(result.outcome_mismatch_count(), 1);
+
+        assert_eq!(result.execution_mismatch_count(), 0);
+    }
+
+    #[test]
+    fn complete_outcome_contradiction_suspends_skill() {
+        let observations = vec![
+            observation(900, 910, 999, 900),
+            observation(1010, 7, 998, 900),
+        ];
+
+        let result = SkillOutcomeFeedbackAndRevision::evaluate(&plan(), &observations, policy());
+
+        assert_eq!(result.disposition(), SkillRevisionDisposition::Suspend);
+
+        assert_eq!(result.outcome_mismatch_count(), 2);
+    }
+
+    #[test]
+    fn required_state_mismatch_suspends_reuse_assumption() {
+        let observations = vec![
+            observation(901, 910, 1010, 900),
+            observation(1010, 7, 7, 900),
+        ];
+
+        let result = SkillOutcomeFeedbackAndRevision::evaluate(&plan(), &observations, policy());
+
+        assert_eq!(result.disposition(), SkillRevisionDisposition::Suspend);
+
+        assert_eq!(result.execution_mismatch_count(), 1);
+    }
+
+    #[test]
+    fn executed_action_mismatch_suspends_skill_attribution() {
+        let observations = vec![
+            observation(900, 911, 1010, 900),
+            observation(1010, 7, 7, 900),
+        ];
+
+        let result = SkillOutcomeFeedbackAndRevision::evaluate(&plan(), &observations, policy());
+
+        assert_eq!(result.disposition(), SkillRevisionDisposition::Suspend);
+
+        assert_eq!(result.execution_mismatch_count(), 1);
+    }
+
+    #[test]
+    fn weak_observation_confidence_causes_abstention_before_revision() {
+        let observations = vec![
+            observation(900, 910, 1010, 400),
+            observation(1010, 7, 7, 900),
+        ];
+
+        let result = SkillOutcomeFeedbackAndRevision::evaluate(&plan(), &observations, policy());
+
+        assert!(result.abstained());
+
+        assert_eq!(result.low_confidence_count(), 1);
+
+        assert_eq!(result.evaluation_count(), 0);
+    }
+
+    #[test]
+    fn unexpected_extra_execution_step_suspends_skill() {
+        let mut observations = exact_observations();
+
+        observations.push(observation(7, 88, 99, 900));
+
+        let result = SkillOutcomeFeedbackAndRevision::evaluate(&plan(), &observations, policy());
+
+        assert_eq!(result.extra_observation_count(), 1);
+
+        assert_eq!(result.disposition(), SkillRevisionDisposition::Suspend);
+    }
+
+    #[test]
+    fn hard_observation_and_evaluation_frontiers_force_abstention() {
+        let observations = exact_observations();
+
+        let observation_limited = SkillOutcomeFeedbackAndRevision::evaluate(
+            &plan(),
+            &observations,
+            SkillOutcomeFeedbackPolicy::new(1, 16, s(500)).unwrap(),
+        );
+
+        assert!(observation_limited.observation_frontier_truncated());
+
+        assert!(observation_limited.abstained());
+
+        let evaluation_limited = SkillOutcomeFeedbackAndRevision::evaluate(
+            &plan(),
+            &observations,
+            SkillOutcomeFeedbackPolicy::new(16, 1, s(500)).unwrap(),
+        );
+
+        assert!(evaluation_limited.evaluation_frontier_truncated());
+
+        assert!(evaluation_limited.abstained());
+    }
+
+    #[test]
+    fn feedback_order_is_semantically_significant() {
+        let mut observations = exact_observations();
+
+        observations.reverse();
+
+        let result = SkillOutcomeFeedbackAndRevision::evaluate(&plan(), &observations, policy());
+
+        assert!(result.execution_mismatch_count() > 0);
+
+        assert_eq!(result.disposition(), SkillRevisionDisposition::Suspend);
+    }
+
+    #[test]
+    fn feedback_revision_is_deterministic_non_mutating_and_facade_equivalent() {
+        let plan = plan();
+        let before_plan = plan.clone();
+
+        let observations = exact_observations();
+
+        let before_observations = observations.clone();
+
+        let p = policy();
+
+        let direct = SkillOutcomeFeedbackAndRevision::evaluate(&plan, &observations, p);
+
+        let facade = UniversalSkillOutcomeFeedbackAndRevision::evaluate(&plan, &observations, p);
+
+        let repeated = UniversalSkillOutcomeFeedbackAndRevision::evaluate(&plan, &observations, p);
+
+        assert_eq!(direct, facade);
+
+        assert_eq!(facade, repeated);
+
+        assert_eq!(plan, before_plan);
+
+        assert_eq!(observations, before_observations);
+    }
+}
