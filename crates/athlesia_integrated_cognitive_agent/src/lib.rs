@@ -2942,3 +2942,796 @@ mod executive_agency_ingestion_tests {
         );
     }
 }
+
+use athlesia_meta_learning_skill_memory::{
+    IntegratedSkillLearningCycleResult, SkillMemoryAvailability,
+};
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct MetaLearningSkillMemoryIngestionRequest {
+    anchor_state: CognitiveStructure,
+    memory_state: CognitiveStructure,
+    provenance: CognitiveStructure,
+    confidence: CognitiveSignal,
+    compute_cost: CognitiveSignal,
+}
+
+impl MetaLearningSkillMemoryIngestionRequest {
+    pub fn new(
+        anchor_state: CognitiveStructure,
+        memory_state: CognitiveStructure,
+        provenance: CognitiveStructure,
+        confidence: CognitiveSignal,
+        compute_cost: CognitiveSignal,
+    ) -> Option<Self> {
+        if confidence == CognitiveSignal::zero() {
+            return None;
+        }
+
+        Some(Self {
+            anchor_state,
+            memory_state,
+            provenance,
+            confidence,
+            compute_cost,
+        })
+    }
+
+    pub fn anchor_state(&self) -> &CognitiveStructure {
+        &self.anchor_state
+    }
+
+    pub fn memory_state(&self) -> &CognitiveStructure {
+        &self.memory_state
+    }
+
+    pub fn provenance(&self) -> &CognitiveStructure {
+        &self.provenance
+    }
+
+    pub fn confidence(&self) -> CognitiveSignal {
+        self.confidence
+    }
+
+    pub fn compute_cost(&self) -> CognitiveSignal {
+        self.compute_cost
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct SkillLearningChainDigest {
+    reused_skill: bool,
+    selected_plan_present: bool,
+    feedback_present: bool,
+    revision_present: bool,
+    revision_applied: bool,
+    revised_memory: bool,
+}
+
+impl SkillLearningChainDigest {
+    pub fn new(
+        reused_skill: bool,
+        selected_plan_present: bool,
+        feedback_present: bool,
+        revision_present: bool,
+        revision_applied: bool,
+        revised_memory: bool,
+    ) -> Self {
+        Self {
+            reused_skill,
+            selected_plan_present,
+            feedback_present,
+            revision_present,
+            revision_applied,
+            revised_memory,
+        }
+    }
+
+    pub fn reused_skill(self) -> bool {
+        self.reused_skill
+    }
+
+    pub fn selected_plan_present(self) -> bool {
+        self.selected_plan_present
+    }
+
+    pub fn feedback_present(self) -> bool {
+        self.feedback_present
+    }
+
+    pub fn revision_present(self) -> bool {
+        self.revision_present
+    }
+
+    pub fn revision_applied(self) -> bool {
+        self.revision_applied
+    }
+
+    pub fn revised_memory(self) -> bool {
+        self.revised_memory
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct SkillMemoryStateDigest {
+    availability: SkillMemoryAvailability,
+    reusable: bool,
+    retained_count: usize,
+    forgotten_count: usize,
+}
+
+impl SkillMemoryStateDigest {
+    pub fn new(
+        availability: SkillMemoryAvailability,
+        reusable: bool,
+        retained_count: usize,
+        forgotten_count: usize,
+    ) -> Self {
+        Self {
+            availability,
+            reusable,
+            retained_count,
+            forgotten_count,
+        }
+    }
+
+    pub fn availability(self) -> SkillMemoryAvailability {
+        self.availability
+    }
+
+    pub fn reusable(self) -> bool {
+        self.reusable
+    }
+
+    pub fn retained_count(self) -> usize {
+        self.retained_count
+    }
+
+    pub fn forgotten_count(self) -> usize {
+        self.forgotten_count
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct SkillMemoryFrontierDigest {
+    input_frontier_truncated: bool,
+    evaluation_frontier_truncated: bool,
+    tier_frontier_truncated: bool,
+}
+
+impl SkillMemoryFrontierDigest {
+    pub fn new(
+        input_frontier_truncated: bool,
+        evaluation_frontier_truncated: bool,
+        tier_frontier_truncated: bool,
+    ) -> Self {
+        Self {
+            input_frontier_truncated,
+            evaluation_frontier_truncated,
+            tier_frontier_truncated,
+        }
+    }
+
+    pub fn input_frontier_truncated(self) -> bool {
+        self.input_frontier_truncated
+    }
+
+    pub fn evaluation_frontier_truncated(self) -> bool {
+        self.evaluation_frontier_truncated
+    }
+
+    pub fn tier_frontier_truncated(self) -> bool {
+        self.tier_frontier_truncated
+    }
+
+    pub fn any_truncated(self) -> bool {
+        self.input_frontier_truncated
+            || self.evaluation_frontier_truncated
+            || self.tier_frontier_truncated
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct MetaLearningSkillMemoryDigest {
+    chain: SkillLearningChainDigest,
+    memory: SkillMemoryStateDigest,
+    frontier: SkillMemoryFrontierDigest,
+}
+
+impl MetaLearningSkillMemoryDigest {
+    pub fn new(
+        chain: SkillLearningChainDigest,
+        memory: SkillMemoryStateDigest,
+        frontier: SkillMemoryFrontierDigest,
+    ) -> Self {
+        Self {
+            chain,
+            memory,
+            frontier,
+        }
+    }
+
+    pub fn from_result(result: &IntegratedSkillLearningCycleResult) -> Self {
+        let revision = result.revision();
+
+        let consolidation = result.consolidation();
+
+        Self {
+            chain: SkillLearningChainDigest::new(
+                result.reused_skill(),
+                result.selected_plan().is_some(),
+                result.feedback().is_some(),
+                revision.is_some(),
+                revision
+                    .map(|value| value.revision_applied())
+                    .unwrap_or(false),
+                result.revised_memory(),
+            ),
+            memory: SkillMemoryStateDigest::new(
+                result.updated_memory().availability(),
+                result.updated_memory().reusable(),
+                consolidation.retained_count(),
+                consolidation.forgotten_count(),
+            ),
+            frontier: SkillMemoryFrontierDigest::new(
+                consolidation.input_frontier_truncated(),
+                consolidation.evaluation_frontier_truncated(),
+                consolidation.tier_frontier_truncated(),
+            ),
+        }
+    }
+
+    pub fn chain(self) -> SkillLearningChainDigest {
+        self.chain
+    }
+
+    pub fn memory(self) -> SkillMemoryStateDigest {
+        self.memory
+    }
+
+    pub fn frontier(self) -> SkillMemoryFrontierDigest {
+        self.frontier
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum MetaLearningSkillMemoryIngestionStatus {
+    Ingested,
+    ReuseSelectionMismatch,
+    LearningChainMismatch,
+    RevisionStateMismatch,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct MetaLearningSkillMemoryIngestionResult {
+    status: MetaLearningSkillMemoryIngestionStatus,
+    digest: MetaLearningSkillMemoryDigest,
+    contribution: Option<IntegratedLayerContribution>,
+}
+
+impl MetaLearningSkillMemoryIngestionResult {
+    pub fn status(&self) -> MetaLearningSkillMemoryIngestionStatus {
+        self.status
+    }
+
+    pub fn digest(&self) -> MetaLearningSkillMemoryDigest {
+        self.digest
+    }
+
+    pub fn contribution(&self) -> Option<&IntegratedLayerContribution> {
+        self.contribution.as_ref()
+    }
+
+    pub fn ingested(&self) -> bool {
+        self.status == MetaLearningSkillMemoryIngestionStatus::Ingested
+    }
+
+    pub fn abstained(&self) -> bool {
+        self.contribution.is_none()
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct AutonomousMetaLearningSkillMemoryIngestion;
+
+impl AutonomousMetaLearningSkillMemoryIngestion {
+    fn abstain(
+        status: MetaLearningSkillMemoryIngestionStatus,
+        digest: MetaLearningSkillMemoryDigest,
+    ) -> MetaLearningSkillMemoryIngestionResult {
+        MetaLearningSkillMemoryIngestionResult {
+            status,
+            digest,
+            contribution: None,
+        }
+    }
+
+    pub fn ingest_digest(
+        request: &MetaLearningSkillMemoryIngestionRequest,
+        digest: MetaLearningSkillMemoryDigest,
+    ) -> MetaLearningSkillMemoryIngestionResult {
+        let chain = digest.chain();
+
+        if chain.reused_skill() != chain.selected_plan_present() {
+            return Self::abstain(
+                MetaLearningSkillMemoryIngestionStatus::ReuseSelectionMismatch,
+                digest,
+            );
+        }
+
+        if chain.selected_plan_present() != chain.feedback_present()
+            || chain.selected_plan_present() != chain.revision_present()
+        {
+            return Self::abstain(
+                MetaLearningSkillMemoryIngestionStatus::LearningChainMismatch,
+                digest,
+            );
+        }
+
+        if (chain.revision_applied() || chain.revised_memory()) && !chain.revision_present() {
+            return Self::abstain(
+                MetaLearningSkillMemoryIngestionStatus::RevisionStateMismatch,
+                digest,
+            );
+        }
+
+        let contribution = IntegratedLayerContribution::new(
+            IntegratedCognitiveLayer::MetaLearningSkillMemory,
+            request.anchor_state().clone(),
+            request.memory_state().clone(),
+            request.provenance().clone(),
+            request.confidence(),
+            request.compute_cost(),
+        )
+        .expect("skill-memory ingestion request enforces positive confidence");
+
+        MetaLearningSkillMemoryIngestionResult {
+            status: MetaLearningSkillMemoryIngestionStatus::Ingested,
+            digest,
+            contribution: Some(contribution),
+        }
+    }
+
+    pub fn ingest(
+        request: &MetaLearningSkillMemoryIngestionRequest,
+        result: &IntegratedSkillLearningCycleResult,
+    ) -> MetaLearningSkillMemoryIngestionResult {
+        Self::ingest_digest(request, MetaLearningSkillMemoryDigest::from_result(result))
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct UniversalMetaLearningSkillMemoryIngestion;
+
+impl UniversalMetaLearningSkillMemoryIngestion {
+    pub fn evaluate(
+        request: &MetaLearningSkillMemoryIngestionRequest,
+        result: &IntegratedSkillLearningCycleResult,
+    ) -> MetaLearningSkillMemoryIngestionResult {
+        AutonomousMetaLearningSkillMemoryIngestion::ingest(request, result)
+    }
+
+    pub fn evaluate_digest(
+        request: &MetaLearningSkillMemoryIngestionRequest,
+        digest: MetaLearningSkillMemoryDigest,
+    ) -> MetaLearningSkillMemoryIngestionResult {
+        AutonomousMetaLearningSkillMemoryIngestion::ingest_digest(request, digest)
+    }
+}
+
+#[cfg(test)]
+mod meta_learning_skill_memory_ingestion_tests {
+    use super::*;
+
+    fn s(value: u16) -> CognitiveSignal {
+        if value == 0 {
+            CognitiveSignal::zero()
+        } else {
+            CognitiveSignal::new(value).unwrap()
+        }
+    }
+
+    fn a(value: u64) -> CognitiveStructure {
+        CognitiveStructure::atom(value)
+    }
+
+    fn request() -> MetaLearningSkillMemoryIngestionRequest {
+        MetaLearningSkillMemoryIngestionRequest::new(a(1000), a(1004), a(9300), s(900), s(200))
+            .unwrap()
+    }
+
+    fn digest(
+        reused: bool,
+        selected: bool,
+        feedback: bool,
+        revision: bool,
+        revision_applied: bool,
+        revised_memory: bool,
+        availability: SkillMemoryAvailability,
+    ) -> MetaLearningSkillMemoryDigest {
+        MetaLearningSkillMemoryDigest::new(
+            SkillLearningChainDigest::new(
+                reused,
+                selected,
+                feedback,
+                revision,
+                revision_applied,
+                revised_memory,
+            ),
+            SkillMemoryStateDigest::new(
+                availability,
+                availability == SkillMemoryAvailability::Active,
+                1,
+                0,
+            ),
+            SkillMemoryFrontierDigest::new(false, false, false),
+        )
+    }
+
+    #[test]
+    fn skill_memory_ingestion_request_requires_positive_confidence() {
+        assert_eq!(
+            MetaLearningSkillMemoryIngestionRequest::new(a(1), a(2), a(3), s(0), s(10),),
+            None
+        );
+
+        let req = request();
+
+        assert_eq!(req.anchor_state(), &a(1000));
+
+        assert_eq!(req.memory_state(), &a(1004));
+
+        assert_eq!(req.provenance(), &a(9300));
+    }
+
+    #[test]
+    fn real_m49_integrated_cycle_result_adapter_is_compile_time_bound() {
+        let adapter: fn(&IntegratedSkillLearningCycleResult) -> MetaLearningSkillMemoryDigest =
+            MetaLearningSkillMemoryDigest::from_result;
+
+        let ingestion: fn(
+            &MetaLearningSkillMemoryIngestionRequest,
+            &IntegratedSkillLearningCycleResult,
+        ) -> MetaLearningSkillMemoryIngestionResult =
+            AutonomousMetaLearningSkillMemoryIngestion::ingest;
+
+        let facade: fn(
+            &MetaLearningSkillMemoryIngestionRequest,
+            &IntegratedSkillLearningCycleResult,
+        ) -> MetaLearningSkillMemoryIngestionResult =
+            UniversalMetaLearningSkillMemoryIngestion::evaluate;
+
+        let _ = (adapter, ingestion, facade);
+    }
+
+    #[test]
+    fn unresolved_retrieval_ingests_without_fabricating_skill_reuse() {
+        let result = AutonomousMetaLearningSkillMemoryIngestion::ingest_digest(
+            &request(),
+            digest(
+                false,
+                false,
+                false,
+                false,
+                false,
+                false,
+                SkillMemoryAvailability::Active,
+            ),
+        );
+
+        assert!(result.ingested());
+
+        let chain = result.digest().chain();
+
+        assert!(!chain.reused_skill());
+
+        assert!(!chain.selected_plan_present());
+
+        assert!(!chain.feedback_present());
+
+        assert!(!chain.revision_present());
+    }
+
+    #[test]
+    fn reuse_requires_exact_selected_plan_presence() {
+        let result = AutonomousMetaLearningSkillMemoryIngestion::ingest_digest(
+            &request(),
+            digest(
+                true,
+                false,
+                false,
+                false,
+                false,
+                false,
+                SkillMemoryAvailability::Active,
+            ),
+        );
+
+        assert_eq!(
+            result.status(),
+            MetaLearningSkillMemoryIngestionStatus::ReuseSelectionMismatch
+        );
+
+        assert!(result.abstained());
+    }
+
+    #[test]
+    fn selected_reuse_requires_feedback_and_revision_chain() {
+        let result = AutonomousMetaLearningSkillMemoryIngestion::ingest_digest(
+            &request(),
+            digest(
+                true,
+                true,
+                true,
+                false,
+                false,
+                false,
+                SkillMemoryAvailability::Active,
+            ),
+        );
+
+        assert_eq!(
+            result.status(),
+            MetaLearningSkillMemoryIngestionStatus::LearningChainMismatch
+        );
+
+        assert!(result.contribution().is_none());
+    }
+
+    #[test]
+    fn revision_state_cannot_exist_without_revision_result() {
+        let result = AutonomousMetaLearningSkillMemoryIngestion::ingest_digest(
+            &request(),
+            digest(
+                false,
+                false,
+                false,
+                false,
+                true,
+                true,
+                SkillMemoryAvailability::Active,
+            ),
+        );
+
+        assert_eq!(
+            result.status(),
+            MetaLearningSkillMemoryIngestionStatus::RevisionStateMismatch
+        );
+
+        assert!(result.abstained());
+    }
+
+    #[test]
+    fn successful_skill_learning_chain_preserves_memory_state() {
+        let result = AutonomousMetaLearningSkillMemoryIngestion::ingest_digest(
+            &request(),
+            digest(
+                true,
+                true,
+                true,
+                true,
+                true,
+                true,
+                SkillMemoryAvailability::Active,
+            ),
+        );
+
+        assert!(result.ingested());
+
+        let memory = result.digest().memory();
+
+        assert_eq!(memory.availability(), SkillMemoryAvailability::Active);
+
+        assert!(memory.reusable());
+
+        assert_eq!(memory.retained_count(), 1);
+
+        assert_eq!(memory.forgotten_count(), 0);
+    }
+
+    #[test]
+    fn suspended_skill_memory_remains_explicit_and_non_reusable() {
+        let result = AutonomousMetaLearningSkillMemoryIngestion::ingest_digest(
+            &request(),
+            digest(
+                true,
+                true,
+                true,
+                true,
+                true,
+                true,
+                SkillMemoryAvailability::Suspended,
+            ),
+        );
+
+        assert!(result.ingested());
+
+        let memory = result.digest().memory();
+
+        assert_eq!(memory.availability(), SkillMemoryAvailability::Suspended);
+
+        assert!(!memory.reusable());
+    }
+
+    #[test]
+    fn skill_memory_contribution_preserves_exact_agent_state_and_provenance() {
+        let req =
+            MetaLearningSkillMemoryIngestionRequest::new(a(500), a(504), a(999), s(850), s(175))
+                .unwrap();
+
+        let result = AutonomousMetaLearningSkillMemoryIngestion::ingest_digest(
+            &req,
+            digest(
+                false,
+                false,
+                false,
+                false,
+                false,
+                false,
+                SkillMemoryAvailability::Active,
+            ),
+        );
+
+        let contribution = result.contribution().unwrap();
+
+        assert_eq!(
+            contribution.layer(),
+            IntegratedCognitiveLayer::MetaLearningSkillMemory
+        );
+
+        assert_eq!(contribution.anchor_state(), &a(500));
+
+        assert_eq!(contribution.result_state(), &a(504));
+
+        assert_eq!(contribution.provenance(), &a(999));
+    }
+
+    #[test]
+    fn perception_domain_executive_and_skill_memory_share_one_agent_frame() {
+        let skill = AutonomousMetaLearningSkillMemoryIngestion::ingest_digest(
+            &request(),
+            digest(
+                false,
+                false,
+                false,
+                false,
+                false,
+                false,
+                SkillMemoryAvailability::Active,
+            ),
+        );
+
+        let contributions = vec![
+            IntegratedLayerContribution::new(
+                IntegratedCognitiveLayer::PerceptualGrounding,
+                a(1000),
+                a(1001),
+                a(9000),
+                s(900),
+                s(200),
+            )
+            .unwrap(),
+            IntegratedLayerContribution::new(
+                IntegratedCognitiveLayer::UniversalDomainLearning,
+                a(1000),
+                a(1002),
+                a(9100),
+                s(900),
+                s(250),
+            )
+            .unwrap(),
+            IntegratedLayerContribution::new(
+                IntegratedCognitiveLayer::ExecutiveAgency,
+                a(1000),
+                a(1003),
+                a(9200),
+                s(900),
+                s(225),
+            )
+            .unwrap(),
+            skill.contribution().unwrap().clone(),
+        ];
+
+        let integrated = IntegratedCognitiveAgentFoundation::integrate(
+            &a(1000),
+            &contributions,
+            IntegratedAgentPolicy::new(
+                IntegratedAgentBounds::new(5, 2000).unwrap(),
+                IntegratedAgentThresholds::new(s(500)).unwrap(),
+            ),
+        );
+
+        assert!(integrated.integrated());
+
+        let frame = integrated.frame().unwrap();
+
+        assert!(frame
+            .contribution(IntegratedCognitiveLayer::MetaLearningSkillMemory)
+            .is_some());
+    }
+
+    #[test]
+    fn skill_memory_cross_layer_provenance_collision_remains_atomic() {
+        let req =
+            MetaLearningSkillMemoryIngestionRequest::new(a(1000), a(1004), a(9000), s(900), s(200))
+                .unwrap();
+
+        let skill = AutonomousMetaLearningSkillMemoryIngestion::ingest_digest(
+            &req,
+            digest(
+                false,
+                false,
+                false,
+                false,
+                false,
+                false,
+                SkillMemoryAvailability::Active,
+            ),
+        );
+
+        let perceptual = IntegratedLayerContribution::new(
+            IntegratedCognitiveLayer::PerceptualGrounding,
+            a(1000),
+            a(1001),
+            a(9000),
+            s(900),
+            s(200),
+        )
+        .unwrap();
+
+        let integrated = IntegratedCognitiveAgentFoundation::integrate(
+            &a(1000),
+            &[perceptual, skill.contribution().unwrap().clone()],
+            IntegratedAgentPolicy::new(
+                IntegratedAgentBounds::new(5, 2000).unwrap(),
+                IntegratedAgentThresholds::new(s(500)).unwrap(),
+            ),
+        );
+
+        assert_eq!(
+            integrated.status(),
+            IntegratedAgentFoundationStatus::ConflictingProvenance
+        );
+
+        assert!(integrated.frame().is_none());
+    }
+
+    #[test]
+    fn skill_memory_ingestion_is_deterministic_and_opaque_state_preserving() {
+        let first_request =
+            MetaLearningSkillMemoryIngestionRequest::new(a(1000), a(111), a(9300), s(900), s(200))
+                .unwrap();
+
+        let second_request =
+            MetaLearningSkillMemoryIngestionRequest::new(a(1000), a(999), a(9300), s(900), s(200))
+                .unwrap();
+
+        let d = digest(
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            SkillMemoryAvailability::Active,
+        );
+
+        let first = UniversalMetaLearningSkillMemoryIngestion::evaluate_digest(&first_request, d);
+
+        let repeated =
+            UniversalMetaLearningSkillMemoryIngestion::evaluate_digest(&first_request, d);
+
+        let second = UniversalMetaLearningSkillMemoryIngestion::evaluate_digest(&second_request, d);
+
+        assert_eq!(first, repeated);
+
+        assert_eq!(first.digest(), second.digest());
+
+        assert_ne!(
+            first.contribution().unwrap().result_state(),
+            second.contribution().unwrap().result_state()
+        );
+
+        assert!(!first.digest().frontier().any_truncated());
+    }
+}
