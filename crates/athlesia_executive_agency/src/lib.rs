@@ -2938,3 +2938,467 @@ impl UniversalIntentionExecutionMonitor {
         IntentionExecutionMonitor::monitor(intention, observations, policy)
     }
 }
+
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub enum DeviationReplanningStatus {
+    NotTriggered,
+    EvidenceInsufficient,
+    NoViableReplacement,
+    ReplacementSelected,
+}
+
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub struct DeviationReplanningThresholds {
+    minimum_observation_confidence: CognitiveSignal,
+    minimum_replacement_path_confidence: CognitiveSignal,
+    minimum_adjusted_replan_score: CognitiveSignal,
+}
+
+impl DeviationReplanningThresholds {
+    pub fn new(
+        minimum_observation_confidence: CognitiveSignal,
+        minimum_replacement_path_confidence: CognitiveSignal,
+        minimum_adjusted_replan_score: CognitiveSignal,
+    ) -> Option<Self> {
+        if minimum_observation_confidence == CognitiveSignal::zero()
+            || minimum_replacement_path_confidence == CognitiveSignal::zero()
+            || minimum_adjusted_replan_score == CognitiveSignal::zero()
+        {
+            return None;
+        }
+
+        Some(Self {
+            minimum_observation_confidence,
+            minimum_replacement_path_confidence,
+            minimum_adjusted_replan_score,
+        })
+    }
+
+    pub fn minimum_observation_confidence(self) -> CognitiveSignal {
+        self.minimum_observation_confidence
+    }
+
+    pub fn minimum_replacement_path_confidence(self) -> CognitiveSignal {
+        self.minimum_replacement_path_confidence
+    }
+
+    pub fn minimum_adjusted_replan_score(self) -> CognitiveSignal {
+        self.minimum_adjusted_replan_score
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub struct DeviationReplanningPolicy {
+    max_candidates: usize,
+    max_candidate_evaluations: usize,
+    max_steps_per_replacement: usize,
+    max_selected_replans: usize,
+    thresholds: DeviationReplanningThresholds,
+}
+
+impl DeviationReplanningPolicy {
+    pub fn new(
+        max_candidates: usize,
+        max_candidate_evaluations: usize,
+        max_steps_per_replacement: usize,
+        max_selected_replans: usize,
+        thresholds: DeviationReplanningThresholds,
+    ) -> Option<Self> {
+        if max_candidates == 0
+            || max_candidate_evaluations == 0
+            || max_steps_per_replacement < 2
+            || max_selected_replans == 0
+        {
+            return None;
+        }
+
+        Some(Self {
+            max_candidates,
+            max_candidate_evaluations,
+            max_steps_per_replacement,
+            max_selected_replans,
+            thresholds,
+        })
+    }
+
+    pub fn max_candidates(self) -> usize {
+        self.max_candidates
+    }
+
+    pub fn max_candidate_evaluations(self) -> usize {
+        self.max_candidate_evaluations
+    }
+
+    pub fn max_steps_per_replacement(self) -> usize {
+        self.max_steps_per_replacement
+    }
+
+    pub fn max_selected_replans(self) -> usize {
+        self.max_selected_replans
+    }
+
+    pub fn thresholds(self) -> DeviationReplanningThresholds {
+        self.thresholds
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct GroundedDeviationReplan {
+    replacement: ExecutableMultiStepIntention,
+    deviation_step_index: usize,
+    recovery_state: CognitiveStructure,
+    deviation_observation_confidence: CognitiveSignal,
+    adjusted_replan_score: CognitiveSignal,
+}
+
+impl GroundedDeviationReplan {
+    pub fn replacement(&self) -> &ExecutableMultiStepIntention {
+        &self.replacement
+    }
+
+    pub fn deviation_step_index(&self) -> usize {
+        self.deviation_step_index
+    }
+
+    pub fn recovery_state(&self) -> &CognitiveStructure {
+        &self.recovery_state
+    }
+
+    pub fn deviation_observation_confidence(&self) -> CognitiveSignal {
+        self.deviation_observation_confidence
+    }
+
+    pub fn adjusted_replan_score(&self) -> CognitiveSignal {
+        self.adjusted_replan_score
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct DeviationReplanningResult {
+    status: DeviationReplanningStatus,
+    input_candidate_count: usize,
+    unique_candidate_count: usize,
+    considered_candidate_count: usize,
+    candidate_frontier_truncated: bool,
+    candidate_evaluation_count: usize,
+    candidate_evaluation_truncated: bool,
+    rejected_goal_mismatch_count: usize,
+    rejected_recovery_anchor_count: usize,
+    rejected_step_bound_count: usize,
+    rejected_threshold_count: usize,
+    admitted_before_frontier: usize,
+    selected: Vec<GroundedDeviationReplan>,
+}
+
+impl DeviationReplanningResult {
+    pub fn status(&self) -> DeviationReplanningStatus {
+        self.status
+    }
+
+    pub fn input_candidate_count(&self) -> usize {
+        self.input_candidate_count
+    }
+
+    pub fn unique_candidate_count(&self) -> usize {
+        self.unique_candidate_count
+    }
+
+    pub fn considered_candidate_count(&self) -> usize {
+        self.considered_candidate_count
+    }
+
+    pub fn candidate_frontier_truncated(&self) -> bool {
+        self.candidate_frontier_truncated
+    }
+
+    pub fn candidate_evaluation_count(&self) -> usize {
+        self.candidate_evaluation_count
+    }
+
+    pub fn candidate_evaluation_truncated(&self) -> bool {
+        self.candidate_evaluation_truncated
+    }
+
+    pub fn rejected_goal_mismatch_count(&self) -> usize {
+        self.rejected_goal_mismatch_count
+    }
+
+    pub fn rejected_recovery_anchor_count(&self) -> usize {
+        self.rejected_recovery_anchor_count
+    }
+
+    pub fn rejected_step_bound_count(&self) -> usize {
+        self.rejected_step_bound_count
+    }
+
+    pub fn rejected_threshold_count(&self) -> usize {
+        self.rejected_threshold_count
+    }
+
+    pub fn admitted_before_frontier(&self) -> usize {
+        self.admitted_before_frontier
+    }
+
+    pub fn selected(&self) -> &[GroundedDeviationReplan] {
+        &self.selected
+    }
+
+    pub fn selected_count(&self) -> usize {
+        self.selected.len()
+    }
+
+    pub fn triggered(&self) -> bool {
+        matches!(
+            self.status,
+            DeviationReplanningStatus::NoViableReplacement
+                | DeviationReplanningStatus::ReplacementSelected
+        )
+    }
+
+    pub fn abstained(&self) -> bool {
+        self.selected.is_empty()
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, Hash, PartialEq)]
+pub struct DeviationReplanner;
+
+impl DeviationReplanner {
+    fn exact_tiebreak(left: &CognitiveStructure, right: &CognitiveStructure) -> std::cmp::Ordering {
+        format!("{left:?}").cmp(&format!("{right:?}"))
+    }
+
+    fn compare_candidate(
+        left: &ExecutableMultiStepIntention,
+        right: &ExecutableMultiStepIntention,
+    ) -> std::cmp::Ordering {
+        right
+            .net_intention_score()
+            .value()
+            .cmp(&left.net_intention_score().value())
+            .then_with(|| {
+                right
+                    .path_confidence()
+                    .value()
+                    .cmp(&left.path_confidence().value())
+            })
+            .then_with(|| {
+                left.execution_cost_penalty()
+                    .value()
+                    .cmp(&right.execution_cost_penalty().value())
+            })
+            .then_with(|| Self::exact_tiebreak(left.goal_identity(), right.goal_identity()))
+            .then_with(|| {
+                Self::exact_tiebreak(
+                    left.first_step().required_state(),
+                    right.first_step().required_state(),
+                )
+            })
+            .then_with(|| {
+                Self::exact_tiebreak(left.first_step().action(), right.first_step().action())
+            })
+            .then_with(|| format!("{left:?}").cmp(&format!("{right:?}")))
+    }
+
+    fn compare_replan(
+        left: &GroundedDeviationReplan,
+        right: &GroundedDeviationReplan,
+    ) -> std::cmp::Ordering {
+        right
+            .adjusted_replan_score()
+            .value()
+            .cmp(&left.adjusted_replan_score().value())
+            .then_with(|| Self::compare_candidate(left.replacement(), right.replacement()))
+    }
+
+    fn ranked_candidates(
+        candidates: &[ExecutableMultiStepIntention],
+        policy: DeviationReplanningPolicy,
+    ) -> (usize, Vec<ExecutableMultiStepIntention>) {
+        let mut ranked = candidates.to_vec();
+
+        ranked.sort_by(Self::compare_candidate);
+
+        ranked.dedup();
+
+        let unique_count = ranked.len();
+
+        ranked.truncate(policy.max_candidates());
+
+        (unique_count, ranked)
+    }
+
+    fn empty_result(
+        status: DeviationReplanningStatus,
+        input_candidate_count: usize,
+    ) -> DeviationReplanningResult {
+        DeviationReplanningResult {
+            status,
+            input_candidate_count,
+            unique_candidate_count: 0,
+            considered_candidate_count: 0,
+            candidate_frontier_truncated: false,
+            candidate_evaluation_count: 0,
+            candidate_evaluation_truncated: false,
+            rejected_goal_mismatch_count: 0,
+            rejected_recovery_anchor_count: 0,
+            rejected_step_bound_count: 0,
+            rejected_threshold_count: 0,
+            admitted_before_frontier: 0,
+            selected: Vec::new(),
+        }
+    }
+
+    fn adjusted_score(
+        replacement: &ExecutableMultiStepIntention,
+        deviation: &IntentionExecutionDeviation,
+    ) -> CognitiveSignal {
+        ExecutiveAgency::scaled_product(
+            replacement.net_intention_score(),
+            deviation.observation_confidence(),
+        )
+    }
+
+    pub fn replan(
+        prior_intention: &ExecutableMultiStepIntention,
+        monitoring: &IntentionExecutionMonitoringResult,
+        candidates: &[ExecutableMultiStepIntention],
+        policy: DeviationReplanningPolicy,
+    ) -> DeviationReplanningResult {
+        let input_candidate_count = candidates.len();
+
+        if monitoring.status() != IntentionExecutionStatus::Deviated {
+            return Self::empty_result(
+                DeviationReplanningStatus::NotTriggered,
+                input_candidate_count,
+            );
+        }
+
+        let Some(deviation) = monitoring.deviation() else {
+            return Self::empty_result(
+                DeviationReplanningStatus::NotTriggered,
+                input_candidate_count,
+            );
+        };
+
+        if deviation.observation_confidence().value()
+            < policy.thresholds().minimum_observation_confidence().value()
+        {
+            return Self::empty_result(
+                DeviationReplanningStatus::EvidenceInsufficient,
+                input_candidate_count,
+            );
+        }
+
+        let (unique_candidate_count, ranked_candidates) =
+            Self::ranked_candidates(candidates, policy);
+
+        let considered_candidate_count = ranked_candidates.len();
+
+        let mut candidate_evaluation_count = 0_usize;
+
+        let mut candidate_evaluation_truncated = false;
+
+        let mut rejected_goal_mismatch_count = 0_usize;
+
+        let mut rejected_recovery_anchor_count = 0_usize;
+
+        let mut rejected_step_bound_count = 0_usize;
+
+        let mut rejected_threshold_count = 0_usize;
+
+        let mut admitted: Vec<GroundedDeviationReplan> = Vec::new();
+
+        for replacement in ranked_candidates {
+            if candidate_evaluation_count >= policy.max_candidate_evaluations() {
+                candidate_evaluation_truncated = true;
+
+                break;
+            }
+
+            candidate_evaluation_count = candidate_evaluation_count.saturating_add(1);
+
+            if replacement.goal_identity() != prior_intention.goal_identity() {
+                rejected_goal_mismatch_count = rejected_goal_mismatch_count.saturating_add(1);
+
+                continue;
+            }
+
+            if replacement.step_count() > policy.max_steps_per_replacement() {
+                rejected_step_bound_count = rejected_step_bound_count.saturating_add(1);
+
+                continue;
+            }
+
+            if replacement.first_step().required_state() != deviation.observed_outcome() {
+                rejected_recovery_anchor_count = rejected_recovery_anchor_count.saturating_add(1);
+
+                continue;
+            }
+
+            let adjusted_replan_score = Self::adjusted_score(&replacement, deviation);
+
+            let thresholds = policy.thresholds();
+
+            if replacement.path_confidence().value()
+                < thresholds.minimum_replacement_path_confidence().value()
+                || adjusted_replan_score.value()
+                    < thresholds.minimum_adjusted_replan_score().value()
+            {
+                rejected_threshold_count = rejected_threshold_count.saturating_add(1);
+
+                continue;
+            }
+
+            admitted.push(GroundedDeviationReplan {
+                replacement,
+                deviation_step_index: deviation.step_index(),
+                recovery_state: deviation.observed_outcome().clone(),
+                deviation_observation_confidence: deviation.observation_confidence(),
+                adjusted_replan_score,
+            });
+        }
+
+        admitted.sort_by(Self::compare_replan);
+
+        let admitted_before_frontier = admitted.len();
+
+        admitted.truncate(policy.max_selected_replans());
+
+        let status = if admitted.is_empty() {
+            DeviationReplanningStatus::NoViableReplacement
+        } else {
+            DeviationReplanningStatus::ReplacementSelected
+        };
+
+        DeviationReplanningResult {
+            status,
+            input_candidate_count,
+            unique_candidate_count,
+            considered_candidate_count,
+            candidate_frontier_truncated: unique_candidate_count > considered_candidate_count,
+            candidate_evaluation_count,
+            candidate_evaluation_truncated,
+            rejected_goal_mismatch_count,
+            rejected_recovery_anchor_count,
+            rejected_step_bound_count,
+            rejected_threshold_count,
+            admitted_before_frontier,
+            selected: admitted,
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, Hash, PartialEq)]
+pub struct UniversalDeviationReplanner;
+
+impl UniversalDeviationReplanner {
+    pub fn evaluate(
+        prior_intention: &ExecutableMultiStepIntention,
+        monitoring: &IntentionExecutionMonitoringResult,
+        candidates: &[ExecutableMultiStepIntention],
+        policy: DeviationReplanningPolicy,
+    ) -> DeviationReplanningResult {
+        DeviationReplanner::replan(prior_intention, monitoring, candidates, policy)
+    }
+}
