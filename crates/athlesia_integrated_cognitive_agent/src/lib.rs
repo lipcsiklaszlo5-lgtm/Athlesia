@@ -3735,3 +3735,916 @@ mod meta_learning_skill_memory_ingestion_tests {
         assert!(!first.digest().frontier().any_truncated());
     }
 }
+
+use athlesia_autonomous_active_experimentation::{
+    ExperimentContinuationBasis, IntegratedAutonomousExperimentationResult,
+    IntegratedAutonomousExperimentationStatus, StopContinueExperimentationDecision,
+};
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct AutonomousExperimentationIngestionRequest {
+    anchor_state: CognitiveStructure,
+    experimentation_state: CognitiveStructure,
+    provenance: CognitiveStructure,
+    confidence: CognitiveSignal,
+    compute_cost: CognitiveSignal,
+}
+
+impl AutonomousExperimentationIngestionRequest {
+    pub fn new(
+        anchor_state: CognitiveStructure,
+        experimentation_state: CognitiveStructure,
+        provenance: CognitiveStructure,
+        confidence: CognitiveSignal,
+        compute_cost: CognitiveSignal,
+    ) -> Option<Self> {
+        if confidence == CognitiveSignal::zero() {
+            return None;
+        }
+
+        Some(Self {
+            anchor_state,
+            experimentation_state,
+            provenance,
+            confidence,
+            compute_cost,
+        })
+    }
+
+    pub fn anchor_state(&self) -> &CognitiveStructure {
+        &self.anchor_state
+    }
+
+    pub fn experimentation_state(&self) -> &CognitiveStructure {
+        &self.experimentation_state
+    }
+
+    pub fn provenance(&self) -> &CognitiveStructure {
+        &self.provenance
+    }
+
+    pub fn confidence(&self) -> CognitiveSignal {
+        self.confidence
+    }
+
+    pub fn compute_cost(&self) -> CognitiveSignal {
+        self.compute_cost
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct AutonomousExperimentationLifecycleDigest {
+    status: IntegratedAutonomousExperimentationStatus,
+    continuing: bool,
+    stopped: bool,
+    abstained: bool,
+}
+
+impl AutonomousExperimentationLifecycleDigest {
+    pub fn new(
+        status: IntegratedAutonomousExperimentationStatus,
+        continuing: bool,
+        stopped: bool,
+        abstained: bool,
+    ) -> Self {
+        Self {
+            status,
+            continuing,
+            stopped,
+            abstained,
+        }
+    }
+
+    pub fn status(self) -> IntegratedAutonomousExperimentationStatus {
+        self.status
+    }
+
+    pub fn continuing(self) -> bool {
+        self.continuing
+    }
+
+    pub fn stopped(self) -> bool {
+        self.stopped
+    }
+
+    pub fn abstained(self) -> bool {
+        self.abstained
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct AutonomousExperimentationPipelineDigest {
+    proposal_present: bool,
+    learning_progress_present: bool,
+    sequence_planning_present: bool,
+    control_present: bool,
+    next_plan_present: bool,
+    next_experiment_present: bool,
+}
+
+impl AutonomousExperimentationPipelineDigest {
+    pub fn new(
+        proposal_present: bool,
+        learning_progress_present: bool,
+        sequence_planning_present: bool,
+        control_present: bool,
+        next_plan_present: bool,
+        next_experiment_present: bool,
+    ) -> Self {
+        Self {
+            proposal_present,
+            learning_progress_present,
+            sequence_planning_present,
+            control_present,
+            next_plan_present,
+            next_experiment_present,
+        }
+    }
+
+    pub fn proposal_present(self) -> bool {
+        self.proposal_present
+    }
+
+    pub fn learning_progress_present(self) -> bool {
+        self.learning_progress_present
+    }
+
+    pub fn sequence_planning_present(self) -> bool {
+        self.sequence_planning_present
+    }
+
+    pub fn control_present(self) -> bool {
+        self.control_present
+    }
+
+    pub fn next_plan_present(self) -> bool {
+        self.next_plan_present
+    }
+
+    pub fn next_experiment_present(self) -> bool {
+        self.next_experiment_present
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct AutonomousExperimentationControlDigest {
+    decision: Option<StopContinueExperimentationDecision>,
+    continuation_basis: Option<ExperimentContinuationBasis>,
+    current_experiment_cycle: Option<usize>,
+}
+
+impl AutonomousExperimentationControlDigest {
+    pub fn new(
+        decision: Option<StopContinueExperimentationDecision>,
+        continuation_basis: Option<ExperimentContinuationBasis>,
+        current_experiment_cycle: Option<usize>,
+    ) -> Self {
+        Self {
+            decision,
+            continuation_basis,
+            current_experiment_cycle,
+        }
+    }
+
+    pub fn decision(self) -> Option<StopContinueExperimentationDecision> {
+        self.decision
+    }
+
+    pub fn continuation_basis(self) -> Option<ExperimentContinuationBasis> {
+        self.continuation_basis
+    }
+
+    pub fn current_experiment_cycle(self) -> Option<usize> {
+        self.current_experiment_cycle
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct AutonomousExperimentationDigest {
+    lifecycle: AutonomousExperimentationLifecycleDigest,
+    pipeline: AutonomousExperimentationPipelineDigest,
+    control: AutonomousExperimentationControlDigest,
+}
+
+impl AutonomousExperimentationDigest {
+    pub fn new(
+        lifecycle: AutonomousExperimentationLifecycleDigest,
+        pipeline: AutonomousExperimentationPipelineDigest,
+        control: AutonomousExperimentationControlDigest,
+    ) -> Self {
+        Self {
+            lifecycle,
+            pipeline,
+            control,
+        }
+    }
+
+    pub fn from_result(result: &IntegratedAutonomousExperimentationResult) -> Self {
+        let control = result.control();
+
+        Self {
+            lifecycle: AutonomousExperimentationLifecycleDigest::new(
+                result.status(),
+                result.continuing(),
+                result.stopped(),
+                result.abstained(),
+            ),
+            pipeline: AutonomousExperimentationPipelineDigest::new(
+                true,
+                result.learning_progress().is_some(),
+                result.sequence_planning().is_some(),
+                control.is_some(),
+                result.next_plan().is_some(),
+                result.next_experiment().is_some(),
+            ),
+            control: AutonomousExperimentationControlDigest::new(
+                control.map(|value| value.decision()),
+                control.and_then(|value| value.continuation_basis()),
+                control.map(|value| value.current_experiment_cycle()),
+            ),
+        }
+    }
+
+    pub fn lifecycle(self) -> AutonomousExperimentationLifecycleDigest {
+        self.lifecycle
+    }
+
+    pub fn pipeline(self) -> AutonomousExperimentationPipelineDigest {
+        self.pipeline
+    }
+
+    pub fn control(self) -> AutonomousExperimentationControlDigest {
+        self.control
+    }
+
+    pub fn status(self) -> IntegratedAutonomousExperimentationStatus {
+        self.lifecycle.status()
+    }
+
+    pub fn continuing(self) -> bool {
+        self.lifecycle.continuing()
+    }
+
+    pub fn stopped(self) -> bool {
+        self.lifecycle.stopped()
+    }
+
+    pub fn abstained(self) -> bool {
+        self.lifecycle.abstained()
+    }
+
+    pub fn control_present(self) -> bool {
+        self.pipeline.control_present()
+    }
+
+    pub fn next_plan_present(self) -> bool {
+        self.pipeline.next_plan_present()
+    }
+
+    pub fn next_experiment_present(self) -> bool {
+        self.pipeline.next_experiment_present()
+    }
+
+    pub fn control_decision(self) -> Option<StopContinueExperimentationDecision> {
+        self.control.decision()
+    }
+
+    pub fn continuation_basis(self) -> Option<ExperimentContinuationBasis> {
+        self.control.continuation_basis()
+    }
+
+    pub fn current_experiment_cycle(self) -> Option<usize> {
+        self.control.current_experiment_cycle()
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum AutonomousExperimentationIngestionStatus {
+    Ingested,
+    LifecycleStateMismatch,
+    ContinuationWithoutControl,
+    ContinuationWithoutPlan,
+    ContinuationWithoutExperiment,
+    ControlPresenceMismatch,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct AutonomousExperimentationIngestionResult {
+    status: AutonomousExperimentationIngestionStatus,
+    digest: AutonomousExperimentationDigest,
+    contribution: Option<IntegratedLayerContribution>,
+}
+
+impl AutonomousExperimentationIngestionResult {
+    pub fn status(&self) -> AutonomousExperimentationIngestionStatus {
+        self.status
+    }
+
+    pub fn digest(&self) -> AutonomousExperimentationDigest {
+        self.digest
+    }
+
+    pub fn contribution(&self) -> Option<&IntegratedLayerContribution> {
+        self.contribution.as_ref()
+    }
+
+    pub fn ingested(&self) -> bool {
+        self.status == AutonomousExperimentationIngestionStatus::Ingested
+    }
+
+    pub fn abstained(&self) -> bool {
+        self.contribution.is_none()
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct AutonomousExperimentationIngestion;
+
+impl AutonomousExperimentationIngestion {
+    fn abstain(
+        status: AutonomousExperimentationIngestionStatus,
+        digest: AutonomousExperimentationDigest,
+    ) -> AutonomousExperimentationIngestionResult {
+        AutonomousExperimentationIngestionResult {
+            status,
+            digest,
+            contribution: None,
+        }
+    }
+
+    pub fn ingest_digest(
+        request: &AutonomousExperimentationIngestionRequest,
+        digest: AutonomousExperimentationDigest,
+    ) -> AutonomousExperimentationIngestionResult {
+        let lifecycle_count = [digest.continuing(), digest.stopped(), digest.abstained()]
+            .into_iter()
+            .filter(|state| *state)
+            .count();
+
+        if lifecycle_count != 1 {
+            return Self::abstain(
+                AutonomousExperimentationIngestionStatus::LifecycleStateMismatch,
+                digest,
+            );
+        }
+
+        if digest.continuing() && !digest.control_present() {
+            return Self::abstain(
+                AutonomousExperimentationIngestionStatus::ContinuationWithoutControl,
+                digest,
+            );
+        }
+
+        if digest.continuing() && !digest.next_plan_present() {
+            return Self::abstain(
+                AutonomousExperimentationIngestionStatus::ContinuationWithoutPlan,
+                digest,
+            );
+        }
+
+        if digest.continuing() && !digest.next_experiment_present() {
+            return Self::abstain(
+                AutonomousExperimentationIngestionStatus::ContinuationWithoutExperiment,
+                digest,
+            );
+        }
+
+        if digest.control_present() != digest.control_decision().is_some() {
+            return Self::abstain(
+                AutonomousExperimentationIngestionStatus::ControlPresenceMismatch,
+                digest,
+            );
+        }
+
+        let contribution = IntegratedLayerContribution::new(
+            IntegratedCognitiveLayer::AutonomousExperimentation,
+            request.anchor_state().clone(),
+            request.experimentation_state().clone(),
+            request.provenance().clone(),
+            request.confidence(),
+            request.compute_cost(),
+        )
+        .expect("autonomous experimentation request enforces positive confidence");
+
+        AutonomousExperimentationIngestionResult {
+            status: AutonomousExperimentationIngestionStatus::Ingested,
+            digest,
+            contribution: Some(contribution),
+        }
+    }
+
+    pub fn ingest(
+        request: &AutonomousExperimentationIngestionRequest,
+        result: &IntegratedAutonomousExperimentationResult,
+    ) -> AutonomousExperimentationIngestionResult {
+        Self::ingest_digest(
+            request,
+            AutonomousExperimentationDigest::from_result(result),
+        )
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct UniversalAutonomousExperimentationIngestion;
+
+impl UniversalAutonomousExperimentationIngestion {
+    pub fn evaluate(
+        request: &AutonomousExperimentationIngestionRequest,
+        result: &IntegratedAutonomousExperimentationResult,
+    ) -> AutonomousExperimentationIngestionResult {
+        AutonomousExperimentationIngestion::ingest(request, result)
+    }
+
+    pub fn evaluate_digest(
+        request: &AutonomousExperimentationIngestionRequest,
+        digest: AutonomousExperimentationDigest,
+    ) -> AutonomousExperimentationIngestionResult {
+        AutonomousExperimentationIngestion::ingest_digest(request, digest)
+    }
+}
+
+#[cfg(test)]
+mod autonomous_experimentation_ingestion_tests {
+    use super::*;
+
+    fn s(value: u16) -> CognitiveSignal {
+        if value == 0 {
+            CognitiveSignal::zero()
+        } else {
+            CognitiveSignal::new(value).unwrap()
+        }
+    }
+
+    fn a(value: u64) -> CognitiveStructure {
+        CognitiveStructure::atom(value)
+    }
+
+    fn request() -> AutonomousExperimentationIngestionRequest {
+        AutonomousExperimentationIngestionRequest::new(a(1000), a(1005), a(9400), s(900), s(225))
+            .unwrap()
+    }
+
+    fn digest(
+        lifecycle: AutonomousExperimentationLifecycleDigest,
+        pipeline: AutonomousExperimentationPipelineDigest,
+        control: AutonomousExperimentationControlDigest,
+    ) -> AutonomousExperimentationDigest {
+        AutonomousExperimentationDigest::new(lifecycle, pipeline, control)
+    }
+
+    fn continuing_digest() -> AutonomousExperimentationDigest {
+        digest(
+            AutonomousExperimentationLifecycleDigest::new(
+                IntegratedAutonomousExperimentationStatus::ContinueExperimentation,
+                true,
+                false,
+                false,
+            ),
+            AutonomousExperimentationPipelineDigest::new(true, true, true, true, true, true),
+            AutonomousExperimentationControlDigest::new(
+                Some(StopContinueExperimentationDecision::ContinueExperimentation),
+                Some(ExperimentContinuationBasis::ExpectedInformationGain),
+                Some(1),
+            ),
+        )
+    }
+
+    fn stopped_digest(
+        status: IntegratedAutonomousExperimentationStatus,
+        decision: StopContinueExperimentationDecision,
+    ) -> AutonomousExperimentationDigest {
+        digest(
+            AutonomousExperimentationLifecycleDigest::new(status, false, true, false),
+            AutonomousExperimentationPipelineDigest::new(true, true, true, true, false, false),
+            AutonomousExperimentationControlDigest::new(Some(decision), None, Some(2)),
+        )
+    }
+
+    fn abstained_digest(
+        status: IntegratedAutonomousExperimentationStatus,
+    ) -> AutonomousExperimentationDigest {
+        digest(
+            AutonomousExperimentationLifecycleDigest::new(status, false, false, true),
+            AutonomousExperimentationPipelineDigest::new(true, false, false, false, false, false),
+            AutonomousExperimentationControlDigest::new(None, None, None),
+        )
+    }
+
+    #[test]
+    fn autonomous_experimentation_request_and_real_m50_adapter_contract_are_valid() {
+        assert_eq!(
+            AutonomousExperimentationIngestionRequest::new(a(1), a(2), a(3), s(0), s(10),),
+            None
+        );
+
+        let req = request();
+
+        assert_eq!(req.anchor_state(), &a(1000));
+
+        assert_eq!(req.experimentation_state(), &a(1005));
+
+        let adapter: fn(
+            &IntegratedAutonomousExperimentationResult,
+        ) -> AutonomousExperimentationDigest = AutonomousExperimentationDigest::from_result;
+
+        let ingestion: fn(
+            &AutonomousExperimentationIngestionRequest,
+            &IntegratedAutonomousExperimentationResult,
+        ) -> AutonomousExperimentationIngestionResult = AutonomousExperimentationIngestion::ingest;
+
+        let facade: fn(
+            &AutonomousExperimentationIngestionRequest,
+            &IntegratedAutonomousExperimentationResult,
+        ) -> AutonomousExperimentationIngestionResult =
+            UniversalAutonomousExperimentationIngestion::evaluate;
+
+        let _ = (adapter, ingestion, facade);
+    }
+
+    #[test]
+    fn continuing_experimentation_preserves_m50_control_authority() {
+        let result =
+            AutonomousExperimentationIngestion::ingest_digest(&request(), continuing_digest());
+
+        assert!(result.ingested());
+
+        let d = result.digest();
+
+        assert_eq!(
+            d.status(),
+            IntegratedAutonomousExperimentationStatus::ContinueExperimentation
+        );
+
+        assert!(d.continuing());
+
+        assert_eq!(
+            d.control_decision(),
+            Some(StopContinueExperimentationDecision::ContinueExperimentation)
+        );
+
+        assert_eq!(
+            d.continuation_basis(),
+            Some(ExperimentContinuationBasis::ExpectedInformationGain)
+        );
+    }
+
+    #[test]
+    fn continuing_experimentation_requires_control_result() {
+        let d = digest(
+            AutonomousExperimentationLifecycleDigest::new(
+                IntegratedAutonomousExperimentationStatus::ContinueExperimentation,
+                true,
+                false,
+                false,
+            ),
+            AutonomousExperimentationPipelineDigest::new(true, true, true, false, true, true),
+            AutonomousExperimentationControlDigest::new(None, None, None),
+        );
+
+        let result = AutonomousExperimentationIngestion::ingest_digest(&request(), d);
+
+        assert_eq!(
+            result.status(),
+            AutonomousExperimentationIngestionStatus::ContinuationWithoutControl
+        );
+
+        assert!(result.abstained());
+    }
+
+    #[test]
+    fn continuing_experimentation_requires_selected_plan() {
+        let d = digest(
+            AutonomousExperimentationLifecycleDigest::new(
+                IntegratedAutonomousExperimentationStatus::ContinueExperimentation,
+                true,
+                false,
+                false,
+            ),
+            AutonomousExperimentationPipelineDigest::new(true, true, true, true, false, true),
+            AutonomousExperimentationControlDigest::new(
+                Some(StopContinueExperimentationDecision::ContinueExperimentation),
+                Some(ExperimentContinuationBasis::ExpectedInformationGain),
+                Some(1),
+            ),
+        );
+
+        let result = AutonomousExperimentationIngestion::ingest_digest(&request(), d);
+
+        assert_eq!(
+            result.status(),
+            AutonomousExperimentationIngestionStatus::ContinuationWithoutPlan
+        );
+    }
+
+    #[test]
+    fn continuing_experimentation_requires_next_grounded_experiment() {
+        let d = digest(
+            AutonomousExperimentationLifecycleDigest::new(
+                IntegratedAutonomousExperimentationStatus::ContinueExperimentation,
+                true,
+                false,
+                false,
+            ),
+            AutonomousExperimentationPipelineDigest::new(true, true, true, true, true, false),
+            AutonomousExperimentationControlDigest::new(
+                Some(StopContinueExperimentationDecision::ContinueExperimentation),
+                Some(ExperimentContinuationBasis::ExpectedInformationGain),
+                Some(1),
+            ),
+        );
+
+        let result = AutonomousExperimentationIngestion::ingest_digest(&request(), d);
+
+        assert_eq!(
+            result.status(),
+            AutonomousExperimentationIngestionStatus::ContinuationWithoutExperiment
+        );
+    }
+
+    #[test]
+    fn resolved_belief_space_stops_without_fabricating_next_experiment() {
+        let result = AutonomousExperimentationIngestion::ingest_digest(
+            &request(),
+            stopped_digest(
+                IntegratedAutonomousExperimentationStatus::StopResolved,
+                StopContinueExperimentationDecision::StopResolved,
+            ),
+        );
+
+        assert!(result.ingested());
+
+        let d = result.digest();
+
+        assert!(d.stopped());
+
+        assert!(!d.next_plan_present());
+
+        assert!(!d.next_experiment_present());
+    }
+
+    #[test]
+    fn experiment_budget_exhaustion_remains_explicit_stop_state() {
+        let result = AutonomousExperimentationIngestion::ingest_digest(
+            &request(),
+            stopped_digest(
+                IntegratedAutonomousExperimentationStatus::StopExperimentBudgetExhausted,
+                StopContinueExperimentationDecision::StopExperimentBudgetExhausted,
+            ),
+        );
+
+        assert!(result.ingested());
+
+        assert_eq!(
+            result.digest().status(),
+            IntegratedAutonomousExperimentationStatus::StopExperimentBudgetExhausted
+        );
+
+        assert_eq!(result.digest().current_experiment_cycle(), Some(2));
+    }
+
+    #[test]
+    fn upstream_m50_abstention_does_not_manufacture_experiment_control() {
+        let result = AutonomousExperimentationIngestion::ingest_digest(
+            &request(),
+            abstained_digest(IntegratedAutonomousExperimentationStatus::AbstainSequencePlanning),
+        );
+
+        assert!(result.ingested());
+
+        let d = result.digest();
+
+        assert!(d.abstained());
+
+        assert!(!d.control_present());
+
+        assert!(!d.next_experiment_present());
+    }
+
+    #[test]
+    fn invalid_lifecycle_and_control_presence_abstain_atomically() {
+        let invalid_lifecycle = digest(
+            AutonomousExperimentationLifecycleDigest::new(
+                IntegratedAutonomousExperimentationStatus::ContinueExperimentation,
+                true,
+                true,
+                false,
+            ),
+            AutonomousExperimentationPipelineDigest::new(true, true, true, true, true, true),
+            AutonomousExperimentationControlDigest::new(
+                Some(StopContinueExperimentationDecision::ContinueExperimentation),
+                None,
+                Some(1),
+            ),
+        );
+
+        let lifecycle_result =
+            AutonomousExperimentationIngestion::ingest_digest(&request(), invalid_lifecycle);
+
+        assert_eq!(
+            lifecycle_result.status(),
+            AutonomousExperimentationIngestionStatus::LifecycleStateMismatch
+        );
+
+        let invalid_control = digest(
+            AutonomousExperimentationLifecycleDigest::new(
+                IntegratedAutonomousExperimentationStatus::StopResolved,
+                false,
+                true,
+                false,
+            ),
+            AutonomousExperimentationPipelineDigest::new(true, true, true, false, false, false),
+            AutonomousExperimentationControlDigest::new(
+                Some(StopContinueExperimentationDecision::StopResolved),
+                None,
+                Some(2),
+            ),
+        );
+
+        let control_result =
+            AutonomousExperimentationIngestion::ingest_digest(&request(), invalid_control);
+
+        assert_eq!(
+            control_result.status(),
+            AutonomousExperimentationIngestionStatus::ControlPresenceMismatch
+        );
+    }
+
+    #[test]
+    fn experimentation_contribution_preserves_exact_agent_state_and_provenance() {
+        let req =
+            AutonomousExperimentationIngestionRequest::new(a(500), a(505), a(999), s(850), s(175))
+                .unwrap();
+
+        let result = AutonomousExperimentationIngestion::ingest_digest(&req, continuing_digest());
+
+        let contribution = result.contribution().unwrap();
+
+        assert_eq!(
+            contribution.layer(),
+            IntegratedCognitiveLayer::AutonomousExperimentation
+        );
+
+        assert_eq!(contribution.anchor_state(), &a(500));
+
+        assert_eq!(contribution.result_state(), &a(505));
+
+        assert_eq!(contribution.provenance(), &a(999));
+
+        assert_eq!(contribution.confidence(), s(850));
+
+        assert_eq!(contribution.compute_cost(), s(175));
+    }
+
+    #[test]
+    fn all_five_layers_integrate_and_cross_layer_provenance_remains_atomic() {
+        let experimentation =
+            AutonomousExperimentationIngestion::ingest_digest(&request(), continuing_digest());
+
+        let contributions = vec![
+            IntegratedLayerContribution::new(
+                IntegratedCognitiveLayer::PerceptualGrounding,
+                a(1000),
+                a(1001),
+                a(9000),
+                s(900),
+                s(200),
+            )
+            .unwrap(),
+            IntegratedLayerContribution::new(
+                IntegratedCognitiveLayer::UniversalDomainLearning,
+                a(1000),
+                a(1002),
+                a(9100),
+                s(900),
+                s(250),
+            )
+            .unwrap(),
+            IntegratedLayerContribution::new(
+                IntegratedCognitiveLayer::ExecutiveAgency,
+                a(1000),
+                a(1003),
+                a(9200),
+                s(900),
+                s(225),
+            )
+            .unwrap(),
+            IntegratedLayerContribution::new(
+                IntegratedCognitiveLayer::MetaLearningSkillMemory,
+                a(1000),
+                a(1004),
+                a(9300),
+                s(900),
+                s(200),
+            )
+            .unwrap(),
+            experimentation.contribution().unwrap().clone(),
+        ];
+
+        let policy = IntegratedAgentPolicy::new(
+            IntegratedAgentBounds::new(5, 2000).unwrap(),
+            IntegratedAgentThresholds::new(s(500)).unwrap(),
+        );
+
+        let integrated =
+            IntegratedCognitiveAgentFoundation::integrate(&a(1000), &contributions, policy);
+
+        assert!(integrated.integrated());
+
+        let frame = integrated.frame().unwrap();
+
+        for layer in [
+            IntegratedCognitiveLayer::PerceptualGrounding,
+            IntegratedCognitiveLayer::UniversalDomainLearning,
+            IntegratedCognitiveLayer::ExecutiveAgency,
+            IntegratedCognitiveLayer::MetaLearningSkillMemory,
+            IntegratedCognitiveLayer::AutonomousExperimentation,
+        ] {
+            assert!(frame.contribution(layer).is_some());
+        }
+
+        let conflicting_request = AutonomousExperimentationIngestionRequest::new(
+            a(1000),
+            a(1005),
+            a(9000),
+            s(900),
+            s(225),
+        )
+        .unwrap();
+
+        let conflicting_experimentation = AutonomousExperimentationIngestion::ingest_digest(
+            &conflicting_request,
+            continuing_digest(),
+        );
+
+        let perceptual = IntegratedLayerContribution::new(
+            IntegratedCognitiveLayer::PerceptualGrounding,
+            a(1000),
+            a(1001),
+            a(9000),
+            s(900),
+            s(200),
+        )
+        .unwrap();
+
+        let conflict = IntegratedCognitiveAgentFoundation::integrate(
+            &a(1000),
+            &[
+                perceptual,
+                conflicting_experimentation.contribution().unwrap().clone(),
+            ],
+            policy,
+        );
+
+        assert_eq!(
+            conflict.status(),
+            IntegratedAgentFoundationStatus::ConflictingProvenance
+        );
+
+        assert!(conflict.frame().is_none());
+    }
+
+    #[test]
+    fn experimentation_ingestion_is_deterministic_and_opaque_state_preserving() {
+        let first_request = AutonomousExperimentationIngestionRequest::new(
+            a(1000),
+            a(111),
+            a(9400),
+            s(900),
+            s(225),
+        )
+        .unwrap();
+
+        let second_request = AutonomousExperimentationIngestionRequest::new(
+            a(1000),
+            a(999),
+            a(9400),
+            s(900),
+            s(225),
+        )
+        .unwrap();
+
+        let d = continuing_digest();
+
+        let first = UniversalAutonomousExperimentationIngestion::evaluate_digest(&first_request, d);
+
+        let repeated =
+            UniversalAutonomousExperimentationIngestion::evaluate_digest(&first_request, d);
+
+        let second =
+            UniversalAutonomousExperimentationIngestion::evaluate_digest(&second_request, d);
+
+        assert_eq!(first, repeated);
+
+        assert_eq!(first.digest(), second.digest());
+
+        assert_ne!(
+            first.contribution().unwrap().result_state(),
+            second.contribution().unwrap().result_state()
+        );
+
+        assert_eq!(
+            first.digest().pipeline().proposal_present(),
+            second.digest().pipeline().proposal_present()
+        );
+    }
+}

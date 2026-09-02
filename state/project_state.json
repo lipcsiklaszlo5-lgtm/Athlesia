@@ -56,7 +56,7 @@
     "crates/athlesia_hierarchy/tests/hierarchy_recognition.rs": "bc7fe6ac289f8697e65b2ebe9aab179ae0cdb2db655fed18afae454bf2132841",
     "crates/athlesia_integrated_cognitive_agent/Cargo.lock": "49d8133fab85c5e2dd210c1702d89886b12e48961f6783944f53192bbd9862f5",
     "crates/athlesia_integrated_cognitive_agent/Cargo.toml": "07fd7160447768911344f081f3efcbcf79270014d5a962fb6ad271f881e61951",
-    "crates/athlesia_integrated_cognitive_agent/src/lib.rs": "0b695842cfd4a49c69a10fe1db1a3300e686074bec578d594b9d3968f4a71727",
+    "crates/athlesia_integrated_cognitive_agent/src/lib.rs": "919b4ae69a459d70494ef088a8905faa230e8827665c199255401bea9bf6efd4",
     "crates/athlesia_meta_learning_skill_memory/Cargo.lock": "641aac08044b700a765d2e6a93508989365f97801ae817d73c69c3c99c00506d",
     "crates/athlesia_meta_learning_skill_memory/Cargo.toml": "3ecb2ef81d5a7d2e6eb902981ff7fe2a1446969521a0544a22bb0ba360954265",
     "crates/athlesia_meta_learning_skill_memory/src/lib.rs": "7d90563d57c3ae9196eb5ee4bc01f43991f01aef7ce0f0cf8cb96fea3ba3aa04",
@@ -620,7 +620,8 @@
       "module_51_integrated_cognitive_agent_perceptual_grounding_ingestion",
       "module_51_integrated_cognitive_agent_universal_domain_learning_ingestion",
       "module_51_integrated_cognitive_agent_executive_agency_ingestion",
-      "module_51_integrated_cognitive_agent_meta_learning_skill_memory_ingestion"
+      "module_51_integrated_cognitive_agent_meta_learning_skill_memory_ingestion",
+      "module_51_integrated_cognitive_agent_autonomous_experimentation_ingestion"
     ],
     "module_23_integrity": {
       "status": "pass",
@@ -633,8 +634,8 @@
       "status": "frozen",
       "verifier": "tools/verify_module_23_parity.py"
     },
-    "next_layer": "module_51_integrated_cognitive_agent_autonomous_experimentation_ingestion",
-    "stage": "module_51_integrated_cognitive_agent_meta_learning_skill_memory_ingestion",
+    "next_layer": "module_51_integrated_cognitive_agent_cognitive_cycle",
+    "stage": "module_51_integrated_cognitive_agent_autonomous_experimentation_ingestion",
     "status": "validated"
   },
   "validated_invariants": [
@@ -3197,6 +3198,18 @@
     "integrated_cognitive_agent_skill_memory_exact_agent_state_binding",
     "integrated_cognitive_agent_m46_m47_m48_m49_frame_integration",
     "integrated_cognitive_agent_skill_memory_cross_layer_provenance_atomicity",
-    "integrated_cognitive_agent_skill_memory_deterministic_opaque_state_preservation"
+    "integrated_cognitive_agent_skill_memory_deterministic_opaque_state_preservation",
+    "integrated_cognitive_agent_experimentation_positive_contract",
+    "integrated_cognitive_agent_experimentation_real_m50_cycle_adapter",
+    "integrated_cognitive_agent_experimentation_structured_digest",
+    "integrated_cognitive_agent_experimentation_lifecycle_exclusivity",
+    "integrated_cognitive_agent_experimentation_control_authority",
+    "integrated_cognitive_agent_experimentation_continue_requires_control",
+    "integrated_cognitive_agent_experimentation_continue_requires_plan",
+    "integrated_cognitive_agent_experimentation_continue_requires_experiment",
+    "integrated_cognitive_agent_experimentation_stop_without_fabrication",
+    "integrated_cognitive_agent_experimentation_exact_agent_state_binding",
+    "integrated_cognitive_agent_all_five_frozen_layers_frame_integration",
+    "integrated_cognitive_agent_experimentation_cross_layer_provenance_atomicity"
   ]
 }
