@@ -1891,3 +1891,560 @@ impl UniversalCrossContextSkillGeneralization {
         CrossContextSkillGeneralization::generalize(abstractions, policy)
     }
 }
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum CompressedSkillTerm {
+    InvariantRef(usize),
+    StructuralSlot(usize),
+    ContextSlot(usize),
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct CompressedSkillStep {
+    required_state: CompressedSkillTerm,
+    action: CompressedSkillTerm,
+    observed_outcome: CompressedSkillTerm,
+}
+
+impl CompressedSkillStep {
+    pub fn required_state(&self) -> &CompressedSkillTerm {
+        &self.required_state
+    }
+
+    pub fn action(&self) -> &CompressedSkillTerm {
+        &self.action
+    }
+
+    pub fn observed_outcome(&self) -> &CompressedSkillTerm {
+        &self.observed_outcome
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct SkillCompressionBounds {
+    max_input_generalizations: usize,
+    max_generalization_evaluations: usize,
+    max_steps: usize,
+    max_records: usize,
+}
+
+impl SkillCompressionBounds {
+    pub fn new(
+        max_input_generalizations: usize,
+        max_generalization_evaluations: usize,
+        max_steps: usize,
+        max_records: usize,
+    ) -> Option<Self> {
+        if max_input_generalizations == 0
+            || max_generalization_evaluations == 0
+            || max_steps == 0
+            || max_records == 0
+        {
+            return None;
+        }
+
+        Some(Self {
+            max_input_generalizations,
+            max_generalization_evaluations,
+            max_steps,
+            max_records,
+        })
+    }
+
+    pub fn max_input_generalizations(self) -> usize {
+        self.max_input_generalizations
+    }
+
+    pub fn max_generalization_evaluations(self) -> usize {
+        self.max_generalization_evaluations
+    }
+
+    pub fn max_steps(self) -> usize {
+        self.max_steps
+    }
+
+    pub fn max_records(self) -> usize {
+        self.max_records
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct SkillCompressionThresholds {
+    minimum_source_pair_count: usize,
+    minimum_success_confidence: CognitiveSignal,
+    minimum_step_confidence: CognitiveSignal,
+    minimum_compression_gain: usize,
+}
+
+impl SkillCompressionThresholds {
+    pub fn new(
+        minimum_source_pair_count: usize,
+        minimum_success_confidence: CognitiveSignal,
+        minimum_step_confidence: CognitiveSignal,
+        minimum_compression_gain: usize,
+    ) -> Option<Self> {
+        if minimum_source_pair_count == 0
+            || minimum_success_confidence == CognitiveSignal::zero()
+            || minimum_step_confidence == CognitiveSignal::zero()
+        {
+            return None;
+        }
+
+        Some(Self {
+            minimum_source_pair_count,
+            minimum_success_confidence,
+            minimum_step_confidence,
+            minimum_compression_gain,
+        })
+    }
+
+    pub fn minimum_source_pair_count(self) -> usize {
+        self.minimum_source_pair_count
+    }
+
+    pub fn minimum_success_confidence(self) -> CognitiveSignal {
+        self.minimum_success_confidence
+    }
+
+    pub fn minimum_step_confidence(self) -> CognitiveSignal {
+        self.minimum_step_confidence
+    }
+
+    pub fn minimum_compression_gain(self) -> usize {
+        self.minimum_compression_gain
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct SkillCompressionPolicy {
+    bounds: SkillCompressionBounds,
+    thresholds: SkillCompressionThresholds,
+}
+
+impl SkillCompressionPolicy {
+    pub fn new(bounds: SkillCompressionBounds, thresholds: SkillCompressionThresholds) -> Self {
+        Self { bounds, thresholds }
+    }
+
+    pub fn bounds(self) -> SkillCompressionBounds {
+        self.bounds
+    }
+
+    pub fn thresholds(self) -> SkillCompressionThresholds {
+        self.thresholds
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct CompressedSkillRecord {
+    invariant_dictionary: Vec<CognitiveStructure>,
+    initial_state: CompressedSkillTerm,
+    goal_identity: CompressedSkillTerm,
+    steps: Vec<CompressedSkillStep>,
+    structural_slot_count: usize,
+    context_slot_count: usize,
+    invariant_occurrence_count: usize,
+    compression_gain: usize,
+    source_generalization_count: usize,
+    source_support_sum: usize,
+    success_confidence_floor: CognitiveSignal,
+    step_confidence_floor: CognitiveSignal,
+}
+
+impl CompressedSkillRecord {
+    pub fn invariant_dictionary(&self) -> &[CognitiveStructure] {
+        &self.invariant_dictionary
+    }
+
+    pub fn initial_state(&self) -> &CompressedSkillTerm {
+        &self.initial_state
+    }
+
+    pub fn goal_identity(&self) -> &CompressedSkillTerm {
+        &self.goal_identity
+    }
+
+    pub fn steps(&self) -> &[CompressedSkillStep] {
+        &self.steps
+    }
+
+    pub fn step_count(&self) -> usize {
+        self.steps.len()
+    }
+
+    pub fn structural_slot_count(&self) -> usize {
+        self.structural_slot_count
+    }
+
+    pub fn context_slot_count(&self) -> usize {
+        self.context_slot_count
+    }
+
+    pub fn invariant_occurrence_count(&self) -> usize {
+        self.invariant_occurrence_count
+    }
+
+    pub fn compression_gain(&self) -> usize {
+        self.compression_gain
+    }
+
+    pub fn source_generalization_count(&self) -> usize {
+        self.source_generalization_count
+    }
+
+    pub fn source_support_sum(&self) -> usize {
+        self.source_support_sum
+    }
+
+    pub fn success_confidence_floor(&self) -> CognitiveSignal {
+        self.success_confidence_floor
+    }
+
+    pub fn step_confidence_floor(&self) -> CognitiveSignal {
+        self.step_confidence_floor
+    }
+
+    fn expand_term(&self, term: &CompressedSkillTerm) -> Option<GeneralizedSkillTerm> {
+        match term {
+            CompressedSkillTerm::InvariantRef(index) => self
+                .invariant_dictionary
+                .get(*index)
+                .cloned()
+                .map(GeneralizedSkillTerm::Invariant),
+            CompressedSkillTerm::StructuralSlot(index) => {
+                Some(GeneralizedSkillTerm::StructuralVariable(*index))
+            }
+            CompressedSkillTerm::ContextSlot(index) => {
+                Some(GeneralizedSkillTerm::ContextVariable(*index))
+            }
+        }
+    }
+
+    pub fn semantically_matches(&self, schema: &CrossContextSkillSchema) -> bool {
+        if self.step_count() != schema.step_count()
+            || self.structural_slot_count != schema.structural_variable_count()
+            || self.context_slot_count != schema.context_variable_count()
+        {
+            return false;
+        }
+
+        if self.expand_term(&self.initial_state).as_ref() != Some(schema.initial_state())
+            || self.expand_term(&self.goal_identity).as_ref() != Some(schema.goal_identity())
+        {
+            return false;
+        }
+
+        self.steps
+            .iter()
+            .zip(schema.steps())
+            .all(|(compressed, original)| {
+                self.expand_term(compressed.required_state()).as_ref()
+                    == Some(original.required_state())
+                    && self.expand_term(compressed.action()).as_ref() == Some(original.action())
+                    && self.expand_term(compressed.observed_outcome()).as_ref()
+                        == Some(original.observed_outcome())
+            })
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct SkillCompressionResult {
+    input_generalization_count: usize,
+    unique_generalization_count: usize,
+    considered_generalization_count: usize,
+    input_frontier_truncated: bool,
+    evaluation_count: usize,
+    evaluation_frontier_truncated: bool,
+    rejected_support_count: usize,
+    rejected_step_bound_count: usize,
+    rejected_threshold_count: usize,
+    rejected_gain_count: usize,
+    records_before_frontier: usize,
+    record_frontier_truncated: bool,
+    records: Vec<CompressedSkillRecord>,
+}
+
+impl SkillCompressionResult {
+    pub fn input_generalization_count(&self) -> usize {
+        self.input_generalization_count
+    }
+
+    pub fn unique_generalization_count(&self) -> usize {
+        self.unique_generalization_count
+    }
+
+    pub fn considered_generalization_count(&self) -> usize {
+        self.considered_generalization_count
+    }
+
+    pub fn input_frontier_truncated(&self) -> bool {
+        self.input_frontier_truncated
+    }
+
+    pub fn evaluation_count(&self) -> usize {
+        self.evaluation_count
+    }
+
+    pub fn evaluation_frontier_truncated(&self) -> bool {
+        self.evaluation_frontier_truncated
+    }
+
+    pub fn rejected_support_count(&self) -> usize {
+        self.rejected_support_count
+    }
+
+    pub fn rejected_step_bound_count(&self) -> usize {
+        self.rejected_step_bound_count
+    }
+
+    pub fn rejected_threshold_count(&self) -> usize {
+        self.rejected_threshold_count
+    }
+
+    pub fn rejected_gain_count(&self) -> usize {
+        self.rejected_gain_count
+    }
+
+    pub fn records_before_frontier(&self) -> usize {
+        self.records_before_frontier
+    }
+
+    pub fn record_frontier_truncated(&self) -> bool {
+        self.record_frontier_truncated
+    }
+
+    pub fn records(&self) -> &[CompressedSkillRecord] {
+        &self.records
+    }
+
+    pub fn record_count(&self) -> usize {
+        self.records.len()
+    }
+
+    pub fn abstained(&self) -> bool {
+        self.records.is_empty()
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct LossControlledSkillCompression;
+
+impl LossControlledSkillCompression {
+    fn evidence_order(
+        a: &CrossContextSkillGeneralizationEvidence,
+        b: &CrossContextSkillGeneralizationEvidence,
+    ) -> std::cmp::Ordering {
+        b.source_abstraction_pair_count()
+            .cmp(&a.source_abstraction_pair_count())
+            .then_with(|| b.source_support_sum().cmp(&a.source_support_sum()))
+            .then_with(|| {
+                b.success_confidence_floor()
+                    .value()
+                    .cmp(&a.success_confidence_floor().value())
+            })
+            .then_with(|| format!("{:?}", a.schema()).cmp(&format!("{:?}", b.schema())))
+    }
+
+    fn compress_term(
+        term: &GeneralizedSkillTerm,
+        dictionary: &mut Vec<CognitiveStructure>,
+        invariant_occurrences: &mut usize,
+    ) -> CompressedSkillTerm {
+        match term {
+            GeneralizedSkillTerm::Invariant(value) => {
+                *invariant_occurrences = invariant_occurrences.saturating_add(1);
+
+                let index =
+                    if let Some(index) = dictionary.iter().position(|existing| existing == value) {
+                        index
+                    } else {
+                        let index = dictionary.len();
+                        dictionary.push(value.clone());
+                        index
+                    };
+
+                CompressedSkillTerm::InvariantRef(index)
+            }
+
+            GeneralizedSkillTerm::StructuralVariable(id) => {
+                CompressedSkillTerm::StructuralSlot(*id)
+            }
+
+            GeneralizedSkillTerm::ContextVariable(id) => CompressedSkillTerm::ContextSlot(*id),
+        }
+    }
+
+    fn compress(evidence: &CrossContextSkillGeneralizationEvidence) -> CompressedSkillRecord {
+        let schema = evidence.schema();
+
+        let mut dictionary = Vec::new();
+        let mut invariant_occurrences = 0;
+
+        let initial_state = Self::compress_term(
+            schema.initial_state(),
+            &mut dictionary,
+            &mut invariant_occurrences,
+        );
+
+        let goal_identity = Self::compress_term(
+            schema.goal_identity(),
+            &mut dictionary,
+            &mut invariant_occurrences,
+        );
+
+        let steps = schema
+            .steps()
+            .iter()
+            .map(|step| CompressedSkillStep {
+                required_state: Self::compress_term(
+                    step.required_state(),
+                    &mut dictionary,
+                    &mut invariant_occurrences,
+                ),
+                action: Self::compress_term(
+                    step.action(),
+                    &mut dictionary,
+                    &mut invariant_occurrences,
+                ),
+                observed_outcome: Self::compress_term(
+                    step.observed_outcome(),
+                    &mut dictionary,
+                    &mut invariant_occurrences,
+                ),
+            })
+            .collect();
+
+        let compression_gain = invariant_occurrences.saturating_sub(dictionary.len());
+
+        CompressedSkillRecord {
+            invariant_dictionary: dictionary,
+            initial_state,
+            goal_identity,
+            steps,
+            structural_slot_count: schema.structural_variable_count(),
+            context_slot_count: schema.context_variable_count(),
+            invariant_occurrence_count: invariant_occurrences,
+            compression_gain,
+            source_generalization_count: evidence.source_abstraction_pair_count(),
+            source_support_sum: evidence.source_support_sum(),
+            success_confidence_floor: evidence.success_confidence_floor(),
+            step_confidence_floor: evidence.step_confidence_floor(),
+        }
+    }
+
+    fn record_order(a: &CompressedSkillRecord, b: &CompressedSkillRecord) -> std::cmp::Ordering {
+        b.compression_gain()
+            .cmp(&a.compression_gain())
+            .then_with(|| {
+                b.source_generalization_count()
+                    .cmp(&a.source_generalization_count())
+            })
+            .then_with(|| b.source_support_sum().cmp(&a.source_support_sum()))
+            .then_with(|| format!("{a:?}").cmp(&format!("{b:?}")))
+    }
+
+    pub fn compress_all(
+        generalizations: &[CrossContextSkillGeneralizationEvidence],
+        policy: SkillCompressionPolicy,
+    ) -> SkillCompressionResult {
+        let bounds = policy.bounds();
+        let thresholds = policy.thresholds();
+
+        let input_generalization_count = generalizations.len();
+
+        let mut ranked = generalizations.to_vec();
+
+        ranked.sort_by(Self::evidence_order);
+
+        ranked.dedup_by(|a, b| a.schema() == b.schema());
+
+        let unique_generalization_count = ranked.len();
+
+        ranked.truncate(bounds.max_input_generalizations());
+
+        let considered_generalization_count = ranked.len();
+
+        let mut evaluation_count = 0;
+        let mut evaluation_frontier_truncated = false;
+        let mut rejected_support_count = 0;
+        let mut rejected_step_bound_count = 0;
+        let mut rejected_threshold_count = 0;
+        let mut rejected_gain_count = 0;
+        let mut records = Vec::new();
+
+        for evidence in ranked {
+            if evaluation_count >= bounds.max_generalization_evaluations() {
+                evaluation_frontier_truncated = true;
+                break;
+            }
+
+            evaluation_count += 1;
+
+            if evidence.source_abstraction_pair_count() < thresholds.minimum_source_pair_count() {
+                rejected_support_count += 1;
+                continue;
+            }
+
+            if evidence.schema().step_count() > bounds.max_steps() {
+                rejected_step_bound_count += 1;
+                continue;
+            }
+
+            if evidence.success_confidence_floor().value()
+                < thresholds.minimum_success_confidence().value()
+                || evidence.step_confidence_floor().value()
+                    < thresholds.minimum_step_confidence().value()
+            {
+                rejected_threshold_count += 1;
+                continue;
+            }
+
+            let record = Self::compress(&evidence);
+
+            if !record.semantically_matches(evidence.schema()) {
+                continue;
+            }
+
+            if record.compression_gain() < thresholds.minimum_compression_gain() {
+                rejected_gain_count += 1;
+                continue;
+            }
+
+            records.push(record);
+        }
+
+        records.sort_by(Self::record_order);
+
+        let records_before_frontier = records.len();
+
+        records.truncate(bounds.max_records());
+
+        SkillCompressionResult {
+            input_generalization_count,
+            unique_generalization_count,
+            considered_generalization_count,
+            input_frontier_truncated: unique_generalization_count > considered_generalization_count,
+            evaluation_count,
+            evaluation_frontier_truncated,
+            rejected_support_count,
+            rejected_step_bound_count,
+            rejected_threshold_count,
+            rejected_gain_count,
+            records_before_frontier,
+            record_frontier_truncated: records_before_frontier > records.len(),
+            records,
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct UniversalLossControlledSkillCompression;
+
+impl UniversalLossControlledSkillCompression {
+    pub fn evaluate(
+        generalizations: &[CrossContextSkillGeneralizationEvidence],
+        policy: SkillCompressionPolicy,
+    ) -> SkillCompressionResult {
+        LossControlledSkillCompression::compress_all(generalizations, policy)
+    }
+}
