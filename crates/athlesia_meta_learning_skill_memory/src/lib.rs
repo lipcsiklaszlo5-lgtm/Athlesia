@@ -4506,3 +4506,938 @@ mod skill_revision_application_memory_update_tests {
         assert_eq!(evidence, evidence_before);
     }
 }
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum ConsolidatedSkillMemoryTier {
+    Hot,
+    Warm,
+    Cold,
+    Forgotten,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct SkillMemoryUseEvidence {
+    access_count: usize,
+    successful_reuse_count: usize,
+    failed_reuse_count: usize,
+    recency_signal: CognitiveSignal,
+}
+
+impl SkillMemoryUseEvidence {
+    pub fn new(
+        access_count: usize,
+        successful_reuse_count: usize,
+        failed_reuse_count: usize,
+        recency_signal: CognitiveSignal,
+    ) -> Option<Self> {
+        if successful_reuse_count.saturating_add(failed_reuse_count) > access_count
+            || recency_signal == CognitiveSignal::zero()
+        {
+            return None;
+        }
+
+        Some(Self {
+            access_count,
+            successful_reuse_count,
+            failed_reuse_count,
+            recency_signal,
+        })
+    }
+
+    pub fn access_count(&self) -> usize {
+        self.access_count
+    }
+
+    pub fn successful_reuse_count(&self) -> usize {
+        self.successful_reuse_count
+    }
+
+    pub fn failed_reuse_count(&self) -> usize {
+        self.failed_reuse_count
+    }
+
+    pub fn recency_signal(&self) -> CognitiveSignal {
+        self.recency_signal
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct SkillMemoryConsolidationCandidate {
+    memory: SkillRevisionMemoryEntry,
+    use_evidence: SkillMemoryUseEvidence,
+}
+
+impl SkillMemoryConsolidationCandidate {
+    pub fn new(memory: SkillRevisionMemoryEntry, use_evidence: SkillMemoryUseEvidence) -> Self {
+        Self {
+            memory,
+            use_evidence,
+        }
+    }
+
+    pub fn memory(&self) -> &SkillRevisionMemoryEntry {
+        &self.memory
+    }
+
+    pub fn use_evidence(&self) -> &SkillMemoryUseEvidence {
+        &self.use_evidence
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct SkillMemoryConsolidationBounds {
+    max_input_entries: usize,
+    max_evaluations: usize,
+    max_hot_entries: usize,
+    max_warm_entries: usize,
+    max_cold_entries: usize,
+    max_forgotten_archive_entries: usize,
+}
+
+impl SkillMemoryConsolidationBounds {
+    pub fn new(
+        max_input_entries: usize,
+        max_evaluations: usize,
+        max_hot_entries: usize,
+        max_warm_entries: usize,
+        max_cold_entries: usize,
+        max_forgotten_archive_entries: usize,
+    ) -> Option<Self> {
+        if max_input_entries == 0
+            || max_evaluations == 0
+            || max_hot_entries == 0
+            || max_warm_entries == 0
+            || max_cold_entries == 0
+            || max_forgotten_archive_entries == 0
+        {
+            return None;
+        }
+
+        Some(Self {
+            max_input_entries,
+            max_evaluations,
+            max_hot_entries,
+            max_warm_entries,
+            max_cold_entries,
+            max_forgotten_archive_entries,
+        })
+    }
+
+    pub fn max_input_entries(self) -> usize {
+        self.max_input_entries
+    }
+
+    pub fn max_evaluations(self) -> usize {
+        self.max_evaluations
+    }
+
+    pub fn max_hot_entries(self) -> usize {
+        self.max_hot_entries
+    }
+
+    pub fn max_warm_entries(self) -> usize {
+        self.max_warm_entries
+    }
+
+    pub fn max_cold_entries(self) -> usize {
+        self.max_cold_entries
+    }
+
+    pub fn max_forgotten_archive_entries(self) -> usize {
+        self.max_forgotten_archive_entries
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct SkillMemoryConsolidationThresholds {
+    hot_score: CognitiveSignal,
+    warm_score: CognitiveSignal,
+    minimum_retention_score: CognitiveSignal,
+    minimum_hot_successes: usize,
+    forgetting_failure_count: usize,
+}
+
+impl SkillMemoryConsolidationThresholds {
+    pub fn new(
+        hot_score: CognitiveSignal,
+        warm_score: CognitiveSignal,
+        minimum_retention_score: CognitiveSignal,
+        minimum_hot_successes: usize,
+        forgetting_failure_count: usize,
+    ) -> Option<Self> {
+        if hot_score == CognitiveSignal::zero()
+            || warm_score == CognitiveSignal::zero()
+            || minimum_retention_score == CognitiveSignal::zero()
+            || minimum_hot_successes == 0
+            || forgetting_failure_count == 0
+            || hot_score.value() < warm_score.value()
+            || warm_score.value() < minimum_retention_score.value()
+        {
+            return None;
+        }
+
+        Some(Self {
+            hot_score,
+            warm_score,
+            minimum_retention_score,
+            minimum_hot_successes,
+            forgetting_failure_count,
+        })
+    }
+
+    pub fn hot_score(self) -> CognitiveSignal {
+        self.hot_score
+    }
+
+    pub fn warm_score(self) -> CognitiveSignal {
+        self.warm_score
+    }
+
+    pub fn minimum_retention_score(self) -> CognitiveSignal {
+        self.minimum_retention_score
+    }
+
+    pub fn minimum_hot_successes(self) -> usize {
+        self.minimum_hot_successes
+    }
+
+    pub fn forgetting_failure_count(self) -> usize {
+        self.forgetting_failure_count
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct SkillMemoryConsolidationPolicy {
+    bounds: SkillMemoryConsolidationBounds,
+    thresholds: SkillMemoryConsolidationThresholds,
+}
+
+impl SkillMemoryConsolidationPolicy {
+    pub fn new(
+        bounds: SkillMemoryConsolidationBounds,
+        thresholds: SkillMemoryConsolidationThresholds,
+    ) -> Self {
+        Self { bounds, thresholds }
+    }
+
+    pub fn bounds(self) -> SkillMemoryConsolidationBounds {
+        self.bounds
+    }
+
+    pub fn thresholds(self) -> SkillMemoryConsolidationThresholds {
+        self.thresholds
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ConsolidatedSkillMemoryEntry {
+    memory: SkillRevisionMemoryEntry,
+    use_evidence: SkillMemoryUseEvidence,
+    tier: ConsolidatedSkillMemoryTier,
+    retention_score: Option<CognitiveSignal>,
+}
+
+impl ConsolidatedSkillMemoryEntry {
+    pub fn memory(&self) -> &SkillRevisionMemoryEntry {
+        &self.memory
+    }
+
+    pub fn use_evidence(&self) -> &SkillMemoryUseEvidence {
+        &self.use_evidence
+    }
+
+    pub fn tier(&self) -> ConsolidatedSkillMemoryTier {
+        self.tier
+    }
+
+    pub fn retention_score(&self) -> Option<CognitiveSignal> {
+        self.retention_score
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct SkillMemoryConsolidationResult {
+    input_entry_count: usize,
+    unique_entry_count: usize,
+    considered_entry_count: usize,
+    input_frontier_truncated: bool,
+    evaluation_count: usize,
+    evaluation_frontier_truncated: bool,
+    hot_before_frontier: usize,
+    warm_before_frontier: usize,
+    cold_before_frontier: usize,
+    forgotten_before_frontier: usize,
+    tier_frontier_truncated: bool,
+    hot: Vec<ConsolidatedSkillMemoryEntry>,
+    warm: Vec<ConsolidatedSkillMemoryEntry>,
+    cold: Vec<ConsolidatedSkillMemoryEntry>,
+    forgotten_archive: Vec<ConsolidatedSkillMemoryEntry>,
+}
+
+impl SkillMemoryConsolidationResult {
+    pub fn input_entry_count(&self) -> usize {
+        self.input_entry_count
+    }
+
+    pub fn unique_entry_count(&self) -> usize {
+        self.unique_entry_count
+    }
+
+    pub fn considered_entry_count(&self) -> usize {
+        self.considered_entry_count
+    }
+
+    pub fn input_frontier_truncated(&self) -> bool {
+        self.input_frontier_truncated
+    }
+
+    pub fn evaluation_count(&self) -> usize {
+        self.evaluation_count
+    }
+
+    pub fn evaluation_frontier_truncated(&self) -> bool {
+        self.evaluation_frontier_truncated
+    }
+
+    pub fn hot_before_frontier(&self) -> usize {
+        self.hot_before_frontier
+    }
+
+    pub fn warm_before_frontier(&self) -> usize {
+        self.warm_before_frontier
+    }
+
+    pub fn cold_before_frontier(&self) -> usize {
+        self.cold_before_frontier
+    }
+
+    pub fn forgotten_before_frontier(&self) -> usize {
+        self.forgotten_before_frontier
+    }
+
+    pub fn tier_frontier_truncated(&self) -> bool {
+        self.tier_frontier_truncated
+    }
+
+    pub fn hot(&self) -> &[ConsolidatedSkillMemoryEntry] {
+        &self.hot
+    }
+
+    pub fn warm(&self) -> &[ConsolidatedSkillMemoryEntry] {
+        &self.warm
+    }
+
+    pub fn cold(&self) -> &[ConsolidatedSkillMemoryEntry] {
+        &self.cold
+    }
+
+    pub fn forgotten_archive(&self) -> &[ConsolidatedSkillMemoryEntry] {
+        &self.forgotten_archive
+    }
+
+    pub fn retained_count(&self) -> usize {
+        self.hot
+            .len()
+            .saturating_add(self.warm.len())
+            .saturating_add(self.cold.len())
+    }
+
+    pub fn forgotten_count(&self) -> usize {
+        self.forgotten_archive.len()
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct SkillMemoryConsolidationAndForgetting;
+
+impl SkillMemoryConsolidationAndForgetting {
+    fn signal(value: u16) -> CognitiveSignal {
+        if value == 0 {
+            CognitiveSignal::zero()
+        } else {
+            CognitiveSignal::new(value).unwrap()
+        }
+    }
+
+    fn same_skill(
+        left: &SkillMemoryConsolidationCandidate,
+        right: &SkillMemoryConsolidationCandidate,
+    ) -> bool {
+        left.memory().record() == right.memory().record()
+    }
+
+    fn candidate_order(
+        left: &SkillMemoryConsolidationCandidate,
+        right: &SkillMemoryConsolidationCandidate,
+    ) -> std::cmp::Ordering {
+        right
+            .memory()
+            .reusable()
+            .cmp(&left.memory().reusable())
+            .then_with(|| {
+                right
+                    .memory()
+                    .revision_confidence_cap()
+                    .value()
+                    .cmp(&left.memory().revision_confidence_cap().value())
+            })
+            .then_with(|| {
+                right
+                    .use_evidence()
+                    .successful_reuse_count()
+                    .cmp(&left.use_evidence().successful_reuse_count())
+            })
+            .then_with(|| {
+                right
+                    .use_evidence()
+                    .recency_signal()
+                    .value()
+                    .cmp(&left.use_evidence().recency_signal().value())
+            })
+            .then_with(|| {
+                format!("{:?}", left.memory().record())
+                    .cmp(&format!("{:?}", right.memory().record()))
+            })
+    }
+
+    fn retention_score(
+        memory: &SkillRevisionMemoryEntry,
+        evidence: &SkillMemoryUseEvidence,
+    ) -> Option<CognitiveSignal> {
+        if evidence.access_count() == 0 {
+            return None;
+        }
+
+        let utility = (evidence.successful_reuse_count().saturating_mul(1000)
+            / evidence.access_count())
+        .min(1000) as u16;
+
+        let confidence = memory.revision_confidence_cap().value();
+
+        let recency = evidence.recency_signal().value();
+
+        Some(Self::signal(confidence.min(recency).min(utility)))
+    }
+
+    fn classify(
+        candidate: SkillMemoryConsolidationCandidate,
+        thresholds: SkillMemoryConsolidationThresholds,
+    ) -> ConsolidatedSkillMemoryEntry {
+        let score = Self::retention_score(candidate.memory(), candidate.use_evidence());
+
+        let tier = if candidate.use_evidence().failed_reuse_count()
+            >= thresholds.forgetting_failure_count()
+        {
+            ConsolidatedSkillMemoryTier::Forgotten
+        } else if !candidate.memory().reusable() {
+            ConsolidatedSkillMemoryTier::Cold
+        } else {
+            match score {
+                None => ConsolidatedSkillMemoryTier::Cold,
+
+                Some(value) if value.value() < thresholds.minimum_retention_score().value() => {
+                    ConsolidatedSkillMemoryTier::Forgotten
+                }
+
+                Some(value)
+                    if value.value() >= thresholds.hot_score().value()
+                        && candidate.use_evidence().successful_reuse_count()
+                            >= thresholds.minimum_hot_successes() =>
+                {
+                    ConsolidatedSkillMemoryTier::Hot
+                }
+
+                Some(value) if value.value() >= thresholds.warm_score().value() => {
+                    ConsolidatedSkillMemoryTier::Warm
+                }
+
+                Some(_) => ConsolidatedSkillMemoryTier::Cold,
+            }
+        };
+
+        ConsolidatedSkillMemoryEntry {
+            memory: candidate.memory,
+            use_evidence: candidate.use_evidence,
+            tier,
+            retention_score: score,
+        }
+    }
+
+    fn consolidated_order(
+        left: &ConsolidatedSkillMemoryEntry,
+        right: &ConsolidatedSkillMemoryEntry,
+    ) -> std::cmp::Ordering {
+        right
+            .retention_score()
+            .map(|x| x.value())
+            .unwrap_or(0)
+            .cmp(&left.retention_score().map(|x| x.value()).unwrap_or(0))
+            .then_with(|| {
+                right
+                    .use_evidence()
+                    .successful_reuse_count()
+                    .cmp(&left.use_evidence().successful_reuse_count())
+            })
+            .then_with(|| {
+                right
+                    .memory()
+                    .revision_confidence_cap()
+                    .value()
+                    .cmp(&left.memory().revision_confidence_cap().value())
+            })
+            .then_with(|| {
+                format!("{:?}", left.memory().record())
+                    .cmp(&format!("{:?}", right.memory().record()))
+            })
+    }
+
+    pub fn consolidate(
+        candidates: &[SkillMemoryConsolidationCandidate],
+        policy: SkillMemoryConsolidationPolicy,
+    ) -> SkillMemoryConsolidationResult {
+        let bounds = policy.bounds();
+        let thresholds = policy.thresholds();
+
+        let input_entry_count = candidates.len();
+
+        let mut ranked = candidates.to_vec();
+
+        ranked.sort_by(Self::candidate_order);
+
+        ranked.dedup_by(|left, right| Self::same_skill(left, right));
+
+        let unique_entry_count = ranked.len();
+
+        ranked.truncate(bounds.max_input_entries());
+
+        let considered_entry_count = ranked.len();
+
+        let mut evaluation_count = 0;
+        let mut evaluation_frontier_truncated = false;
+
+        let mut hot = Vec::new();
+        let mut warm = Vec::new();
+        let mut cold = Vec::new();
+        let mut forgotten_archive = Vec::new();
+
+        for candidate in ranked {
+            if evaluation_count >= bounds.max_evaluations() {
+                evaluation_frontier_truncated = true;
+                break;
+            }
+
+            evaluation_count += 1;
+
+            let consolidated = Self::classify(candidate, thresholds);
+
+            match consolidated.tier() {
+                ConsolidatedSkillMemoryTier::Hot => {
+                    hot.push(consolidated);
+                }
+
+                ConsolidatedSkillMemoryTier::Warm => {
+                    warm.push(consolidated);
+                }
+
+                ConsolidatedSkillMemoryTier::Cold => {
+                    cold.push(consolidated);
+                }
+
+                ConsolidatedSkillMemoryTier::Forgotten => {
+                    forgotten_archive.push(consolidated);
+                }
+            }
+        }
+
+        hot.sort_by(Self::consolidated_order);
+        warm.sort_by(Self::consolidated_order);
+        cold.sort_by(Self::consolidated_order);
+        forgotten_archive.sort_by(Self::consolidated_order);
+
+        let hot_before_frontier = hot.len();
+        let warm_before_frontier = warm.len();
+        let cold_before_frontier = cold.len();
+        let forgotten_before_frontier = forgotten_archive.len();
+
+        hot.truncate(bounds.max_hot_entries());
+
+        warm.truncate(bounds.max_warm_entries());
+
+        cold.truncate(bounds.max_cold_entries());
+
+        forgotten_archive.truncate(bounds.max_forgotten_archive_entries());
+
+        let tier_frontier_truncated = hot_before_frontier > hot.len()
+            || warm_before_frontier > warm.len()
+            || cold_before_frontier > cold.len()
+            || forgotten_before_frontier > forgotten_archive.len();
+
+        SkillMemoryConsolidationResult {
+            input_entry_count,
+            unique_entry_count,
+            considered_entry_count,
+            input_frontier_truncated: unique_entry_count > considered_entry_count,
+            evaluation_count,
+            evaluation_frontier_truncated,
+            hot_before_frontier,
+            warm_before_frontier,
+            cold_before_frontier,
+            forgotten_before_frontier,
+            tier_frontier_truncated,
+            hot,
+            warm,
+            cold,
+            forgotten_archive,
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct UniversalSkillMemoryConsolidationAndForgetting;
+
+impl UniversalSkillMemoryConsolidationAndForgetting {
+    pub fn evaluate(
+        candidates: &[SkillMemoryConsolidationCandidate],
+        policy: SkillMemoryConsolidationPolicy,
+    ) -> SkillMemoryConsolidationResult {
+        SkillMemoryConsolidationAndForgetting::consolidate(candidates, policy)
+    }
+}
+
+#[cfg(test)]
+mod skill_memory_consolidation_forgetting_tests {
+    use super::*;
+
+    fn s(value: u16) -> CognitiveSignal {
+        if value == 0 {
+            CognitiveSignal::zero()
+        } else {
+            CognitiveSignal::new(value).unwrap()
+        }
+    }
+
+    fn a(value: u64) -> CognitiveStructure {
+        CognitiveStructure::atom(value)
+    }
+
+    fn record(id: u64) -> CompressedSkillRecord {
+        CompressedSkillRecord {
+            invariant_dictionary: vec![a(id)],
+            initial_state: CompressedSkillTerm::StructuralSlot(0),
+            goal_identity: CompressedSkillTerm::InvariantRef(0),
+            steps: vec![
+                CompressedSkillStep {
+                    required_state: CompressedSkillTerm::StructuralSlot(0),
+                    action: CompressedSkillTerm::StructuralSlot(1),
+                    observed_outcome: CompressedSkillTerm::StructuralSlot(2),
+                },
+                CompressedSkillStep {
+                    required_state: CompressedSkillTerm::StructuralSlot(2),
+                    action: CompressedSkillTerm::InvariantRef(0),
+                    observed_outcome: CompressedSkillTerm::InvariantRef(0),
+                },
+            ],
+            structural_slot_count: 3,
+            context_slot_count: 0,
+            invariant_occurrence_count: 3,
+            compression_gain: 2,
+            source_generalization_count: 2,
+            source_support_sum: 8,
+            success_confidence_floor: s(900),
+            step_confidence_floor: s(900),
+        }
+    }
+
+    fn memory(id: u64) -> SkillRevisionMemoryEntry {
+        SkillRevisionMemoryEntry::new(record(id))
+    }
+
+    fn evidence(
+        accesses: usize,
+        successes: usize,
+        failures: usize,
+        recency: u16,
+    ) -> SkillMemoryUseEvidence {
+        SkillMemoryUseEvidence::new(accesses, successes, failures, s(recency)).unwrap()
+    }
+
+    fn candidate(
+        id: u64,
+        accesses: usize,
+        successes: usize,
+        failures: usize,
+        recency: u16,
+    ) -> SkillMemoryConsolidationCandidate {
+        SkillMemoryConsolidationCandidate::new(
+            memory(id),
+            evidence(accesses, successes, failures, recency),
+        )
+    }
+
+    fn thresholds() -> SkillMemoryConsolidationThresholds {
+        SkillMemoryConsolidationThresholds::new(s(700), s(500), s(200), 3, 5).unwrap()
+    }
+
+    fn policy() -> SkillMemoryConsolidationPolicy {
+        SkillMemoryConsolidationPolicy::new(
+            SkillMemoryConsolidationBounds::new(32, 32, 32, 32, 32, 32).unwrap(),
+            thresholds(),
+        )
+    }
+
+    fn suspended_memory(id: u64) -> SkillRevisionMemoryEntry {
+        let entry = memory(id);
+
+        let feedback = SkillOutcomeFeedbackResult {
+            input_observation_count: 2,
+            considered_observation_count: 2,
+            observation_frontier_truncated: false,
+            evaluation_count: 2,
+            evaluation_frontier_truncated: false,
+            low_confidence_count: 0,
+            exact_step_count: 0,
+            execution_mismatch_count: 1,
+            outcome_mismatch_count: 0,
+            missing_plan_step_count: 0,
+            extra_observation_count: 0,
+            feedback_confidence_floor: Some(s(900)),
+            disposition: SkillRevisionDisposition::Suspend,
+        };
+
+        let revision_policy = SkillRevisionMemoryPolicy::new(8, 100, 100, s(500), s(500)).unwrap();
+
+        SkillRevisionApplicationAndMemoryUpdate::apply(&entry, &feedback, revision_policy)
+            .memory()
+            .clone()
+    }
+
+    #[test]
+    fn consolidation_policy_and_use_evidence_require_valid_bounds() {
+        assert_eq!(SkillMemoryConsolidationBounds::new(0, 1, 1, 1, 1, 1), None);
+
+        assert_eq!(SkillMemoryUseEvidence::new(1, 2, 0, s(900)), None);
+
+        assert_eq!(
+            SkillMemoryConsolidationThresholds::new(s(500), s(700), s(200), 1, 1,),
+            None
+        );
+
+        assert!(SkillMemoryConsolidationBounds::new(1, 1, 1, 1, 1, 1).is_some());
+    }
+
+    #[test]
+    fn unused_active_skill_moves_to_cold_memory_without_forgetting() {
+        let result = SkillMemoryConsolidationAndForgetting::consolidate(
+            &[candidate(1, 0, 0, 0, 900)],
+            policy(),
+        );
+
+        assert_eq!(result.cold().len(), 1);
+        assert_eq!(result.forgotten_count(), 0);
+
+        assert_eq!(result.cold()[0].tier(), ConsolidatedSkillMemoryTier::Cold);
+
+        assert_eq!(result.cold()[0].retention_score(), None);
+    }
+
+    #[test]
+    fn reliable_frequent_recent_skill_becomes_hot() {
+        let result = SkillMemoryConsolidationAndForgetting::consolidate(
+            &[candidate(2, 10, 9, 1, 900)],
+            policy(),
+        );
+
+        assert_eq!(result.hot().len(), 1);
+
+        assert_eq!(result.hot()[0].retention_score().unwrap(), s(900));
+    }
+
+    #[test]
+    fn moderate_evidence_skill_becomes_warm() {
+        let result = SkillMemoryConsolidationAndForgetting::consolidate(
+            &[candidate(3, 10, 7, 1, 650)],
+            policy(),
+        );
+
+        assert_eq!(result.warm().len(), 1);
+
+        assert_eq!(result.warm()[0].retention_score().unwrap(), s(650));
+    }
+
+    #[test]
+    fn low_but_retained_score_keeps_skill_cold() {
+        let result = SkillMemoryConsolidationAndForgetting::consolidate(
+            &[candidate(4, 10, 3, 1, 400)],
+            policy(),
+        );
+
+        assert_eq!(result.cold().len(), 1);
+
+        assert_eq!(result.cold()[0].retention_score().unwrap(), s(300));
+    }
+
+    #[test]
+    fn insufficient_retention_score_moves_skill_to_forgotten_archive() {
+        let result = SkillMemoryConsolidationAndForgetting::consolidate(
+            &[candidate(5, 10, 1, 1, 900)],
+            policy(),
+        );
+
+        assert_eq!(result.forgotten_count(), 1);
+
+        assert_eq!(
+            result.forgotten_archive()[0].tier(),
+            ConsolidatedSkillMemoryTier::Forgotten
+        );
+
+        assert_eq!(
+            result.forgotten_archive()[0].retention_score().unwrap(),
+            s(100)
+        );
+    }
+
+    #[test]
+    fn repeated_failures_force_forgetting_despite_high_confidence() {
+        let result = SkillMemoryConsolidationAndForgetting::consolidate(
+            &[candidate(6, 10, 5, 5, 1000)],
+            policy(),
+        );
+
+        assert_eq!(result.forgotten_count(), 1);
+    }
+
+    #[test]
+    fn suspended_skill_cannot_enter_hot_or_warm_memory() {
+        let candidate =
+            SkillMemoryConsolidationCandidate::new(suspended_memory(7), evidence(10, 10, 0, 1000));
+
+        let result = SkillMemoryConsolidationAndForgetting::consolidate(&[candidate], policy());
+
+        assert!(result.hot().is_empty());
+        assert!(result.warm().is_empty());
+        assert_eq!(result.cold().len(), 1);
+    }
+
+    #[test]
+    fn consolidation_preserves_skill_revision_and_source_provenance() {
+        let candidate = candidate(8, 10, 9, 0, 900);
+
+        let before = candidate.memory().clone();
+
+        let result = SkillMemoryConsolidationAndForgetting::consolidate(
+            std::slice::from_ref(&candidate),
+            policy(),
+        );
+
+        let after = result.hot()[0].memory();
+
+        assert_eq!(after, &before);
+
+        assert_eq!(after.record(), before.record());
+    }
+
+    #[test]
+    fn semantic_duplicate_keeps_stronger_usage_evidence_once() {
+        let weak = candidate(9, 10, 5, 1, 600);
+
+        let strong = candidate(9, 10, 9, 0, 900);
+
+        let result = SkillMemoryConsolidationAndForgetting::consolidate(&[weak, strong], policy());
+
+        assert_eq!(result.input_entry_count(), 2);
+
+        assert_eq!(result.unique_entry_count(), 1);
+
+        assert_eq!(result.hot().len(), 1);
+
+        assert_eq!(result.hot()[0].use_evidence().successful_reuse_count(), 9);
+    }
+
+    #[test]
+    fn hard_input_evaluation_and_tier_frontiers_are_enforced() {
+        let items = vec![
+            candidate(10, 10, 10, 0, 1000),
+            candidate(11, 10, 9, 0, 900),
+            candidate(12, 10, 1, 0, 900),
+        ];
+
+        let input_policy = SkillMemoryConsolidationPolicy::new(
+            SkillMemoryConsolidationBounds::new(1, 32, 32, 32, 32, 32).unwrap(),
+            thresholds(),
+        );
+
+        let input = SkillMemoryConsolidationAndForgetting::consolidate(&items, input_policy);
+
+        assert_eq!(input.unique_entry_count(), 3);
+
+        assert_eq!(input.considered_entry_count(), 1);
+
+        assert!(input.input_frontier_truncated());
+
+        let eval_policy = SkillMemoryConsolidationPolicy::new(
+            SkillMemoryConsolidationBounds::new(32, 1, 32, 32, 32, 32).unwrap(),
+            thresholds(),
+        );
+
+        let eval = SkillMemoryConsolidationAndForgetting::consolidate(&items, eval_policy);
+
+        assert_eq!(eval.evaluation_count(), 1);
+
+        assert!(eval.evaluation_frontier_truncated());
+
+        let frontier_policy = SkillMemoryConsolidationPolicy::new(
+            SkillMemoryConsolidationBounds::new(32, 32, 1, 32, 32, 1).unwrap(),
+            thresholds(),
+        );
+
+        let frontier = SkillMemoryConsolidationAndForgetting::consolidate(
+            &[
+                candidate(20, 10, 10, 0, 1000),
+                candidate(21, 10, 9, 0, 900),
+                candidate(22, 10, 1, 0, 900),
+                candidate(23, 10, 1, 0, 900),
+            ],
+            frontier_policy,
+        );
+
+        assert_eq!(frontier.hot_before_frontier(), 2);
+
+        assert_eq!(frontier.forgotten_before_frontier(), 2);
+
+        assert_eq!(frontier.hot().len(), 1);
+
+        assert_eq!(frontier.forgotten_archive().len(), 1);
+
+        assert!(frontier.tier_frontier_truncated());
+    }
+
+    #[test]
+    fn consolidation_is_deterministic_non_mutating_and_facade_equivalent() {
+        let items = vec![
+            candidate(30, 10, 7, 1, 650),
+            candidate(31, 10, 9, 0, 900),
+            candidate(32, 10, 2, 0, 500),
+        ];
+
+        let before = items.clone();
+
+        let mut reversed = items.clone();
+
+        reversed.reverse();
+
+        let p = policy();
+
+        let direct = SkillMemoryConsolidationAndForgetting::consolidate(&items, p);
+
+        let reordered = SkillMemoryConsolidationAndForgetting::consolidate(&reversed, p);
+
+        let facade = UniversalSkillMemoryConsolidationAndForgetting::evaluate(&items, p);
+
+        let repeated = UniversalSkillMemoryConsolidationAndForgetting::evaluate(&items, p);
+
+        assert_eq!(direct, reordered);
+        assert_eq!(direct, facade);
+        assert_eq!(facade, repeated);
+        assert_eq!(items, before);
+    }
+}
