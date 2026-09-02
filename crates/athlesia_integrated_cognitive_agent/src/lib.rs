@@ -5159,3 +5159,548 @@ mod integrated_cognitive_cycle_tests {
         assert_eq!(facade.anchor_state(), &a(1000));
     }
 }
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum CognitiveCycleTransitionAuthority {
+    PreserveAnchor,
+    AdoptLayer(IntegratedCognitiveLayer),
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct CognitiveCycleStateTransitionRequest {
+    expected_anchor_state: CognitiveStructure,
+    authority: CognitiveCycleTransitionAuthority,
+    expected_authority_provenance: Option<CognitiveStructure>,
+}
+
+impl CognitiveCycleStateTransitionRequest {
+    pub fn new(
+        expected_anchor_state: CognitiveStructure,
+        authority: CognitiveCycleTransitionAuthority,
+        expected_authority_provenance: Option<CognitiveStructure>,
+    ) -> Option<Self> {
+        let provenance_contract_valid = match authority {
+            CognitiveCycleTransitionAuthority::PreserveAnchor => {
+                expected_authority_provenance.is_none()
+            }
+            CognitiveCycleTransitionAuthority::AdoptLayer(_) => {
+                expected_authority_provenance.is_some()
+            }
+        };
+
+        if !provenance_contract_valid {
+            return None;
+        }
+
+        Some(Self {
+            expected_anchor_state,
+            authority,
+            expected_authority_provenance,
+        })
+    }
+
+    pub fn expected_anchor_state(&self) -> &CognitiveStructure {
+        &self.expected_anchor_state
+    }
+
+    pub fn authority(&self) -> CognitiveCycleTransitionAuthority {
+        self.authority
+    }
+
+    pub fn expected_authority_provenance(&self) -> Option<&CognitiveStructure> {
+        self.expected_authority_provenance.as_ref()
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum CognitiveCycleStateTransitionStatus {
+    Transitioned,
+    PreservedAnchor,
+    CycleNotIntegrated,
+    AnchorMismatch,
+    AuthorityLayerMissing,
+    AuthorityProvenanceMismatch,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct CognitiveCycleStateTransitionResult {
+    status: CognitiveCycleStateTransitionStatus,
+    authority: CognitiveCycleTransitionAuthority,
+    previous_anchor_state: CognitiveStructure,
+    next_anchor_state: Option<CognitiveStructure>,
+    authority_provenance: Option<CognitiveStructure>,
+}
+
+impl CognitiveCycleStateTransitionResult {
+    pub fn status(&self) -> CognitiveCycleStateTransitionStatus {
+        self.status
+    }
+
+    pub fn authority(&self) -> CognitiveCycleTransitionAuthority {
+        self.authority
+    }
+
+    pub fn previous_anchor_state(&self) -> &CognitiveStructure {
+        &self.previous_anchor_state
+    }
+
+    pub fn next_anchor_state(&self) -> Option<&CognitiveStructure> {
+        self.next_anchor_state.as_ref()
+    }
+
+    pub fn authority_provenance(&self) -> Option<&CognitiveStructure> {
+        self.authority_provenance.as_ref()
+    }
+
+    pub fn accepted(&self) -> bool {
+        matches!(
+            self.status,
+            CognitiveCycleStateTransitionStatus::Transitioned
+                | CognitiveCycleStateTransitionStatus::PreservedAnchor
+        )
+    }
+
+    pub fn transitioned(&self) -> bool {
+        self.status == CognitiveCycleStateTransitionStatus::Transitioned
+    }
+
+    pub fn preserved_anchor(&self) -> bool {
+        self.status == CognitiveCycleStateTransitionStatus::PreservedAnchor
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct CognitiveCycleStateTransition;
+
+impl CognitiveCycleStateTransition {
+    fn reject(
+        cycle: &IntegratedCognitiveCycleResult,
+        request: &CognitiveCycleStateTransitionRequest,
+        status: CognitiveCycleStateTransitionStatus,
+    ) -> CognitiveCycleStateTransitionResult {
+        CognitiveCycleStateTransitionResult {
+            status,
+            authority: request.authority(),
+            previous_anchor_state: cycle.anchor_state().clone(),
+            next_anchor_state: None,
+            authority_provenance: None,
+        }
+    }
+
+    pub fn apply(
+        cycle: &IntegratedCognitiveCycleResult,
+        request: &CognitiveCycleStateTransitionRequest,
+    ) -> CognitiveCycleStateTransitionResult {
+        if !cycle.integrated() {
+            return Self::reject(
+                cycle,
+                request,
+                CognitiveCycleStateTransitionStatus::CycleNotIntegrated,
+            );
+        }
+
+        if cycle.anchor_state() != request.expected_anchor_state() {
+            return Self::reject(
+                cycle,
+                request,
+                CognitiveCycleStateTransitionStatus::AnchorMismatch,
+            );
+        }
+
+        match request.authority() {
+            CognitiveCycleTransitionAuthority::PreserveAnchor => {
+                CognitiveCycleStateTransitionResult {
+                    status: CognitiveCycleStateTransitionStatus::PreservedAnchor,
+                    authority: request.authority(),
+                    previous_anchor_state: cycle.anchor_state().clone(),
+                    next_anchor_state: Some(cycle.anchor_state().clone()),
+                    authority_provenance: None,
+                }
+            }
+
+            CognitiveCycleTransitionAuthority::AdoptLayer(layer) => {
+                let Some(phase) = cycle.phase(layer) else {
+                    return Self::reject(
+                        cycle,
+                        request,
+                        CognitiveCycleStateTransitionStatus::AuthorityLayerMissing,
+                    );
+                };
+
+                let Some(expected_provenance) = request.expected_authority_provenance() else {
+                    return Self::reject(
+                        cycle,
+                        request,
+                        CognitiveCycleStateTransitionStatus::AuthorityProvenanceMismatch,
+                    );
+                };
+
+                if phase.provenance() != expected_provenance {
+                    return Self::reject(
+                        cycle,
+                        request,
+                        CognitiveCycleStateTransitionStatus::AuthorityProvenanceMismatch,
+                    );
+                }
+
+                CognitiveCycleStateTransitionResult {
+                    status: CognitiveCycleStateTransitionStatus::Transitioned,
+                    authority: request.authority(),
+                    previous_anchor_state: cycle.anchor_state().clone(),
+                    next_anchor_state: Some(phase.result_state().clone()),
+                    authority_provenance: Some(phase.provenance().clone()),
+                }
+            }
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct UniversalCognitiveCycleStateTransition;
+
+impl UniversalCognitiveCycleStateTransition {
+    pub fn evaluate(
+        cycle: &IntegratedCognitiveCycleResult,
+        request: &CognitiveCycleStateTransitionRequest,
+    ) -> CognitiveCycleStateTransitionResult {
+        CognitiveCycleStateTransition::apply(cycle, request)
+    }
+}
+
+#[cfg(test)]
+mod cognitive_cycle_state_transition_tests {
+    use super::*;
+
+    fn s(value: u16) -> CognitiveSignal {
+        if value == 0 {
+            CognitiveSignal::zero()
+        } else {
+            CognitiveSignal::new(value).unwrap()
+        }
+    }
+
+    fn a(value: u64) -> CognitiveStructure {
+        CognitiveStructure::atom(value)
+    }
+
+    fn policy() -> IntegratedAgentPolicy {
+        IntegratedAgentPolicy::new(
+            IntegratedAgentBounds::new(5, 2000).unwrap(),
+            IntegratedAgentThresholds::new(s(500)).unwrap(),
+        )
+    }
+
+    fn contribution(
+        layer: IntegratedCognitiveLayer,
+        result_state: u64,
+        provenance: u64,
+    ) -> IntegratedLayerContribution {
+        IntegratedLayerContribution::new(
+            layer,
+            a(1000),
+            a(result_state),
+            a(provenance),
+            s(900),
+            s(200),
+        )
+        .unwrap()
+    }
+
+    fn contributions() -> Vec<IntegratedLayerContribution> {
+        vec![
+            contribution(IntegratedCognitiveLayer::PerceptualGrounding, 1001, 9001),
+            contribution(
+                IntegratedCognitiveLayer::UniversalDomainLearning,
+                1002,
+                9002,
+            ),
+            contribution(IntegratedCognitiveLayer::ExecutiveAgency, 1003, 9003),
+            contribution(
+                IntegratedCognitiveLayer::MetaLearningSkillMemory,
+                1004,
+                9004,
+            ),
+            contribution(
+                IntegratedCognitiveLayer::AutonomousExperimentation,
+                1005,
+                9005,
+            ),
+        ]
+    }
+
+    fn cycle() -> IntegratedCognitiveCycleResult {
+        IntegratedCognitiveCycle::run(&a(1000), &contributions(), policy())
+    }
+
+    fn adopt(
+        layer: IntegratedCognitiveLayer,
+        provenance: u64,
+    ) -> CognitiveCycleStateTransitionRequest {
+        CognitiveCycleStateTransitionRequest::new(
+            a(1000),
+            CognitiveCycleTransitionAuthority::AdoptLayer(layer),
+            Some(a(provenance)),
+        )
+        .unwrap()
+    }
+
+    #[test]
+    fn transition_request_requires_authority_specific_provenance_contract() {
+        assert!(CognitiveCycleStateTransitionRequest::new(
+            a(1000),
+            CognitiveCycleTransitionAuthority::PreserveAnchor,
+            None,
+        )
+        .is_some());
+
+        assert!(CognitiveCycleStateTransitionRequest::new(
+            a(1000),
+            CognitiveCycleTransitionAuthority::PreserveAnchor,
+            Some(a(9000)),
+        )
+        .is_none());
+
+        assert!(CognitiveCycleStateTransitionRequest::new(
+            a(1000),
+            CognitiveCycleTransitionAuthority::AdoptLayer(
+                IntegratedCognitiveLayer::ExecutiveAgency,
+            ),
+            None,
+        )
+        .is_none());
+    }
+
+    #[test]
+    fn preserve_anchor_is_an_explicit_accepted_transition_decision() {
+        let request = CognitiveCycleStateTransitionRequest::new(
+            a(1000),
+            CognitiveCycleTransitionAuthority::PreserveAnchor,
+            None,
+        )
+        .unwrap();
+
+        let result = CognitiveCycleStateTransition::apply(&cycle(), &request);
+
+        assert!(result.accepted());
+
+        assert!(result.preserved_anchor());
+
+        assert_eq!(result.next_anchor_state(), Some(&a(1000)));
+
+        assert_eq!(result.authority_provenance(), None);
+    }
+
+    #[test]
+    fn every_frozen_layer_can_be_explicit_transition_authority() {
+        for (layer, provenance, expected_state) in [
+            (IntegratedCognitiveLayer::PerceptualGrounding, 9001, 1001),
+            (
+                IntegratedCognitiveLayer::UniversalDomainLearning,
+                9002,
+                1002,
+            ),
+            (IntegratedCognitiveLayer::ExecutiveAgency, 9003, 1003),
+            (
+                IntegratedCognitiveLayer::MetaLearningSkillMemory,
+                9004,
+                1004,
+            ),
+            (
+                IntegratedCognitiveLayer::AutonomousExperimentation,
+                9005,
+                1005,
+            ),
+        ] {
+            let result = CognitiveCycleStateTransition::apply(&cycle(), &adopt(layer, provenance));
+
+            assert!(result.transitioned());
+
+            assert_eq!(result.next_anchor_state(), Some(&a(expected_state)));
+
+            assert_eq!(
+                result.authority(),
+                CognitiveCycleTransitionAuthority::AdoptLayer(layer)
+            );
+        }
+    }
+
+    #[test]
+    fn transition_preserves_exact_authority_provenance() {
+        let result = CognitiveCycleStateTransition::apply(
+            &cycle(),
+            &adopt(IntegratedCognitiveLayer::ExecutiveAgency, 9003),
+        );
+
+        assert_eq!(result.authority_provenance(), Some(&a(9003)));
+
+        assert_eq!(result.previous_anchor_state(), &a(1000));
+
+        assert_eq!(result.next_anchor_state(), Some(&a(1003)));
+    }
+
+    #[test]
+    fn stale_or_wrong_authority_provenance_rejects_transition_atomically() {
+        let result = CognitiveCycleStateTransition::apply(
+            &cycle(),
+            &adopt(IntegratedCognitiveLayer::ExecutiveAgency, 9999),
+        );
+
+        assert_eq!(
+            result.status(),
+            CognitiveCycleStateTransitionStatus::AuthorityProvenanceMismatch
+        );
+
+        assert!(!result.accepted());
+
+        assert!(result.next_anchor_state().is_none());
+    }
+
+    #[test]
+    fn stale_expected_anchor_rejects_transition_atomically() {
+        let request = CognitiveCycleStateTransitionRequest::new(
+            a(9999),
+            CognitiveCycleTransitionAuthority::AdoptLayer(
+                IntegratedCognitiveLayer::ExecutiveAgency,
+            ),
+            Some(a(9003)),
+        )
+        .unwrap();
+
+        let result = CognitiveCycleStateTransition::apply(&cycle(), &request);
+
+        assert_eq!(
+            result.status(),
+            CognitiveCycleStateTransitionStatus::AnchorMismatch
+        );
+
+        assert!(result.next_anchor_state().is_none());
+    }
+
+    #[test]
+    fn rejected_cognitive_cycle_cannot_advance_agent_state() {
+        let mut incomplete = contributions();
+
+        incomplete.pop();
+
+        let rejected = IntegratedCognitiveCycle::run(&a(1000), &incomplete, policy());
+
+        assert!(!rejected.integrated());
+
+        let result = CognitiveCycleStateTransition::apply(
+            &rejected,
+            &adopt(IntegratedCognitiveLayer::ExecutiveAgency, 9003),
+        );
+
+        assert_eq!(
+            result.status(),
+            CognitiveCycleStateTransitionStatus::CycleNotIntegrated
+        );
+
+        assert!(result.next_anchor_state().is_none());
+    }
+
+    #[test]
+    fn low_confidence_filtered_cycle_cannot_create_partial_transition() {
+        let mut input = contributions();
+
+        input[2] = IntegratedLayerContribution::new(
+            IntegratedCognitiveLayer::ExecutiveAgency,
+            a(1000),
+            a(1003),
+            a(9003),
+            s(400),
+            s(200),
+        )
+        .unwrap();
+
+        let rejected = IntegratedCognitiveCycle::run(&a(1000), &input, policy());
+
+        let result = CognitiveCycleStateTransition::apply(
+            &rejected,
+            &adopt(IntegratedCognitiveLayer::ExecutiveAgency, 9003),
+        );
+
+        assert_eq!(
+            result.status(),
+            CognitiveCycleStateTransitionStatus::CycleNotIntegrated
+        );
+
+        assert!(!result.accepted());
+    }
+
+    #[test]
+    fn transition_authority_selects_exact_opaque_state_without_merging_layers() {
+        let executive = CognitiveCycleStateTransition::apply(
+            &cycle(),
+            &adopt(IntegratedCognitiveLayer::ExecutiveAgency, 9003),
+        );
+
+        let experimentation = CognitiveCycleStateTransition::apply(
+            &cycle(),
+            &adopt(IntegratedCognitiveLayer::AutonomousExperimentation, 9005),
+        );
+
+        assert_eq!(executive.next_anchor_state(), Some(&a(1003)));
+
+        assert_eq!(experimentation.next_anchor_state(), Some(&a(1005)));
+
+        assert_ne!(
+            executive.next_anchor_state(),
+            experimentation.next_anchor_state()
+        );
+    }
+
+    #[test]
+    fn cycle_input_order_cannot_change_authorized_transition() {
+        let original = contributions();
+
+        let mut reversed = original.clone();
+
+        reversed.reverse();
+
+        let first_cycle = IntegratedCognitiveCycle::run(&a(1000), &original, policy());
+
+        let second_cycle = IntegratedCognitiveCycle::run(&a(1000), &reversed, policy());
+
+        let request = adopt(IntegratedCognitiveLayer::MetaLearningSkillMemory, 9004);
+
+        let first = CognitiveCycleStateTransition::apply(&first_cycle, &request);
+
+        let second = CognitiveCycleStateTransition::apply(&second_cycle, &request);
+
+        assert_eq!(first, second);
+    }
+
+    #[test]
+    fn transition_does_not_mutate_integrated_cycle() {
+        let cycle = cycle();
+
+        let before = cycle.clone();
+
+        let _ = CognitiveCycleStateTransition::apply(
+            &cycle,
+            &adopt(IntegratedCognitiveLayer::UniversalDomainLearning, 9002),
+        );
+
+        assert_eq!(cycle, before);
+    }
+
+    #[test]
+    fn transition_is_deterministic_and_universal_facade_equivalent() {
+        let cycle = cycle();
+
+        let request = adopt(IntegratedCognitiveLayer::AutonomousExperimentation, 9005);
+
+        let direct = CognitiveCycleStateTransition::apply(&cycle, &request);
+
+        let facade = UniversalCognitiveCycleStateTransition::evaluate(&cycle, &request);
+
+        let repeated = UniversalCognitiveCycleStateTransition::evaluate(&cycle, &request);
+
+        assert_eq!(direct, facade);
+
+        assert_eq!(facade, repeated);
+
+        assert_eq!(facade.next_anchor_state(), Some(&a(1005)));
+    }
+}

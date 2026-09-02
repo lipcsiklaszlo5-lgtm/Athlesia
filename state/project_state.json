@@ -56,7 +56,7 @@
     "crates/athlesia_hierarchy/tests/hierarchy_recognition.rs": "bc7fe6ac289f8697e65b2ebe9aab179ae0cdb2db655fed18afae454bf2132841",
     "crates/athlesia_integrated_cognitive_agent/Cargo.lock": "49d8133fab85c5e2dd210c1702d89886b12e48961f6783944f53192bbd9862f5",
     "crates/athlesia_integrated_cognitive_agent/Cargo.toml": "07fd7160447768911344f081f3efcbcf79270014d5a962fb6ad271f881e61951",
-    "crates/athlesia_integrated_cognitive_agent/src/lib.rs": "415e5afbb51b6b36ab89b5148463516dd31f0ded9caf9e6ed08a7e7eb257654d",
+    "crates/athlesia_integrated_cognitive_agent/src/lib.rs": "82525574488bf59b835a45b88cc2a4ead228d001db4d9f7970938d5d6052a3d6",
     "crates/athlesia_meta_learning_skill_memory/Cargo.lock": "641aac08044b700a765d2e6a93508989365f97801ae817d73c69c3c99c00506d",
     "crates/athlesia_meta_learning_skill_memory/Cargo.toml": "3ecb2ef81d5a7d2e6eb902981ff7fe2a1446969521a0544a22bb0ba360954265",
     "crates/athlesia_meta_learning_skill_memory/src/lib.rs": "7d90563d57c3ae9196eb5ee4bc01f43991f01aef7ce0f0cf8cb96fea3ba3aa04",
@@ -622,7 +622,8 @@
       "module_51_integrated_cognitive_agent_executive_agency_ingestion",
       "module_51_integrated_cognitive_agent_meta_learning_skill_memory_ingestion",
       "module_51_integrated_cognitive_agent_autonomous_experimentation_ingestion",
-      "module_51_integrated_cognitive_agent_cognitive_cycle"
+      "module_51_integrated_cognitive_agent_cognitive_cycle",
+      "module_51_integrated_cognitive_agent_cycle_state_transition"
     ],
     "module_23_integrity": {
       "status": "pass",
@@ -635,8 +636,8 @@
       "status": "frozen",
       "verifier": "tools/verify_module_23_parity.py"
     },
-    "next_layer": "module_51_integrated_cognitive_agent_cycle_state_transition",
-    "stage": "module_51_integrated_cognitive_agent_cognitive_cycle",
+    "next_layer": "module_51_integrated_cognitive_agent_closed_loop_agent_step",
+    "stage": "module_51_integrated_cognitive_agent_cycle_state_transition",
     "status": "validated"
   },
   "validated_invariants": [
@@ -3223,6 +3224,18 @@
     "integrated_cognitive_cycle_low_confidence_missing_layer_semantics",
     "integrated_cognitive_cycle_opaque_state_layer_distinction",
     "integrated_cognitive_cycle_input_order_invariance",
-    "integrated_cognitive_cycle_deterministic_non_mutating_facade_equivalence"
+    "integrated_cognitive_cycle_deterministic_non_mutating_facade_equivalence",
+    "integrated_cognitive_cycle_transition_authority_provenance_contract",
+    "integrated_cognitive_cycle_explicit_anchor_preservation",
+    "integrated_cognitive_cycle_all_five_layers_can_hold_transition_authority",
+    "integrated_cognitive_cycle_transition_exact_provenance_preservation",
+    "integrated_cognitive_cycle_stale_authority_provenance_atomic_rejection",
+    "integrated_cognitive_cycle_stale_anchor_atomic_rejection",
+    "integrated_cognitive_cycle_rejected_cycle_cannot_advance_state",
+    "integrated_cognitive_cycle_filtered_cycle_cannot_partially_transition",
+    "integrated_cognitive_cycle_exact_opaque_state_transition_without_merging",
+    "integrated_cognitive_cycle_transition_input_order_invariance",
+    "integrated_cognitive_cycle_transition_non_mutation",
+    "integrated_cognitive_cycle_transition_deterministic_facade_equivalence"
   ]
 }
