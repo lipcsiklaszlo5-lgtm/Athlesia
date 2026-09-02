@@ -52,7 +52,7 @@
     "crates/athlesia_hierarchy/tests/hierarchy_recognition.rs": "bc7fe6ac289f8697e65b2ebe9aab179ae0cdb2db655fed18afae454bf2132841",
     "crates/athlesia_meta_learning_skill_memory/Cargo.lock": "641aac08044b700a765d2e6a93508989365f97801ae817d73c69c3c99c00506d",
     "crates/athlesia_meta_learning_skill_memory/Cargo.toml": "3ecb2ef81d5a7d2e6eb902981ff7fe2a1446969521a0544a22bb0ba360954265",
-    "crates/athlesia_meta_learning_skill_memory/src/lib.rs": "fa50f742898e19342ae71a29c584becaff4f7a09c5f3b098cd95d5d682ca045b",
+    "crates/athlesia_meta_learning_skill_memory/src/lib.rs": "2894b3b0079510e18da33f0aabc5d535fb655aab75d4d22fe5a48ac6511a14d5",
     "crates/athlesia_meta_learning_skill_memory/tests/meta_learning_cross_context_skill_generalization.rs": "1d2c3337a2c8f1cd3a296cd5b8d43d9f1cb9d4c87c7f8cce10ef02131e66b72d",
     "crates/athlesia_meta_learning_skill_memory/tests/meta_learning_repeated_skill_candidate_discovery.rs": "94003729f2ffd64425216b6d947f3cd678af993fd982c26bcaaaa5577c39a808",
     "crates/athlesia_meta_learning_skill_memory/tests/meta_learning_skill_compression.rs": "d7482d0221a10b7d7d95dd0fb49fdd4c897af01292d1121e5519091b694c9c02",
@@ -591,7 +591,8 @@
       "module_49_meta_learning_cross_context_skill_generalization",
       "module_49_meta_learning_skill_compression",
       "module_49_meta_learning_skill_retrieval_and_reuse",
-      "module_49_meta_learning_skill_outcome_feedback_and_revision"
+      "module_49_meta_learning_skill_outcome_feedback_and_revision",
+      "module_49_meta_learning_skill_revision_application_and_memory_update"
     ],
     "module_23_integrity": {
       "status": "pass",
@@ -604,8 +605,8 @@
       "status": "frozen",
       "verifier": "tools/verify_module_23_parity.py"
     },
-    "next_layer": "module_49_meta_learning_skill_revision_application_and_memory_update",
-    "stage": "module_49_meta_learning_skill_outcome_feedback_and_revision",
+    "next_layer": "module_49_meta_learning_skill_memory_consolidation_and_forgetting",
+    "stage": "module_49_meta_learning_skill_revision_application_and_memory_update",
     "status": "validated"
   },
   "validated_invariants": [
@@ -2940,6 +2941,18 @@
     "meta_learning_skill_feedback_extra_execution_suspension",
     "meta_learning_skill_feedback_hard_frontier_abstention",
     "meta_learning_skill_feedback_order_sensitive_attribution",
-    "meta_learning_skill_feedback_deterministic_facade_equivalence"
+    "meta_learning_skill_feedback_deterministic_facade_equivalence",
+    "meta_learning_skill_revision_positive_policy_contract",
+    "meta_learning_skill_revision_initial_conservative_memory_state",
+    "meta_learning_skill_revision_reinforcement_provenance_ceiling",
+    "meta_learning_skill_revision_retention_stability",
+    "meta_learning_skill_revision_bounded_weakening",
+    "meta_learning_skill_revision_accumulated_weakening_suspension",
+    "meta_learning_skill_revision_immediate_suspension",
+    "meta_learning_skill_revision_abstain_and_evidence_gate",
+    "meta_learning_skill_revision_no_implicit_reactivation",
+    "meta_learning_skill_revision_source_provenance_immutability",
+    "meta_learning_skill_revision_hard_budget",
+    "meta_learning_skill_revision_deterministic_facade_equivalence"
   ]
 }

@@ -3824,3 +3824,685 @@ mod skill_outcome_feedback_revision_tests {
         assert_eq!(observations, before_observations);
     }
 }
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum SkillMemoryAvailability {
+    Active,
+    Suspended,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct SkillRevisionMemoryPolicy {
+    max_revision_events: usize,
+    weakening_penalty: u16,
+    reinforcement_recovery: u16,
+    minimum_active_confidence: CognitiveSignal,
+    minimum_feedback_confidence: CognitiveSignal,
+}
+
+impl SkillRevisionMemoryPolicy {
+    pub fn new(
+        max_revision_events: usize,
+        weakening_penalty: u16,
+        reinforcement_recovery: u16,
+        minimum_active_confidence: CognitiveSignal,
+        minimum_feedback_confidence: CognitiveSignal,
+    ) -> Option<Self> {
+        if max_revision_events == 0
+            || weakening_penalty == 0
+            || reinforcement_recovery == 0
+            || minimum_active_confidence == CognitiveSignal::zero()
+            || minimum_feedback_confidence == CognitiveSignal::zero()
+        {
+            return None;
+        }
+
+        Some(Self {
+            max_revision_events,
+            weakening_penalty,
+            reinforcement_recovery,
+            minimum_active_confidence,
+            minimum_feedback_confidence,
+        })
+    }
+
+    pub fn max_revision_events(self) -> usize {
+        self.max_revision_events
+    }
+
+    pub fn weakening_penalty(self) -> u16 {
+        self.weakening_penalty
+    }
+
+    pub fn reinforcement_recovery(self) -> u16 {
+        self.reinforcement_recovery
+    }
+
+    pub fn minimum_active_confidence(self) -> CognitiveSignal {
+        self.minimum_active_confidence
+    }
+
+    pub fn minimum_feedback_confidence(self) -> CognitiveSignal {
+        self.minimum_feedback_confidence
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct SkillRevisionMemoryEntry {
+    record: CompressedSkillRecord,
+    availability: SkillMemoryAvailability,
+    revision_confidence_cap: CognitiveSignal,
+    applied_revision_count: usize,
+    reinforcement_count: usize,
+    retention_count: usize,
+    weakening_count: usize,
+    suspension_count: usize,
+}
+
+impl SkillRevisionMemoryEntry {
+    pub fn new(record: CompressedSkillRecord) -> Self {
+        let revision_confidence_cap = if record.success_confidence_floor().value()
+            <= record.step_confidence_floor().value()
+        {
+            record.success_confidence_floor()
+        } else {
+            record.step_confidence_floor()
+        };
+
+        Self {
+            record,
+            availability: SkillMemoryAvailability::Active,
+            revision_confidence_cap,
+            applied_revision_count: 0,
+            reinforcement_count: 0,
+            retention_count: 0,
+            weakening_count: 0,
+            suspension_count: 0,
+        }
+    }
+
+    pub fn record(&self) -> &CompressedSkillRecord {
+        &self.record
+    }
+
+    pub fn availability(&self) -> SkillMemoryAvailability {
+        self.availability
+    }
+
+    pub fn revision_confidence_cap(&self) -> CognitiveSignal {
+        self.revision_confidence_cap
+    }
+
+    pub fn applied_revision_count(&self) -> usize {
+        self.applied_revision_count
+    }
+
+    pub fn reinforcement_count(&self) -> usize {
+        self.reinforcement_count
+    }
+
+    pub fn retention_count(&self) -> usize {
+        self.retention_count
+    }
+
+    pub fn weakening_count(&self) -> usize {
+        self.weakening_count
+    }
+
+    pub fn suspension_count(&self) -> usize {
+        self.suspension_count
+    }
+
+    pub fn reusable(&self) -> bool {
+        self.availability == SkillMemoryAvailability::Active
+    }
+
+    pub fn provenance_confidence_ceiling(&self) -> CognitiveSignal {
+        if self.record.success_confidence_floor().value()
+            <= self.record.step_confidence_floor().value()
+        {
+            self.record.success_confidence_floor()
+        } else {
+            self.record.step_confidence_floor()
+        }
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct SkillRevisionApplicationResult {
+    disposition: SkillRevisionDisposition,
+    revision_applied: bool,
+    revision_budget_exhausted: bool,
+    feedback_evidence_rejected: bool,
+    availability_before: SkillMemoryAvailability,
+    availability_after: SkillMemoryAvailability,
+    confidence_before: CognitiveSignal,
+    confidence_after: CognitiveSignal,
+    memory: SkillRevisionMemoryEntry,
+}
+
+impl SkillRevisionApplicationResult {
+    pub fn disposition(&self) -> SkillRevisionDisposition {
+        self.disposition
+    }
+
+    pub fn revision_applied(&self) -> bool {
+        self.revision_applied
+    }
+
+    pub fn revision_budget_exhausted(&self) -> bool {
+        self.revision_budget_exhausted
+    }
+
+    pub fn feedback_evidence_rejected(&self) -> bool {
+        self.feedback_evidence_rejected
+    }
+
+    pub fn availability_before(&self) -> SkillMemoryAvailability {
+        self.availability_before
+    }
+
+    pub fn availability_after(&self) -> SkillMemoryAvailability {
+        self.availability_after
+    }
+
+    pub fn confidence_before(&self) -> CognitiveSignal {
+        self.confidence_before
+    }
+
+    pub fn confidence_after(&self) -> CognitiveSignal {
+        self.confidence_after
+    }
+
+    pub fn memory(&self) -> &SkillRevisionMemoryEntry {
+        &self.memory
+    }
+
+    pub fn memory_changed(&self) -> bool {
+        self.revision_applied
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct SkillRevisionApplicationAndMemoryUpdate;
+
+impl SkillRevisionApplicationAndMemoryUpdate {
+    fn signal(value: u16) -> CognitiveSignal {
+        if value == 0 {
+            CognitiveSignal::zero()
+        } else {
+            CognitiveSignal::new(value).unwrap()
+        }
+    }
+
+    fn unchanged(
+        entry: &SkillRevisionMemoryEntry,
+        disposition: SkillRevisionDisposition,
+        revision_budget_exhausted: bool,
+        feedback_evidence_rejected: bool,
+    ) -> SkillRevisionApplicationResult {
+        SkillRevisionApplicationResult {
+            disposition,
+            revision_applied: false,
+            revision_budget_exhausted,
+            feedback_evidence_rejected,
+            availability_before: entry.availability(),
+            availability_after: entry.availability(),
+            confidence_before: entry.revision_confidence_cap(),
+            confidence_after: entry.revision_confidence_cap(),
+            memory: entry.clone(),
+        }
+    }
+
+    pub fn apply(
+        entry: &SkillRevisionMemoryEntry,
+        feedback: &SkillOutcomeFeedbackResult,
+        policy: SkillRevisionMemoryPolicy,
+    ) -> SkillRevisionApplicationResult {
+        let disposition = feedback.disposition();
+
+        if disposition == SkillRevisionDisposition::Abstain {
+            return Self::unchanged(entry, disposition, false, false);
+        }
+
+        if entry.applied_revision_count() >= policy.max_revision_events() {
+            return Self::unchanged(entry, disposition, true, false);
+        }
+
+        let Some(feedback_confidence) = feedback.feedback_confidence_floor() else {
+            return Self::unchanged(entry, disposition, false, true);
+        };
+
+        if feedback_confidence.value() < policy.minimum_feedback_confidence().value() {
+            return Self::unchanged(entry, disposition, false, true);
+        }
+
+        let availability_before = entry.availability();
+        let confidence_before = entry.revision_confidence_cap();
+
+        let mut memory = entry.clone();
+
+        memory.applied_revision_count = memory.applied_revision_count.saturating_add(1);
+
+        match disposition {
+            SkillRevisionDisposition::Abstain => {}
+
+            SkillRevisionDisposition::Reinforce => {
+                memory.reinforcement_count = memory.reinforcement_count.saturating_add(1);
+
+                let ceiling = memory.provenance_confidence_ceiling().value();
+
+                let recovered = memory
+                    .revision_confidence_cap
+                    .value()
+                    .saturating_add(policy.reinforcement_recovery())
+                    .min(ceiling);
+
+                memory.revision_confidence_cap = Self::signal(recovered);
+            }
+
+            SkillRevisionDisposition::Retain => {
+                memory.retention_count = memory.retention_count.saturating_add(1);
+            }
+
+            SkillRevisionDisposition::Weaken => {
+                memory.weakening_count = memory.weakening_count.saturating_add(1);
+
+                let reduced = memory
+                    .revision_confidence_cap
+                    .value()
+                    .saturating_sub(policy.weakening_penalty());
+
+                memory.revision_confidence_cap = Self::signal(reduced);
+
+                if reduced < policy.minimum_active_confidence().value() {
+                    memory.availability = SkillMemoryAvailability::Suspended;
+                }
+            }
+
+            SkillRevisionDisposition::Suspend => {
+                memory.suspension_count = memory.suspension_count.saturating_add(1);
+
+                memory.availability = SkillMemoryAvailability::Suspended;
+            }
+        }
+
+        SkillRevisionApplicationResult {
+            disposition,
+            revision_applied: true,
+            revision_budget_exhausted: false,
+            feedback_evidence_rejected: false,
+            availability_before,
+            availability_after: memory.availability(),
+            confidence_before,
+            confidence_after: memory.revision_confidence_cap(),
+            memory,
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct UniversalSkillRevisionApplicationAndMemoryUpdate;
+
+impl UniversalSkillRevisionApplicationAndMemoryUpdate {
+    pub fn evaluate(
+        entry: &SkillRevisionMemoryEntry,
+        feedback: &SkillOutcomeFeedbackResult,
+        policy: SkillRevisionMemoryPolicy,
+    ) -> SkillRevisionApplicationResult {
+        SkillRevisionApplicationAndMemoryUpdate::apply(entry, feedback, policy)
+    }
+}
+
+#[cfg(test)]
+mod skill_revision_application_memory_update_tests {
+    use super::*;
+
+    fn s(value: u16) -> CognitiveSignal {
+        if value == 0 {
+            CognitiveSignal::zero()
+        } else {
+            CognitiveSignal::new(value).unwrap()
+        }
+    }
+
+    fn a(value: u64) -> CognitiveStructure {
+        CognitiveStructure::atom(value)
+    }
+
+    fn record() -> CompressedSkillRecord {
+        CompressedSkillRecord {
+            invariant_dictionary: vec![a(7)],
+            initial_state: CompressedSkillTerm::StructuralSlot(0),
+            goal_identity: CompressedSkillTerm::InvariantRef(0),
+            steps: vec![
+                CompressedSkillStep {
+                    required_state: CompressedSkillTerm::StructuralSlot(0),
+                    action: CompressedSkillTerm::StructuralSlot(1),
+                    observed_outcome: CompressedSkillTerm::StructuralSlot(2),
+                },
+                CompressedSkillStep {
+                    required_state: CompressedSkillTerm::StructuralSlot(2),
+                    action: CompressedSkillTerm::InvariantRef(0),
+                    observed_outcome: CompressedSkillTerm::InvariantRef(0),
+                },
+            ],
+            structural_slot_count: 3,
+            context_slot_count: 0,
+            invariant_occurrence_count: 3,
+            compression_gain: 2,
+            source_generalization_count: 2,
+            source_support_sum: 8,
+            success_confidence_floor: s(900),
+            step_confidence_floor: s(800),
+        }
+    }
+
+    fn memory() -> SkillRevisionMemoryEntry {
+        SkillRevisionMemoryEntry::new(record())
+    }
+
+    fn policy() -> SkillRevisionMemoryPolicy {
+        SkillRevisionMemoryPolicy::new(16, 200, 100, s(500), s(500)).unwrap()
+    }
+
+    fn feedback(
+        disposition: SkillRevisionDisposition,
+        confidence: u16,
+    ) -> SkillOutcomeFeedbackResult {
+        SkillOutcomeFeedbackResult {
+            input_observation_count: 2,
+            considered_observation_count: 2,
+            observation_frontier_truncated: false,
+            evaluation_count: 2,
+            evaluation_frontier_truncated: false,
+            low_confidence_count: 0,
+            exact_step_count: 2,
+            execution_mismatch_count: 0,
+            outcome_mismatch_count: 0,
+            missing_plan_step_count: 0,
+            extra_observation_count: 0,
+            feedback_confidence_floor: Some(s(confidence)),
+            disposition,
+        }
+    }
+
+    #[test]
+    fn revision_policy_requires_positive_bounds_penalties_and_confidence() {
+        assert_eq!(SkillRevisionMemoryPolicy::new(0, 1, 1, s(1), s(1),), None);
+
+        assert_eq!(SkillRevisionMemoryPolicy::new(1, 0, 1, s(1), s(1),), None);
+
+        assert_eq!(SkillRevisionMemoryPolicy::new(1, 1, 0, s(1), s(1),), None);
+
+        assert!(SkillRevisionMemoryPolicy::new(1, 1, 1, s(1), s(1),).is_some());
+    }
+
+    #[test]
+    fn memory_entry_starts_active_at_conservative_provenance_floor() {
+        let entry = memory();
+
+        assert_eq!(entry.availability(), SkillMemoryAvailability::Active);
+
+        assert_eq!(entry.revision_confidence_cap(), s(800));
+
+        assert_eq!(entry.provenance_confidence_ceiling(), s(800));
+
+        assert!(entry.reusable());
+    }
+
+    #[test]
+    fn reinforcement_recovers_confidence_but_never_exceeds_provenance() {
+        let first = SkillRevisionApplicationAndMemoryUpdate::apply(
+            &memory(),
+            &feedback(SkillRevisionDisposition::Weaken, 900),
+            policy(),
+        );
+
+        assert_eq!(first.confidence_after(), s(600));
+
+        let second = SkillRevisionApplicationAndMemoryUpdate::apply(
+            first.memory(),
+            &feedback(SkillRevisionDisposition::Reinforce, 900),
+            policy(),
+        );
+
+        assert_eq!(second.confidence_after(), s(700));
+
+        let third = SkillRevisionApplicationAndMemoryUpdate::apply(
+            second.memory(),
+            &feedback(SkillRevisionDisposition::Reinforce, 900),
+            policy(),
+        );
+
+        let fourth = SkillRevisionApplicationAndMemoryUpdate::apply(
+            third.memory(),
+            &feedback(SkillRevisionDisposition::Reinforce, 900),
+            policy(),
+        );
+
+        assert_eq!(third.confidence_after(), s(800));
+
+        assert_eq!(fourth.confidence_after(), s(800));
+    }
+
+    #[test]
+    fn retain_preserves_confidence_and_availability() {
+        let entry = memory();
+
+        let result = SkillRevisionApplicationAndMemoryUpdate::apply(
+            &entry,
+            &feedback(SkillRevisionDisposition::Retain, 900),
+            policy(),
+        );
+
+        assert!(result.revision_applied());
+
+        assert_eq!(result.confidence_before(), result.confidence_after());
+
+        assert_eq!(result.availability_after(), SkillMemoryAvailability::Active);
+
+        assert_eq!(result.memory().retention_count(), 1);
+    }
+
+    #[test]
+    fn weaken_applies_bounded_confidence_penalty() {
+        let result = SkillRevisionApplicationAndMemoryUpdate::apply(
+            &memory(),
+            &feedback(SkillRevisionDisposition::Weaken, 900),
+            policy(),
+        );
+
+        assert_eq!(result.confidence_before(), s(800));
+
+        assert_eq!(result.confidence_after(), s(600));
+
+        assert_eq!(result.memory().weakening_count(), 1);
+
+        assert_eq!(result.availability_after(), SkillMemoryAvailability::Active);
+    }
+
+    #[test]
+    fn accumulated_weakening_suspends_below_active_threshold() {
+        let first = SkillRevisionApplicationAndMemoryUpdate::apply(
+            &memory(),
+            &feedback(SkillRevisionDisposition::Weaken, 900),
+            policy(),
+        );
+
+        let second = SkillRevisionApplicationAndMemoryUpdate::apply(
+            first.memory(),
+            &feedback(SkillRevisionDisposition::Weaken, 900),
+            policy(),
+        );
+
+        assert_eq!(second.confidence_after(), s(400));
+
+        assert_eq!(
+            second.availability_after(),
+            SkillMemoryAvailability::Suspended
+        );
+
+        assert!(!second.memory().reusable());
+    }
+
+    #[test]
+    fn suspend_disposition_immediately_disables_reuse() {
+        let result = SkillRevisionApplicationAndMemoryUpdate::apply(
+            &memory(),
+            &feedback(SkillRevisionDisposition::Suspend, 900),
+            policy(),
+        );
+
+        assert_eq!(
+            result.availability_before(),
+            SkillMemoryAvailability::Active
+        );
+
+        assert_eq!(
+            result.availability_after(),
+            SkillMemoryAvailability::Suspended
+        );
+
+        assert_eq!(result.memory().suspension_count(), 1);
+    }
+
+    #[test]
+    fn abstain_and_low_confidence_feedback_do_not_revise_memory() {
+        let entry = memory();
+
+        let abstain = SkillRevisionApplicationAndMemoryUpdate::apply(
+            &entry,
+            &feedback(SkillRevisionDisposition::Abstain, 900),
+            policy(),
+        );
+
+        assert!(!abstain.revision_applied());
+        assert_eq!(abstain.memory(), &entry);
+
+        let weak_evidence = SkillRevisionApplicationAndMemoryUpdate::apply(
+            &entry,
+            &feedback(SkillRevisionDisposition::Weaken, 400),
+            policy(),
+        );
+
+        assert!(weak_evidence.feedback_evidence_rejected());
+
+        assert!(!weak_evidence.revision_applied());
+
+        assert_eq!(weak_evidence.memory(), &entry);
+    }
+
+    #[test]
+    fn suspended_skill_is_not_implicitly_reactivated_by_reinforcement() {
+        let suspended = SkillRevisionApplicationAndMemoryUpdate::apply(
+            &memory(),
+            &feedback(SkillRevisionDisposition::Suspend, 900),
+            policy(),
+        );
+
+        let reinforced = SkillRevisionApplicationAndMemoryUpdate::apply(
+            suspended.memory(),
+            &feedback(SkillRevisionDisposition::Reinforce, 900),
+            policy(),
+        );
+
+        assert_eq!(
+            reinforced.availability_after(),
+            SkillMemoryAvailability::Suspended
+        );
+
+        assert!(!reinforced.memory().reusable());
+    }
+
+    #[test]
+    fn revision_never_mutates_source_provenance() {
+        let entry = memory();
+
+        let support_before = entry.record().source_support_sum();
+
+        let generalization_before = entry.record().source_generalization_count();
+
+        let success_before = entry.record().success_confidence_floor();
+
+        let step_before = entry.record().step_confidence_floor();
+
+        let revised = SkillRevisionApplicationAndMemoryUpdate::apply(
+            &entry,
+            &feedback(SkillRevisionDisposition::Weaken, 900),
+            policy(),
+        );
+
+        assert_eq!(
+            revised.memory().record().source_support_sum(),
+            support_before
+        );
+
+        assert_eq!(
+            revised.memory().record().source_generalization_count(),
+            generalization_before
+        );
+
+        assert_eq!(
+            revised.memory().record().success_confidence_floor(),
+            success_before
+        );
+
+        assert_eq!(
+            revised.memory().record().step_confidence_floor(),
+            step_before
+        );
+    }
+
+    #[test]
+    fn hard_revision_budget_blocks_additional_memory_updates() {
+        let p = SkillRevisionMemoryPolicy::new(1, 200, 100, s(500), s(500)).unwrap();
+
+        let first = SkillRevisionApplicationAndMemoryUpdate::apply(
+            &memory(),
+            &feedback(SkillRevisionDisposition::Weaken, 900),
+            p,
+        );
+
+        assert_eq!(first.memory().applied_revision_count(), 1);
+
+        let before = first.memory().clone();
+
+        let second = SkillRevisionApplicationAndMemoryUpdate::apply(
+            first.memory(),
+            &feedback(SkillRevisionDisposition::Reinforce, 900),
+            p,
+        );
+
+        assert!(second.revision_budget_exhausted());
+
+        assert!(!second.revision_applied());
+
+        assert_eq!(second.memory(), &before);
+    }
+
+    #[test]
+    fn revision_application_is_deterministic_non_mutating_and_facade_equivalent() {
+        let entry = memory();
+        let before = entry.clone();
+
+        let evidence = feedback(SkillRevisionDisposition::Weaken, 900);
+
+        let evidence_before = evidence.clone();
+
+        let p = policy();
+
+        let direct = SkillRevisionApplicationAndMemoryUpdate::apply(&entry, &evidence, p);
+
+        let facade =
+            UniversalSkillRevisionApplicationAndMemoryUpdate::evaluate(&entry, &evidence, p);
+
+        let repeated =
+            UniversalSkillRevisionApplicationAndMemoryUpdate::evaluate(&entry, &evidence, p);
+
+        assert_eq!(direct, facade);
+        assert_eq!(facade, repeated);
+        assert_eq!(entry, before);
+        assert_eq!(evidence, evidence_before);
+    }
+}
