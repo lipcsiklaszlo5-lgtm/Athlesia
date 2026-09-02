@@ -6762,3 +6762,884 @@ mod experiment_sequence_planning_tests {
         assert_eq!(progress_values, before_progress);
     }
 }
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct StopContinueExperimentationBounds {
+    max_beliefs: usize,
+    max_plans: usize,
+    max_experiment_cycles: usize,
+}
+
+impl StopContinueExperimentationBounds {
+    pub fn new(max_beliefs: usize, max_plans: usize, max_experiment_cycles: usize) -> Option<Self> {
+        if max_beliefs < 2 || max_plans == 0 || max_experiment_cycles == 0 {
+            return None;
+        }
+
+        Some(Self {
+            max_beliefs,
+            max_plans,
+            max_experiment_cycles,
+        })
+    }
+
+    pub fn max_beliefs(self) -> usize {
+        self.max_beliefs
+    }
+
+    pub fn max_plans(self) -> usize {
+        self.max_plans
+    }
+
+    pub fn max_experiment_cycles(self) -> usize {
+        self.max_experiment_cycles
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct StopContinueExperimentationThresholds {
+    minimum_active_belief_confidence: CognitiveSignal,
+    minimum_resolution_confidence: CognitiveSignal,
+    minimum_resolution_margin: CognitiveSignal,
+    minimum_learning_progress_to_continue: CognitiveSignal,
+    minimum_information_gain_to_continue: CognitiveSignal,
+    minimum_discrimination_gain: CognitiveSignal,
+}
+
+impl StopContinueExperimentationThresholds {
+    pub fn new(
+        minimum_active_belief_confidence: CognitiveSignal,
+        minimum_resolution_confidence: CognitiveSignal,
+        minimum_resolution_margin: CognitiveSignal,
+        minimum_learning_progress_to_continue: CognitiveSignal,
+        minimum_information_gain_to_continue: CognitiveSignal,
+        minimum_discrimination_gain: CognitiveSignal,
+    ) -> Option<Self> {
+        if minimum_active_belief_confidence == CognitiveSignal::zero()
+            || minimum_resolution_confidence == CognitiveSignal::zero()
+            || minimum_resolution_margin == CognitiveSignal::zero()
+            || minimum_learning_progress_to_continue == CognitiveSignal::zero()
+            || minimum_information_gain_to_continue == CognitiveSignal::zero()
+            || minimum_discrimination_gain == CognitiveSignal::zero()
+        {
+            return None;
+        }
+
+        Some(Self {
+            minimum_active_belief_confidence,
+            minimum_resolution_confidence,
+            minimum_resolution_margin,
+            minimum_learning_progress_to_continue,
+            minimum_information_gain_to_continue,
+            minimum_discrimination_gain,
+        })
+    }
+
+    pub fn minimum_active_belief_confidence(self) -> CognitiveSignal {
+        self.minimum_active_belief_confidence
+    }
+
+    pub fn minimum_resolution_confidence(self) -> CognitiveSignal {
+        self.minimum_resolution_confidence
+    }
+
+    pub fn minimum_resolution_margin(self) -> CognitiveSignal {
+        self.minimum_resolution_margin
+    }
+
+    pub fn minimum_learning_progress_to_continue(self) -> CognitiveSignal {
+        self.minimum_learning_progress_to_continue
+    }
+
+    pub fn minimum_information_gain_to_continue(self) -> CognitiveSignal {
+        self.minimum_information_gain_to_continue
+    }
+
+    pub fn minimum_discrimination_gain(self) -> CognitiveSignal {
+        self.minimum_discrimination_gain
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct StopContinueExperimentationPolicy {
+    bounds: StopContinueExperimentationBounds,
+    thresholds: StopContinueExperimentationThresholds,
+}
+
+impl StopContinueExperimentationPolicy {
+    pub fn new(
+        bounds: StopContinueExperimentationBounds,
+        thresholds: StopContinueExperimentationThresholds,
+    ) -> Self {
+        Self { bounds, thresholds }
+    }
+
+    pub fn bounds(self) -> StopContinueExperimentationBounds {
+        self.bounds
+    }
+
+    pub fn thresholds(self) -> StopContinueExperimentationThresholds {
+        self.thresholds
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum ExperimentContinuationBasis {
+    MeasuredLearningProgress,
+    ExpectedInformationGain,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum StopContinueExperimentationDecision {
+    ContinueExperimentation,
+    StopResolved,
+    StopExperimentBudgetExhausted,
+    StopNoApplicablePlan,
+    StopLearningStalled,
+    AbstainBeliefFrontierExceeded,
+    AbstainPlanFrontierExceeded,
+    AbstainDuplicateBeliefIdentity,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct StopContinueExperimentationResult {
+    decision: StopContinueExperimentationDecision,
+    input_belief_count: usize,
+    active_belief_count: usize,
+    input_plan_count: usize,
+    applicable_plan_count: usize,
+    rejected_discrimination_count: usize,
+    current_experiment_cycle: usize,
+    resolved_winner: Option<CognitiveStructure>,
+    continuation_basis: Option<ExperimentContinuationBasis>,
+    next_plan: Option<ExperimentSequencePlan>,
+}
+
+impl StopContinueExperimentationResult {
+    pub fn decision(&self) -> StopContinueExperimentationDecision {
+        self.decision
+    }
+
+    pub fn input_belief_count(&self) -> usize {
+        self.input_belief_count
+    }
+
+    pub fn active_belief_count(&self) -> usize {
+        self.active_belief_count
+    }
+
+    pub fn input_plan_count(&self) -> usize {
+        self.input_plan_count
+    }
+
+    pub fn applicable_plan_count(&self) -> usize {
+        self.applicable_plan_count
+    }
+
+    pub fn rejected_discrimination_count(&self) -> usize {
+        self.rejected_discrimination_count
+    }
+
+    pub fn current_experiment_cycle(&self) -> usize {
+        self.current_experiment_cycle
+    }
+
+    pub fn resolved_winner(&self) -> Option<&CognitiveStructure> {
+        self.resolved_winner.as_ref()
+    }
+
+    pub fn continuation_basis(&self) -> Option<ExperimentContinuationBasis> {
+        self.continuation_basis
+    }
+
+    pub fn next_plan(&self) -> Option<&ExperimentSequencePlan> {
+        self.next_plan.as_ref()
+    }
+
+    pub fn continuing(&self) -> bool {
+        self.decision == StopContinueExperimentationDecision::ContinueExperimentation
+    }
+
+    pub fn stopped(&self) -> bool {
+        matches!(
+            self.decision,
+            StopContinueExperimentationDecision::StopResolved
+                | StopContinueExperimentationDecision::StopExperimentBudgetExhausted
+                | StopContinueExperimentationDecision::StopNoApplicablePlan
+                | StopContinueExperimentationDecision::StopLearningStalled
+        )
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct AutonomousStopContinueExperimentation;
+
+impl AutonomousStopContinueExperimentation {
+    fn plan_order(
+        left: &ExperimentSequencePlan,
+        right: &ExperimentSequencePlan,
+    ) -> std::cmp::Ordering {
+        right
+            .cumulative_learning_progress()
+            .cmp(&left.cumulative_learning_progress())
+            .then_with(|| {
+                let right_discrimination = right
+                    .steps()
+                    .first()
+                    .map(PlannedExperimentStep::discrimination_gain)
+                    .unwrap_or_else(CognitiveSignal::zero);
+
+                let left_discrimination = left
+                    .steps()
+                    .first()
+                    .map(PlannedExperimentStep::discrimination_gain)
+                    .unwrap_or_else(CognitiveSignal::zero);
+
+                right_discrimination
+                    .value()
+                    .cmp(&left_discrimination.value())
+            })
+            .then_with(|| {
+                right
+                    .cumulative_information_gain()
+                    .cmp(&left.cumulative_information_gain())
+            })
+            .then_with(|| {
+                right
+                    .cumulative_discrimination_gain()
+                    .cmp(&left.cumulative_discrimination_gain())
+            })
+            .then_with(|| format!("{left:?}").cmp(&format!("{right:?}")))
+    }
+
+    pub fn control(
+        current_state: &CognitiveStructure,
+        beliefs: &[HypothesisBeliefState],
+        plans: &[ExperimentSequencePlan],
+        current_experiment_cycle: usize,
+        policy: StopContinueExperimentationPolicy,
+    ) -> StopContinueExperimentationResult {
+        let bounds = policy.bounds();
+
+        let thresholds = policy.thresholds();
+
+        let input_belief_count = beliefs.len();
+
+        let input_plan_count = plans.len();
+
+        if input_belief_count > bounds.max_beliefs() {
+            return StopContinueExperimentationResult {
+                decision: StopContinueExperimentationDecision::AbstainBeliefFrontierExceeded,
+                input_belief_count,
+                active_belief_count: 0,
+                input_plan_count,
+                applicable_plan_count: 0,
+                rejected_discrimination_count: 0,
+                current_experiment_cycle,
+                resolved_winner: None,
+                continuation_basis: None,
+                next_plan: None,
+            };
+        }
+
+        let mut canonical_beliefs = beliefs.to_vec();
+
+        canonical_beliefs.sort_by(|left, right| {
+            format!("{:?}", left.hypothesis()).cmp(&format!("{:?}", right.hypothesis()))
+        });
+
+        for index in 1..canonical_beliefs.len() {
+            if canonical_beliefs[index - 1].hypothesis() == canonical_beliefs[index].hypothesis() {
+                return StopContinueExperimentationResult {
+                    decision: StopContinueExperimentationDecision::AbstainDuplicateBeliefIdentity,
+                    input_belief_count,
+                    active_belief_count: 0,
+                    input_plan_count,
+                    applicable_plan_count: 0,
+                    rejected_discrimination_count: 0,
+                    current_experiment_cycle,
+                    resolved_winner: None,
+                    continuation_basis: None,
+                    next_plan: None,
+                };
+            }
+        }
+
+        let mut active: Vec<HypothesisBeliefState> = canonical_beliefs
+            .into_iter()
+            .filter(|belief| {
+                belief.active()
+                    && belief.confidence().value()
+                        >= thresholds.minimum_active_belief_confidence().value()
+            })
+            .collect();
+
+        active.sort_by(|left, right| {
+            right
+                .confidence()
+                .value()
+                .cmp(&left.confidence().value())
+                .then_with(|| {
+                    format!("{:?}", left.hypothesis()).cmp(&format!("{:?}", right.hypothesis()))
+                })
+        });
+
+        let active_belief_count = active.len();
+
+        if active_belief_count < 2 {
+            return StopContinueExperimentationResult {
+                decision: StopContinueExperimentationDecision::StopResolved,
+                input_belief_count,
+                active_belief_count,
+                input_plan_count,
+                applicable_plan_count: 0,
+                rejected_discrimination_count: 0,
+                current_experiment_cycle,
+                resolved_winner: active.first().map(|belief| belief.hypothesis().clone()),
+                continuation_basis: None,
+                next_plan: None,
+            };
+        }
+
+        let winner = &active[0];
+
+        let runner_up = &active[1];
+
+        let confidence_margin = winner
+            .confidence()
+            .value()
+            .saturating_sub(runner_up.confidence().value());
+
+        if winner.confidence().value() >= thresholds.minimum_resolution_confidence().value()
+            && confidence_margin >= thresholds.minimum_resolution_margin().value()
+        {
+            return StopContinueExperimentationResult {
+                decision: StopContinueExperimentationDecision::StopResolved,
+                input_belief_count,
+                active_belief_count,
+                input_plan_count,
+                applicable_plan_count: 0,
+                rejected_discrimination_count: 0,
+                current_experiment_cycle,
+                resolved_winner: Some(winner.hypothesis().clone()),
+                continuation_basis: None,
+                next_plan: None,
+            };
+        }
+
+        if current_experiment_cycle >= bounds.max_experiment_cycles() {
+            return StopContinueExperimentationResult {
+                decision: StopContinueExperimentationDecision::StopExperimentBudgetExhausted,
+                input_belief_count,
+                active_belief_count,
+                input_plan_count,
+                applicable_plan_count: 0,
+                rejected_discrimination_count: 0,
+                current_experiment_cycle,
+                resolved_winner: None,
+                continuation_basis: None,
+                next_plan: None,
+            };
+        }
+
+        if input_plan_count > bounds.max_plans() {
+            return StopContinueExperimentationResult {
+                decision: StopContinueExperimentationDecision::AbstainPlanFrontierExceeded,
+                input_belief_count,
+                active_belief_count,
+                input_plan_count,
+                applicable_plan_count: 0,
+                rejected_discrimination_count: 0,
+                current_experiment_cycle,
+                resolved_winner: None,
+                continuation_basis: None,
+                next_plan: None,
+            };
+        }
+
+        let mut rejected_discrimination_count = 0;
+
+        let mut applicable = Vec::new();
+
+        for plan in plans {
+            if plan.initial_state() != current_state {
+                continue;
+            }
+
+            let Some(first_step) = plan.steps().first() else {
+                continue;
+            };
+
+            if first_step.discrimination_gain().value()
+                < thresholds.minimum_discrimination_gain().value()
+            {
+                rejected_discrimination_count += 1;
+                continue;
+            }
+
+            applicable.push(plan.clone());
+        }
+
+        applicable.sort_by(Self::plan_order);
+
+        applicable.dedup();
+
+        let applicable_plan_count = applicable.len();
+
+        let Some(best_plan) = applicable.first().cloned() else {
+            return StopContinueExperimentationResult {
+                decision: StopContinueExperimentationDecision::StopNoApplicablePlan,
+                input_belief_count,
+                active_belief_count,
+                input_plan_count,
+                applicable_plan_count,
+                rejected_discrimination_count,
+                current_experiment_cycle,
+                resolved_winner: None,
+                continuation_basis: None,
+                next_plan: None,
+            };
+        };
+
+        let learning_progress = best_plan.cumulative_learning_progress();
+
+        let information_gain = best_plan.cumulative_information_gain();
+
+        let learning_threshold =
+            u32::from(thresholds.minimum_learning_progress_to_continue().value());
+
+        let information_threshold =
+            u32::from(thresholds.minimum_information_gain_to_continue().value());
+
+        let continuation_basis = if learning_progress >= learning_threshold {
+            Some(ExperimentContinuationBasis::MeasuredLearningProgress)
+        } else if information_gain >= information_threshold {
+            Some(ExperimentContinuationBasis::ExpectedInformationGain)
+        } else {
+            None
+        };
+
+        let Some(continuation_basis) = continuation_basis else {
+            return StopContinueExperimentationResult {
+                decision: StopContinueExperimentationDecision::StopLearningStalled,
+                input_belief_count,
+                active_belief_count,
+                input_plan_count,
+                applicable_plan_count,
+                rejected_discrimination_count,
+                current_experiment_cycle,
+                resolved_winner: None,
+                continuation_basis: None,
+                next_plan: None,
+            };
+        };
+
+        StopContinueExperimentationResult {
+            decision: StopContinueExperimentationDecision::ContinueExperimentation,
+            input_belief_count,
+            active_belief_count,
+            input_plan_count,
+            applicable_plan_count,
+            rejected_discrimination_count,
+            current_experiment_cycle,
+            resolved_winner: None,
+            continuation_basis: Some(continuation_basis),
+            next_plan: Some(best_plan),
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct UniversalAutonomousStopContinueExperimentation;
+
+impl UniversalAutonomousStopContinueExperimentation {
+    pub fn evaluate(
+        current_state: &CognitiveStructure,
+        beliefs: &[HypothesisBeliefState],
+        plans: &[ExperimentSequencePlan],
+        current_experiment_cycle: usize,
+        policy: StopContinueExperimentationPolicy,
+    ) -> StopContinueExperimentationResult {
+        AutonomousStopContinueExperimentation::control(
+            current_state,
+            beliefs,
+            plans,
+            current_experiment_cycle,
+            policy,
+        )
+    }
+}
+
+#[cfg(test)]
+mod stop_continue_experimentation_tests {
+    use super::*;
+
+    fn s(value: u16) -> CognitiveSignal {
+        if value == 0 {
+            CognitiveSignal::zero()
+        } else {
+            CognitiveSignal::new(value).unwrap()
+        }
+    }
+
+    fn a(value: u64) -> CognitiveStructure {
+        CognitiveStructure::atom(value)
+    }
+
+    fn belief(hypothesis: u64, confidence: u16) -> HypothesisBeliefState {
+        HypothesisBeliefState::new(a(hypothesis), s(confidence)).unwrap()
+    }
+
+    fn suspended(hypothesis: u64, confidence: u16) -> HypothesisBeliefState {
+        let mut value = belief(hypothesis, confidence);
+
+        value.availability = HypothesisBeliefAvailability::Suspended;
+
+        value
+    }
+
+    fn prediction(hypothesis: u64, outcome: u64) -> CompetingHypothesisPrediction {
+        CompetingHypothesisPrediction::new(a(hypothesis), a(outcome), s(900)).unwrap()
+    }
+
+    fn candidate(
+        source: u64,
+        action: u64,
+        outcome: u64,
+        information: u16,
+    ) -> HypothesisDiscriminationCandidate {
+        HypothesisDiscriminationCandidate::new(
+            AutonomousExperimentProposal::new(
+                a(source),
+                a(action),
+                a(outcome),
+                ExperimentEvidence::new(s(800), s(information), s(900), s(900), s(100)).unwrap(),
+            ),
+            vec![prediction(1, 100), prediction(2, 101)],
+        )
+        .unwrap()
+    }
+
+    fn plan(
+        initial: u64,
+        action: u64,
+        terminal: u64,
+        learning: u16,
+        discrimination: u16,
+        information: u16,
+    ) -> ExperimentSequencePlan {
+        let candidate = candidate(initial, action, terminal, information);
+
+        ExperimentSequencePlan {
+            initial_state: a(initial),
+            steps: vec![PlannedExperimentStep {
+                candidate,
+                learning_progress: s(learning),
+                discrimination_gain: s(discrimination),
+            }],
+            cumulative_learning_progress: u32::from(learning),
+            cumulative_discrimination_gain: u32::from(discrimination),
+            cumulative_information_gain: u32::from(information),
+        }
+    }
+
+    fn thresholds() -> StopContinueExperimentationThresholds {
+        StopContinueExperimentationThresholds::new(s(500), s(850), s(250), s(100), s(600), s(500))
+            .unwrap()
+    }
+
+    fn policy() -> StopContinueExperimentationPolicy {
+        StopContinueExperimentationPolicy::new(
+            StopContinueExperimentationBounds::new(16, 16, 8).unwrap(),
+            thresholds(),
+        )
+    }
+
+    #[test]
+    fn stop_continue_contract_requires_positive_bounds_and_thresholds() {
+        assert_eq!(StopContinueExperimentationBounds::new(1, 1, 1), None);
+
+        assert_eq!(StopContinueExperimentationBounds::new(2, 0, 1), None);
+
+        assert_eq!(
+            StopContinueExperimentationThresholds::new(
+                s(500),
+                s(850),
+                s(250),
+                s(0),
+                s(600),
+                s(500),
+            ),
+            None
+        );
+    }
+
+    #[test]
+    fn single_active_hypothesis_stops_as_resolved_and_suspended_belief_is_excluded() {
+        let result = AutonomousStopContinueExperimentation::control(
+            &a(1),
+            &[belief(1, 700), suspended(2, 900)],
+            &[],
+            0,
+            policy(),
+        );
+
+        assert_eq!(
+            result.decision(),
+            StopContinueExperimentationDecision::StopResolved
+        );
+
+        assert_eq!(result.active_belief_count(), 1);
+
+        assert_eq!(result.resolved_winner(), Some(&a(1)));
+    }
+
+    #[test]
+    fn dominant_high_confidence_belief_stops_without_consuming_another_experiment() {
+        let result = AutonomousStopContinueExperimentation::control(
+            &a(1),
+            &[belief(1, 900), belief(2, 600)],
+            &[plan(1, 10, 2, 500, 900, 900)],
+            0,
+            policy(),
+        );
+
+        assert_eq!(
+            result.decision(),
+            StopContinueExperimentationDecision::StopResolved
+        );
+
+        assert_eq!(result.resolved_winner(), Some(&a(1)));
+
+        assert!(result.next_plan().is_none());
+    }
+
+    #[test]
+    fn unresolved_competition_with_measured_learning_progress_continues() {
+        let result = AutonomousStopContinueExperimentation::control(
+            &a(1),
+            &[belief(1, 700), belief(2, 680)],
+            &[plan(1, 10, 2, 250, 900, 700)],
+            1,
+            policy(),
+        );
+
+        assert!(result.continuing());
+
+        assert_eq!(
+            result.continuation_basis(),
+            Some(ExperimentContinuationBasis::MeasuredLearningProgress)
+        );
+
+        assert!(result.next_plan().is_some());
+    }
+
+    #[test]
+    fn measured_learning_progress_ranks_before_higher_generic_information_value() {
+        let learning = plan(1, 10, 2, 200, 900, 600);
+
+        let information = plan(1, 11, 3, 0, 900, 1000);
+
+        let result = AutonomousStopContinueExperimentation::control(
+            &a(1),
+            &[belief(1, 700), belief(2, 680)],
+            &[information, learning.clone()],
+            1,
+            policy(),
+        );
+
+        assert_eq!(result.next_plan().unwrap(), &learning);
+
+        assert_eq!(
+            result.continuation_basis(),
+            Some(ExperimentContinuationBasis::MeasuredLearningProgress)
+        );
+    }
+
+    #[test]
+    fn novel_high_information_plan_can_continue_before_learning_progress_history_exists() {
+        let result = AutonomousStopContinueExperimentation::control(
+            &a(1),
+            &[belief(1, 700), belief(2, 680)],
+            &[plan(1, 10, 2, 0, 900, 900)],
+            0,
+            policy(),
+        );
+
+        assert!(result.continuing());
+
+        assert_eq!(
+            result.continuation_basis(),
+            Some(ExperimentContinuationBasis::ExpectedInformationGain)
+        );
+    }
+
+    #[test]
+    fn low_learning_progress_and_low_information_stop_stalled_experimentation() {
+        let result = AutonomousStopContinueExperimentation::control(
+            &a(1),
+            &[belief(1, 700), belief(2, 680)],
+            &[plan(1, 10, 2, 50, 900, 500)],
+            2,
+            policy(),
+        );
+
+        assert_eq!(
+            result.decision(),
+            StopContinueExperimentationDecision::StopLearningStalled
+        );
+
+        assert!(result.next_plan().is_none());
+    }
+
+    #[test]
+    fn experiment_budget_exhaustion_stops_before_plan_selection() {
+        let result = AutonomousStopContinueExperimentation::control(
+            &a(1),
+            &[belief(1, 700), belief(2, 680)],
+            &[plan(1, 10, 2, 500, 900, 1000)],
+            8,
+            policy(),
+        );
+
+        assert_eq!(
+            result.decision(),
+            StopContinueExperimentationDecision::StopExperimentBudgetExhausted
+        );
+
+        assert!(result.next_plan().is_none());
+    }
+
+    #[test]
+    fn only_plans_rooted_at_exact_current_state_are_applicable() {
+        let result = AutonomousStopContinueExperimentation::control(
+            &a(1),
+            &[belief(1, 700), belief(2, 680)],
+            &[plan(99, 10, 2, 500, 900, 1000)],
+            1,
+            policy(),
+        );
+
+        assert_eq!(
+            result.decision(),
+            StopContinueExperimentationDecision::StopNoApplicablePlan
+        );
+
+        assert_eq!(result.applicable_plan_count(), 0);
+    }
+
+    #[test]
+    fn weak_hypothesis_discrimination_cannot_justify_continuing_experimentation() {
+        let result = AutonomousStopContinueExperimentation::control(
+            &a(1),
+            &[belief(1, 700), belief(2, 680)],
+            &[plan(1, 10, 2, 500, 400, 1000)],
+            1,
+            policy(),
+        );
+
+        assert_eq!(
+            result.decision(),
+            StopContinueExperimentationDecision::StopNoApplicablePlan
+        );
+
+        assert_eq!(result.rejected_discrimination_count(), 1);
+    }
+
+    #[test]
+    fn identity_and_input_frontier_failures_abstain_atomically() {
+        let belief_bound = StopContinueExperimentationPolicy::new(
+            StopContinueExperimentationBounds::new(2, 16, 8).unwrap(),
+            thresholds(),
+        );
+
+        let belief_result = AutonomousStopContinueExperimentation::control(
+            &a(1),
+            &[belief(1, 700), belief(2, 680), belief(3, 660)],
+            &[],
+            0,
+            belief_bound,
+        );
+
+        assert_eq!(
+            belief_result.decision(),
+            StopContinueExperimentationDecision::AbstainBeliefFrontierExceeded
+        );
+
+        let duplicate_result = AutonomousStopContinueExperimentation::control(
+            &a(1),
+            &[belief(1, 700), belief(1, 680)],
+            &[],
+            0,
+            policy(),
+        );
+
+        assert_eq!(
+            duplicate_result.decision(),
+            StopContinueExperimentationDecision::AbstainDuplicateBeliefIdentity
+        );
+
+        let plan_bound = StopContinueExperimentationPolicy::new(
+            StopContinueExperimentationBounds::new(16, 1, 8).unwrap(),
+            thresholds(),
+        );
+
+        let plan_result = AutonomousStopContinueExperimentation::control(
+            &a(1),
+            &[belief(1, 700), belief(2, 680)],
+            &[plan(1, 10, 2, 200, 900, 800), plan(1, 11, 3, 200, 900, 800)],
+            1,
+            plan_bound,
+        );
+
+        assert_eq!(
+            plan_result.decision(),
+            StopContinueExperimentationDecision::AbstainPlanFrontierExceeded
+        );
+
+        assert!(plan_result.next_plan().is_none());
+    }
+
+    #[test]
+    fn stop_continue_control_is_order_invariant_non_mutating_and_facade_equivalent() {
+        let beliefs = vec![belief(2, 680), belief(1, 700), belief(3, 660)];
+
+        let plans = vec![plan(1, 10, 2, 200, 900, 700), plan(1, 11, 3, 100, 900, 900)];
+
+        let before_beliefs = beliefs.clone();
+
+        let before_plans = plans.clone();
+
+        let mut reversed_beliefs = beliefs.clone();
+
+        reversed_beliefs.reverse();
+
+        let mut reversed_plans = plans.clone();
+
+        reversed_plans.reverse();
+
+        let p = policy();
+
+        let direct = AutonomousStopContinueExperimentation::control(&a(1), &beliefs, &plans, 1, p);
+
+        let reordered = AutonomousStopContinueExperimentation::control(
+            &a(1),
+            &reversed_beliefs,
+            &reversed_plans,
+            1,
+            p,
+        );
+
+        let facade =
+            UniversalAutonomousStopContinueExperimentation::evaluate(&a(1), &beliefs, &plans, 1, p);
+
+        let repeated =
+            UniversalAutonomousStopContinueExperimentation::evaluate(&a(1), &beliefs, &plans, 1, p);
+
+        assert_eq!(direct, reordered);
+        assert_eq!(direct, facade);
+        assert_eq!(facade, repeated);
+        assert_eq!(beliefs, before_beliefs);
+        assert_eq!(plans, before_plans);
+    }
+}

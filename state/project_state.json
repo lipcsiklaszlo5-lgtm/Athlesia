@@ -12,7 +12,7 @@
     "Cargo.toml": "e852faab0d9dff23b09e1ee2323d0998955f837450c70ea015382ffe5ec52bff",
     "crates/athlesia_autonomous_active_experimentation/Cargo.lock": "1c12abed42af5b27b1bea85545134dfa5356790380225f867fa22410c5c6291a",
     "crates/athlesia_autonomous_active_experimentation/Cargo.toml": "49498766817cc955e460692355ff4c0b30cbe6cb5c8add30139fd646632ce666",
-    "crates/athlesia_autonomous_active_experimentation/src/lib.rs": "57161bee0607a70cbb50b049e030660f68450195b50b6b52f3cf1d26cc5a22c8",
+    "crates/athlesia_autonomous_active_experimentation/src/lib.rs": "c9859a64d8df985dac686cb854cd45c5af5aa158fc37f094ada2be9b0a03d1a8",
     "crates/athlesia_autonomous_active_experimentation/tests/autonomous_active_experimentation_foundation.rs": "7c3a148fc604232d9e66f4f4fa9a023a920ad0b8bc36be0759e71d074731d62c",
     "crates/athlesia_core_knowledge_perceptual_grounding/Cargo.lock": "fbefd559ec01ff3860d153fdf05e9a29f10ecff62eb63206d1b8e643c35ec7b4",
     "crates/athlesia_core_knowledge_perceptual_grounding/Cargo.toml": "04ffcd03f7862aac5423b16466ca1ea5ad1ad65856a76a9f4a4265c6dca64ff8",
@@ -608,7 +608,8 @@
       "module_50_autonomous_active_experimentation_sequential_experiment_control",
       "module_50_autonomous_active_experimentation_belief_driven_experiment_proposal",
       "module_50_autonomous_active_experimentation_learning_progress_estimation",
-      "module_50_autonomous_active_experimentation_experiment_sequence_planning"
+      "module_50_autonomous_active_experimentation_experiment_sequence_planning",
+      "module_50_autonomous_active_experimentation_stop_continue_experimentation"
     ],
     "module_23_integrity": {
       "status": "pass",
@@ -621,8 +622,8 @@
       "status": "frozen",
       "verifier": "tools/verify_module_23_parity.py"
     },
-    "next_layer": "module_50_autonomous_active_experimentation_stop_continue_experimentation",
-    "stage": "module_50_autonomous_active_experimentation_experiment_sequence_planning",
+    "next_layer": "module_50_autonomous_active_experimentation_integrated_autonomous_experimentation_cycle",
+    "stage": "module_50_autonomous_active_experimentation_stop_continue_experimentation",
     "status": "validated"
   },
   "validated_invariants": [
@@ -3089,6 +3090,18 @@
     "autonomous_experimentation_sequence_conflicting_prediction_abstention",
     "autonomous_experimentation_sequence_no_exact_experiment_repeat_loop",
     "autonomous_experimentation_sequence_hard_search_frontiers",
-    "autonomous_experimentation_sequence_deterministic_facade_equivalence"
+    "autonomous_experimentation_sequence_deterministic_facade_equivalence",
+    "autonomous_experimentation_stop_continue_positive_contract",
+    "autonomous_experimentation_stop_continue_single_active_resolution",
+    "autonomous_experimentation_stop_continue_dominant_belief_resolution",
+    "autonomous_experimentation_stop_continue_learning_progress_continuation",
+    "autonomous_experimentation_stop_continue_learning_progress_priority",
+    "autonomous_experimentation_stop_continue_novel_information_continuation",
+    "autonomous_experimentation_stop_continue_learning_stagnation_stop",
+    "autonomous_experimentation_stop_continue_budget_stop",
+    "autonomous_experimentation_stop_continue_exact_current_state_gate",
+    "autonomous_experimentation_stop_continue_discrimination_gate",
+    "autonomous_experimentation_stop_continue_atomic_frontiers",
+    "autonomous_experimentation_stop_continue_deterministic_facade_equivalence"
   ]
 }
