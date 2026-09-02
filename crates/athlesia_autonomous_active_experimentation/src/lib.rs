@@ -3669,3 +3669,1089 @@ mod sequential_experiment_control_tests {
         assert_eq!(candidates, before_candidates);
     }
 }
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct GroundedExperimentPossibility {
+    source_state: CognitiveStructure,
+    action: CognitiveStructure,
+    predictions: Vec<CompetingHypothesisPrediction>,
+    controllability: CognitiveSignal,
+    grounding_confidence: CognitiveSignal,
+    execution_cost: CognitiveSignal,
+}
+
+impl GroundedExperimentPossibility {
+    pub fn new(
+        source_state: CognitiveStructure,
+        action: CognitiveStructure,
+        predictions: Vec<CompetingHypothesisPrediction>,
+        controllability: CognitiveSignal,
+        grounding_confidence: CognitiveSignal,
+        execution_cost: CognitiveSignal,
+    ) -> Option<Self> {
+        if predictions.is_empty()
+            || controllability == CognitiveSignal::zero()
+            || grounding_confidence == CognitiveSignal::zero()
+        {
+            return None;
+        }
+
+        Some(Self {
+            source_state,
+            action,
+            predictions,
+            controllability,
+            grounding_confidence,
+            execution_cost,
+        })
+    }
+
+    pub fn source_state(&self) -> &CognitiveStructure {
+        &self.source_state
+    }
+
+    pub fn action(&self) -> &CognitiveStructure {
+        &self.action
+    }
+
+    pub fn predictions(&self) -> &[CompetingHypothesisPrediction] {
+        &self.predictions
+    }
+
+    pub fn controllability(&self) -> CognitiveSignal {
+        self.controllability
+    }
+
+    pub fn grounding_confidence(&self) -> CognitiveSignal {
+        self.grounding_confidence
+    }
+
+    pub fn execution_cost(&self) -> CognitiveSignal {
+        self.execution_cost
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct BeliefDrivenExperimentProposalBounds {
+    max_beliefs: usize,
+    max_possibilities: usize,
+    max_predictions_per_possibility: usize,
+    max_generated_candidates: usize,
+}
+
+impl BeliefDrivenExperimentProposalBounds {
+    pub fn new(
+        max_beliefs: usize,
+        max_possibilities: usize,
+        max_predictions_per_possibility: usize,
+        max_generated_candidates: usize,
+    ) -> Option<Self> {
+        if max_beliefs < 2
+            || max_possibilities == 0
+            || max_predictions_per_possibility == 0
+            || max_generated_candidates == 0
+        {
+            return None;
+        }
+
+        Some(Self {
+            max_beliefs,
+            max_possibilities,
+            max_predictions_per_possibility,
+            max_generated_candidates,
+        })
+    }
+
+    pub fn max_beliefs(self) -> usize {
+        self.max_beliefs
+    }
+
+    pub fn max_possibilities(self) -> usize {
+        self.max_possibilities
+    }
+
+    pub fn max_predictions_per_possibility(self) -> usize {
+        self.max_predictions_per_possibility
+    }
+
+    pub fn max_generated_candidates(self) -> usize {
+        self.max_generated_candidates
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct BeliefDrivenExperimentProposalPolicy {
+    foundation: ActiveExperimentPolicy,
+    bounds: BeliefDrivenExperimentProposalBounds,
+    minimum_active_belief_confidence: CognitiveSignal,
+    minimum_prediction_confidence: CognitiveSignal,
+}
+
+impl BeliefDrivenExperimentProposalPolicy {
+    pub fn new(
+        foundation: ActiveExperimentPolicy,
+        bounds: BeliefDrivenExperimentProposalBounds,
+        minimum_active_belief_confidence: CognitiveSignal,
+        minimum_prediction_confidence: CognitiveSignal,
+    ) -> Option<Self> {
+        if minimum_active_belief_confidence == CognitiveSignal::zero()
+            || minimum_prediction_confidence == CognitiveSignal::zero()
+        {
+            return None;
+        }
+
+        Some(Self {
+            foundation,
+            bounds,
+            minimum_active_belief_confidence,
+            minimum_prediction_confidence,
+        })
+    }
+
+    pub fn foundation(self) -> ActiveExperimentPolicy {
+        self.foundation
+    }
+
+    pub fn bounds(self) -> BeliefDrivenExperimentProposalBounds {
+        self.bounds
+    }
+
+    pub fn minimum_active_belief_confidence(self) -> CognitiveSignal {
+        self.minimum_active_belief_confidence
+    }
+
+    pub fn minimum_prediction_confidence(self) -> CognitiveSignal {
+        self.minimum_prediction_confidence
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum BeliefDrivenExperimentProposalStatus {
+    Generated,
+    NoActiveCompetition,
+    NoDiscriminatingPossibility,
+    BeliefFrontierExceeded,
+    PossibilityFrontierExceeded,
+    DuplicateBeliefIdentity,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct BeliefDrivenExperimentProposalResult {
+    status: BeliefDrivenExperimentProposalStatus,
+    input_belief_count: usize,
+    active_belief_count: usize,
+    input_possibility_count: usize,
+    evaluated_possibility_count: usize,
+    rejected_prediction_frontier_count: usize,
+    rejected_conflicting_prediction_count: usize,
+    rejected_competition_count: usize,
+    rejected_foundation_count: usize,
+    generated_before_frontier: usize,
+    generation_frontier_truncated: bool,
+    generated: Vec<HypothesisDiscriminationCandidate>,
+}
+
+impl BeliefDrivenExperimentProposalResult {
+    pub fn status(&self) -> BeliefDrivenExperimentProposalStatus {
+        self.status
+    }
+
+    pub fn input_belief_count(&self) -> usize {
+        self.input_belief_count
+    }
+
+    pub fn active_belief_count(&self) -> usize {
+        self.active_belief_count
+    }
+
+    pub fn input_possibility_count(&self) -> usize {
+        self.input_possibility_count
+    }
+
+    pub fn evaluated_possibility_count(&self) -> usize {
+        self.evaluated_possibility_count
+    }
+
+    pub fn rejected_prediction_frontier_count(&self) -> usize {
+        self.rejected_prediction_frontier_count
+    }
+
+    pub fn rejected_conflicting_prediction_count(&self) -> usize {
+        self.rejected_conflicting_prediction_count
+    }
+
+    pub fn rejected_competition_count(&self) -> usize {
+        self.rejected_competition_count
+    }
+
+    pub fn rejected_foundation_count(&self) -> usize {
+        self.rejected_foundation_count
+    }
+
+    pub fn generated_before_frontier(&self) -> usize {
+        self.generated_before_frontier
+    }
+
+    pub fn generation_frontier_truncated(&self) -> bool {
+        self.generation_frontier_truncated
+    }
+
+    pub fn generated(&self) -> &[HypothesisDiscriminationCandidate] {
+        &self.generated
+    }
+
+    pub fn generated_count(&self) -> usize {
+        self.generated.len()
+    }
+
+    pub fn generated_any(&self) -> bool {
+        !self.generated.is_empty()
+    }
+
+    pub fn abstained(&self) -> bool {
+        !self.generated_any()
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct AutonomousBeliefDrivenExperimentProposal;
+
+impl AutonomousBeliefDrivenExperimentProposal {
+    fn signal(value: u16) -> CognitiveSignal {
+        if value == 0 {
+            CognitiveSignal::zero()
+        } else {
+            CognitiveSignal::new(value).expect("bounded proposal signal")
+        }
+    }
+
+    fn empty(
+        status: BeliefDrivenExperimentProposalStatus,
+        input_belief_count: usize,
+        active_belief_count: usize,
+        input_possibility_count: usize,
+    ) -> BeliefDrivenExperimentProposalResult {
+        BeliefDrivenExperimentProposalResult {
+            status,
+            input_belief_count,
+            active_belief_count,
+            input_possibility_count,
+            evaluated_possibility_count: 0,
+            rejected_prediction_frontier_count: 0,
+            rejected_conflicting_prediction_count: 0,
+            rejected_competition_count: 0,
+            rejected_foundation_count: 0,
+            generated_before_frontier: 0,
+            generation_frontier_truncated: false,
+            generated: Vec::new(),
+        }
+    }
+
+    fn candidate_order(
+        left: &HypothesisDiscriminationCandidate,
+        right: &HypothesisDiscriminationCandidate,
+    ) -> std::cmp::Ordering {
+        let left_evidence = left.experiment().evidence();
+
+        let right_evidence = right.experiment().evidence();
+
+        right_evidence
+            .expected_information_gain()
+            .value()
+            .cmp(&left_evidence.expected_information_gain().value())
+            .then_with(|| {
+                right_evidence
+                    .prediction_uncertainty()
+                    .value()
+                    .cmp(&left_evidence.prediction_uncertainty().value())
+            })
+            .then_with(|| {
+                right_evidence
+                    .controllability()
+                    .value()
+                    .cmp(&left_evidence.controllability().value())
+            })
+            .then_with(|| {
+                right_evidence
+                    .grounding_confidence()
+                    .value()
+                    .cmp(&left_evidence.grounding_confidence().value())
+            })
+            .then_with(|| {
+                left_evidence
+                    .execution_cost()
+                    .value()
+                    .cmp(&right_evidence.execution_cost().value())
+            })
+            .then_with(|| format!("{left:?}").cmp(&format!("{right:?}")))
+    }
+
+    fn information_gain(predictions: &[CompetingHypothesisPrediction]) -> CognitiveSignal {
+        if predictions.len() < 2 {
+            return CognitiveSignal::zero();
+        }
+
+        let mut total_pairs = 0usize;
+        let mut disagreeing_pairs = 0usize;
+
+        for left in 0..predictions.len() {
+            for right in (left + 1)..predictions.len() {
+                total_pairs += 1;
+
+                if predictions[left].predicted_outcome() != predictions[right].predicted_outcome() {
+                    disagreeing_pairs += 1;
+                }
+            }
+        }
+
+        if total_pairs == 0 {
+            return CognitiveSignal::zero();
+        }
+
+        let value = (disagreeing_pairs.saturating_mul(1000) / total_pairs).min(1000) as u16;
+
+        Self::signal(value)
+    }
+
+    fn uncertainty(relevant_beliefs: &[HypothesisBeliefState]) -> CognitiveSignal {
+        if relevant_beliefs.len() < 2 {
+            return CognitiveSignal::zero();
+        }
+
+        let mut confidences: Vec<u16> = relevant_beliefs
+            .iter()
+            .map(|belief| belief.confidence().value())
+            .collect();
+
+        confidences.sort_by(|left, right| right.cmp(left));
+
+        let margin = confidences[0].saturating_sub(confidences[1]);
+
+        let value = 1000u16.saturating_sub(margin).max(1);
+
+        Self::signal(value)
+    }
+
+    pub fn generate(
+        beliefs: &[HypothesisBeliefState],
+        possibilities: &[GroundedExperimentPossibility],
+        policy: BeliefDrivenExperimentProposalPolicy,
+    ) -> BeliefDrivenExperimentProposalResult {
+        let bounds = policy.bounds();
+
+        let input_belief_count = beliefs.len();
+
+        let input_possibility_count = possibilities.len();
+
+        if input_belief_count > bounds.max_beliefs() {
+            return Self::empty(
+                BeliefDrivenExperimentProposalStatus::BeliefFrontierExceeded,
+                input_belief_count,
+                0,
+                input_possibility_count,
+            );
+        }
+
+        if input_possibility_count > bounds.max_possibilities() {
+            return Self::empty(
+                BeliefDrivenExperimentProposalStatus::PossibilityFrontierExceeded,
+                input_belief_count,
+                0,
+                input_possibility_count,
+            );
+        }
+
+        let mut canonical_beliefs = beliefs.to_vec();
+
+        canonical_beliefs.sort_by(|left, right| {
+            format!("{:?}", left.hypothesis()).cmp(&format!("{:?}", right.hypothesis()))
+        });
+
+        for index in 1..canonical_beliefs.len() {
+            if canonical_beliefs[index - 1].hypothesis() == canonical_beliefs[index].hypothesis() {
+                return Self::empty(
+                    BeliefDrivenExperimentProposalStatus::DuplicateBeliefIdentity,
+                    input_belief_count,
+                    0,
+                    input_possibility_count,
+                );
+            }
+        }
+
+        let active: Vec<HypothesisBeliefState> = canonical_beliefs
+            .into_iter()
+            .filter(|belief| {
+                belief.active()
+                    && belief.confidence().value()
+                        >= policy.minimum_active_belief_confidence().value()
+            })
+            .collect();
+
+        let active_belief_count = active.len();
+
+        if active_belief_count < 2 {
+            return Self::empty(
+                BeliefDrivenExperimentProposalStatus::NoActiveCompetition,
+                input_belief_count,
+                active_belief_count,
+                input_possibility_count,
+            );
+        }
+
+        let mut ordered_possibilities = possibilities.to_vec();
+
+        ordered_possibilities.sort_by(|left, right| {
+            right
+                .grounding_confidence()
+                .value()
+                .cmp(&left.grounding_confidence().value())
+                .then_with(|| {
+                    right
+                        .controllability()
+                        .value()
+                        .cmp(&left.controllability().value())
+                })
+                .then_with(|| {
+                    left.execution_cost()
+                        .value()
+                        .cmp(&right.execution_cost().value())
+                })
+                .then_with(|| format!("{left:?}").cmp(&format!("{right:?}")))
+        });
+
+        let evaluated_possibility_count = ordered_possibilities.len();
+
+        let mut rejected_prediction_frontier_count = 0;
+
+        let mut rejected_conflicting_prediction_count = 0;
+
+        let mut rejected_competition_count = 0;
+
+        let mut rejected_foundation_count = 0;
+
+        let mut generated = Vec::new();
+
+        for possibility in ordered_possibilities {
+            if possibility.predictions().len() > bounds.max_predictions_per_possibility() {
+                rejected_prediction_frontier_count += 1;
+                continue;
+            }
+
+            let mut predictions: Vec<CompetingHypothesisPrediction> = possibility
+                .predictions()
+                .iter()
+                .filter(|prediction| {
+                    prediction.confidence().value()
+                        >= policy.minimum_prediction_confidence().value()
+                        && active
+                            .iter()
+                            .any(|belief| belief.hypothesis() == prediction.hypothesis())
+                })
+                .cloned()
+                .collect();
+
+            predictions.sort_by(|left, right| {
+                format!("{:?}", left.hypothesis())
+                    .cmp(&format!("{:?}", right.hypothesis()))
+                    .then_with(|| right.confidence().value().cmp(&left.confidence().value()))
+                    .then_with(|| {
+                        format!("{:?}", left.predicted_outcome())
+                            .cmp(&format!("{:?}", right.predicted_outcome()))
+                    })
+            });
+
+            let mut canonical: Vec<CompetingHypothesisPrediction> = Vec::new();
+
+            let mut conflicting = false;
+
+            for prediction in predictions {
+                if let Some(existing) = canonical
+                    .iter()
+                    .find(|existing| existing.hypothesis() == prediction.hypothesis())
+                {
+                    if existing.predicted_outcome() != prediction.predicted_outcome() {
+                        conflicting = true;
+                        break;
+                    }
+
+                    continue;
+                }
+
+                canonical.push(prediction);
+            }
+
+            if conflicting {
+                rejected_conflicting_prediction_count += 1;
+                continue;
+            }
+
+            if canonical.len() < 2 {
+                rejected_competition_count += 1;
+                continue;
+            }
+
+            let information_gain = Self::information_gain(&canonical);
+
+            if information_gain == CognitiveSignal::zero() {
+                rejected_competition_count += 1;
+                continue;
+            }
+
+            let relevant_beliefs: Vec<HypothesisBeliefState> = active
+                .iter()
+                .filter(|belief| {
+                    canonical
+                        .iter()
+                        .any(|prediction| prediction.hypothesis() == belief.hypothesis())
+                })
+                .cloned()
+                .collect();
+
+            if relevant_beliefs.len() < 2 {
+                rejected_competition_count += 1;
+                continue;
+            }
+
+            let uncertainty = Self::uncertainty(&relevant_beliefs);
+
+            let strongest = relevant_beliefs
+                .iter()
+                .max_by(|left, right| {
+                    left.confidence()
+                        .value()
+                        .cmp(&right.confidence().value())
+                        .then_with(|| {
+                            format!("{:?}", right.hypothesis())
+                                .cmp(&format!("{:?}", left.hypothesis()))
+                        })
+                })
+                .expect("relevant beliefs are non-empty");
+
+            let predicted_outcome = canonical
+                .iter()
+                .find(|prediction| prediction.hypothesis() == strongest.hypothesis())
+                .expect("strongest belief has prediction")
+                .predicted_outcome()
+                .clone();
+
+            let prediction_grounding = canonical
+                .iter()
+                .map(|prediction| prediction.confidence().value())
+                .min()
+                .expect("canonical predictions are non-empty");
+
+            let grounding_value = possibility
+                .grounding_confidence()
+                .value()
+                .min(prediction_grounding);
+
+            let evidence = ExperimentEvidence::new(
+                uncertainty,
+                information_gain,
+                possibility.controllability(),
+                Self::signal(grounding_value),
+                possibility.execution_cost(),
+            )
+            .expect("grounded generated evidence");
+
+            let experiment = AutonomousExperimentProposal::new(
+                possibility.source_state().clone(),
+                possibility.action().clone(),
+                predicted_outcome,
+                evidence,
+            );
+
+            let foundation = AutonomousActiveExperimentationFoundation::select(
+                std::slice::from_ref(&experiment),
+                policy.foundation(),
+            );
+
+            if foundation.abstained() {
+                rejected_foundation_count += 1;
+                continue;
+            }
+
+            generated.push(
+                HypothesisDiscriminationCandidate::new(experiment, canonical)
+                    .expect("generated candidate has predictions"),
+            );
+        }
+
+        generated.sort_by(Self::candidate_order);
+
+        generated.dedup();
+
+        let generated_before_frontier = generated.len();
+
+        generated.truncate(bounds.max_generated_candidates());
+
+        let generation_frontier_truncated = generated_before_frontier > generated.len();
+
+        let status = if generated.is_empty() {
+            BeliefDrivenExperimentProposalStatus::NoDiscriminatingPossibility
+        } else {
+            BeliefDrivenExperimentProposalStatus::Generated
+        };
+
+        BeliefDrivenExperimentProposalResult {
+            status,
+            input_belief_count,
+            active_belief_count,
+            input_possibility_count,
+            evaluated_possibility_count,
+            rejected_prediction_frontier_count,
+            rejected_conflicting_prediction_count,
+            rejected_competition_count,
+            rejected_foundation_count,
+            generated_before_frontier,
+            generation_frontier_truncated,
+            generated,
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct UniversalAutonomousBeliefDrivenExperimentProposal;
+
+impl UniversalAutonomousBeliefDrivenExperimentProposal {
+    pub fn evaluate(
+        beliefs: &[HypothesisBeliefState],
+        possibilities: &[GroundedExperimentPossibility],
+        policy: BeliefDrivenExperimentProposalPolicy,
+    ) -> BeliefDrivenExperimentProposalResult {
+        AutonomousBeliefDrivenExperimentProposal::generate(beliefs, possibilities, policy)
+    }
+}
+
+#[cfg(test)]
+mod belief_driven_experiment_proposal_tests {
+    use super::*;
+
+    fn s(value: u16) -> CognitiveSignal {
+        if value == 0 {
+            CognitiveSignal::zero()
+        } else {
+            CognitiveSignal::new(value).unwrap()
+        }
+    }
+
+    fn a(value: u64) -> CognitiveStructure {
+        CognitiveStructure::atom(value)
+    }
+
+    fn belief(hypothesis: u64, confidence: u16) -> HypothesisBeliefState {
+        HypothesisBeliefState::new(a(hypothesis), s(confidence)).unwrap()
+    }
+
+    fn suspended(hypothesis: u64, confidence: u16) -> HypothesisBeliefState {
+        let mut value = belief(hypothesis, confidence);
+
+        value.availability = HypothesisBeliefAvailability::Suspended;
+
+        value
+    }
+
+    fn prediction(hypothesis: u64, outcome: u64, confidence: u16) -> CompetingHypothesisPrediction {
+        CompetingHypothesisPrediction::new(a(hypothesis), a(outcome), s(confidence)).unwrap()
+    }
+
+    fn possibility(
+        action: u64,
+        predictions: Vec<CompetingHypothesisPrediction>,
+    ) -> GroundedExperimentPossibility {
+        GroundedExperimentPossibility::new(a(1), a(action), predictions, s(900), s(900), s(100))
+            .unwrap()
+    }
+
+    fn foundation_policy() -> ActiveExperimentPolicy {
+        ActiveExperimentPolicy::new(
+            ActiveExperimentBounds::new(32, 32, 32).unwrap(),
+            ActiveExperimentThresholds::new(s(500), s(500), s(500), s(500)).unwrap(),
+        )
+    }
+
+    fn policy() -> BeliefDrivenExperimentProposalPolicy {
+        BeliefDrivenExperimentProposalPolicy::new(
+            foundation_policy(),
+            BeliefDrivenExperimentProposalBounds::new(16, 16, 16, 16).unwrap(),
+            s(500),
+            s(500),
+        )
+        .unwrap()
+    }
+
+    #[test]
+    fn proposal_contract_requires_grounded_possibility_and_positive_bounds() {
+        assert_eq!(
+            GroundedExperimentPossibility::new(a(1), a(2), Vec::new(), s(900), s(900), s(100),),
+            None
+        );
+
+        assert_eq!(
+            GroundedExperimentPossibility::new(
+                a(1),
+                a(2),
+                vec![prediction(1, 10, 900)],
+                s(0),
+                s(900),
+                s(100),
+            ),
+            None
+        );
+
+        assert_eq!(BeliefDrivenExperimentProposalBounds::new(1, 1, 1, 1), None);
+
+        assert_eq!(
+            BeliefDrivenExperimentProposalPolicy::new(
+                foundation_policy(),
+                BeliefDrivenExperimentProposalBounds::new(2, 1, 1, 1).unwrap(),
+                s(0),
+                s(500),
+            ),
+            None
+        );
+    }
+
+    #[test]
+    fn competing_active_beliefs_generate_discriminating_experiment_candidate() {
+        let possibility = possibility(10, vec![prediction(1, 100, 900), prediction(2, 101, 900)]);
+
+        let result = AutonomousBeliefDrivenExperimentProposal::generate(
+            &[belief(1, 700), belief(2, 680)],
+            std::slice::from_ref(&possibility),
+            policy(),
+        );
+
+        assert_eq!(
+            result.status(),
+            BeliefDrivenExperimentProposalStatus::Generated
+        );
+
+        assert_eq!(result.generated_count(), 1);
+
+        assert_eq!(
+            result.generated()[0].experiment().action(),
+            possibility.action()
+        );
+
+        assert_eq!(result.generated()[0].predictions().len(), 2);
+    }
+
+    #[test]
+    fn suspended_hypothesis_cannot_drive_new_experiment_proposal() {
+        let result = AutonomousBeliefDrivenExperimentProposal::generate(
+            &[belief(1, 700), suspended(2, 900)],
+            &[possibility(
+                10,
+                vec![prediction(1, 100, 900), prediction(2, 101, 900)],
+            )],
+            policy(),
+        );
+
+        assert_eq!(
+            result.status(),
+            BeliefDrivenExperimentProposalStatus::NoActiveCompetition
+        );
+
+        assert_eq!(result.active_belief_count(), 1);
+    }
+
+    #[test]
+    fn weak_persistent_belief_cannot_manufacture_active_competition() {
+        let result = AutonomousBeliefDrivenExperimentProposal::generate(
+            &[belief(1, 700), belief(2, 400)],
+            &[possibility(
+                10,
+                vec![prediction(1, 100, 900), prediction(2, 101, 900)],
+            )],
+            policy(),
+        );
+
+        assert_eq!(
+            result.status(),
+            BeliefDrivenExperimentProposalStatus::NoActiveCompetition
+        );
+    }
+
+    #[test]
+    fn weak_prediction_cannot_manufacture_discriminating_candidate() {
+        let result = AutonomousBeliefDrivenExperimentProposal::generate(
+            &[belief(1, 700), belief(2, 680)],
+            &[possibility(
+                10,
+                vec![prediction(1, 100, 900), prediction(2, 101, 400)],
+            )],
+            policy(),
+        );
+
+        assert!(result.abstained());
+
+        assert_eq!(result.rejected_competition_count(), 1);
+    }
+
+    #[test]
+    fn identical_predicted_outcomes_do_not_create_information_gain() {
+        let result = AutonomousBeliefDrivenExperimentProposal::generate(
+            &[belief(1, 700), belief(2, 680)],
+            &[possibility(
+                10,
+                vec![prediction(1, 100, 900), prediction(2, 100, 900)],
+            )],
+            policy(),
+        );
+
+        assert!(result.abstained());
+
+        assert_eq!(result.rejected_competition_count(), 1);
+    }
+
+    #[test]
+    fn conflicting_predictions_from_same_hypothesis_are_rejected() {
+        let result = AutonomousBeliefDrivenExperimentProposal::generate(
+            &[belief(1, 700), belief(2, 680)],
+            &[possibility(
+                10,
+                vec![
+                    prediction(1, 100, 900),
+                    prediction(1, 101, 900),
+                    prediction(2, 102, 900),
+                ],
+            )],
+            policy(),
+        );
+
+        assert!(result.abstained());
+
+        assert_eq!(result.rejected_conflicting_prediction_count(), 1);
+    }
+
+    #[test]
+    fn exact_duplicate_prediction_does_not_inflate_generated_competition() {
+        let duplicate = prediction(1, 100, 900);
+
+        let result = AutonomousBeliefDrivenExperimentProposal::generate(
+            &[belief(1, 700), belief(2, 680)],
+            &[possibility(
+                10,
+                vec![duplicate.clone(), duplicate, prediction(2, 101, 900)],
+            )],
+            policy(),
+        );
+
+        assert_eq!(result.generated_count(), 1);
+
+        assert_eq!(result.generated()[0].predictions().len(), 2);
+    }
+
+    #[test]
+    fn generated_evidence_derives_disagreement_and_preserves_exact_grounded_action() {
+        let possibility = possibility(
+            77,
+            vec![
+                prediction(1, 100, 900),
+                prediction(2, 100, 900),
+                prediction(3, 101, 900),
+            ],
+        );
+
+        let result = AutonomousBeliefDrivenExperimentProposal::generate(
+            &[belief(1, 700), belief(2, 690), belief(3, 680)],
+            std::slice::from_ref(&possibility),
+            policy(),
+        );
+
+        assert_eq!(result.generated_count(), 1);
+
+        let experiment = result.generated()[0].experiment();
+
+        assert_eq!(experiment.source_state(), possibility.source_state());
+
+        assert_eq!(experiment.action(), possibility.action());
+
+        assert_eq!(experiment.evidence().expected_information_gain(), s(666));
+
+        assert_eq!(experiment.evidence().prediction_uncertainty(), s(990));
+    }
+
+    #[test]
+    fn foundation_gates_remain_authoritative_for_generated_experiments() {
+        let weak = GroundedExperimentPossibility::new(
+            a(1),
+            a(10),
+            vec![prediction(1, 100, 900), prediction(2, 101, 900)],
+            s(400),
+            s(900),
+            s(100),
+        )
+        .unwrap();
+
+        let result = AutonomousBeliefDrivenExperimentProposal::generate(
+            &[belief(1, 700), belief(2, 680)],
+            &[weak],
+            policy(),
+        );
+
+        assert!(result.abstained());
+
+        assert_eq!(result.rejected_foundation_count(), 1);
+    }
+
+    #[test]
+    fn belief_possibility_prediction_and_generation_frontiers_are_hard_bounded() {
+        let beliefs = vec![belief(1, 700), belief(2, 680), belief(3, 660)];
+
+        let base_possibility =
+            possibility(10, vec![prediction(1, 100, 900), prediction(2, 101, 900)]);
+
+        let belief_policy = BeliefDrivenExperimentProposalPolicy::new(
+            foundation_policy(),
+            BeliefDrivenExperimentProposalBounds::new(2, 16, 16, 16).unwrap(),
+            s(500),
+            s(500),
+        )
+        .unwrap();
+
+        let belief_result = AutonomousBeliefDrivenExperimentProposal::generate(
+            &beliefs,
+            std::slice::from_ref(&base_possibility),
+            belief_policy,
+        );
+
+        assert_eq!(
+            belief_result.status(),
+            BeliefDrivenExperimentProposalStatus::BeliefFrontierExceeded
+        );
+
+        let possibility_policy = BeliefDrivenExperimentProposalPolicy::new(
+            foundation_policy(),
+            BeliefDrivenExperimentProposalBounds::new(16, 1, 16, 16).unwrap(),
+            s(500),
+            s(500),
+        )
+        .unwrap();
+
+        let possibility_result = AutonomousBeliefDrivenExperimentProposal::generate(
+            &beliefs[..2],
+            &[
+                base_possibility.clone(),
+                possibility(11, vec![prediction(1, 110, 900), prediction(2, 111, 900)]),
+            ],
+            possibility_policy,
+        );
+
+        assert_eq!(
+            possibility_result.status(),
+            BeliefDrivenExperimentProposalStatus::PossibilityFrontierExceeded
+        );
+
+        let prediction_policy = BeliefDrivenExperimentProposalPolicy::new(
+            foundation_policy(),
+            BeliefDrivenExperimentProposalBounds::new(16, 16, 2, 16).unwrap(),
+            s(500),
+            s(500),
+        )
+        .unwrap();
+
+        let prediction_result = AutonomousBeliefDrivenExperimentProposal::generate(
+            &beliefs,
+            &[possibility(
+                12,
+                vec![
+                    prediction(1, 120, 900),
+                    prediction(2, 121, 900),
+                    prediction(3, 122, 900),
+                ],
+            )],
+            prediction_policy,
+        );
+
+        assert_eq!(prediction_result.rejected_prediction_frontier_count(), 1);
+
+        assert!(prediction_result.abstained());
+
+        let generation_policy = BeliefDrivenExperimentProposalPolicy::new(
+            foundation_policy(),
+            BeliefDrivenExperimentProposalBounds::new(16, 16, 16, 1).unwrap(),
+            s(500),
+            s(500),
+        )
+        .unwrap();
+
+        let generation_result = AutonomousBeliefDrivenExperimentProposal::generate(
+            &beliefs[..2],
+            &[
+                base_possibility,
+                possibility(13, vec![prediction(1, 130, 900), prediction(2, 131, 900)]),
+            ],
+            generation_policy,
+        );
+
+        assert_eq!(generation_result.generated_before_frontier(), 2);
+
+        assert_eq!(generation_result.generated_count(), 1);
+
+        assert!(generation_result.generation_frontier_truncated());
+    }
+
+    #[test]
+    fn proposal_generation_is_order_invariant_non_mutating_and_facade_equivalent() {
+        let beliefs = vec![belief(2, 680), belief(1, 700), belief(3, 660)];
+
+        let possibilities = vec![
+            possibility(
+                10,
+                vec![
+                    prediction(1, 100, 900),
+                    prediction(2, 101, 900),
+                    prediction(3, 102, 900),
+                ],
+            ),
+            possibility(11, vec![prediction(1, 110, 900), prediction(2, 111, 900)]),
+        ];
+
+        let before_beliefs = beliefs.clone();
+
+        let before_possibilities = possibilities.clone();
+
+        let mut reversed_beliefs = beliefs.clone();
+
+        reversed_beliefs.reverse();
+
+        let mut reversed_possibilities = possibilities.clone();
+
+        reversed_possibilities.reverse();
+
+        for possibility in &mut reversed_possibilities {
+            possibility.predictions.reverse();
+        }
+
+        let p = policy();
+
+        let direct =
+            AutonomousBeliefDrivenExperimentProposal::generate(&beliefs, &possibilities, p);
+
+        let reordered = AutonomousBeliefDrivenExperimentProposal::generate(
+            &reversed_beliefs,
+            &reversed_possibilities,
+            p,
+        );
+
+        let facade = UniversalAutonomousBeliefDrivenExperimentProposal::evaluate(
+            &beliefs,
+            &possibilities,
+            p,
+        );
+
+        let repeated = UniversalAutonomousBeliefDrivenExperimentProposal::evaluate(
+            &beliefs,
+            &possibilities,
+            p,
+        );
+
+        assert_eq!(direct, reordered);
+        assert_eq!(direct, facade);
+        assert_eq!(facade, repeated);
+        assert_eq!(beliefs, before_beliefs);
+        assert_eq!(possibilities, before_possibilities);
+    }
+}
