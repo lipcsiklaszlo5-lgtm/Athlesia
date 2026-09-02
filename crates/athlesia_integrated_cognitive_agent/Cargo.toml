@@ -1,0 +1,14 @@
+[package]
+name = "athlesia_integrated_cognitive_agent"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+athlesia_mindstone_sparse_cognition = { path = "../athlesia_mindstone_sparse_cognition" }
+athlesia_core_knowledge_perceptual_grounding = { path = "../athlesia_core_knowledge_perceptual_grounding" }
+athlesia_universal_domain_learning = { path = "../athlesia_universal_domain_learning" }
+athlesia_executive_agency = { path = "../athlesia_executive_agency" }
+athlesia_meta_learning_skill_memory = { path = "../athlesia_meta_learning_skill_memory" }
+athlesia_autonomous_active_experimentation = { path = "../athlesia_autonomous_active_experimentation" }
+
+[workspace]

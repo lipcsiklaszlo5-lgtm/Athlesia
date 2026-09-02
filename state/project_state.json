@@ -54,6 +54,9 @@
     "crates/athlesia_hierarchy/tests/hierarchy_discovery.rs": "07504754806d1086c9e5a5ab41cb405b2f5f531c8548372a586770e9ecc124b9",
     "crates/athlesia_hierarchy/tests/hierarchy_prediction.rs": "ea8133128eab713a9ee3e38dac1c71766dd948e06171725957f70a125431adc6",
     "crates/athlesia_hierarchy/tests/hierarchy_recognition.rs": "bc7fe6ac289f8697e65b2ebe9aab179ae0cdb2db655fed18afae454bf2132841",
+    "crates/athlesia_integrated_cognitive_agent/Cargo.lock": "49d8133fab85c5e2dd210c1702d89886b12e48961f6783944f53192bbd9862f5",
+    "crates/athlesia_integrated_cognitive_agent/Cargo.toml": "07fd7160447768911344f081f3efcbcf79270014d5a962fb6ad271f881e61951",
+    "crates/athlesia_integrated_cognitive_agent/src/lib.rs": "39e2880ee9339d81fe5822f416751be028402d938580881ed5d680b5e746c576",
     "crates/athlesia_meta_learning_skill_memory/Cargo.lock": "641aac08044b700a765d2e6a93508989365f97801ae817d73c69c3c99c00506d",
     "crates/athlesia_meta_learning_skill_memory/Cargo.toml": "3ecb2ef81d5a7d2e6eb902981ff7fe2a1446969521a0544a22bb0ba360954265",
     "crates/athlesia_meta_learning_skill_memory/src/lib.rs": "7d90563d57c3ae9196eb5ee4bc01f43991f01aef7ce0f0cf8cb96fea3ba3aa04",
@@ -612,7 +615,8 @@
       "module_50_autonomous_active_experimentation_experiment_sequence_planning",
       "module_50_autonomous_active_experimentation_stop_continue_experimentation",
       "module_50_autonomous_active_experimentation_integrated_autonomous_experimentation_cycle",
-      "module_50_autonomous_active_experimentation_freeze"
+      "module_50_autonomous_active_experimentation_freeze",
+      "module_51_integrated_cognitive_agent_foundation"
     ],
     "module_23_integrity": {
       "status": "pass",
@@ -625,8 +629,8 @@
       "status": "frozen",
       "verifier": "tools/verify_module_23_parity.py"
     },
-    "next_layer": "module_51_integrated_cognitive_agent",
-    "stage": "module_50_autonomous_active_experimentation_freeze",
+    "next_layer": "module_51_integrated_cognitive_agent_perceptual_grounding_ingestion",
+    "stage": "module_51_integrated_cognitive_agent_foundation",
     "status": "validated"
   },
   "validated_invariants": [
@@ -3129,6 +3133,18 @@
     "autonomous_experimentation_frozen_bounded_cognition",
     "autonomous_experimentation_frozen_learning_progress_priority",
     "autonomous_experimentation_frozen_atomic_abstention",
-    "autonomous_experimentation_frozen_deterministic_facade"
+    "autonomous_experimentation_frozen_deterministic_facade",
+    "integrated_cognitive_agent_foundation_positive_resource_contract",
+    "integrated_cognitive_agent_foundation_cross_layer_frame",
+    "integrated_cognitive_agent_foundation_exact_anchor_state",
+    "integrated_cognitive_agent_foundation_confidence_gate",
+    "integrated_cognitive_agent_foundation_exact_provenance_deduplication",
+    "integrated_cognitive_agent_foundation_conflicting_provenance_atomicity",
+    "integrated_cognitive_agent_foundation_single_authority_per_layer",
+    "integrated_cognitive_agent_foundation_hard_compute_budget",
+    "integrated_cognitive_agent_foundation_exact_cognitive_state_identity",
+    "integrated_cognitive_agent_foundation_canonical_layer_order",
+    "integrated_cognitive_agent_foundation_five_layer_bounded_frame",
+    "integrated_cognitive_agent_foundation_deterministic_facade_equivalence"
   ]
 }
