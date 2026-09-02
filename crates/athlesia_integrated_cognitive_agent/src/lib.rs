@@ -2288,3 +2288,657 @@ mod universal_domain_learning_ingestion_tests {
         assert!(transferred.is_empty());
     }
 }
+
+use athlesia_executive_agency::{
+    IntegratedExecutiveControlDecision, IntegratedExecutiveControlResult,
+    IntegratedExecutiveSelection, IntegratedExecutiveSelectionSource,
+};
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ExecutiveAgencyIngestionRequest {
+    anchor_state: CognitiveStructure,
+    executive_state: CognitiveStructure,
+    provenance: CognitiveStructure,
+    confidence: CognitiveSignal,
+    compute_cost: CognitiveSignal,
+}
+
+impl ExecutiveAgencyIngestionRequest {
+    pub fn new(
+        anchor_state: CognitiveStructure,
+        executive_state: CognitiveStructure,
+        provenance: CognitiveStructure,
+        confidence: CognitiveSignal,
+        compute_cost: CognitiveSignal,
+    ) -> Option<Self> {
+        if confidence == CognitiveSignal::zero() {
+            return None;
+        }
+
+        Some(Self {
+            anchor_state,
+            executive_state,
+            provenance,
+            confidence,
+            compute_cost,
+        })
+    }
+
+    pub fn anchor_state(&self) -> &CognitiveStructure {
+        &self.anchor_state
+    }
+
+    pub fn executive_state(&self) -> &CognitiveStructure {
+        &self.executive_state
+    }
+
+    pub fn provenance(&self) -> &CognitiveStructure {
+        &self.provenance
+    }
+
+    pub fn confidence(&self) -> CognitiveSignal {
+        self.confidence
+    }
+
+    pub fn compute_cost(&self) -> CognitiveSignal {
+        self.compute_cost
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ExecutiveAgencyDigest {
+    decision: IntegratedExecutiveControlDecision,
+    selection_source: Option<IntegratedExecutiveSelectionSource>,
+    goal_identity: Option<CognitiveStructure>,
+    action: Option<CognitiveStructure>,
+    predicted_outcome: Option<CognitiveStructure>,
+    intention_step_index: Option<usize>,
+    control_value: Option<CognitiveSignal>,
+}
+
+impl ExecutiveAgencyDigest {
+    pub fn from_parts(
+        decision: IntegratedExecutiveControlDecision,
+        selection: Option<&IntegratedExecutiveSelection>,
+    ) -> Self {
+        Self {
+            decision,
+            selection_source: selection.map(IntegratedExecutiveSelection::source),
+            goal_identity: selection.map(|value| value.goal_identity().clone()),
+            action: selection.map(|value| value.action().clone()),
+            predicted_outcome: selection.map(|value| value.predicted_outcome().clone()),
+            intention_step_index: selection
+                .and_then(IntegratedExecutiveSelection::intention_step_index),
+            control_value: selection.map(IntegratedExecutiveSelection::control_value),
+        }
+    }
+
+    pub fn from_result(result: &IntegratedExecutiveControlResult) -> Self {
+        Self::from_parts(result.decision(), result.selection())
+    }
+
+    pub fn decision(&self) -> IntegratedExecutiveControlDecision {
+        self.decision
+    }
+
+    pub fn selection_source(&self) -> Option<IntegratedExecutiveSelectionSource> {
+        self.selection_source
+    }
+
+    pub fn goal_identity(&self) -> Option<&CognitiveStructure> {
+        self.goal_identity.as_ref()
+    }
+
+    pub fn action(&self) -> Option<&CognitiveStructure> {
+        self.action.as_ref()
+    }
+
+    pub fn predicted_outcome(&self) -> Option<&CognitiveStructure> {
+        self.predicted_outcome.as_ref()
+    }
+
+    pub fn intention_step_index(&self) -> Option<usize> {
+        self.intention_step_index
+    }
+
+    pub fn control_value(&self) -> Option<CognitiveSignal> {
+        self.control_value
+    }
+
+    pub fn has_selection(&self) -> bool {
+        self.selection_source.is_some()
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum ExecutiveAgencyIngestionStatus {
+    Ingested,
+    MissingExecutionSelection,
+    UnexpectedNonExecutionSelection,
+    SelectionSourceMismatch,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ExecutiveAgencyIngestionResult {
+    status: ExecutiveAgencyIngestionStatus,
+    digest: Option<ExecutiveAgencyDigest>,
+    contribution: Option<IntegratedLayerContribution>,
+}
+
+impl ExecutiveAgencyIngestionResult {
+    pub fn status(&self) -> ExecutiveAgencyIngestionStatus {
+        self.status
+    }
+
+    pub fn digest(&self) -> Option<&ExecutiveAgencyDigest> {
+        self.digest.as_ref()
+    }
+
+    pub fn contribution(&self) -> Option<&IntegratedLayerContribution> {
+        self.contribution.as_ref()
+    }
+
+    pub fn ingested(&self) -> bool {
+        self.status == ExecutiveAgencyIngestionStatus::Ingested
+    }
+
+    pub fn abstained(&self) -> bool {
+        self.contribution.is_none()
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct AutonomousExecutiveAgencyIngestion;
+
+impl AutonomousExecutiveAgencyIngestion {
+    pub fn decision_requires_selection(decision: IntegratedExecutiveControlDecision) -> bool {
+        matches!(
+            decision,
+            IntegratedExecutiveControlDecision::ExecuteCurrent
+                | IntegratedExecutiveControlDecision::ExecuteReplacement
+                | IntegratedExecutiveControlDecision::ExecuteExploration
+        )
+    }
+
+    pub fn expected_selection_source(
+        decision: IntegratedExecutiveControlDecision,
+    ) -> Option<IntegratedExecutiveSelectionSource> {
+        match decision {
+            IntegratedExecutiveControlDecision::ExecuteCurrent => {
+                Some(IntegratedExecutiveSelectionSource::CurrentIntention)
+            }
+
+            IntegratedExecutiveControlDecision::ExecuteReplacement => {
+                Some(IntegratedExecutiveSelectionSource::ReplacementIntention)
+            }
+
+            IntegratedExecutiveControlDecision::ExecuteExploration => {
+                Some(IntegratedExecutiveSelectionSource::Exploration)
+            }
+
+            IntegratedExecutiveControlDecision::Stop
+            | IntegratedExecutiveControlDecision::Reconsider
+            | IntegratedExecutiveControlDecision::NoViableOption => None,
+        }
+    }
+
+    fn abstain(
+        status: ExecutiveAgencyIngestionStatus,
+        digest: ExecutiveAgencyDigest,
+    ) -> ExecutiveAgencyIngestionResult {
+        ExecutiveAgencyIngestionResult {
+            status,
+            digest: Some(digest),
+            contribution: None,
+        }
+    }
+
+    pub fn ingest_parts(
+        request: &ExecutiveAgencyIngestionRequest,
+        decision: IntegratedExecutiveControlDecision,
+        selection: Option<&IntegratedExecutiveSelection>,
+    ) -> ExecutiveAgencyIngestionResult {
+        let digest = ExecutiveAgencyDigest::from_parts(decision, selection);
+
+        let expected_source = Self::expected_selection_source(decision);
+
+        match (expected_source, digest.selection_source()) {
+            (Some(_), None) => {
+                return Self::abstain(
+                    ExecutiveAgencyIngestionStatus::MissingExecutionSelection,
+                    digest,
+                );
+            }
+
+            (None, Some(_)) => {
+                return Self::abstain(
+                    ExecutiveAgencyIngestionStatus::UnexpectedNonExecutionSelection,
+                    digest,
+                );
+            }
+
+            (Some(expected), Some(actual)) if expected != actual => {
+                return Self::abstain(
+                    ExecutiveAgencyIngestionStatus::SelectionSourceMismatch,
+                    digest,
+                );
+            }
+
+            _ => {}
+        }
+
+        let contribution = IntegratedLayerContribution::new(
+            IntegratedCognitiveLayer::ExecutiveAgency,
+            request.anchor_state().clone(),
+            request.executive_state().clone(),
+            request.provenance().clone(),
+            request.confidence(),
+            request.compute_cost(),
+        )
+        .expect("executive ingestion request enforces positive confidence");
+
+        ExecutiveAgencyIngestionResult {
+            status: ExecutiveAgencyIngestionStatus::Ingested,
+            digest: Some(digest),
+            contribution: Some(contribution),
+        }
+    }
+
+    pub fn ingest(
+        request: &ExecutiveAgencyIngestionRequest,
+        result: &IntegratedExecutiveControlResult,
+    ) -> ExecutiveAgencyIngestionResult {
+        Self::ingest_parts(request, result.decision(), result.selection())
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct UniversalExecutiveAgencyIngestion;
+
+impl UniversalExecutiveAgencyIngestion {
+    pub fn evaluate(
+        request: &ExecutiveAgencyIngestionRequest,
+        result: &IntegratedExecutiveControlResult,
+    ) -> ExecutiveAgencyIngestionResult {
+        AutonomousExecutiveAgencyIngestion::ingest(request, result)
+    }
+
+    pub fn evaluate_parts(
+        request: &ExecutiveAgencyIngestionRequest,
+        decision: IntegratedExecutiveControlDecision,
+        selection: Option<&IntegratedExecutiveSelection>,
+    ) -> ExecutiveAgencyIngestionResult {
+        AutonomousExecutiveAgencyIngestion::ingest_parts(request, decision, selection)
+    }
+}
+
+#[cfg(test)]
+mod executive_agency_ingestion_tests {
+    use super::*;
+
+    fn s(value: u16) -> CognitiveSignal {
+        if value == 0 {
+            CognitiveSignal::zero()
+        } else {
+            CognitiveSignal::new(value).unwrap()
+        }
+    }
+
+    fn a(value: u64) -> CognitiveStructure {
+        CognitiveStructure::atom(value)
+    }
+
+    fn request() -> ExecutiveAgencyIngestionRequest {
+        ExecutiveAgencyIngestionRequest::new(a(1000), a(1003), a(9200), s(900), s(225)).unwrap()
+    }
+
+    #[test]
+    fn executive_ingestion_request_requires_positive_confidence() {
+        assert_eq!(
+            ExecutiveAgencyIngestionRequest::new(a(1), a(2), a(3), s(0), s(10),),
+            None
+        );
+
+        let valid = request();
+
+        assert_eq!(valid.anchor_state(), &a(1000));
+
+        assert_eq!(valid.executive_state(), &a(1003));
+
+        assert_eq!(valid.provenance(), &a(9200));
+    }
+
+    #[test]
+    fn real_m48_integrated_control_result_adapter_is_compile_time_bound() {
+        let adapter: fn(&IntegratedExecutiveControlResult) -> ExecutiveAgencyDigest =
+            ExecutiveAgencyDigest::from_result;
+
+        let ingest: fn(
+            &ExecutiveAgencyIngestionRequest,
+            &IntegratedExecutiveControlResult,
+        ) -> ExecutiveAgencyIngestionResult = AutonomousExecutiveAgencyIngestion::ingest;
+
+        let facade: fn(
+            &ExecutiveAgencyIngestionRequest,
+            &IntegratedExecutiveControlResult,
+        ) -> ExecutiveAgencyIngestionResult = UniversalExecutiveAgencyIngestion::evaluate;
+
+        let _ = (adapter, ingest, facade);
+    }
+
+    #[test]
+    fn m48_execution_decisions_require_exact_selection_presence() {
+        assert!(
+            AutonomousExecutiveAgencyIngestion::decision_requires_selection(
+                IntegratedExecutiveControlDecision::ExecuteCurrent
+            )
+        );
+
+        assert!(
+            AutonomousExecutiveAgencyIngestion::decision_requires_selection(
+                IntegratedExecutiveControlDecision::ExecuteReplacement
+            )
+        );
+
+        assert!(
+            AutonomousExecutiveAgencyIngestion::decision_requires_selection(
+                IntegratedExecutiveControlDecision::ExecuteExploration
+            )
+        );
+
+        assert!(
+            !AutonomousExecutiveAgencyIngestion::decision_requires_selection(
+                IntegratedExecutiveControlDecision::Stop
+            )
+        );
+
+        assert!(
+            !AutonomousExecutiveAgencyIngestion::decision_requires_selection(
+                IntegratedExecutiveControlDecision::Reconsider
+            )
+        );
+
+        assert!(
+            !AutonomousExecutiveAgencyIngestion::decision_requires_selection(
+                IntegratedExecutiveControlDecision::NoViableOption
+            )
+        );
+    }
+
+    #[test]
+    fn m48_execute_decisions_bind_to_exact_frozen_selection_sources() {
+        assert_eq!(
+            AutonomousExecutiveAgencyIngestion::expected_selection_source(
+                IntegratedExecutiveControlDecision::ExecuteCurrent
+            ),
+            Some(IntegratedExecutiveSelectionSource::CurrentIntention)
+        );
+
+        assert_eq!(
+            AutonomousExecutiveAgencyIngestion::expected_selection_source(
+                IntegratedExecutiveControlDecision::ExecuteReplacement
+            ),
+            Some(IntegratedExecutiveSelectionSource::ReplacementIntention)
+        );
+
+        assert_eq!(
+            AutonomousExecutiveAgencyIngestion::expected_selection_source(
+                IntegratedExecutiveControlDecision::ExecuteExploration
+            ),
+            Some(IntegratedExecutiveSelectionSource::Exploration)
+        );
+    }
+
+    #[test]
+    fn stop_decision_ingests_without_fabricating_action_selection() {
+        let result = AutonomousExecutiveAgencyIngestion::ingest_parts(
+            &request(),
+            IntegratedExecutiveControlDecision::Stop,
+            None,
+        );
+
+        assert!(result.ingested());
+
+        let digest = result.digest().unwrap();
+
+        assert_eq!(digest.decision(), IntegratedExecutiveControlDecision::Stop);
+
+        assert!(!digest.has_selection());
+
+        assert_eq!(digest.action(), None);
+
+        assert_eq!(digest.predicted_outcome(), None);
+    }
+
+    #[test]
+    fn reconsider_decision_preserves_exact_agent_state_and_provenance() {
+        let req =
+            ExecutiveAgencyIngestionRequest::new(a(500), a(503), a(999), s(850), s(175)).unwrap();
+
+        let result = AutonomousExecutiveAgencyIngestion::ingest_parts(
+            &req,
+            IntegratedExecutiveControlDecision::Reconsider,
+            None,
+        );
+
+        let contribution = result.contribution().unwrap();
+
+        assert_eq!(
+            contribution.layer(),
+            IntegratedCognitiveLayer::ExecutiveAgency
+        );
+
+        assert_eq!(contribution.anchor_state(), &a(500));
+
+        assert_eq!(contribution.result_state(), &a(503));
+
+        assert_eq!(contribution.provenance(), &a(999));
+
+        assert_eq!(contribution.confidence(), s(850));
+
+        assert_eq!(contribution.compute_cost(), s(175));
+    }
+
+    #[test]
+    fn no_viable_option_is_preserved_as_explicit_executive_state() {
+        let result = AutonomousExecutiveAgencyIngestion::ingest_parts(
+            &request(),
+            IntegratedExecutiveControlDecision::NoViableOption,
+            None,
+        );
+
+        assert!(result.ingested());
+
+        assert_eq!(
+            result.digest().unwrap().decision(),
+            IntegratedExecutiveControlDecision::NoViableOption
+        );
+
+        assert!(result.digest().unwrap().selection_source().is_none());
+    }
+
+    #[test]
+    fn execution_decisions_without_frozen_m48_selection_abstain_atomically() {
+        for decision in [
+            IntegratedExecutiveControlDecision::ExecuteCurrent,
+            IntegratedExecutiveControlDecision::ExecuteReplacement,
+            IntegratedExecutiveControlDecision::ExecuteExploration,
+        ] {
+            let result =
+                AutonomousExecutiveAgencyIngestion::ingest_parts(&request(), decision, None);
+
+            assert_eq!(
+                result.status(),
+                ExecutiveAgencyIngestionStatus::MissingExecutionSelection
+            );
+
+            assert!(result.abstained());
+
+            assert!(result.contribution().is_none());
+
+            assert_eq!(result.digest().unwrap().decision(), decision);
+        }
+    }
+
+    #[test]
+    fn executive_ingestion_facade_is_deterministic_for_reconsideration() {
+        let req = request();
+
+        let direct = AutonomousExecutiveAgencyIngestion::ingest_parts(
+            &req,
+            IntegratedExecutiveControlDecision::Reconsider,
+            None,
+        );
+
+        let facade = UniversalExecutiveAgencyIngestion::evaluate_parts(
+            &req,
+            IntegratedExecutiveControlDecision::Reconsider,
+            None,
+        );
+
+        let repeated = UniversalExecutiveAgencyIngestion::evaluate_parts(
+            &req,
+            IntegratedExecutiveControlDecision::Reconsider,
+            None,
+        );
+
+        assert_eq!(direct, facade);
+
+        assert_eq!(facade, repeated);
+    }
+
+    #[test]
+    fn executive_contribution_coexists_with_perception_and_domain_learning() {
+        let executive = AutonomousExecutiveAgencyIngestion::ingest_parts(
+            &request(),
+            IntegratedExecutiveControlDecision::Stop,
+            None,
+        );
+
+        let perceptual = IntegratedLayerContribution::new(
+            IntegratedCognitiveLayer::PerceptualGrounding,
+            a(1000),
+            a(1001),
+            a(9000),
+            s(900),
+            s(200),
+        )
+        .unwrap();
+
+        let domain = IntegratedLayerContribution::new(
+            IntegratedCognitiveLayer::UniversalDomainLearning,
+            a(1000),
+            a(1002),
+            a(9100),
+            s(900),
+            s(250),
+        )
+        .unwrap();
+
+        let integrated = IntegratedCognitiveAgentFoundation::integrate(
+            &a(1000),
+            &[
+                perceptual,
+                domain,
+                executive.contribution().unwrap().clone(),
+            ],
+            IntegratedAgentPolicy::new(
+                IntegratedAgentBounds::new(5, 2000).unwrap(),
+                IntegratedAgentThresholds::new(s(500)).unwrap(),
+            ),
+        );
+
+        assert!(integrated.integrated());
+
+        let frame = integrated.frame().unwrap();
+
+        assert!(frame
+            .contribution(IntegratedCognitiveLayer::PerceptualGrounding)
+            .is_some());
+
+        assert!(frame
+            .contribution(IntegratedCognitiveLayer::UniversalDomainLearning)
+            .is_some());
+
+        assert!(frame
+            .contribution(IntegratedCognitiveLayer::ExecutiveAgency)
+            .is_some());
+    }
+
+    #[test]
+    fn executive_cross_layer_provenance_collision_remains_atomic() {
+        let executive_request =
+            ExecutiveAgencyIngestionRequest::new(a(1000), a(1003), a(9000), s(900), s(225))
+                .unwrap();
+
+        let executive = AutonomousExecutiveAgencyIngestion::ingest_parts(
+            &executive_request,
+            IntegratedExecutiveControlDecision::Reconsider,
+            None,
+        );
+
+        let perceptual = IntegratedLayerContribution::new(
+            IntegratedCognitiveLayer::PerceptualGrounding,
+            a(1000),
+            a(1001),
+            a(9000),
+            s(900),
+            s(200),
+        )
+        .unwrap();
+
+        let integrated = IntegratedCognitiveAgentFoundation::integrate(
+            &a(1000),
+            &[perceptual, executive.contribution().unwrap().clone()],
+            IntegratedAgentPolicy::new(
+                IntegratedAgentBounds::new(5, 2000).unwrap(),
+                IntegratedAgentThresholds::new(s(500)).unwrap(),
+            ),
+        );
+
+        assert_eq!(
+            integrated.status(),
+            IntegratedAgentFoundationStatus::ConflictingProvenance
+        );
+
+        assert!(integrated.frame().is_none());
+    }
+
+    #[test]
+    fn opaque_executive_state_identity_is_never_given_domain_specific_meaning() {
+        let first_request =
+            ExecutiveAgencyIngestionRequest::new(a(1000), a(111), a(9200), s(900), s(225)).unwrap();
+
+        let second_request =
+            ExecutiveAgencyIngestionRequest::new(a(1000), a(999), a(9200), s(900), s(225)).unwrap();
+
+        let first = AutonomousExecutiveAgencyIngestion::ingest_parts(
+            &first_request,
+            IntegratedExecutiveControlDecision::Stop,
+            None,
+        );
+
+        let second = AutonomousExecutiveAgencyIngestion::ingest_parts(
+            &second_request,
+            IntegratedExecutiveControlDecision::Stop,
+            None,
+        );
+
+        assert_eq!(first.digest(), second.digest());
+
+        assert_ne!(
+            first.contribution().unwrap().result_state(),
+            second.contribution().unwrap().result_state()
+        );
+
+        assert_eq!(
+            first.contribution().unwrap().layer(),
+            IntegratedCognitiveLayer::ExecutiveAgency
+        );
+
+        assert_eq!(
+            second.contribution().unwrap().layer(),
+            IntegratedCognitiveLayer::ExecutiveAgency
+        );
+    }
+}

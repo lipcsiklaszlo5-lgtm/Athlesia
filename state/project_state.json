@@ -56,7 +56,7 @@
     "crates/athlesia_hierarchy/tests/hierarchy_recognition.rs": "bc7fe6ac289f8697e65b2ebe9aab179ae0cdb2db655fed18afae454bf2132841",
     "crates/athlesia_integrated_cognitive_agent/Cargo.lock": "49d8133fab85c5e2dd210c1702d89886b12e48961f6783944f53192bbd9862f5",
     "crates/athlesia_integrated_cognitive_agent/Cargo.toml": "07fd7160447768911344f081f3efcbcf79270014d5a962fb6ad271f881e61951",
-    "crates/athlesia_integrated_cognitive_agent/src/lib.rs": "23ac0ec8f1941eac9f3c1e93291445aa9a60bc2bc3d22e61ad944b7d0c9a1c5c",
+    "crates/athlesia_integrated_cognitive_agent/src/lib.rs": "187bb961b06eab0043d195804d09028efb88d8fb3ec78300879df9875b88d737",
     "crates/athlesia_meta_learning_skill_memory/Cargo.lock": "641aac08044b700a765d2e6a93508989365f97801ae817d73c69c3c99c00506d",
     "crates/athlesia_meta_learning_skill_memory/Cargo.toml": "3ecb2ef81d5a7d2e6eb902981ff7fe2a1446969521a0544a22bb0ba360954265",
     "crates/athlesia_meta_learning_skill_memory/src/lib.rs": "7d90563d57c3ae9196eb5ee4bc01f43991f01aef7ce0f0cf8cb96fea3ba3aa04",
@@ -618,7 +618,8 @@
       "module_50_autonomous_active_experimentation_freeze",
       "module_51_integrated_cognitive_agent_foundation",
       "module_51_integrated_cognitive_agent_perceptual_grounding_ingestion",
-      "module_51_integrated_cognitive_agent_universal_domain_learning_ingestion"
+      "module_51_integrated_cognitive_agent_universal_domain_learning_ingestion",
+      "module_51_integrated_cognitive_agent_executive_agency_ingestion"
     ],
     "module_23_integrity": {
       "status": "pass",
@@ -631,8 +632,8 @@
       "status": "frozen",
       "verifier": "tools/verify_module_23_parity.py"
     },
-    "next_layer": "module_51_integrated_cognitive_agent_executive_agency_ingestion",
-    "stage": "module_51_integrated_cognitive_agent_universal_domain_learning_ingestion",
+    "next_layer": "module_51_integrated_cognitive_agent_meta_learning_skill_memory_ingestion",
+    "stage": "module_51_integrated_cognitive_agent_executive_agency_ingestion",
     "status": "validated"
   },
   "validated_invariants": [
@@ -3171,6 +3172,18 @@
     "integrated_cognitive_agent_domain_learning_m46_m47_frame_integration",
     "integrated_cognitive_agent_domain_learning_anchor_authority",
     "integrated_cognitive_agent_domain_learning_cross_layer_provenance_atomicity",
-    "integrated_cognitive_agent_domain_learning_deterministic_facade_equivalence"
+    "integrated_cognitive_agent_domain_learning_deterministic_facade_equivalence",
+    "integrated_cognitive_agent_executive_positive_contract",
+    "integrated_cognitive_agent_executive_real_m48_result_adapter",
+    "integrated_cognitive_agent_executive_decision_authority",
+    "integrated_cognitive_agent_executive_selection_source_contract",
+    "integrated_cognitive_agent_executive_stop_without_fabricated_action",
+    "integrated_cognitive_agent_executive_exact_agent_state_binding",
+    "integrated_cognitive_agent_executive_no_viable_option_preservation",
+    "integrated_cognitive_agent_executive_missing_selection_atomic_abstention",
+    "integrated_cognitive_agent_executive_deterministic_facade_equivalence",
+    "integrated_cognitive_agent_m46_m47_m48_frame_integration",
+    "integrated_cognitive_agent_executive_cross_layer_provenance_atomicity",
+    "integrated_cognitive_agent_executive_opaque_semantics_preservation"
   ]
 }
