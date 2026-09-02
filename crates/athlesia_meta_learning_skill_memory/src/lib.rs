@@ -1295,3 +1295,599 @@ impl UniversalStructuralSkillAbstractionInduction {
         StructuralSkillAbstractionInduction::induce(candidates, policy)
     }
 }
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum GeneralizedSkillTerm {
+    Invariant(CognitiveStructure),
+    StructuralVariable(usize),
+    ContextVariable(usize),
+}
+
+impl GeneralizedSkillTerm {
+    pub fn invariant(&self) -> Option<&CognitiveStructure> {
+        match self {
+            Self::Invariant(value) => Some(value),
+            _ => None,
+        }
+    }
+
+    pub fn structural_variable_id(&self) -> Option<usize> {
+        match self {
+            Self::StructuralVariable(id) => Some(*id),
+            _ => None,
+        }
+    }
+
+    pub fn context_variable_id(&self) -> Option<usize> {
+        match self {
+            Self::ContextVariable(id) => Some(*id),
+            _ => None,
+        }
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct CrossContextSkillStep {
+    required_state: GeneralizedSkillTerm,
+    action: GeneralizedSkillTerm,
+    observed_outcome: GeneralizedSkillTerm,
+}
+
+impl CrossContextSkillStep {
+    pub fn required_state(&self) -> &GeneralizedSkillTerm {
+        &self.required_state
+    }
+
+    pub fn action(&self) -> &GeneralizedSkillTerm {
+        &self.action
+    }
+
+    pub fn observed_outcome(&self) -> &GeneralizedSkillTerm {
+        &self.observed_outcome
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct CrossContextSkillSchema {
+    initial_state: GeneralizedSkillTerm,
+    goal_identity: GeneralizedSkillTerm,
+    steps: Vec<CrossContextSkillStep>,
+    structural_variable_count: usize,
+    context_variable_count: usize,
+}
+
+impl CrossContextSkillSchema {
+    pub fn initial_state(&self) -> &GeneralizedSkillTerm {
+        &self.initial_state
+    }
+
+    pub fn goal_identity(&self) -> &GeneralizedSkillTerm {
+        &self.goal_identity
+    }
+
+    pub fn steps(&self) -> &[CrossContextSkillStep] {
+        &self.steps
+    }
+
+    pub fn step_count(&self) -> usize {
+        self.steps.len()
+    }
+
+    pub fn structural_variable_count(&self) -> usize {
+        self.structural_variable_count
+    }
+
+    pub fn context_variable_count(&self) -> usize {
+        self.context_variable_count
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct CrossContextSkillGeneralizationPolicy {
+    max_input_abstractions: usize,
+    max_pair_evaluations: usize,
+    max_steps: usize,
+    max_generalizations: usize,
+    minimum_source_pair_count: usize,
+    minimum_success_confidence: CognitiveSignal,
+    minimum_step_confidence: CognitiveSignal,
+}
+
+impl CrossContextSkillGeneralizationPolicy {
+    pub fn new(
+        max_input_abstractions: usize,
+        max_pair_evaluations: usize,
+        max_steps: usize,
+        max_generalizations: usize,
+        minimum_source_pair_count: usize,
+        minimum_success_confidence: CognitiveSignal,
+        minimum_step_confidence: CognitiveSignal,
+    ) -> Option<Self> {
+        if max_input_abstractions < 2
+            || max_pair_evaluations == 0
+            || max_steps == 0
+            || max_generalizations == 0
+            || minimum_source_pair_count == 0
+            || minimum_success_confidence == CognitiveSignal::zero()
+            || minimum_step_confidence == CognitiveSignal::zero()
+        {
+            return None;
+        }
+
+        Some(Self {
+            max_input_abstractions,
+            max_pair_evaluations,
+            max_steps,
+            max_generalizations,
+            minimum_source_pair_count,
+            minimum_success_confidence,
+            minimum_step_confidence,
+        })
+    }
+
+    pub fn max_input_abstractions(self) -> usize {
+        self.max_input_abstractions
+    }
+
+    pub fn max_pair_evaluations(self) -> usize {
+        self.max_pair_evaluations
+    }
+
+    pub fn max_steps(self) -> usize {
+        self.max_steps
+    }
+
+    pub fn max_generalizations(self) -> usize {
+        self.max_generalizations
+    }
+
+    pub fn minimum_source_pair_count(self) -> usize {
+        self.minimum_source_pair_count
+    }
+
+    pub fn minimum_success_confidence(self) -> CognitiveSignal {
+        self.minimum_success_confidence
+    }
+
+    pub fn minimum_step_confidence(self) -> CognitiveSignal {
+        self.minimum_step_confidence
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct CrossContextSkillGeneralizationEvidence {
+    schema: CrossContextSkillSchema,
+    source_abstraction_pair_count: usize,
+    source_support_sum: usize,
+    success_confidence_floor: CognitiveSignal,
+    step_confidence_floor: CognitiveSignal,
+}
+
+impl CrossContextSkillGeneralizationEvidence {
+    fn floor(a: CognitiveSignal, b: CognitiveSignal) -> CognitiveSignal {
+        if a.value() <= b.value() {
+            a
+        } else {
+            b
+        }
+    }
+
+    fn new(
+        schema: CrossContextSkillSchema,
+        left: &StructuralSkillAbstractionEvidence,
+        right: &StructuralSkillAbstractionEvidence,
+    ) -> Self {
+        Self {
+            schema,
+            source_abstraction_pair_count: 1,
+            source_support_sum: left
+                .source_support_sum()
+                .saturating_add(right.source_support_sum()),
+            success_confidence_floor: Self::floor(
+                left.success_confidence_floor(),
+                right.success_confidence_floor(),
+            ),
+            step_confidence_floor: Self::floor(
+                left.step_confidence_floor(),
+                right.step_confidence_floor(),
+            ),
+        }
+    }
+
+    fn observe(
+        &mut self,
+        left: &StructuralSkillAbstractionEvidence,
+        right: &StructuralSkillAbstractionEvidence,
+    ) {
+        self.source_abstraction_pair_count = self.source_abstraction_pair_count.saturating_add(1);
+
+        self.source_support_sum = self.source_support_sum.saturating_add(
+            left.source_support_sum()
+                .saturating_add(right.source_support_sum()),
+        );
+
+        self.success_confidence_floor = Self::floor(
+            self.success_confidence_floor,
+            Self::floor(
+                left.success_confidence_floor(),
+                right.success_confidence_floor(),
+            ),
+        );
+
+        self.step_confidence_floor = Self::floor(
+            self.step_confidence_floor,
+            Self::floor(left.step_confidence_floor(), right.step_confidence_floor()),
+        );
+    }
+
+    pub fn schema(&self) -> &CrossContextSkillSchema {
+        &self.schema
+    }
+
+    pub fn source_abstraction_pair_count(&self) -> usize {
+        self.source_abstraction_pair_count
+    }
+
+    pub fn source_support_sum(&self) -> usize {
+        self.source_support_sum
+    }
+
+    pub fn success_confidence_floor(&self) -> CognitiveSignal {
+        self.success_confidence_floor
+    }
+
+    pub fn step_confidence_floor(&self) -> CognitiveSignal {
+        self.step_confidence_floor
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct CrossContextSkillGeneralizationResult {
+    input_abstraction_count: usize,
+    unique_abstraction_count: usize,
+    considered_abstraction_count: usize,
+    abstraction_frontier_truncated: bool,
+    rejected_support_count: usize,
+    rejected_step_bound_count: usize,
+    rejected_threshold_count: usize,
+    pair_evaluation_count: usize,
+    pair_evaluation_truncated: bool,
+    incompatible_structure_count: usize,
+    generalizations_before_frontier: usize,
+    generalization_frontier_truncated: bool,
+    generalizations: Vec<CrossContextSkillGeneralizationEvidence>,
+}
+
+impl CrossContextSkillGeneralizationResult {
+    pub fn input_abstraction_count(&self) -> usize {
+        self.input_abstraction_count
+    }
+
+    pub fn unique_abstraction_count(&self) -> usize {
+        self.unique_abstraction_count
+    }
+
+    pub fn considered_abstraction_count(&self) -> usize {
+        self.considered_abstraction_count
+    }
+
+    pub fn abstraction_frontier_truncated(&self) -> bool {
+        self.abstraction_frontier_truncated
+    }
+
+    pub fn rejected_support_count(&self) -> usize {
+        self.rejected_support_count
+    }
+
+    pub fn rejected_step_bound_count(&self) -> usize {
+        self.rejected_step_bound_count
+    }
+
+    pub fn rejected_threshold_count(&self) -> usize {
+        self.rejected_threshold_count
+    }
+
+    pub fn pair_evaluation_count(&self) -> usize {
+        self.pair_evaluation_count
+    }
+
+    pub fn pair_evaluation_truncated(&self) -> bool {
+        self.pair_evaluation_truncated
+    }
+
+    pub fn incompatible_structure_count(&self) -> usize {
+        self.incompatible_structure_count
+    }
+
+    pub fn generalizations_before_frontier(&self) -> usize {
+        self.generalizations_before_frontier
+    }
+
+    pub fn generalization_frontier_truncated(&self) -> bool {
+        self.generalization_frontier_truncated
+    }
+
+    pub fn generalizations(&self) -> &[CrossContextSkillGeneralizationEvidence] {
+        &self.generalizations
+    }
+
+    pub fn generalization_count(&self) -> usize {
+        self.generalizations.len()
+    }
+
+    pub fn abstained(&self) -> bool {
+        self.generalizations.is_empty()
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct CrossContextSkillGeneralization;
+
+impl CrossContextSkillGeneralization {
+    fn evidence_order(
+        a: &StructuralSkillAbstractionEvidence,
+        b: &StructuralSkillAbstractionEvidence,
+    ) -> std::cmp::Ordering {
+        b.source_pair_count()
+            .cmp(&a.source_pair_count())
+            .then_with(|| b.source_support_sum().cmp(&a.source_support_sum()))
+            .then_with(|| {
+                b.success_confidence_floor()
+                    .value()
+                    .cmp(&a.success_confidence_floor().value())
+            })
+            .then_with(|| format!("{:?}", a.abstraction()).cmp(&format!("{:?}", b.abstraction())))
+    }
+
+    fn canonical(id: usize, map: &mut Vec<(usize, usize)>) -> usize {
+        if let Some((_, canonical)) = map.iter().find(|(source, _)| *source == id) {
+            return *canonical;
+        }
+
+        let canonical = map.len();
+        map.push((id, canonical));
+        canonical
+    }
+
+    fn term(
+        left: &StructuralSkillTerm,
+        right: &StructuralSkillTerm,
+        left_map: &mut Vec<(usize, usize)>,
+        right_map: &mut Vec<(usize, usize)>,
+        contexts: &mut Vec<(CognitiveStructure, CognitiveStructure)>,
+    ) -> Option<GeneralizedSkillTerm> {
+        match (left, right) {
+            (StructuralSkillTerm::Invariant(a), StructuralSkillTerm::Invariant(b)) => {
+                if a == b {
+                    Some(GeneralizedSkillTerm::Invariant(a.clone()))
+                } else {
+                    let id = if let Some(index) = contexts
+                        .iter()
+                        .position(|(x, y)| (x == a && y == b) || (x == b && y == a))
+                    {
+                        index
+                    } else {
+                        let index = contexts.len();
+                        contexts.push((a.clone(), b.clone()));
+                        index
+                    };
+
+                    Some(GeneralizedSkillTerm::ContextVariable(id))
+                }
+            }
+
+            (StructuralSkillTerm::Variable(a), StructuralSkillTerm::Variable(b)) => {
+                let left_id = Self::canonical(*a, left_map);
+
+                let right_id = Self::canonical(*b, right_map);
+
+                if left_id == right_id {
+                    Some(GeneralizedSkillTerm::StructuralVariable(left_id))
+                } else {
+                    None
+                }
+            }
+
+            _ => None,
+        }
+    }
+
+    fn generalize_pair(
+        left: &StructuralSkillAbstraction,
+        right: &StructuralSkillAbstraction,
+    ) -> Option<CrossContextSkillSchema> {
+        if left.step_count() != right.step_count() {
+            return None;
+        }
+
+        let mut left_map = Vec::new();
+        let mut right_map = Vec::new();
+        let mut contexts = Vec::new();
+
+        let initial_state = Self::term(
+            left.initial_state(),
+            right.initial_state(),
+            &mut left_map,
+            &mut right_map,
+            &mut contexts,
+        )?;
+
+        let goal_identity = Self::term(
+            left.goal_identity(),
+            right.goal_identity(),
+            &mut left_map,
+            &mut right_map,
+            &mut contexts,
+        )?;
+
+        let mut steps = Vec::new();
+
+        for (a, b) in left.steps().iter().zip(right.steps()) {
+            steps.push(CrossContextSkillStep {
+                required_state: Self::term(
+                    a.required_state(),
+                    b.required_state(),
+                    &mut left_map,
+                    &mut right_map,
+                    &mut contexts,
+                )?,
+                action: Self::term(
+                    a.action(),
+                    b.action(),
+                    &mut left_map,
+                    &mut right_map,
+                    &mut contexts,
+                )?,
+                observed_outcome: Self::term(
+                    a.observed_outcome(),
+                    b.observed_outcome(),
+                    &mut left_map,
+                    &mut right_map,
+                    &mut contexts,
+                )?,
+            });
+        }
+
+        Some(CrossContextSkillSchema {
+            initial_state,
+            goal_identity,
+            steps,
+            structural_variable_count: left_map.len(),
+            context_variable_count: contexts.len(),
+        })
+    }
+
+    fn generalized_order(
+        a: &CrossContextSkillGeneralizationEvidence,
+        b: &CrossContextSkillGeneralizationEvidence,
+    ) -> std::cmp::Ordering {
+        b.source_abstraction_pair_count()
+            .cmp(&a.source_abstraction_pair_count())
+            .then_with(|| b.source_support_sum().cmp(&a.source_support_sum()))
+            .then_with(|| {
+                b.success_confidence_floor()
+                    .value()
+                    .cmp(&a.success_confidence_floor().value())
+            })
+            .then_with(|| format!("{:?}", a.schema()).cmp(&format!("{:?}", b.schema())))
+    }
+
+    pub fn generalize(
+        abstractions: &[StructuralSkillAbstractionEvidence],
+        policy: CrossContextSkillGeneralizationPolicy,
+    ) -> CrossContextSkillGeneralizationResult {
+        let input_abstraction_count = abstractions.len();
+
+        let mut ranked = abstractions.to_vec();
+
+        ranked.sort_by(Self::evidence_order);
+
+        ranked.dedup_by(|a, b| a.abstraction() == b.abstraction());
+
+        let unique_abstraction_count = ranked.len();
+
+        ranked.truncate(policy.max_input_abstractions());
+
+        let considered_abstraction_count = ranked.len();
+
+        let mut rejected_support_count = 0;
+        let mut rejected_step_bound_count = 0;
+        let mut rejected_threshold_count = 0;
+
+        let eligible: Vec<_> = ranked
+            .into_iter()
+            .filter(|x| {
+                if x.source_pair_count() < policy.minimum_source_pair_count() {
+                    rejected_support_count += 1;
+                    return false;
+                }
+
+                if x.abstraction().step_count() > policy.max_steps() {
+                    rejected_step_bound_count += 1;
+                    return false;
+                }
+
+                if x.success_confidence_floor().value()
+                    < policy.minimum_success_confidence().value()
+                    || x.step_confidence_floor().value() < policy.minimum_step_confidence().value()
+                {
+                    rejected_threshold_count += 1;
+                    return false;
+                }
+
+                true
+            })
+            .collect();
+
+        let possible = eligible
+            .len()
+            .saturating_mul(eligible.len().saturating_sub(1))
+            / 2;
+
+        let mut pair_evaluation_count = 0;
+        let mut incompatible_structure_count = 0;
+
+        let mut generalizations: Vec<CrossContextSkillGeneralizationEvidence> = Vec::new();
+
+        'outer: for i in 0..eligible.len() {
+            for j in (i + 1)..eligible.len() {
+                if pair_evaluation_count >= policy.max_pair_evaluations() {
+                    break 'outer;
+                }
+
+                pair_evaluation_count += 1;
+
+                let left = &eligible[i];
+                let right = &eligible[j];
+
+                let Some(schema) = Self::generalize_pair(left.abstraction(), right.abstraction())
+                else {
+                    incompatible_structure_count += 1;
+                    continue;
+                };
+
+                if let Some(existing) = generalizations.iter_mut().find(|x| x.schema() == &schema) {
+                    existing.observe(left, right);
+                } else {
+                    generalizations.push(CrossContextSkillGeneralizationEvidence::new(
+                        schema, left, right,
+                    ));
+                }
+            }
+        }
+
+        generalizations.sort_by(Self::generalized_order);
+
+        let before = generalizations.len();
+
+        generalizations.truncate(policy.max_generalizations());
+
+        CrossContextSkillGeneralizationResult {
+            input_abstraction_count,
+            unique_abstraction_count,
+            considered_abstraction_count,
+            abstraction_frontier_truncated: unique_abstraction_count > considered_abstraction_count,
+            rejected_support_count,
+            rejected_step_bound_count,
+            rejected_threshold_count,
+            pair_evaluation_count,
+            pair_evaluation_truncated: possible > pair_evaluation_count,
+            incompatible_structure_count,
+            generalizations_before_frontier: before,
+            generalization_frontier_truncated: before > generalizations.len(),
+            generalizations,
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct UniversalCrossContextSkillGeneralization;
+
+impl UniversalCrossContextSkillGeneralization {
+    pub fn evaluate(
+        abstractions: &[StructuralSkillAbstractionEvidence],
+        policy: CrossContextSkillGeneralizationPolicy,
+    ) -> CrossContextSkillGeneralizationResult {
+        CrossContextSkillGeneralization::generalize(abstractions, policy)
+    }
+}
