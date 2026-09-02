@@ -6793,3 +6793,694 @@ mod bounded_recurrent_agent_loop_tests {
         assert_eq!(facade.final_anchor_state(), Some(&a(2005)));
     }
 }
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct RecurrentFeedbackEvidence {
+    predecessor_step_index: usize,
+    predecessor_next_anchor_state: CognitiveStructure,
+    predecessor_authority_provenance: Option<CognitiveStructure>,
+}
+
+impl RecurrentFeedbackEvidence {
+    pub fn new(
+        predecessor_step_index: usize,
+        predecessor_next_anchor_state: CognitiveStructure,
+        predecessor_authority_provenance: Option<CognitiveStructure>,
+    ) -> Self {
+        Self {
+            predecessor_step_index,
+            predecessor_next_anchor_state,
+            predecessor_authority_provenance,
+        }
+    }
+
+    pub fn predecessor_step_index(&self) -> usize {
+        self.predecessor_step_index
+    }
+
+    pub fn predecessor_next_anchor_state(&self) -> &CognitiveStructure {
+        &self.predecessor_next_anchor_state
+    }
+
+    pub fn predecessor_authority_provenance(&self) -> Option<&CognitiveStructure> {
+        self.predecessor_authority_provenance.as_ref()
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct FeedbackBoundRecurrentAgentStepInput {
+    step: RecurrentAgentStepInput,
+    feedback: Option<RecurrentFeedbackEvidence>,
+}
+
+impl FeedbackBoundRecurrentAgentStepInput {
+    pub fn new(step: RecurrentAgentStepInput, feedback: Option<RecurrentFeedbackEvidence>) -> Self {
+        Self { step, feedback }
+    }
+
+    pub fn step(&self) -> &RecurrentAgentStepInput {
+        &self.step
+    }
+
+    pub fn feedback(&self) -> Option<&RecurrentFeedbackEvidence> {
+        self.feedback.as_ref()
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum RecurrentFeedbackClosureStatus {
+    Completed,
+    InputFrontierExceeded,
+    FirstStepCarriesFeedback,
+    MissingFeedback,
+    FeedbackStepIndexMismatch,
+    FeedbackAnchorMismatch,
+    FeedbackProvenanceMismatch,
+    StepRejected,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct RecurrentFeedbackClosureResult {
+    status: RecurrentFeedbackClosureStatus,
+    initial_anchor_state: CognitiveStructure,
+    final_anchor_state: Option<CognitiveStructure>,
+    steps: Vec<ClosedLoopAgentStepResult>,
+    completed_step_count: usize,
+    rejected_step_index: Option<usize>,
+}
+
+impl RecurrentFeedbackClosureResult {
+    pub fn status(&self) -> RecurrentFeedbackClosureStatus {
+        self.status
+    }
+
+    pub fn initial_anchor_state(&self) -> &CognitiveStructure {
+        &self.initial_anchor_state
+    }
+
+    pub fn final_anchor_state(&self) -> Option<&CognitiveStructure> {
+        self.final_anchor_state.as_ref()
+    }
+
+    pub fn steps(&self) -> &[ClosedLoopAgentStepResult] {
+        &self.steps
+    }
+
+    pub fn executed_step_count(&self) -> usize {
+        self.steps.len()
+    }
+
+    pub fn completed_step_count(&self) -> usize {
+        self.completed_step_count
+    }
+
+    pub fn rejected_step_index(&self) -> Option<usize> {
+        self.rejected_step_index
+    }
+
+    pub fn completed(&self) -> bool {
+        self.status == RecurrentFeedbackClosureStatus::Completed
+    }
+
+    pub fn rejected(&self) -> bool {
+        !self.completed()
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct RecurrentFeedbackClosure;
+
+impl RecurrentFeedbackClosure {
+    fn structural_rejection(
+        status: RecurrentFeedbackClosureStatus,
+        initial_anchor_state: &CognitiveStructure,
+        current_anchor_state: Option<CognitiveStructure>,
+        steps: Vec<ClosedLoopAgentStepResult>,
+        completed_step_count: usize,
+        rejected_step_index: Option<usize>,
+    ) -> RecurrentFeedbackClosureResult {
+        RecurrentFeedbackClosureResult {
+            status,
+            initial_anchor_state: initial_anchor_state.clone(),
+            final_anchor_state: current_anchor_state,
+            steps,
+            completed_step_count,
+            rejected_step_index,
+        }
+    }
+
+    pub fn run(
+        initial_anchor_state: &CognitiveStructure,
+        step_inputs: &[FeedbackBoundRecurrentAgentStepInput],
+        cycle_policy: IntegratedAgentPolicy,
+        loop_policy: BoundedRecurrentAgentLoopPolicy,
+    ) -> RecurrentFeedbackClosureResult {
+        if step_inputs.len() > loop_policy.max_steps() {
+            return Self::structural_rejection(
+                RecurrentFeedbackClosureStatus::InputFrontierExceeded,
+                initial_anchor_state,
+                None,
+                Vec::new(),
+                0,
+                None,
+            );
+        }
+
+        if step_inputs
+            .first()
+            .and_then(|input| input.feedback())
+            .is_some()
+        {
+            return Self::structural_rejection(
+                RecurrentFeedbackClosureStatus::FirstStepCarriesFeedback,
+                initial_anchor_state,
+                Some(initial_anchor_state.clone()),
+                Vec::new(),
+                0,
+                Some(0),
+            );
+        }
+
+        let mut current_anchor = initial_anchor_state.clone();
+
+        let mut steps = Vec::with_capacity(step_inputs.len());
+
+        let mut completed_step_count = 0;
+
+        for (index, input) in step_inputs.iter().enumerate() {
+            if index > 0 {
+                let Some(feedback) = input.feedback() else {
+                    return Self::structural_rejection(
+                        RecurrentFeedbackClosureStatus::MissingFeedback,
+                        initial_anchor_state,
+                        Some(current_anchor),
+                        steps,
+                        completed_step_count,
+                        Some(index),
+                    );
+                };
+
+                if feedback.predecessor_step_index() != index - 1 {
+                    return Self::structural_rejection(
+                        RecurrentFeedbackClosureStatus::FeedbackStepIndexMismatch,
+                        initial_anchor_state,
+                        Some(current_anchor),
+                        steps,
+                        completed_step_count,
+                        Some(index),
+                    );
+                }
+
+                if feedback.predecessor_next_anchor_state() != &current_anchor {
+                    return Self::structural_rejection(
+                        RecurrentFeedbackClosureStatus::FeedbackAnchorMismatch,
+                        initial_anchor_state,
+                        Some(current_anchor),
+                        steps,
+                        completed_step_count,
+                        Some(index),
+                    );
+                }
+
+                let previous = steps
+                    .last()
+                    .expect("index greater than zero requires a completed predecessor step");
+
+                if feedback.predecessor_authority_provenance()
+                    != previous.transition().authority_provenance()
+                {
+                    return Self::structural_rejection(
+                        RecurrentFeedbackClosureStatus::FeedbackProvenanceMismatch,
+                        initial_anchor_state,
+                        Some(current_anchor),
+                        steps,
+                        completed_step_count,
+                        Some(index),
+                    );
+                }
+            }
+
+            let step = input.step();
+
+            let result = ClosedLoopAgentStep::run(
+                &current_anchor,
+                step.contributions(),
+                cycle_policy,
+                step.transition_request(),
+            );
+
+            if result.rejected() {
+                steps.push(result);
+
+                return Self::structural_rejection(
+                    RecurrentFeedbackClosureStatus::StepRejected,
+                    initial_anchor_state,
+                    Some(current_anchor),
+                    steps,
+                    completed_step_count,
+                    Some(index),
+                );
+            }
+
+            let Some(next_anchor) = result.next_anchor_state().cloned() else {
+                steps.push(result);
+
+                return Self::structural_rejection(
+                    RecurrentFeedbackClosureStatus::StepRejected,
+                    initial_anchor_state,
+                    Some(current_anchor),
+                    steps,
+                    completed_step_count,
+                    Some(index),
+                );
+            };
+
+            current_anchor = next_anchor;
+
+            completed_step_count += 1;
+
+            steps.push(result);
+        }
+
+        RecurrentFeedbackClosureResult {
+            status: RecurrentFeedbackClosureStatus::Completed,
+            initial_anchor_state: initial_anchor_state.clone(),
+            final_anchor_state: Some(current_anchor),
+            steps,
+            completed_step_count,
+            rejected_step_index: None,
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct UniversalRecurrentFeedbackClosure;
+
+impl UniversalRecurrentFeedbackClosure {
+    pub fn evaluate(
+        initial_anchor_state: &CognitiveStructure,
+        step_inputs: &[FeedbackBoundRecurrentAgentStepInput],
+        cycle_policy: IntegratedAgentPolicy,
+        loop_policy: BoundedRecurrentAgentLoopPolicy,
+    ) -> RecurrentFeedbackClosureResult {
+        RecurrentFeedbackClosure::run(initial_anchor_state, step_inputs, cycle_policy, loop_policy)
+    }
+}
+
+#[cfg(test)]
+mod recurrent_feedback_closure_tests {
+    use super::*;
+
+    fn s(value: u16) -> CognitiveSignal {
+        if value == 0 {
+            CognitiveSignal::zero()
+        } else {
+            CognitiveSignal::new(value).unwrap()
+        }
+    }
+
+    fn a(value: u64) -> CognitiveStructure {
+        CognitiveStructure::atom(value)
+    }
+
+    fn cycle_policy() -> IntegratedAgentPolicy {
+        IntegratedAgentPolicy::new(
+            IntegratedAgentBounds::new(5, 2000).unwrap(),
+            IntegratedAgentThresholds::new(s(500)).unwrap(),
+        )
+    }
+
+    fn loop_policy(max_steps: usize) -> BoundedRecurrentAgentLoopPolicy {
+        BoundedRecurrentAgentLoopPolicy::new(max_steps).unwrap()
+    }
+
+    fn contribution(
+        anchor: u64,
+        layer: IntegratedCognitiveLayer,
+        result_state: u64,
+        provenance: u64,
+    ) -> IntegratedLayerContribution {
+        IntegratedLayerContribution::new(
+            layer,
+            a(anchor),
+            a(result_state),
+            a(provenance),
+            s(900),
+            s(200),
+        )
+        .unwrap()
+    }
+
+    fn contributions(
+        anchor: u64,
+        result_base: u64,
+        provenance_base: u64,
+    ) -> Vec<IntegratedLayerContribution> {
+        vec![
+            contribution(
+                anchor,
+                IntegratedCognitiveLayer::PerceptualGrounding,
+                result_base + 1,
+                provenance_base + 1,
+            ),
+            contribution(
+                anchor,
+                IntegratedCognitiveLayer::UniversalDomainLearning,
+                result_base + 2,
+                provenance_base + 2,
+            ),
+            contribution(
+                anchor,
+                IntegratedCognitiveLayer::ExecutiveAgency,
+                result_base + 3,
+                provenance_base + 3,
+            ),
+            contribution(
+                anchor,
+                IntegratedCognitiveLayer::MetaLearningSkillMemory,
+                result_base + 4,
+                provenance_base + 4,
+            ),
+            contribution(
+                anchor,
+                IntegratedCognitiveLayer::AutonomousExperimentation,
+                result_base + 5,
+                provenance_base + 5,
+            ),
+        ]
+    }
+
+    fn adopt(
+        anchor: u64,
+        layer: IntegratedCognitiveLayer,
+        provenance: u64,
+    ) -> CognitiveCycleStateTransitionRequest {
+        CognitiveCycleStateTransitionRequest::new(
+            a(anchor),
+            CognitiveCycleTransitionAuthority::AdoptLayer(layer),
+            Some(a(provenance)),
+        )
+        .unwrap()
+    }
+
+    fn preserve(anchor: u64) -> CognitiveCycleStateTransitionRequest {
+        CognitiveCycleStateTransitionRequest::new(
+            a(anchor),
+            CognitiveCycleTransitionAuthority::PreserveAnchor,
+            None,
+        )
+        .unwrap()
+    }
+
+    fn first_step() -> FeedbackBoundRecurrentAgentStepInput {
+        FeedbackBoundRecurrentAgentStepInput::new(
+            RecurrentAgentStepInput::new(
+                contributions(1000, 1000, 9000),
+                adopt(1000, IntegratedCognitiveLayer::ExecutiveAgency, 9003),
+            ),
+            None,
+        )
+    }
+
+    fn valid_feedback() -> RecurrentFeedbackEvidence {
+        RecurrentFeedbackEvidence::new(0, a(1003), Some(a(9003)))
+    }
+
+    fn second_step(
+        feedback: Option<RecurrentFeedbackEvidence>,
+    ) -> FeedbackBoundRecurrentAgentStepInput {
+        FeedbackBoundRecurrentAgentStepInput::new(
+            RecurrentAgentStepInput::new(
+                contributions(1003, 2000, 9100),
+                adopt(
+                    1003,
+                    IntegratedCognitiveLayer::AutonomousExperimentation,
+                    9105,
+                ),
+            ),
+            feedback,
+        )
+    }
+
+    #[test]
+    fn first_recurrent_step_must_not_claim_predecessor_feedback() {
+        let first = FeedbackBoundRecurrentAgentStepInput::new(
+            first_step().step().clone(),
+            Some(RecurrentFeedbackEvidence::new(0, a(1000), None)),
+        );
+
+        let result =
+            RecurrentFeedbackClosure::run(&a(1000), &[first], cycle_policy(), loop_policy(1));
+
+        assert_eq!(
+            result.status(),
+            RecurrentFeedbackClosureStatus::FirstStepCarriesFeedback
+        );
+
+        assert_eq!(result.executed_step_count(), 0);
+    }
+
+    #[test]
+    fn subsequent_recurrent_step_requires_explicit_feedback() {
+        let result = RecurrentFeedbackClosure::run(
+            &a(1000),
+            &[first_step(), second_step(None)],
+            cycle_policy(),
+            loop_policy(2),
+        );
+
+        assert_eq!(
+            result.status(),
+            RecurrentFeedbackClosureStatus::MissingFeedback
+        );
+
+        assert_eq!(result.executed_step_count(), 1);
+
+        assert_eq!(result.completed_step_count(), 1);
+    }
+
+    #[test]
+    fn exact_predecessor_step_index_is_required() {
+        let feedback = RecurrentFeedbackEvidence::new(7, a(1003), Some(a(9003)));
+
+        let result = RecurrentFeedbackClosure::run(
+            &a(1000),
+            &[first_step(), second_step(Some(feedback))],
+            cycle_policy(),
+            loop_policy(2),
+        );
+
+        assert_eq!(
+            result.status(),
+            RecurrentFeedbackClosureStatus::FeedbackStepIndexMismatch
+        );
+
+        assert_eq!(result.rejected_step_index(), Some(1));
+    }
+
+    #[test]
+    fn exact_predecessor_next_anchor_is_required() {
+        let feedback = RecurrentFeedbackEvidence::new(0, a(9999), Some(a(9003)));
+
+        let result = RecurrentFeedbackClosure::run(
+            &a(1000),
+            &[first_step(), second_step(Some(feedback))],
+            cycle_policy(),
+            loop_policy(2),
+        );
+
+        assert_eq!(
+            result.status(),
+            RecurrentFeedbackClosureStatus::FeedbackAnchorMismatch
+        );
+
+        assert_eq!(result.final_anchor_state(), Some(&a(1003)));
+    }
+
+    #[test]
+    fn exact_predecessor_authority_provenance_is_required() {
+        let feedback = RecurrentFeedbackEvidence::new(0, a(1003), Some(a(9999)));
+
+        let result = RecurrentFeedbackClosure::run(
+            &a(1000),
+            &[first_step(), second_step(Some(feedback))],
+            cycle_policy(),
+            loop_policy(2),
+        );
+
+        assert_eq!(
+            result.status(),
+            RecurrentFeedbackClosureStatus::FeedbackProvenanceMismatch
+        );
+
+        assert_eq!(result.completed_step_count(), 1);
+    }
+
+    #[test]
+    fn valid_feedback_closes_two_step_recurrent_causal_chain() {
+        let result = RecurrentFeedbackClosure::run(
+            &a(1000),
+            &[first_step(), second_step(Some(valid_feedback()))],
+            cycle_policy(),
+            loop_policy(2),
+        );
+
+        assert!(result.completed());
+
+        assert_eq!(result.completed_step_count(), 2);
+
+        assert_eq!(result.final_anchor_state(), Some(&a(2005)));
+
+        assert_eq!(result.steps()[1].previous_anchor_state(), &a(1003));
+    }
+
+    #[test]
+    fn preserve_anchor_feedback_uses_absence_of_authority_provenance_exactly() {
+        let first = FeedbackBoundRecurrentAgentStepInput::new(
+            RecurrentAgentStepInput::new(contributions(1000, 1000, 9000), preserve(1000)),
+            None,
+        );
+
+        let second = FeedbackBoundRecurrentAgentStepInput::new(
+            RecurrentAgentStepInput::new(
+                contributions(1000, 2000, 9100),
+                adopt(
+                    1000,
+                    IntegratedCognitiveLayer::UniversalDomainLearning,
+                    9102,
+                ),
+            ),
+            Some(RecurrentFeedbackEvidence::new(0, a(1000), None)),
+        );
+
+        let result = RecurrentFeedbackClosure::run(
+            &a(1000),
+            &[first, second],
+            cycle_policy(),
+            loop_policy(2),
+        );
+
+        assert!(result.completed());
+
+        assert_eq!(result.final_anchor_state(), Some(&a(2002)));
+    }
+
+    #[test]
+    fn feedback_failure_prevents_current_step_execution() {
+        let result = RecurrentFeedbackClosure::run(
+            &a(1000),
+            &[
+                first_step(),
+                second_step(Some(RecurrentFeedbackEvidence::new(
+                    0,
+                    a(9999),
+                    Some(a(9003)),
+                ))),
+            ],
+            cycle_policy(),
+            loop_policy(2),
+        );
+
+        assert_eq!(result.executed_step_count(), 1);
+
+        assert_eq!(result.completed_step_count(), 1);
+
+        assert_eq!(result.final_anchor_state(), Some(&a(1003)));
+    }
+
+    #[test]
+    fn hard_frontier_rejects_before_feedback_or_step_execution() {
+        let result = RecurrentFeedbackClosure::run(
+            &a(1000),
+            &[first_step(), second_step(Some(valid_feedback()))],
+            cycle_policy(),
+            loop_policy(1),
+        );
+
+        assert_eq!(
+            result.status(),
+            RecurrentFeedbackClosureStatus::InputFrontierExceeded
+        );
+
+        assert_eq!(result.executed_step_count(), 0);
+
+        assert_eq!(result.final_anchor_state(), None);
+    }
+
+    #[test]
+    fn valid_feedback_does_not_override_stale_current_step_inputs() {
+        let stale_second = FeedbackBoundRecurrentAgentStepInput::new(
+            RecurrentAgentStepInput::new(
+                contributions(1000, 2000, 9100),
+                adopt(
+                    1003,
+                    IntegratedCognitiveLayer::AutonomousExperimentation,
+                    9105,
+                ),
+            ),
+            Some(valid_feedback()),
+        );
+
+        let result = RecurrentFeedbackClosure::run(
+            &a(1000),
+            &[first_step(), stale_second],
+            cycle_policy(),
+            loop_policy(2),
+        );
+
+        assert_eq!(
+            result.status(),
+            RecurrentFeedbackClosureStatus::StepRejected
+        );
+
+        assert_eq!(result.executed_step_count(), 2);
+
+        assert_eq!(result.completed_step_count(), 1);
+
+        assert_eq!(result.final_anchor_state(), Some(&a(1003)));
+    }
+
+    #[test]
+    fn feedback_closed_loop_does_not_mutate_supplied_evidence_or_steps() {
+        let inputs = vec![first_step(), second_step(Some(valid_feedback()))];
+
+        let before = inputs.clone();
+
+        let result =
+            RecurrentFeedbackClosure::run(&a(1000), &inputs, cycle_policy(), loop_policy(2));
+
+        assert!(result.completed());
+
+        assert_eq!(inputs, before);
+    }
+
+    #[test]
+    fn feedback_closure_is_deterministic_and_universal_facade_equivalent() {
+        let inputs = vec![first_step(), second_step(Some(valid_feedback()))];
+
+        let direct =
+            RecurrentFeedbackClosure::run(&a(1000), &inputs, cycle_policy(), loop_policy(2));
+
+        let facade = UniversalRecurrentFeedbackClosure::evaluate(
+            &a(1000),
+            &inputs,
+            cycle_policy(),
+            loop_policy(2),
+        );
+
+        let repeated = UniversalRecurrentFeedbackClosure::evaluate(
+            &a(1000),
+            &inputs,
+            cycle_policy(),
+            loop_policy(2),
+        );
+
+        assert_eq!(direct, facade);
+
+        assert_eq!(facade, repeated);
+
+        assert_eq!(facade.initial_anchor_state(), &a(1000));
+
+        assert_eq!(facade.final_anchor_state(), Some(&a(2005)));
+    }
+}
