@@ -2165,3 +2165,797 @@ mod outcome_evidence_update_tests {
         assert_eq!(selected, before_selected);
     }
 }
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum HypothesisBeliefAvailability {
+    Active,
+    Suspended,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct HypothesisBeliefState {
+    hypothesis: CognitiveStructure,
+    confidence: CognitiveSignal,
+    support_count: usize,
+    contradiction_count: usize,
+    applied_revision_count: usize,
+    availability: HypothesisBeliefAvailability,
+}
+
+impl HypothesisBeliefState {
+    pub fn new(hypothesis: CognitiveStructure, confidence: CognitiveSignal) -> Option<Self> {
+        if confidence == CognitiveSignal::zero() {
+            return None;
+        }
+
+        Some(Self {
+            hypothesis,
+            confidence,
+            support_count: 0,
+            contradiction_count: 0,
+            applied_revision_count: 0,
+            availability: HypothesisBeliefAvailability::Active,
+        })
+    }
+
+    pub fn hypothesis(&self) -> &CognitiveStructure {
+        &self.hypothesis
+    }
+
+    pub fn confidence(&self) -> CognitiveSignal {
+        self.confidence
+    }
+
+    pub fn support_count(&self) -> usize {
+        self.support_count
+    }
+
+    pub fn contradiction_count(&self) -> usize {
+        self.contradiction_count
+    }
+
+    pub fn applied_revision_count(&self) -> usize {
+        self.applied_revision_count
+    }
+
+    pub fn availability(&self) -> HypothesisBeliefAvailability {
+        self.availability
+    }
+
+    pub fn active(&self) -> bool {
+        self.availability == HypothesisBeliefAvailability::Active
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct HypothesisBeliefRevisionPolicy {
+    max_evidence_updates: usize,
+    max_belief_updates: usize,
+    maximum_single_revision_delta: u16,
+    minimum_active_confidence: CognitiveSignal,
+    minimum_contradictions_for_suspension: usize,
+}
+
+impl HypothesisBeliefRevisionPolicy {
+    pub fn new(
+        max_evidence_updates: usize,
+        max_belief_updates: usize,
+        maximum_single_revision_delta: u16,
+        minimum_active_confidence: CognitiveSignal,
+        minimum_contradictions_for_suspension: usize,
+    ) -> Option<Self> {
+        if max_evidence_updates == 0
+            || max_belief_updates == 0
+            || maximum_single_revision_delta == 0
+            || minimum_active_confidence == CognitiveSignal::zero()
+            || minimum_contradictions_for_suspension < 2
+        {
+            return None;
+        }
+
+        Some(Self {
+            max_evidence_updates,
+            max_belief_updates,
+            maximum_single_revision_delta,
+            minimum_active_confidence,
+            minimum_contradictions_for_suspension,
+        })
+    }
+
+    pub fn max_evidence_updates(self) -> usize {
+        self.max_evidence_updates
+    }
+
+    pub fn max_belief_updates(self) -> usize {
+        self.max_belief_updates
+    }
+
+    pub fn maximum_single_revision_delta(self) -> u16 {
+        self.maximum_single_revision_delta
+    }
+
+    pub fn minimum_active_confidence(self) -> CognitiveSignal {
+        self.minimum_active_confidence
+    }
+
+    pub fn minimum_contradictions_for_suspension(self) -> usize {
+        self.minimum_contradictions_for_suspension
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum HypothesisBeliefRevisionStatus {
+    Applied,
+    EvidenceUnavailable,
+    EvidenceFrontierExceeded,
+    BeliefFrontierExceeded,
+    ConflictingEvidenceIdentity,
+    DuplicateBeliefIdentity,
+    NoMatchingBeliefs,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct HypothesisBeliefRevisionResult {
+    status: HypothesisBeliefRevisionStatus,
+    input_belief_count: usize,
+    input_evidence_count: usize,
+    unique_evidence_count: usize,
+    matched_update_count: usize,
+    unmatched_evidence_count: usize,
+    beliefs: Vec<HypothesisBeliefState>,
+}
+
+impl HypothesisBeliefRevisionResult {
+    pub fn status(&self) -> HypothesisBeliefRevisionStatus {
+        self.status
+    }
+
+    pub fn input_belief_count(&self) -> usize {
+        self.input_belief_count
+    }
+
+    pub fn input_evidence_count(&self) -> usize {
+        self.input_evidence_count
+    }
+
+    pub fn unique_evidence_count(&self) -> usize {
+        self.unique_evidence_count
+    }
+
+    pub fn matched_update_count(&self) -> usize {
+        self.matched_update_count
+    }
+
+    pub fn unmatched_evidence_count(&self) -> usize {
+        self.unmatched_evidence_count
+    }
+
+    pub fn beliefs(&self) -> &[HypothesisBeliefState] {
+        &self.beliefs
+    }
+
+    pub fn applied(&self) -> bool {
+        self.status == HypothesisBeliefRevisionStatus::Applied
+    }
+
+    pub fn abstained(&self) -> bool {
+        !self.applied()
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct AutonomousHypothesisBeliefRevision;
+
+impl AutonomousHypothesisBeliefRevision {
+    fn signal(value: u16) -> CognitiveSignal {
+        if value == 0 {
+            CognitiveSignal::zero()
+        } else {
+            CognitiveSignal::new(value).expect("bounded belief signal")
+        }
+    }
+
+    fn belief_order(
+        left: &HypothesisBeliefState,
+        right: &HypothesisBeliefState,
+    ) -> std::cmp::Ordering {
+        format!("{:?}", left.hypothesis()).cmp(&format!("{:?}", right.hypothesis()))
+    }
+
+    fn evidence_order(
+        left: &HypothesisOutcomeEvidenceUpdate,
+        right: &HypothesisOutcomeEvidenceUpdate,
+    ) -> std::cmp::Ordering {
+        format!("{:?}", left.hypothesis())
+            .cmp(&format!("{:?}", right.hypothesis()))
+            .then_with(|| format!("{left:?}").cmp(&format!("{right:?}")))
+    }
+
+    fn unchanged(
+        status: HypothesisBeliefRevisionStatus,
+        input_belief_count: usize,
+        input_evidence_count: usize,
+        unique_evidence_count: usize,
+        matched_update_count: usize,
+        unmatched_evidence_count: usize,
+        mut beliefs: Vec<HypothesisBeliefState>,
+    ) -> HypothesisBeliefRevisionResult {
+        beliefs.sort_by(Self::belief_order);
+
+        HypothesisBeliefRevisionResult {
+            status,
+            input_belief_count,
+            input_evidence_count,
+            unique_evidence_count,
+            matched_update_count,
+            unmatched_evidence_count,
+            beliefs,
+        }
+    }
+
+    pub fn revise(
+        beliefs: &[HypothesisBeliefState],
+        evidence: &OutcomeEvidenceUpdateResult,
+        policy: HypothesisBeliefRevisionPolicy,
+    ) -> HypothesisBeliefRevisionResult {
+        let input_belief_count = beliefs.len();
+        let input_evidence_count = evidence.updates().len();
+
+        let mut revised = beliefs.to_vec();
+
+        revised.sort_by(Self::belief_order);
+
+        for index in 1..revised.len() {
+            if revised[index - 1].hypothesis() == revised[index].hypothesis() {
+                return Self::unchanged(
+                    HypothesisBeliefRevisionStatus::DuplicateBeliefIdentity,
+                    input_belief_count,
+                    input_evidence_count,
+                    0,
+                    0,
+                    0,
+                    beliefs.to_vec(),
+                );
+            }
+        }
+
+        if !evidence.applied() {
+            return Self::unchanged(
+                HypothesisBeliefRevisionStatus::EvidenceUnavailable,
+                input_belief_count,
+                input_evidence_count,
+                0,
+                0,
+                0,
+                beliefs.to_vec(),
+            );
+        }
+
+        if input_evidence_count > policy.max_evidence_updates() {
+            return Self::unchanged(
+                HypothesisBeliefRevisionStatus::EvidenceFrontierExceeded,
+                input_belief_count,
+                input_evidence_count,
+                input_evidence_count,
+                0,
+                0,
+                beliefs.to_vec(),
+            );
+        }
+
+        let mut updates = evidence.updates().to_vec();
+
+        updates.sort_by(Self::evidence_order);
+
+        let mut canonical: Vec<HypothesisOutcomeEvidenceUpdate> = Vec::new();
+
+        for update in updates {
+            if let Some(existing) = canonical
+                .iter()
+                .find(|existing| existing.hypothesis() == update.hypothesis())
+            {
+                if existing != &update {
+                    return Self::unchanged(
+                        HypothesisBeliefRevisionStatus::ConflictingEvidenceIdentity,
+                        input_belief_count,
+                        input_evidence_count,
+                        canonical.len(),
+                        0,
+                        0,
+                        beliefs.to_vec(),
+                    );
+                }
+
+                continue;
+            }
+
+            canonical.push(update);
+        }
+
+        let unique_evidence_count = canonical.len();
+
+        let matched_update_count = canonical
+            .iter()
+            .filter(|update| {
+                revised
+                    .iter()
+                    .any(|belief| belief.hypothesis() == update.hypothesis())
+            })
+            .count();
+
+        let unmatched_evidence_count = unique_evidence_count.saturating_sub(matched_update_count);
+
+        if matched_update_count > policy.max_belief_updates() {
+            return Self::unchanged(
+                HypothesisBeliefRevisionStatus::BeliefFrontierExceeded,
+                input_belief_count,
+                input_evidence_count,
+                unique_evidence_count,
+                matched_update_count,
+                unmatched_evidence_count,
+                beliefs.to_vec(),
+            );
+        }
+
+        if matched_update_count == 0 {
+            return Self::unchanged(
+                HypothesisBeliefRevisionStatus::NoMatchingBeliefs,
+                input_belief_count,
+                input_evidence_count,
+                unique_evidence_count,
+                0,
+                unmatched_evidence_count,
+                beliefs.to_vec(),
+            );
+        }
+
+        for update in canonical {
+            let Some(belief) = revised
+                .iter_mut()
+                .find(|belief| belief.hypothesis() == update.hypothesis())
+            else {
+                continue;
+            };
+
+            let raw_delta = update
+                .revised_confidence()
+                .value()
+                .abs_diff(update.prior_confidence().value());
+
+            let bounded_delta = raw_delta.min(policy.maximum_single_revision_delta());
+
+            match update.disposition() {
+                HypothesisOutcomeEvidenceDisposition::Supported => {
+                    belief.support_count = belief.support_count.saturating_add(1);
+
+                    belief.confidence = Self::signal(
+                        belief
+                            .confidence
+                            .value()
+                            .saturating_add(bounded_delta)
+                            .min(1000),
+                    );
+                }
+
+                HypothesisOutcomeEvidenceDisposition::Contradicted => {
+                    belief.contradiction_count = belief.contradiction_count.saturating_add(1);
+
+                    belief.confidence =
+                        Self::signal(belief.confidence.value().saturating_sub(bounded_delta));
+
+                    if belief.contradiction_count >= policy.minimum_contradictions_for_suspension()
+                        && belief.confidence.value() < policy.minimum_active_confidence().value()
+                    {
+                        belief.availability = HypothesisBeliefAvailability::Suspended;
+                    }
+                }
+            }
+
+            belief.applied_revision_count = belief.applied_revision_count.saturating_add(1);
+        }
+
+        revised.sort_by(Self::belief_order);
+
+        HypothesisBeliefRevisionResult {
+            status: HypothesisBeliefRevisionStatus::Applied,
+            input_belief_count,
+            input_evidence_count,
+            unique_evidence_count,
+            matched_update_count,
+            unmatched_evidence_count,
+            beliefs: revised,
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct UniversalAutonomousHypothesisBeliefRevision;
+
+impl UniversalAutonomousHypothesisBeliefRevision {
+    pub fn evaluate(
+        beliefs: &[HypothesisBeliefState],
+        evidence: &OutcomeEvidenceUpdateResult,
+        policy: HypothesisBeliefRevisionPolicy,
+    ) -> HypothesisBeliefRevisionResult {
+        AutonomousHypothesisBeliefRevision::revise(beliefs, evidence, policy)
+    }
+}
+
+#[cfg(test)]
+mod hypothesis_belief_revision_tests {
+    use super::*;
+
+    fn s(value: u16) -> CognitiveSignal {
+        if value == 0 {
+            CognitiveSignal::zero()
+        } else {
+            CognitiveSignal::new(value).unwrap()
+        }
+    }
+
+    fn a(value: u64) -> CognitiveStructure {
+        CognitiveStructure::atom(value)
+    }
+
+    fn belief(hypothesis: u64, confidence: u16) -> HypothesisBeliefState {
+        HypothesisBeliefState::new(a(hypothesis), s(confidence)).unwrap()
+    }
+
+    fn update(
+        hypothesis: u64,
+        prior: u16,
+        revised: u16,
+        disposition: HypothesisOutcomeEvidenceDisposition,
+    ) -> HypothesisOutcomeEvidenceUpdate {
+        HypothesisOutcomeEvidenceUpdate {
+            hypothesis: a(hypothesis),
+            predicted_outcome: a(hypothesis + 100),
+            prior_confidence: s(prior),
+            revised_confidence: s(revised),
+            disposition,
+        }
+    }
+
+    fn evidence(updates: Vec<HypothesisOutcomeEvidenceUpdate>) -> OutcomeEvidenceUpdateResult {
+        let supported_count = updates
+            .iter()
+            .filter(|update| {
+                update.disposition() == HypothesisOutcomeEvidenceDisposition::Supported
+            })
+            .count();
+
+        let contradicted_count = updates.len().saturating_sub(supported_count);
+
+        OutcomeEvidenceUpdateResult {
+            status: OutcomeEvidenceUpdateStatus::Applied,
+            input_prediction_count: updates.len(),
+            qualifying_prediction_count: updates.len(),
+            rejected_prediction_confidence_count: 0,
+            supported_count,
+            contradicted_count,
+            updates,
+        }
+    }
+
+    fn unavailable() -> OutcomeEvidenceUpdateResult {
+        OutcomeEvidenceUpdateResult {
+            status: OutcomeEvidenceUpdateStatus::ObservationConfidenceInsufficient,
+            input_prediction_count: 0,
+            qualifying_prediction_count: 0,
+            rejected_prediction_confidence_count: 0,
+            supported_count: 0,
+            contradicted_count: 0,
+            updates: Vec::new(),
+        }
+    }
+
+    fn policy() -> HypothesisBeliefRevisionPolicy {
+        HypothesisBeliefRevisionPolicy::new(16, 16, 100, s(550), 2).unwrap()
+    }
+
+    #[test]
+    fn belief_revision_policy_and_initial_state_require_grounded_positive_contract() {
+        assert_eq!(HypothesisBeliefState::new(a(1), s(0),), None);
+
+        assert_eq!(
+            HypothesisBeliefRevisionPolicy::new(0, 1, 100, s(500), 2,),
+            None
+        );
+
+        assert_eq!(
+            HypothesisBeliefRevisionPolicy::new(1, 1, 100, s(500), 1,),
+            None
+        );
+
+        let state = belief(1, 700);
+
+        assert!(state.active());
+        assert_eq!(state.support_count(), 0);
+        assert_eq!(state.contradiction_count(), 0);
+    }
+
+    #[test]
+    fn support_moves_persistent_belief_by_at_most_single_revision_cap() {
+        let result = AutonomousHypothesisBeliefRevision::revise(
+            &[belief(1, 500)],
+            &evidence(vec![update(
+                1,
+                500,
+                900,
+                HypothesisOutcomeEvidenceDisposition::Supported,
+            )]),
+            policy(),
+        );
+
+        assert!(result.applied());
+
+        assert_eq!(result.beliefs()[0].confidence(), s(600));
+
+        assert_eq!(result.beliefs()[0].support_count(), 1);
+    }
+
+    #[test]
+    fn one_contradiction_cannot_silently_suspend_hypothesis() {
+        let result = AutonomousHypothesisBeliefRevision::revise(
+            &[belief(1, 600)],
+            &evidence(vec![update(
+                1,
+                800,
+                500,
+                HypothesisOutcomeEvidenceDisposition::Contradicted,
+            )]),
+            policy(),
+        );
+
+        assert_eq!(result.beliefs()[0].confidence(), s(500));
+
+        assert_eq!(result.beliefs()[0].contradiction_count(), 1);
+
+        assert_eq!(
+            result.beliefs()[0].availability(),
+            HypothesisBeliefAvailability::Active
+        );
+    }
+
+    #[test]
+    fn repeated_contradictions_can_suspend_low_confidence_hypothesis() {
+        let first = AutonomousHypothesisBeliefRevision::revise(
+            &[belief(1, 700)],
+            &evidence(vec![update(
+                1,
+                800,
+                600,
+                HypothesisOutcomeEvidenceDisposition::Contradicted,
+            )]),
+            policy(),
+        );
+
+        let second = AutonomousHypothesisBeliefRevision::revise(
+            first.beliefs(),
+            &evidence(vec![update(
+                1,
+                800,
+                600,
+                HypothesisOutcomeEvidenceDisposition::Contradicted,
+            )]),
+            policy(),
+        );
+
+        assert_eq!(second.beliefs()[0].confidence(), s(500));
+
+        assert_eq!(second.beliefs()[0].contradiction_count(), 2);
+
+        assert_eq!(
+            second.beliefs()[0].availability(),
+            HypothesisBeliefAvailability::Suspended
+        );
+    }
+
+    #[test]
+    fn later_support_does_not_implicitly_reactivate_suspended_hypothesis() {
+        let mut suspended = belief(1, 500);
+
+        suspended.contradiction_count = 2;
+        suspended.applied_revision_count = 2;
+        suspended.availability = HypothesisBeliefAvailability::Suspended;
+
+        let result = AutonomousHypothesisBeliefRevision::revise(
+            &[suspended],
+            &evidence(vec![update(
+                1,
+                500,
+                900,
+                HypothesisOutcomeEvidenceDisposition::Supported,
+            )]),
+            policy(),
+        );
+
+        assert_eq!(result.beliefs()[0].confidence(), s(600));
+
+        assert_eq!(
+            result.beliefs()[0].availability(),
+            HypothesisBeliefAvailability::Suspended
+        );
+    }
+
+    #[test]
+    fn unavailable_outcome_evidence_cannot_modify_belief_memory() {
+        let beliefs = vec![belief(1, 700), belief(2, 700)];
+
+        let result = AutonomousHypothesisBeliefRevision::revise(&beliefs, &unavailable(), policy());
+
+        assert_eq!(
+            result.status(),
+            HypothesisBeliefRevisionStatus::EvidenceUnavailable
+        );
+
+        assert_eq!(result.beliefs(), beliefs.as_slice());
+    }
+
+    #[test]
+    fn hard_evidence_frontier_abstains_without_partial_belief_revision() {
+        let beliefs = vec![belief(1, 700), belief(2, 700), belief(3, 700)];
+
+        let evidence = evidence(vec![
+            update(
+                1,
+                700,
+                600,
+                HypothesisOutcomeEvidenceDisposition::Contradicted,
+            ),
+            update(
+                2,
+                700,
+                600,
+                HypothesisOutcomeEvidenceDisposition::Contradicted,
+            ),
+            update(
+                3,
+                700,
+                600,
+                HypothesisOutcomeEvidenceDisposition::Contradicted,
+            ),
+        ]);
+
+        let bounded = HypothesisBeliefRevisionPolicy::new(2, 16, 100, s(550), 2).unwrap();
+
+        let result = AutonomousHypothesisBeliefRevision::revise(&beliefs, &evidence, bounded);
+
+        assert_eq!(
+            result.status(),
+            HypothesisBeliefRevisionStatus::EvidenceFrontierExceeded
+        );
+
+        assert_eq!(result.beliefs(), beliefs.as_slice());
+    }
+
+    #[test]
+    fn hard_belief_update_frontier_abstains_without_partial_revision() {
+        let beliefs = vec![belief(1, 700), belief(2, 700)];
+
+        let evidence = evidence(vec![
+            update(1, 700, 800, HypothesisOutcomeEvidenceDisposition::Supported),
+            update(2, 700, 800, HypothesisOutcomeEvidenceDisposition::Supported),
+        ]);
+
+        let bounded = HypothesisBeliefRevisionPolicy::new(16, 1, 100, s(550), 2).unwrap();
+
+        let result = AutonomousHypothesisBeliefRevision::revise(&beliefs, &evidence, bounded);
+
+        assert_eq!(
+            result.status(),
+            HypothesisBeliefRevisionStatus::BeliefFrontierExceeded
+        );
+
+        assert_eq!(result.beliefs(), beliefs.as_slice());
+    }
+
+    #[test]
+    fn unmatched_evidence_cannot_invent_new_persistent_hypothesis() {
+        let beliefs = vec![belief(1, 700)];
+
+        let result = AutonomousHypothesisBeliefRevision::revise(
+            &beliefs,
+            &evidence(vec![update(
+                99,
+                700,
+                900,
+                HypothesisOutcomeEvidenceDisposition::Supported,
+            )]),
+            policy(),
+        );
+
+        assert_eq!(
+            result.status(),
+            HypothesisBeliefRevisionStatus::NoMatchingBeliefs
+        );
+
+        assert_eq!(result.beliefs().len(), 1);
+
+        assert_eq!(result.unmatched_evidence_count(), 1);
+    }
+
+    #[test]
+    fn conflicting_evidence_for_same_hypothesis_abstains_atomically() {
+        let beliefs = vec![belief(1, 700)];
+
+        let conflicting = evidence(vec![
+            update(1, 700, 800, HypothesisOutcomeEvidenceDisposition::Supported),
+            update(
+                1,
+                700,
+                600,
+                HypothesisOutcomeEvidenceDisposition::Contradicted,
+            ),
+        ]);
+
+        let result = AutonomousHypothesisBeliefRevision::revise(&beliefs, &conflicting, policy());
+
+        assert_eq!(
+            result.status(),
+            HypothesisBeliefRevisionStatus::ConflictingEvidenceIdentity
+        );
+
+        assert_eq!(result.beliefs(), beliefs.as_slice());
+    }
+
+    #[test]
+    fn duplicate_persistent_belief_identity_is_rejected_before_revision() {
+        let beliefs = vec![belief(1, 700), belief(1, 600)];
+
+        let result = AutonomousHypothesisBeliefRevision::revise(
+            &beliefs,
+            &evidence(vec![update(
+                1,
+                700,
+                800,
+                HypothesisOutcomeEvidenceDisposition::Supported,
+            )]),
+            policy(),
+        );
+
+        assert_eq!(
+            result.status(),
+            HypothesisBeliefRevisionStatus::DuplicateBeliefIdentity
+        );
+
+        assert_eq!(result.matched_update_count(), 0);
+    }
+
+    #[test]
+    fn belief_revision_is_order_invariant_non_mutating_and_facade_equivalent() {
+        let beliefs = vec![belief(2, 700), belief(1, 700)];
+
+        let before = beliefs.clone();
+
+        let evidence = evidence(vec![
+            update(
+                2,
+                700,
+                600,
+                HypothesisOutcomeEvidenceDisposition::Contradicted,
+            ),
+            update(1, 700, 800, HypothesisOutcomeEvidenceDisposition::Supported),
+        ]);
+
+        let mut reversed = beliefs.clone();
+
+        reversed.reverse();
+
+        let p = policy();
+
+        let direct = AutonomousHypothesisBeliefRevision::revise(&beliefs, &evidence, p);
+
+        let reordered = AutonomousHypothesisBeliefRevision::revise(&reversed, &evidence, p);
+
+        let facade = UniversalAutonomousHypothesisBeliefRevision::evaluate(&beliefs, &evidence, p);
+
+        let repeated =
+            UniversalAutonomousHypothesisBeliefRevision::evaluate(&beliefs, &evidence, p);
+
+        assert_eq!(direct, reordered);
+        assert_eq!(direct, facade);
+        assert_eq!(facade, repeated);
+        assert_eq!(beliefs, before);
+    }
+}

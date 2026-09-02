@@ -12,7 +12,7 @@
     "Cargo.toml": "e852faab0d9dff23b09e1ee2323d0998955f837450c70ea015382ffe5ec52bff",
     "crates/athlesia_autonomous_active_experimentation/Cargo.lock": "1c12abed42af5b27b1bea85545134dfa5356790380225f867fa22410c5c6291a",
     "crates/athlesia_autonomous_active_experimentation/Cargo.toml": "49498766817cc955e460692355ff4c0b30cbe6cb5c8add30139fd646632ce666",
-    "crates/athlesia_autonomous_active_experimentation/src/lib.rs": "dd215ac26d70588cc9e46c122abbbf200daf203137036920d33a672e33b60715",
+    "crates/athlesia_autonomous_active_experimentation/src/lib.rs": "afebc441bcec0d0c957544acf513e7c66fee02a4b38ed5fdb69b96d571eeacd8",
     "crates/athlesia_autonomous_active_experimentation/tests/autonomous_active_experimentation_foundation.rs": "7c3a148fc604232d9e66f4f4fa9a023a920ad0b8bc36be0759e71d074731d62c",
     "crates/athlesia_core_knowledge_perceptual_grounding/Cargo.lock": "fbefd559ec01ff3860d153fdf05e9a29f10ecff62eb63206d1b8e643c35ec7b4",
     "crates/athlesia_core_knowledge_perceptual_grounding/Cargo.toml": "04ffcd03f7862aac5423b16466ca1ea5ad1ad65856a76a9f4a4265c6dca64ff8",
@@ -603,7 +603,8 @@
       "module_49_meta_learning_skill_memory_frozen",
       "module_50_autonomous_active_experimentation_foundation",
       "module_50_autonomous_active_experimentation_hypothesis_discrimination",
-      "module_50_autonomous_active_experimentation_outcome_evidence_update"
+      "module_50_autonomous_active_experimentation_outcome_evidence_update",
+      "module_50_autonomous_active_experimentation_hypothesis_belief_revision"
     ],
     "module_23_integrity": {
       "status": "pass",
@@ -616,8 +617,8 @@
       "status": "frozen",
       "verifier": "tools/verify_module_23_parity.py"
     },
-    "next_layer": "module_50_autonomous_active_experimentation_hypothesis_belief_revision",
-    "stage": "module_50_autonomous_active_experimentation_outcome_evidence_update",
+    "next_layer": "module_50_autonomous_active_experimentation_sequential_experiment_control",
+    "stage": "module_50_autonomous_active_experimentation_hypothesis_belief_revision",
     "status": "validated"
   },
   "validated_invariants": [
@@ -3024,6 +3025,18 @@
     "autonomous_experimentation_outcome_prediction_confidence_gate",
     "autonomous_experimentation_outcome_bounded_confidence_revision",
     "autonomous_experimentation_outcome_hard_prediction_frontier",
-    "autonomous_experimentation_outcome_deterministic_facade_equivalence"
+    "autonomous_experimentation_outcome_deterministic_facade_equivalence",
+    "autonomous_experimentation_belief_positive_state_and_policy_contract",
+    "autonomous_experimentation_belief_bounded_support_revision",
+    "autonomous_experimentation_belief_no_one_shot_suspension",
+    "autonomous_experimentation_belief_repeated_contradiction_suspension",
+    "autonomous_experimentation_belief_no_implicit_reactivation",
+    "autonomous_experimentation_belief_unavailable_evidence_abstention",
+    "autonomous_experimentation_belief_evidence_frontier_atomicity",
+    "autonomous_experimentation_belief_update_frontier_atomicity",
+    "autonomous_experimentation_belief_no_spontaneous_hypothesis_invention",
+    "autonomous_experimentation_belief_conflicting_evidence_atomicity",
+    "autonomous_experimentation_belief_duplicate_identity_rejection",
+    "autonomous_experimentation_belief_deterministic_facade_equivalence"
   ]
 }
