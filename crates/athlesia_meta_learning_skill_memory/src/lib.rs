@@ -494,3 +494,288 @@ impl UniversalSkillMemoryFoundation {
         SkillMemoryFoundation::build(episodes, policy)
     }
 }
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct RepeatedSkillCandidatePolicy {
+    max_input_entries: usize,
+    max_entry_evaluations: usize,
+    max_candidate_steps: usize,
+    max_candidates: usize,
+    minimum_support_count: usize,
+    minimum_success_confidence: CognitiveSignal,
+    minimum_step_confidence: CognitiveSignal,
+}
+
+impl RepeatedSkillCandidatePolicy {
+    pub fn new(
+        max_input_entries: usize,
+        max_entry_evaluations: usize,
+        max_candidate_steps: usize,
+        max_candidates: usize,
+        minimum_support_count: usize,
+        minimum_success_confidence: CognitiveSignal,
+        minimum_step_confidence: CognitiveSignal,
+    ) -> Option<Self> {
+        if max_input_entries == 0
+            || max_entry_evaluations == 0
+            || max_candidate_steps == 0
+            || max_candidates == 0
+            || minimum_support_count < 2
+            || minimum_success_confidence == CognitiveSignal::zero()
+            || minimum_step_confidence == CognitiveSignal::zero()
+        {
+            return None;
+        }
+        Some(Self {
+            max_input_entries,
+            max_entry_evaluations,
+            max_candidate_steps,
+            max_candidates,
+            minimum_support_count,
+            minimum_success_confidence,
+            minimum_step_confidence,
+        })
+    }
+
+    pub fn max_input_entries(self) -> usize {
+        self.max_input_entries
+    }
+    pub fn max_entry_evaluations(self) -> usize {
+        self.max_entry_evaluations
+    }
+    pub fn max_candidate_steps(self) -> usize {
+        self.max_candidate_steps
+    }
+    pub fn max_candidates(self) -> usize {
+        self.max_candidates
+    }
+    pub fn minimum_support_count(self) -> usize {
+        self.minimum_support_count
+    }
+    pub fn minimum_success_confidence(self) -> CognitiveSignal {
+        self.minimum_success_confidence
+    }
+    pub fn minimum_step_confidence(self) -> CognitiveSignal {
+        self.minimum_step_confidence
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct RepeatedSkillCandidate {
+    trace: ExactSkillTrace,
+    support_count: usize,
+    success_confidence_floor: CognitiveSignal,
+    step_confidence_floor: CognitiveSignal,
+}
+
+impl RepeatedSkillCandidate {
+    fn from_entry(entry: &SkillMemoryEntry) -> Self {
+        Self {
+            trace: entry.trace().clone(),
+            support_count: entry.support_count(),
+            success_confidence_floor: entry.success_confidence_floor(),
+            step_confidence_floor: entry.step_confidence_floor(),
+        }
+    }
+
+    pub fn trace(&self) -> &ExactSkillTrace {
+        &self.trace
+    }
+    pub fn support_count(&self) -> usize {
+        self.support_count
+    }
+    pub fn success_confidence_floor(&self) -> CognitiveSignal {
+        self.success_confidence_floor
+    }
+    pub fn step_confidence_floor(&self) -> CognitiveSignal {
+        self.step_confidence_floor
+    }
+    pub fn conservative_evidence_floor(&self) -> CognitiveSignal {
+        if self.success_confidence_floor.value() <= self.step_confidence_floor.value() {
+            self.success_confidence_floor
+        } else {
+            self.step_confidence_floor
+        }
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct RepeatedSkillCandidateDiscoveryResult {
+    input_entry_count: usize,
+    unique_entry_count: usize,
+    considered_entry_count: usize,
+    entry_frontier_truncated: bool,
+    entry_evaluation_count: usize,
+    entry_evaluation_truncated: bool,
+    rejected_support_count: usize,
+    rejected_step_bound_count: usize,
+    rejected_threshold_count: usize,
+    candidates_before_frontier: usize,
+    candidate_frontier_truncated: bool,
+    candidates: Vec<RepeatedSkillCandidate>,
+}
+
+impl RepeatedSkillCandidateDiscoveryResult {
+    pub fn input_entry_count(&self) -> usize {
+        self.input_entry_count
+    }
+    pub fn unique_entry_count(&self) -> usize {
+        self.unique_entry_count
+    }
+    pub fn considered_entry_count(&self) -> usize {
+        self.considered_entry_count
+    }
+    pub fn entry_frontier_truncated(&self) -> bool {
+        self.entry_frontier_truncated
+    }
+    pub fn entry_evaluation_count(&self) -> usize {
+        self.entry_evaluation_count
+    }
+    pub fn entry_evaluation_truncated(&self) -> bool {
+        self.entry_evaluation_truncated
+    }
+    pub fn rejected_support_count(&self) -> usize {
+        self.rejected_support_count
+    }
+    pub fn rejected_step_bound_count(&self) -> usize {
+        self.rejected_step_bound_count
+    }
+    pub fn rejected_threshold_count(&self) -> usize {
+        self.rejected_threshold_count
+    }
+    pub fn candidates_before_frontier(&self) -> usize {
+        self.candidates_before_frontier
+    }
+    pub fn candidate_frontier_truncated(&self) -> bool {
+        self.candidate_frontier_truncated
+    }
+    pub fn candidates(&self) -> &[RepeatedSkillCandidate] {
+        &self.candidates
+    }
+    pub fn candidate_count(&self) -> usize {
+        self.candidates.len()
+    }
+    pub fn abstained(&self) -> bool {
+        self.candidates.is_empty()
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct RepeatedSkillCandidateDiscovery;
+
+impl RepeatedSkillCandidateDiscovery {
+    fn key(trace: &ExactSkillTrace) -> String {
+        format!("{trace:?}")
+    }
+
+    fn entry_order(a: &SkillMemoryEntry, b: &SkillMemoryEntry) -> std::cmp::Ordering {
+        b.support_count()
+            .cmp(&a.support_count())
+            .then_with(|| {
+                b.success_confidence_floor()
+                    .value()
+                    .cmp(&a.success_confidence_floor().value())
+            })
+            .then_with(|| {
+                b.step_confidence_floor()
+                    .value()
+                    .cmp(&a.step_confidence_floor().value())
+            })
+            .then_with(|| Self::key(a.trace()).cmp(&Self::key(b.trace())))
+    }
+
+    fn candidate_order(
+        a: &RepeatedSkillCandidate,
+        b: &RepeatedSkillCandidate,
+    ) -> std::cmp::Ordering {
+        b.support_count()
+            .cmp(&a.support_count())
+            .then_with(|| {
+                b.conservative_evidence_floor()
+                    .value()
+                    .cmp(&a.conservative_evidence_floor().value())
+            })
+            .then_with(|| Self::key(a.trace()).cmp(&Self::key(b.trace())))
+    }
+
+    pub fn discover(
+        entries: &[SkillMemoryEntry],
+        policy: RepeatedSkillCandidatePolicy,
+    ) -> RepeatedSkillCandidateDiscoveryResult {
+        let input_entry_count = entries.len();
+        let mut ranked = entries.to_vec();
+
+        ranked.sort_by(Self::entry_order);
+        ranked.dedup_by(|a, b| a.trace() == b.trace());
+
+        let unique_entry_count = ranked.len();
+        ranked.truncate(policy.max_input_entries());
+        let considered_entry_count = ranked.len();
+
+        let mut evaluation_count = 0;
+        let mut evaluation_truncated = false;
+        let mut rejected_support = 0;
+        let mut rejected_steps = 0;
+        let mut rejected_threshold = 0;
+        let mut candidates = Vec::new();
+
+        for entry in ranked {
+            if evaluation_count >= policy.max_entry_evaluations() {
+                evaluation_truncated = true;
+                break;
+            }
+            evaluation_count += 1;
+
+            if entry.support_count() < policy.minimum_support_count() {
+                rejected_support += 1;
+                continue;
+            }
+
+            if entry.trace().step_count() > policy.max_candidate_steps() {
+                rejected_steps += 1;
+                continue;
+            }
+
+            if entry.success_confidence_floor().value()
+                < policy.minimum_success_confidence().value()
+                || entry.step_confidence_floor().value() < policy.minimum_step_confidence().value()
+            {
+                rejected_threshold += 1;
+                continue;
+            }
+
+            candidates.push(RepeatedSkillCandidate::from_entry(&entry));
+        }
+
+        candidates.sort_by(Self::candidate_order);
+        let before = candidates.len();
+        candidates.truncate(policy.max_candidates());
+
+        RepeatedSkillCandidateDiscoveryResult {
+            input_entry_count,
+            unique_entry_count,
+            considered_entry_count,
+            entry_frontier_truncated: unique_entry_count > considered_entry_count,
+            entry_evaluation_count: evaluation_count,
+            entry_evaluation_truncated: evaluation_truncated,
+            rejected_support_count: rejected_support,
+            rejected_step_bound_count: rejected_steps,
+            rejected_threshold_count: rejected_threshold,
+            candidates_before_frontier: before,
+            candidate_frontier_truncated: before > candidates.len(),
+            candidates,
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct UniversalRepeatedSkillCandidateDiscovery;
+
+impl UniversalRepeatedSkillCandidateDiscovery {
+    pub fn evaluate(
+        entries: &[SkillMemoryEntry],
+        policy: RepeatedSkillCandidatePolicy,
+    ) -> RepeatedSkillCandidateDiscoveryResult {
+        RepeatedSkillCandidateDiscovery::discover(entries, policy)
+    }
+}
