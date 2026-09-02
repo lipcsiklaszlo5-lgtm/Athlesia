@@ -12,7 +12,7 @@
     "Cargo.toml": "e852faab0d9dff23b09e1ee2323d0998955f837450c70ea015382ffe5ec52bff",
     "crates/athlesia_autonomous_active_experimentation/Cargo.lock": "1c12abed42af5b27b1bea85545134dfa5356790380225f867fa22410c5c6291a",
     "crates/athlesia_autonomous_active_experimentation/Cargo.toml": "49498766817cc955e460692355ff4c0b30cbe6cb5c8add30139fd646632ce666",
-    "crates/athlesia_autonomous_active_experimentation/src/lib.rs": "c9859a64d8df985dac686cb854cd45c5af5aa158fc37f094ada2be9b0a03d1a8",
+    "crates/athlesia_autonomous_active_experimentation/src/lib.rs": "bd90df9dd9965b91901e4e964ba54d71d9690c025fc04d3399c8993897a74acb",
     "crates/athlesia_autonomous_active_experimentation/tests/autonomous_active_experimentation_foundation.rs": "7c3a148fc604232d9e66f4f4fa9a023a920ad0b8bc36be0759e71d074731d62c",
     "crates/athlesia_core_knowledge_perceptual_grounding/Cargo.lock": "fbefd559ec01ff3860d153fdf05e9a29f10ecff62eb63206d1b8e643c35ec7b4",
     "crates/athlesia_core_knowledge_perceptual_grounding/Cargo.toml": "04ffcd03f7862aac5423b16466ca1ea5ad1ad65856a76a9f4a4265c6dca64ff8",
@@ -609,7 +609,8 @@
       "module_50_autonomous_active_experimentation_belief_driven_experiment_proposal",
       "module_50_autonomous_active_experimentation_learning_progress_estimation",
       "module_50_autonomous_active_experimentation_experiment_sequence_planning",
-      "module_50_autonomous_active_experimentation_stop_continue_experimentation"
+      "module_50_autonomous_active_experimentation_stop_continue_experimentation",
+      "module_50_autonomous_active_experimentation_integrated_autonomous_experimentation_cycle"
     ],
     "module_23_integrity": {
       "status": "pass",
@@ -622,8 +623,8 @@
       "status": "frozen",
       "verifier": "tools/verify_module_23_parity.py"
     },
-    "next_layer": "module_50_autonomous_active_experimentation_integrated_autonomous_experimentation_cycle",
-    "stage": "module_50_autonomous_active_experimentation_stop_continue_experimentation",
+    "next_layer": "module_50_autonomous_active_experimentation_freeze",
+    "stage": "module_50_autonomous_active_experimentation_integrated_autonomous_experimentation_cycle",
     "status": "validated"
   },
   "validated_invariants": [
@@ -3102,6 +3103,18 @@
     "autonomous_experimentation_stop_continue_exact_current_state_gate",
     "autonomous_experimentation_stop_continue_discrimination_gate",
     "autonomous_experimentation_stop_continue_atomic_frontiers",
-    "autonomous_experimentation_stop_continue_deterministic_facade_equivalence"
+    "autonomous_experimentation_stop_continue_deterministic_facade_equivalence",
+    "autonomous_experimentation_integrated_cross_layer_policy_compatibility",
+    "autonomous_experimentation_integrated_information_gain_bootstrap",
+    "autonomous_experimentation_integrated_learning_progress_continuation",
+    "autonomous_experimentation_integrated_resolved_belief_stop",
+    "autonomous_experimentation_integrated_budget_stop",
+    "autonomous_experimentation_integrated_no_useless_intervention",
+    "autonomous_experimentation_integrated_learning_stagnation_stop",
+    "autonomous_experimentation_integrated_learning_provenance_atomicity",
+    "autonomous_experimentation_integrated_proposal_frontier_atomicity",
+    "autonomous_experimentation_integrated_sequence_frontier_atomicity",
+    "autonomous_experimentation_integrated_exact_belief_identity",
+    "autonomous_experimentation_integrated_deterministic_facade_equivalence"
   ]
 }

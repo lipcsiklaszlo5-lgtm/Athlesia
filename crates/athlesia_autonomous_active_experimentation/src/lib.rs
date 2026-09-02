@@ -7643,3 +7643,849 @@ mod stop_continue_experimentation_tests {
         assert_eq!(plans, before_plans);
     }
 }
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct IntegratedAutonomousExperimentationPolicy {
+    proposal: BeliefDrivenExperimentProposalPolicy,
+    learning_progress: LearningProgressPolicy,
+    sequence_planning: ExperimentSequencePlanningPolicy,
+    stop_continue: StopContinueExperimentationPolicy,
+}
+
+impl IntegratedAutonomousExperimentationPolicy {
+    pub fn new(
+        proposal: BeliefDrivenExperimentProposalPolicy,
+        learning_progress: LearningProgressPolicy,
+        sequence_planning: ExperimentSequencePlanningPolicy,
+        stop_continue: StopContinueExperimentationPolicy,
+    ) -> Option<Self> {
+        if proposal.bounds().max_generated_candidates()
+            > sequence_planning.bounds().max_input_candidates()
+            || learning_progress.bounds().max_focuses()
+                > sequence_planning.bounds().max_learning_progress_estimates()
+            || sequence_planning.bounds().max_selected_plans() > stop_continue.bounds().max_plans()
+        {
+            return None;
+        }
+
+        Some(Self {
+            proposal,
+            learning_progress,
+            sequence_planning,
+            stop_continue,
+        })
+    }
+
+    pub fn proposal(self) -> BeliefDrivenExperimentProposalPolicy {
+        self.proposal
+    }
+
+    pub fn learning_progress(self) -> LearningProgressPolicy {
+        self.learning_progress
+    }
+
+    pub fn sequence_planning(self) -> ExperimentSequencePlanningPolicy {
+        self.sequence_planning
+    }
+
+    pub fn stop_continue(self) -> StopContinueExperimentationPolicy {
+        self.stop_continue
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum IntegratedAutonomousExperimentationStatus {
+    ContinueExperimentation,
+    StopResolved,
+    StopExperimentBudgetExhausted,
+    StopNoUsefulExperiment,
+    StopLearningStalled,
+    AbstainProposal,
+    AbstainLearningProgress,
+    AbstainSequencePlanning,
+    AbstainControl,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct IntegratedAutonomousExperimentationResult {
+    status: IntegratedAutonomousExperimentationStatus,
+    proposal: BeliefDrivenExperimentProposalResult,
+    learning_progress: Option<LearningProgressEstimationResult>,
+    sequence_planning: Option<ExperimentSequencePlanningResult>,
+    control: Option<StopContinueExperimentationResult>,
+}
+
+impl IntegratedAutonomousExperimentationResult {
+    pub fn status(&self) -> IntegratedAutonomousExperimentationStatus {
+        self.status
+    }
+
+    pub fn proposal(&self) -> &BeliefDrivenExperimentProposalResult {
+        &self.proposal
+    }
+
+    pub fn learning_progress(&self) -> Option<&LearningProgressEstimationResult> {
+        self.learning_progress.as_ref()
+    }
+
+    pub fn sequence_planning(&self) -> Option<&ExperimentSequencePlanningResult> {
+        self.sequence_planning.as_ref()
+    }
+
+    pub fn control(&self) -> Option<&StopContinueExperimentationResult> {
+        self.control.as_ref()
+    }
+
+    pub fn continuing(&self) -> bool {
+        self.status == IntegratedAutonomousExperimentationStatus::ContinueExperimentation
+    }
+
+    pub fn stopped(&self) -> bool {
+        matches!(
+            self.status,
+            IntegratedAutonomousExperimentationStatus::StopResolved
+                | IntegratedAutonomousExperimentationStatus::StopExperimentBudgetExhausted
+                | IntegratedAutonomousExperimentationStatus::StopNoUsefulExperiment
+                | IntegratedAutonomousExperimentationStatus::StopLearningStalled
+        )
+    }
+
+    pub fn abstained(&self) -> bool {
+        matches!(
+            self.status,
+            IntegratedAutonomousExperimentationStatus::AbstainProposal
+                | IntegratedAutonomousExperimentationStatus::AbstainLearningProgress
+                | IntegratedAutonomousExperimentationStatus::AbstainSequencePlanning
+                | IntegratedAutonomousExperimentationStatus::AbstainControl
+        )
+    }
+
+    pub fn next_plan(&self) -> Option<&ExperimentSequencePlan> {
+        self.control.as_ref()?.next_plan()
+    }
+
+    pub fn next_experiment(&self) -> Option<&AutonomousExperimentProposal> {
+        self.next_plan()?
+            .steps()
+            .first()
+            .map(|step| step.candidate().experiment())
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct AutonomousIntegratedExperimentationCycle;
+
+impl AutonomousIntegratedExperimentationCycle {
+    fn proposal_abstained(result: &BeliefDrivenExperimentProposalResult) -> bool {
+        matches!(
+            result.status(),
+            BeliefDrivenExperimentProposalStatus::BeliefFrontierExceeded
+                | BeliefDrivenExperimentProposalStatus::PossibilityFrontierExceeded
+                | BeliefDrivenExperimentProposalStatus::DuplicateBeliefIdentity
+        )
+    }
+
+    fn learning_progress_abstained(result: &LearningProgressEstimationResult) -> bool {
+        matches!(
+            result.status(),
+            LearningProgressEstimationStatus::InputFrontierExceeded
+                | LearningProgressEstimationStatus::FocusFrontierExceeded
+                | LearningProgressEstimationStatus::ConflictingEvidenceIdentity
+        )
+    }
+
+    fn sequence_abstained(result: &ExperimentSequencePlanningResult) -> bool {
+        matches!(
+            result.status(),
+            ExperimentSequencePlanningStatus::CandidateFrontierExceeded
+                | ExperimentSequencePlanningStatus::LearningProgressFrontierExceeded
+                | ExperimentSequencePlanningStatus::ExpansionFrontierExceeded
+                | ExperimentSequencePlanningStatus::ConflictingCandidateIdentity
+                | ExperimentSequencePlanningStatus::ConflictingLearningProgressFocus
+                | ExperimentSequencePlanningStatus::ConflictingPredictionIdentity
+        )
+    }
+
+    fn integrated_status(
+        control: &StopContinueExperimentationResult,
+    ) -> IntegratedAutonomousExperimentationStatus {
+        match control.decision() {
+            StopContinueExperimentationDecision::ContinueExperimentation => {
+                IntegratedAutonomousExperimentationStatus::ContinueExperimentation
+            }
+            StopContinueExperimentationDecision::StopResolved => {
+                IntegratedAutonomousExperimentationStatus::StopResolved
+            }
+            StopContinueExperimentationDecision::StopExperimentBudgetExhausted => {
+                IntegratedAutonomousExperimentationStatus::StopExperimentBudgetExhausted
+            }
+            StopContinueExperimentationDecision::StopNoApplicablePlan => {
+                IntegratedAutonomousExperimentationStatus::StopNoUsefulExperiment
+            }
+            StopContinueExperimentationDecision::StopLearningStalled => {
+                IntegratedAutonomousExperimentationStatus::StopLearningStalled
+            }
+            StopContinueExperimentationDecision::AbstainBeliefFrontierExceeded
+            | StopContinueExperimentationDecision::AbstainPlanFrontierExceeded
+            | StopContinueExperimentationDecision::AbstainDuplicateBeliefIdentity => {
+                IntegratedAutonomousExperimentationStatus::AbstainControl
+            }
+        }
+    }
+
+    pub fn run_cycle(
+        current_state: &CognitiveStructure,
+        beliefs: &[HypothesisBeliefState],
+        possibilities: &[GroundedExperimentPossibility],
+        learning_samples: &[ExperimentLearningProgressSample],
+        current_experiment_cycle: usize,
+        policy: IntegratedAutonomousExperimentationPolicy,
+    ) -> IntegratedAutonomousExperimentationResult {
+        let proposal = AutonomousBeliefDrivenExperimentProposal::generate(
+            beliefs,
+            possibilities,
+            policy.proposal(),
+        );
+
+        if Self::proposal_abstained(&proposal) {
+            return IntegratedAutonomousExperimentationResult {
+                status: IntegratedAutonomousExperimentationStatus::AbstainProposal,
+                proposal,
+                learning_progress: None,
+                sequence_planning: None,
+                control: None,
+            };
+        }
+
+        let learning_progress = AutonomousLearningProgressEstimation::estimate(
+            learning_samples,
+            policy.learning_progress(),
+        );
+
+        if Self::learning_progress_abstained(&learning_progress) {
+            return IntegratedAutonomousExperimentationResult {
+                status: IntegratedAutonomousExperimentationStatus::AbstainLearningProgress,
+                proposal,
+                learning_progress: Some(learning_progress),
+                sequence_planning: None,
+                control: None,
+            };
+        }
+
+        let sequence_planning = AutonomousExperimentSequencePlanning::plan(
+            current_state,
+            proposal.generated(),
+            learning_progress.estimates(),
+            policy.sequence_planning(),
+        );
+
+        if Self::sequence_abstained(&sequence_planning) {
+            return IntegratedAutonomousExperimentationResult {
+                status: IntegratedAutonomousExperimentationStatus::AbstainSequencePlanning,
+                proposal,
+                learning_progress: Some(learning_progress),
+                sequence_planning: Some(sequence_planning),
+                control: None,
+            };
+        }
+
+        let control = AutonomousStopContinueExperimentation::control(
+            current_state,
+            beliefs,
+            sequence_planning.plans(),
+            current_experiment_cycle,
+            policy.stop_continue(),
+        );
+
+        let status = Self::integrated_status(&control);
+
+        IntegratedAutonomousExperimentationResult {
+            status,
+            proposal,
+            learning_progress: Some(learning_progress),
+            sequence_planning: Some(sequence_planning),
+            control: Some(control),
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct UniversalAutonomousIntegratedExperimentationCycle;
+
+impl UniversalAutonomousIntegratedExperimentationCycle {
+    pub fn evaluate(
+        current_state: &CognitiveStructure,
+        beliefs: &[HypothesisBeliefState],
+        possibilities: &[GroundedExperimentPossibility],
+        learning_samples: &[ExperimentLearningProgressSample],
+        current_experiment_cycle: usize,
+        policy: IntegratedAutonomousExperimentationPolicy,
+    ) -> IntegratedAutonomousExperimentationResult {
+        AutonomousIntegratedExperimentationCycle::run_cycle(
+            current_state,
+            beliefs,
+            possibilities,
+            learning_samples,
+            current_experiment_cycle,
+            policy,
+        )
+    }
+}
+
+#[cfg(test)]
+mod integrated_autonomous_experimentation_cycle_tests {
+    use super::*;
+
+    fn s(value: u16) -> CognitiveSignal {
+        if value == 0 {
+            CognitiveSignal::zero()
+        } else {
+            CognitiveSignal::new(value).unwrap()
+        }
+    }
+
+    fn a(value: u64) -> CognitiveStructure {
+        CognitiveStructure::atom(value)
+    }
+
+    fn belief(hypothesis: u64, confidence: u16) -> HypothesisBeliefState {
+        HypothesisBeliefState::new(a(hypothesis), s(confidence)).unwrap()
+    }
+
+    fn prediction(hypothesis: u64, outcome: u64) -> CompetingHypothesisPrediction {
+        CompetingHypothesisPrediction::new(a(hypothesis), a(outcome), s(900)).unwrap()
+    }
+
+    fn possibility(
+        source: u64,
+        action: u64,
+        predictions: Vec<CompetingHypothesisPrediction>,
+    ) -> GroundedExperimentPossibility {
+        GroundedExperimentPossibility::new(
+            a(source),
+            a(action),
+            predictions,
+            s(900),
+            s(900),
+            s(100),
+        )
+        .unwrap()
+    }
+
+    fn progress_sample(
+        identity: u64,
+        state: u64,
+        action: u64,
+        values: [u16; 5],
+    ) -> ExperimentLearningProgressSample {
+        ExperimentLearningProgressSample::new(
+            a(identity),
+            a(state),
+            a(action),
+            LearningProgressMeasurement::new(
+                s(values[0]),
+                s(values[1]),
+                s(values[2]),
+                s(values[3]),
+                s(values[4]),
+            )
+            .unwrap(),
+        )
+    }
+
+    fn foundation_policy() -> ActiveExperimentPolicy {
+        ActiveExperimentPolicy::new(
+            ActiveExperimentBounds::new(32, 32, 32).unwrap(),
+            ActiveExperimentThresholds::new(s(500), s(500), s(500), s(500)).unwrap(),
+        )
+    }
+
+    fn proposal_policy(max_possibilities: usize) -> BeliefDrivenExperimentProposalPolicy {
+        BeliefDrivenExperimentProposalPolicy::new(
+            foundation_policy(),
+            BeliefDrivenExperimentProposalBounds::new(16, max_possibilities, 16, 16).unwrap(),
+            s(500),
+            s(500),
+        )
+        .unwrap()
+    }
+
+    fn learning_policy() -> LearningProgressPolicy {
+        LearningProgressPolicy::new(
+            LearningProgressBounds::new(32, 16, 8).unwrap(),
+            LearningProgressThresholds::new(s(500), 2, s(50)).unwrap(),
+        )
+        .unwrap()
+    }
+
+    fn sequence_policy(max_expansions: usize) -> ExperimentSequencePlanningPolicy {
+        ExperimentSequencePlanningPolicy::new(
+            ExperimentSequencePlanningBounds::new(16, 16, 4, max_expansions, 8).unwrap(),
+            s(500),
+        )
+        .unwrap()
+    }
+
+    fn control_policy(minimum_information: u16) -> StopContinueExperimentationPolicy {
+        StopContinueExperimentationPolicy::new(
+            StopContinueExperimentationBounds::new(16, 8, 8).unwrap(),
+            StopContinueExperimentationThresholds::new(
+                s(500),
+                s(850),
+                s(250),
+                s(100),
+                s(minimum_information),
+                s(500),
+            )
+            .unwrap(),
+        )
+    }
+
+    fn policy() -> IntegratedAutonomousExperimentationPolicy {
+        IntegratedAutonomousExperimentationPolicy::new(
+            proposal_policy(16),
+            learning_policy(),
+            sequence_policy(64),
+            control_policy(600),
+        )
+        .unwrap()
+    }
+
+    #[test]
+    fn integrated_policy_requires_cross_layer_frontier_compatibility() {
+        let incompatible_sequence = ExperimentSequencePlanningPolicy::new(
+            ExperimentSequencePlanningBounds::new(4, 16, 4, 64, 8).unwrap(),
+            s(500),
+        )
+        .unwrap();
+
+        assert_eq!(
+            IntegratedAutonomousExperimentationPolicy::new(
+                proposal_policy(16),
+                learning_policy(),
+                incompatible_sequence,
+                control_policy(600),
+            ),
+            None
+        );
+
+        let incompatible_control = StopContinueExperimentationPolicy::new(
+            StopContinueExperimentationBounds::new(16, 4, 8).unwrap(),
+            StopContinueExperimentationThresholds::new(
+                s(500),
+                s(850),
+                s(250),
+                s(100),
+                s(600),
+                s(500),
+            )
+            .unwrap(),
+        );
+
+        assert_eq!(
+            IntegratedAutonomousExperimentationPolicy::new(
+                proposal_policy(16),
+                learning_policy(),
+                sequence_policy(64),
+                incompatible_control,
+            ),
+            None
+        );
+    }
+
+    #[test]
+    fn unresolved_beliefs_bootstrap_experimentation_from_expected_information_gain() {
+        let result = AutonomousIntegratedExperimentationCycle::run_cycle(
+            &a(1),
+            &[belief(1, 700), belief(2, 680)],
+            &[possibility(
+                1,
+                10,
+                vec![prediction(1, 100), prediction(2, 101)],
+            )],
+            &[],
+            0,
+            policy(),
+        );
+
+        assert!(result.continuing());
+
+        assert_eq!(
+            result.status(),
+            IntegratedAutonomousExperimentationStatus::ContinueExperimentation
+        );
+
+        assert_eq!(
+            result.control().unwrap().continuation_basis(),
+            Some(ExperimentContinuationBasis::ExpectedInformationGain)
+        );
+
+        assert_eq!(result.next_experiment().unwrap().action(), &a(10));
+    }
+
+    #[test]
+    fn measured_learning_progress_drives_continuation_after_experimental_history_exists() {
+        let result = AutonomousIntegratedExperimentationCycle::run_cycle(
+            &a(1),
+            &[belief(1, 700), belief(2, 680)],
+            &[possibility(
+                1,
+                10,
+                vec![prediction(1, 100), prediction(2, 101)],
+            )],
+            &[
+                progress_sample(1, 1, 10, [900, 700, 900, 700, 900]),
+                progress_sample(2, 1, 10, [800, 600, 800, 600, 900]),
+            ],
+            1,
+            policy(),
+        );
+
+        assert!(result.continuing());
+
+        assert_eq!(
+            result.learning_progress().unwrap().estimates()[0].learning_progress(),
+            s(200)
+        );
+
+        assert_eq!(
+            result.control().unwrap().continuation_basis(),
+            Some(ExperimentContinuationBasis::MeasuredLearningProgress)
+        );
+    }
+
+    #[test]
+    fn resolved_belief_space_stops_even_when_no_experiment_can_be_generated() {
+        let result = AutonomousIntegratedExperimentationCycle::run_cycle(
+            &a(1),
+            &[belief(1, 700)],
+            &[],
+            &[],
+            0,
+            policy(),
+        );
+
+        assert_eq!(
+            result.status(),
+            IntegratedAutonomousExperimentationStatus::StopResolved
+        );
+
+        assert!(result.stopped());
+
+        assert_eq!(result.control().unwrap().resolved_winner(), Some(&a(1)));
+
+        assert!(result.next_experiment().is_none());
+    }
+
+    #[test]
+    fn exhausted_experiment_budget_stops_integrated_cycle_before_execution() {
+        let result = AutonomousIntegratedExperimentationCycle::run_cycle(
+            &a(1),
+            &[belief(1, 700), belief(2, 680)],
+            &[possibility(
+                1,
+                10,
+                vec![prediction(1, 100), prediction(2, 101)],
+            )],
+            &[],
+            8,
+            policy(),
+        );
+
+        assert_eq!(
+            result.status(),
+            IntegratedAutonomousExperimentationStatus::StopExperimentBudgetExhausted
+        );
+
+        assert!(result.next_experiment().is_none());
+    }
+
+    #[test]
+    fn no_discriminating_possibility_stops_without_useless_intervention() {
+        let result = AutonomousIntegratedExperimentationCycle::run_cycle(
+            &a(1),
+            &[belief(1, 700), belief(2, 680)],
+            &[possibility(
+                1,
+                10,
+                vec![prediction(1, 100), prediction(2, 100)],
+            )],
+            &[],
+            0,
+            policy(),
+        );
+
+        assert_eq!(result.proposal().generated_count(), 0);
+
+        assert_eq!(
+            result.status(),
+            IntegratedAutonomousExperimentationStatus::StopNoUsefulExperiment
+        );
+
+        assert!(result.next_experiment().is_none());
+    }
+
+    #[test]
+    fn insufficient_learning_and_information_stop_stalled_integrated_experimentation() {
+        let strict = IntegratedAutonomousExperimentationPolicy::new(
+            proposal_policy(16),
+            learning_policy(),
+            sequence_policy(64),
+            control_policy(900),
+        )
+        .unwrap();
+
+        let result = AutonomousIntegratedExperimentationCycle::run_cycle(
+            &a(1),
+            &[belief(1, 700), belief(2, 680), belief(3, 660)],
+            &[possibility(
+                1,
+                10,
+                vec![prediction(1, 100), prediction(2, 100), prediction(3, 101)],
+            )],
+            &[],
+            2,
+            strict,
+        );
+
+        assert_eq!(
+            result.proposal().generated()[0]
+                .experiment()
+                .evidence()
+                .expected_information_gain(),
+            s(666)
+        );
+
+        assert_eq!(
+            result.status(),
+            IntegratedAutonomousExperimentationStatus::StopLearningStalled
+        );
+
+        assert!(result.next_experiment().is_none());
+    }
+
+    #[test]
+    fn conflicting_learning_progress_provenance_abstains_before_planning_or_control() {
+        let result = AutonomousIntegratedExperimentationCycle::run_cycle(
+            &a(1),
+            &[belief(1, 700), belief(2, 680)],
+            &[possibility(
+                1,
+                10,
+                vec![prediction(1, 100), prediction(2, 101)],
+            )],
+            &[
+                progress_sample(1, 1, 10, [900, 700, 900, 700, 900]),
+                progress_sample(1, 1, 10, [900, 500, 900, 500, 900]),
+            ],
+            1,
+            policy(),
+        );
+
+        assert_eq!(
+            result.status(),
+            IntegratedAutonomousExperimentationStatus::AbstainLearningProgress
+        );
+
+        assert!(result.abstained());
+
+        assert!(result.sequence_planning().is_none());
+
+        assert!(result.control().is_none());
+    }
+
+    #[test]
+    fn proposal_frontier_failure_abstains_atomically_before_downstream_cognition() {
+        let bounded = IntegratedAutonomousExperimentationPolicy::new(
+            proposal_policy(1),
+            learning_policy(),
+            sequence_policy(64),
+            control_policy(600),
+        )
+        .unwrap();
+
+        let result = AutonomousIntegratedExperimentationCycle::run_cycle(
+            &a(1),
+            &[belief(1, 700), belief(2, 680)],
+            &[
+                possibility(1, 10, vec![prediction(1, 100), prediction(2, 101)]),
+                possibility(1, 11, vec![prediction(1, 110), prediction(2, 111)]),
+            ],
+            &[],
+            0,
+            bounded,
+        );
+
+        assert_eq!(
+            result.status(),
+            IntegratedAutonomousExperimentationStatus::AbstainProposal
+        );
+
+        assert!(result.learning_progress().is_none());
+
+        assert!(result.sequence_planning().is_none());
+
+        assert!(result.control().is_none());
+    }
+
+    #[test]
+    fn bounded_sequence_expansion_failure_abstains_before_execution_control() {
+        let bounded = IntegratedAutonomousExperimentationPolicy::new(
+            proposal_policy(16),
+            learning_policy(),
+            sequence_policy(1),
+            control_policy(600),
+        )
+        .unwrap();
+
+        let result = AutonomousIntegratedExperimentationCycle::run_cycle(
+            &a(1),
+            &[belief(1, 700), belief(2, 680)],
+            &[
+                possibility(1, 10, vec![prediction(1, 100), prediction(2, 101)]),
+                possibility(1, 11, vec![prediction(1, 110), prediction(2, 111)]),
+            ],
+            &[],
+            0,
+            bounded,
+        );
+
+        assert_eq!(
+            result.status(),
+            IntegratedAutonomousExperimentationStatus::AbstainSequencePlanning
+        );
+
+        assert_eq!(
+            result.sequence_planning().unwrap().status(),
+            ExperimentSequencePlanningStatus::ExpansionFrontierExceeded
+        );
+
+        assert!(result.control().is_none());
+    }
+
+    #[test]
+    fn exact_duplicate_belief_identity_abstains_before_experiment_generation_can_fake_competition()
+    {
+        let result = AutonomousIntegratedExperimentationCycle::run_cycle(
+            &a(1),
+            &[belief(1, 700), belief(1, 680)],
+            &[possibility(
+                1,
+                10,
+                vec![prediction(1, 100), prediction(2, 101)],
+            )],
+            &[],
+            0,
+            policy(),
+        );
+
+        assert_eq!(
+            result.status(),
+            IntegratedAutonomousExperimentationStatus::AbstainProposal
+        );
+
+        assert_eq!(
+            result.proposal().status(),
+            BeliefDrivenExperimentProposalStatus::DuplicateBeliefIdentity
+        );
+
+        assert!(result.next_experiment().is_none());
+    }
+
+    #[test]
+    fn integrated_cycle_is_order_invariant_non_mutating_deterministic_and_facade_equivalent() {
+        let beliefs = vec![belief(2, 680), belief(1, 700), belief(3, 660)];
+
+        let possibilities = vec![
+            possibility(
+                1,
+                10,
+                vec![prediction(1, 100), prediction(2, 101), prediction(3, 102)],
+            ),
+            possibility(
+                1,
+                11,
+                vec![prediction(1, 110), prediction(2, 111), prediction(3, 112)],
+            ),
+        ];
+
+        let samples = vec![
+            progress_sample(1, 1, 10, [900, 700, 900, 700, 900]),
+            progress_sample(2, 1, 10, [800, 600, 800, 600, 900]),
+            progress_sample(3, 1, 11, [900, 800, 900, 800, 900]),
+            progress_sample(4, 1, 11, [800, 700, 800, 700, 900]),
+        ];
+
+        let before_beliefs = beliefs.clone();
+
+        let before_possibilities = possibilities.clone();
+
+        let before_samples = samples.clone();
+
+        let mut reversed_beliefs = beliefs.clone();
+
+        reversed_beliefs.reverse();
+
+        let mut reversed_possibilities = possibilities.clone();
+
+        reversed_possibilities.reverse();
+
+        for possibility in &mut reversed_possibilities {
+            possibility.predictions.reverse();
+        }
+
+        let mut reversed_samples = samples.clone();
+
+        reversed_samples.reverse();
+
+        let p = policy();
+
+        let direct = AutonomousIntegratedExperimentationCycle::run_cycle(
+            &a(1),
+            &beliefs,
+            &possibilities,
+            &samples,
+            1,
+            p,
+        );
+
+        let reordered = AutonomousIntegratedExperimentationCycle::run_cycle(
+            &a(1),
+            &reversed_beliefs,
+            &reversed_possibilities,
+            &reversed_samples,
+            1,
+            p,
+        );
+
+        let facade = UniversalAutonomousIntegratedExperimentationCycle::evaluate(
+            &a(1),
+            &beliefs,
+            &possibilities,
+            &samples,
+            1,
+            p,
+        );
+
+        let repeated = UniversalAutonomousIntegratedExperimentationCycle::evaluate(
+            &a(1),
+            &beliefs,
+            &possibilities,
+            &samples,
+            1,
+            p,
+        );
+
+        assert_eq!(direct, reordered);
+
+        assert_eq!(direct, facade);
+
+        assert_eq!(facade, repeated);
+
+        assert_eq!(beliefs, before_beliefs);
+
+        assert_eq!(possibilities, before_possibilities);
+
+        assert_eq!(samples, before_samples);
+    }
+}
