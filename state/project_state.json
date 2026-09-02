@@ -243,7 +243,7 @@
     "crates/athlesia_revision/tests/revision_policy.rs": "6378aee538bf205e5fd65a1fa7f1413b109f34f4b6f9858015dfb8d046c99773",
     "crates/athlesia_universal_domain_learning/Cargo.lock": "dd15fa520383ab416934233abdaa2337ae0eadfa1483437d7d8392646e2b9de6",
     "crates/athlesia_universal_domain_learning/Cargo.toml": "608f66355321005946091cb7bce202f353496f0b61edc6e457f31728a7de540b",
-    "crates/athlesia_universal_domain_learning/src/lib.rs": "a0ec9029660808ef66ae91b1c4ada84ac35f7f23e0b9649b7560f3064799d27c",
+    "crates/athlesia_universal_domain_learning/src/lib.rs": "7727f89ff2e014ac4089aae85af3e0716f7345751e10b3099c708c10810ba176",
     "crates/athlesia_universal_domain_learning/tests/universal_domain_learning_causal_contrast_induction.rs": "0e6e6429fb4fce39e52669fab25df498d3a5a9204e5705aede2ae400ca7285c2",
     "crates/athlesia_universal_domain_learning/tests/universal_domain_learning_contextual_transition_rules.rs": "8c70371cb2e2c7482294f4dc33cb6fbc7f9451a36f24241950e11c5a2b8ab314",
     "crates/athlesia_universal_domain_learning/tests/universal_domain_learning_cross_context_generalization.rs": "b3dc16eace122f65215d918912ec5f5e6c0558fdbb1551c4e5929323a095f6dd",
@@ -251,6 +251,7 @@
     "crates/athlesia_universal_domain_learning/tests/universal_domain_learning_domain_model_compression.rs": "9a5355a8ed9761ae34474e96ce7c1b590540872c3077e58ce2ad95daf75fcfd7",
     "crates/athlesia_universal_domain_learning/tests/universal_domain_learning_exception_refinement.rs": "8d59b0ace0f74c67fa6ebee3f0b26f893e180d74ca8cd491dac697eb1617f77f",
     "crates/athlesia_universal_domain_learning/tests/universal_domain_learning_grounded_predicate_discovery.rs": "373d49d4010c873cb98d7a830c0dd31d2fd49179beea3a0a7b3dc3c5f0c1b363",
+    "crates/athlesia_universal_domain_learning/tests/universal_domain_learning_integrated_domain_model.rs": "6c3e35906ee99a121356f4401bb9ea4ff5d553f8ce6027af95a8270e698c6a77",
     "crates/athlesia_universal_domain_learning/tests/universal_domain_learning_interventional_causal_validation.rs": "1baacc59dfb51266bfaab7a0a55871e318088141c487d8fbbaaf4bbc6b19a145",
     "crates/athlesia_universal_domain_learning/tests/universal_domain_learning_invariant_discovery.rs": "ca578477f286abd57567a00efc7679776181d85a9aa3fb2dde4421fde6ed913c",
     "crates/athlesia_universal_domain_learning/tests/universal_domain_learning_rule_confidence_calibration.rs": "810a274b8e077826ea1d194dd1fbed7457595cdd79bc1f5f7491db3f69245e28",
@@ -549,7 +550,8 @@
       "module_47_universal_domain_learning_causal_contrast_induction",
       "module_47_universal_domain_learning_interventional_causal_validation",
       "module_47_universal_domain_learning_cross_domain_transfer",
-      "module_47_universal_domain_learning_domain_model_compression"
+      "module_47_universal_domain_learning_domain_model_compression",
+      "module_47_universal_domain_learning_integrated_domain_model"
     ],
     "module_23_integrity": {
       "status": "pass",
@@ -562,8 +564,8 @@
       "status": "frozen",
       "verifier": "tools/verify_module_23_parity.py"
     },
-    "next_layer": "module_47_universal_domain_learning_integrated_domain_model",
-    "stage": "module_47_universal_domain_learning_domain_model_compression",
+    "next_layer": "module_47_universal_domain_learning_freeze",
+    "stage": "module_47_universal_domain_learning_integrated_domain_model",
     "status": "validated"
   },
   "validated_invariants": [
@@ -2694,6 +2696,18 @@
     "universal_learning_compression_hard_input_frontier_strength_priority",
     "universal_learning_compression_hard_group_generation_frontier",
     "universal_learning_compression_hard_output_frontier_redundancy_priority",
-    "universal_learning_compression_deterministic_non_mutating_facade_equivalence"
+    "universal_learning_compression_deterministic_non_mutating_facade_equivalence",
+    "universal_learning_integrated_model_positive_hard_bounds",
+    "universal_learning_integrated_model_local_evidence_lossless_normalization",
+    "universal_learning_integrated_model_transfer_provenance_confidence_normalization",
+    "universal_learning_integrated_model_target_domain_isolation",
+    "universal_learning_integrated_model_local_authority_over_exact_transfer",
+    "universal_learning_integrated_model_transfer_evidence_variants_retained",
+    "universal_learning_integrated_model_exact_reordered_structure_identity",
+    "universal_learning_integrated_model_exact_query_identity",
+    "universal_learning_integrated_model_hard_local_frontier_strength_priority",
+    "universal_learning_integrated_model_hard_transfer_frontier_strength_priority",
+    "universal_learning_integrated_model_hard_final_frontier_local_authority",
+    "universal_learning_integrated_model_deterministic_non_mutating_facade_equivalence"
   ]
 }

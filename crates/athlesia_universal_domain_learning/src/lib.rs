@@ -8352,3 +8352,592 @@ impl UniversalDomainModelCompression {
         DomainModelCompression::compress(hypotheses, policy)
     }
 }
+
+#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+pub enum IntegratedDomainRelationAuthority {
+    LocalInterventional,
+    TransferredCompressed,
+}
+
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub struct IntegratedDomainModelPolicy {
+    max_local_hypotheses: usize,
+    max_transferred_models: usize,
+    max_relations: usize,
+}
+
+impl IntegratedDomainModelPolicy {
+    pub fn new(
+        max_local_hypotheses: usize,
+        max_transferred_models: usize,
+        max_relations: usize,
+    ) -> Option<Self> {
+        if max_local_hypotheses == 0 || max_transferred_models == 0 || max_relations == 0 {
+            return None;
+        }
+
+        Some(Self {
+            max_local_hypotheses,
+            max_transferred_models,
+            max_relations,
+        })
+    }
+
+    pub fn max_local_hypotheses(self) -> usize {
+        self.max_local_hypotheses
+    }
+
+    pub fn max_transferred_models(self) -> usize {
+        self.max_transferred_models
+    }
+
+    pub fn max_relations(self) -> usize {
+        self.max_relations
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct IntegratedDomainRelation {
+    domain: CognitiveStructure,
+    transformation: CognitiveStructure,
+    contrast_transformation: CognitiveStructure,
+    context: ContextPremiseSet,
+    effect_kind: TransitionEffectKind,
+    effect_fact: CognitiveStructure,
+    authority: IntegratedDomainRelationAuthority,
+    confidence_ceiling: CognitiveSignal,
+    confidence_floor: CognitiveSignal,
+    interventional_lift: CognitiveSignal,
+    support_adequacy: CognitiveSignal,
+    matched_state_count: usize,
+    target_opportunity_count: u64,
+    target_success_count: u64,
+    target_failure_count: u64,
+    contrast_opportunity_count: u64,
+    contrast_success_count: u64,
+    contrast_failure_count: u64,
+    passive_corroborating_count: u64,
+    passive_counterevidence_count: u64,
+    provenance_count: usize,
+    source_member_count: usize,
+}
+
+impl IntegratedDomainRelation {
+    pub fn domain(&self) -> &CognitiveStructure {
+        &self.domain
+    }
+
+    pub fn transformation(&self) -> &CognitiveStructure {
+        &self.transformation
+    }
+
+    pub fn contrast_transformation(&self) -> &CognitiveStructure {
+        &self.contrast_transformation
+    }
+
+    pub fn context(&self) -> &ContextPremiseSet {
+        &self.context
+    }
+
+    pub fn effect_kind(&self) -> TransitionEffectKind {
+        self.effect_kind
+    }
+
+    pub fn effect_fact(&self) -> &CognitiveStructure {
+        &self.effect_fact
+    }
+
+    pub fn authority(&self) -> IntegratedDomainRelationAuthority {
+        self.authority
+    }
+
+    pub fn confidence_ceiling(&self) -> CognitiveSignal {
+        self.confidence_ceiling
+    }
+
+    pub fn confidence_floor(&self) -> CognitiveSignal {
+        self.confidence_floor
+    }
+
+    pub fn interventional_lift(&self) -> CognitiveSignal {
+        self.interventional_lift
+    }
+
+    pub fn support_adequacy(&self) -> CognitiveSignal {
+        self.support_adequacy
+    }
+
+    pub fn matched_state_count(&self) -> usize {
+        self.matched_state_count
+    }
+
+    pub fn target_opportunity_count(&self) -> u64 {
+        self.target_opportunity_count
+    }
+
+    pub fn target_success_count(&self) -> u64 {
+        self.target_success_count
+    }
+
+    pub fn target_failure_count(&self) -> u64 {
+        self.target_failure_count
+    }
+
+    pub fn contrast_opportunity_count(&self) -> u64 {
+        self.contrast_opportunity_count
+    }
+
+    pub fn contrast_success_count(&self) -> u64 {
+        self.contrast_success_count
+    }
+
+    pub fn contrast_failure_count(&self) -> u64 {
+        self.contrast_failure_count
+    }
+
+    pub fn passive_corroborating_count(&self) -> u64 {
+        self.passive_corroborating_count
+    }
+
+    pub fn passive_counterevidence_count(&self) -> u64 {
+        self.passive_counterevidence_count
+    }
+
+    pub fn provenance_count(&self) -> usize {
+        self.provenance_count
+    }
+
+    pub fn source_member_count(&self) -> usize {
+        self.source_member_count
+    }
+
+    pub fn same_semantic_key(&self, other: &Self) -> bool {
+        self.domain == other.domain
+            && self.transformation == other.transformation
+            && self.contrast_transformation == other.contrast_transformation
+            && self.context == other.context
+            && self.effect_kind == other.effect_kind
+            && self.effect_fact == other.effect_fact
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct IntegratedDomainModelResult {
+    domain: CognitiveStructure,
+    input_local_hypothesis_count: usize,
+    considered_local_hypothesis_count: usize,
+    local_frontier_truncated: bool,
+    input_transferred_model_count: usize,
+    matching_transferred_model_count: usize,
+    considered_transferred_model_count: usize,
+    transferred_frontier_truncated: bool,
+    rejected_target_domain_mismatch: usize,
+    admitted_before_frontier: usize,
+    relations: Vec<IntegratedDomainRelation>,
+}
+
+impl IntegratedDomainModelResult {
+    pub fn domain(&self) -> &CognitiveStructure {
+        &self.domain
+    }
+
+    pub fn input_local_hypothesis_count(&self) -> usize {
+        self.input_local_hypothesis_count
+    }
+
+    pub fn considered_local_hypothesis_count(&self) -> usize {
+        self.considered_local_hypothesis_count
+    }
+
+    pub fn local_frontier_truncated(&self) -> bool {
+        self.local_frontier_truncated
+    }
+
+    pub fn input_transferred_model_count(&self) -> usize {
+        self.input_transferred_model_count
+    }
+
+    pub fn matching_transferred_model_count(&self) -> usize {
+        self.matching_transferred_model_count
+    }
+
+    pub fn considered_transferred_model_count(&self) -> usize {
+        self.considered_transferred_model_count
+    }
+
+    pub fn transferred_frontier_truncated(&self) -> bool {
+        self.transferred_frontier_truncated
+    }
+
+    pub fn rejected_target_domain_mismatch(&self) -> usize {
+        self.rejected_target_domain_mismatch
+    }
+
+    pub fn admitted_before_frontier(&self) -> usize {
+        self.admitted_before_frontier
+    }
+
+    pub fn relations(&self) -> &[IntegratedDomainRelation] {
+        &self.relations
+    }
+
+    pub fn relation_count(&self) -> usize {
+        self.relations.len()
+    }
+
+    pub fn best_exact(
+        &self,
+        transformation: &CognitiveStructure,
+        contrast_transformation: &CognitiveStructure,
+        context: &ContextPremiseSet,
+        effect_kind: TransitionEffectKind,
+        effect_fact: &CognitiveStructure,
+    ) -> Option<&IntegratedDomainRelation> {
+        self.relations.iter().find(|relation| {
+            relation.transformation() == transformation
+                && relation.contrast_transformation() == contrast_transformation
+                && relation.context() == context
+                && relation.effect_kind() == effect_kind
+                && relation.effect_fact() == effect_fact
+        })
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, Hash, PartialEq)]
+pub struct IntegratedDomainModel;
+
+impl IntegratedDomainModel {
+    fn compare_context(left: &ContextPremiseSet, right: &ContextPremiseSet) -> std::cmp::Ordering {
+        let mut left_iterator = left.premises().iter();
+
+        let mut right_iterator = right.premises().iter();
+
+        loop {
+            match (left_iterator.next(), right_iterator.next()) {
+                (Some(left_value), Some(right_value)) => {
+                    let ordering = PredicateDiscovery::compare_structure(left_value, right_value);
+
+                    if ordering != std::cmp::Ordering::Equal {
+                        return ordering;
+                    }
+                }
+
+                (None, Some(_)) => {
+                    return std::cmp::Ordering::Less;
+                }
+
+                (Some(_), None) => {
+                    return std::cmp::Ordering::Greater;
+                }
+
+                (None, None) => {
+                    return std::cmp::Ordering::Equal;
+                }
+            }
+        }
+    }
+
+    fn compare_local(
+        left: &GroundedInterventionalCausalHypothesis,
+        right: &GroundedInterventionalCausalHypothesis,
+    ) -> std::cmp::Ordering {
+        right
+            .validated_causal_confidence()
+            .value()
+            .cmp(&left.validated_causal_confidence().value())
+            .then_with(|| {
+                right
+                    .interventional_lift()
+                    .value()
+                    .cmp(&left.interventional_lift().value())
+            })
+            .then_with(|| {
+                right
+                    .intervention_support_adequacy()
+                    .value()
+                    .cmp(&left.intervention_support_adequacy().value())
+            })
+            .then_with(|| {
+                right
+                    .matched_intervention_state_count()
+                    .cmp(&left.matched_intervention_state_count())
+            })
+            .then_with(|| {
+                PredicateDiscovery::compare_structure(left.transformation(), right.transformation())
+            })
+            .then_with(|| {
+                PredicateDiscovery::compare_structure(
+                    left.contrast_transformation(),
+                    right.contrast_transformation(),
+                )
+            })
+            .then_with(|| left.effect_kind().cmp(&right.effect_kind()))
+            .then_with(|| {
+                PredicateDiscovery::compare_structure(left.effect_fact(), right.effect_fact())
+            })
+            .then_with(|| Self::compare_context(left.context(), right.context()))
+    }
+
+    fn compare_transferred(
+        left: &CompressedDomainModel,
+        right: &CompressedDomainModel,
+    ) -> std::cmp::Ordering {
+        right
+            .strongest_transfer_confidence()
+            .value()
+            .cmp(&left.strongest_transfer_confidence().value())
+            .then_with(|| {
+                right
+                    .target_evidence_confidence()
+                    .value()
+                    .cmp(&left.target_evidence_confidence().value())
+            })
+            .then_with(|| {
+                right
+                    .target_interventional_lift()
+                    .value()
+                    .cmp(&left.target_interventional_lift().value())
+            })
+            .then_with(|| {
+                right
+                    .target_support_adequacy()
+                    .value()
+                    .cmp(&left.target_support_adequacy().value())
+            })
+            .then_with(|| right.member_count().cmp(&left.member_count()))
+            .then_with(|| {
+                PredicateDiscovery::compare_structure(
+                    left.target_transformation(),
+                    right.target_transformation(),
+                )
+            })
+            .then_with(|| {
+                PredicateDiscovery::compare_structure(
+                    left.target_contrast_transformation(),
+                    right.target_contrast_transformation(),
+                )
+            })
+            .then_with(|| left.effect_kind().cmp(&right.effect_kind()))
+            .then_with(|| {
+                PredicateDiscovery::compare_structure(
+                    left.target_effect_fact(),
+                    right.target_effect_fact(),
+                )
+            })
+            .then_with(|| Self::compare_context(left.target_context(), right.target_context()))
+    }
+
+    fn considered_local(
+        local: &[GroundedInterventionalCausalHypothesis],
+        policy: IntegratedDomainModelPolicy,
+    ) -> Vec<&GroundedInterventionalCausalHypothesis> {
+        let mut considered = local.iter().collect::<Vec<_>>();
+
+        considered.sort_by(|left, right| Self::compare_local(left, right));
+
+        considered.truncate(policy.max_local_hypotheses());
+
+        considered
+    }
+
+    fn considered_transferred<'a>(
+        domain: &CognitiveStructure,
+        transferred: &'a [CompressedDomainModel],
+        policy: IntegratedDomainModelPolicy,
+    ) -> Vec<&'a CompressedDomainModel> {
+        let mut considered = transferred
+            .iter()
+            .filter(|model| model.target_domain() == domain)
+            .collect::<Vec<_>>();
+
+        considered.sort_by(|left, right| Self::compare_transferred(left, right));
+
+        considered.truncate(policy.max_transferred_models());
+
+        considered
+    }
+
+    fn relation_from_local(
+        domain: &CognitiveStructure,
+        hypothesis: &GroundedInterventionalCausalHypothesis,
+    ) -> IntegratedDomainRelation {
+        let confidence = hypothesis.validated_causal_confidence();
+
+        IntegratedDomainRelation {
+            domain: domain.clone(),
+            transformation: hypothesis.transformation().clone(),
+            contrast_transformation: hypothesis.contrast_transformation().clone(),
+            context: hypothesis.context().clone(),
+            effect_kind: hypothesis.effect_kind(),
+            effect_fact: hypothesis.effect_fact().clone(),
+            authority: IntegratedDomainRelationAuthority::LocalInterventional,
+            confidence_ceiling: confidence,
+            confidence_floor: confidence,
+            interventional_lift: hypothesis.interventional_lift(),
+            support_adequacy: hypothesis.intervention_support_adequacy(),
+            matched_state_count: hypothesis.matched_intervention_state_count(),
+            target_opportunity_count: hypothesis.target_intervention_opportunity_count(),
+            target_success_count: hypothesis.target_intervention_success_count(),
+            target_failure_count: hypothesis.target_intervention_failure_count(),
+            contrast_opportunity_count: hypothesis.contrast_intervention_opportunity_count(),
+            contrast_success_count: hypothesis.contrast_intervention_success_count(),
+            contrast_failure_count: hypothesis.contrast_intervention_failure_count(),
+            passive_corroborating_count: hypothesis.passive_corroborating_count(),
+            passive_counterevidence_count: hypothesis.passive_counterevidence_count(),
+            provenance_count: 0,
+            source_member_count: 1,
+        }
+    }
+
+    fn relation_from_transferred(model: &CompressedDomainModel) -> IntegratedDomainRelation {
+        IntegratedDomainRelation {
+            domain: model.target_domain().clone(),
+            transformation: model.target_transformation().clone(),
+            contrast_transformation: model.target_contrast_transformation().clone(),
+            context: model.target_context().clone(),
+            effect_kind: model.effect_kind(),
+            effect_fact: model.target_effect_fact().clone(),
+            authority: IntegratedDomainRelationAuthority::TransferredCompressed,
+            confidence_ceiling: model.strongest_transfer_confidence(),
+            confidence_floor: model.weakest_transfer_confidence(),
+            interventional_lift: model.target_interventional_lift(),
+            support_adequacy: model.target_support_adequacy(),
+            matched_state_count: model.matched_target_state_count(),
+            target_opportunity_count: model.target_intervention_opportunity_count(),
+            target_success_count: model.target_intervention_success_count(),
+            target_failure_count: model.target_intervention_failure_count(),
+            contrast_opportunity_count: model.contrast_intervention_opportunity_count(),
+            contrast_success_count: model.contrast_intervention_success_count(),
+            contrast_failure_count: model.contrast_intervention_failure_count(),
+            passive_corroborating_count: model.passive_corroborating_count(),
+            passive_counterevidence_count: model.passive_counterevidence_count(),
+            provenance_count: model.provenance_count(),
+            source_member_count: model.member_count(),
+        }
+    }
+
+    fn compare_relation(
+        left: &IntegratedDomainRelation,
+        right: &IntegratedDomainRelation,
+    ) -> std::cmp::Ordering {
+        left.authority()
+            .cmp(&right.authority())
+            .then_with(|| {
+                right
+                    .confidence_ceiling()
+                    .value()
+                    .cmp(&left.confidence_ceiling().value())
+            })
+            .then_with(|| {
+                right
+                    .confidence_floor()
+                    .value()
+                    .cmp(&left.confidence_floor().value())
+            })
+            .then_with(|| {
+                right
+                    .interventional_lift()
+                    .value()
+                    .cmp(&left.interventional_lift().value())
+            })
+            .then_with(|| {
+                right
+                    .support_adequacy()
+                    .value()
+                    .cmp(&left.support_adequacy().value())
+            })
+            .then_with(|| right.matched_state_count().cmp(&left.matched_state_count()))
+            .then_with(|| {
+                PredicateDiscovery::compare_structure(left.transformation(), right.transformation())
+            })
+            .then_with(|| {
+                PredicateDiscovery::compare_structure(
+                    left.contrast_transformation(),
+                    right.contrast_transformation(),
+                )
+            })
+            .then_with(|| left.effect_kind().cmp(&right.effect_kind()))
+            .then_with(|| {
+                PredicateDiscovery::compare_structure(left.effect_fact(), right.effect_fact())
+            })
+            .then_with(|| Self::compare_context(left.context(), right.context()))
+            .then_with(|| {
+                right
+                    .target_opportunity_count()
+                    .cmp(&left.target_opportunity_count())
+            })
+            .then_with(|| {
+                left.target_failure_count()
+                    .cmp(&right.target_failure_count())
+            })
+            .then_with(|| {
+                left.contrast_success_count()
+                    .cmp(&right.contrast_success_count())
+            })
+    }
+
+    pub fn build(
+        domain: &CognitiveStructure,
+        local: &[GroundedInterventionalCausalHypothesis],
+        transferred: &[CompressedDomainModel],
+        policy: IntegratedDomainModelPolicy,
+    ) -> IntegratedDomainModelResult {
+        let considered_local = Self::considered_local(local, policy);
+
+        let matching_transferred_model_count = transferred
+            .iter()
+            .filter(|model| model.target_domain() == domain)
+            .count();
+
+        let rejected_target_domain_mismatch = transferred
+            .len()
+            .saturating_sub(matching_transferred_model_count);
+
+        let considered_transferred = Self::considered_transferred(domain, transferred, policy);
+
+        let mut relations = considered_local
+            .iter()
+            .map(|hypothesis| Self::relation_from_local(domain, hypothesis))
+            .chain(
+                considered_transferred
+                    .iter()
+                    .map(|model| Self::relation_from_transferred(model)),
+            )
+            .collect::<Vec<_>>();
+
+        relations.sort_by(Self::compare_relation);
+
+        let admitted_before_frontier = relations.len();
+
+        relations.truncate(policy.max_relations());
+
+        IntegratedDomainModelResult {
+            domain: domain.clone(),
+            input_local_hypothesis_count: local.len(),
+            considered_local_hypothesis_count: considered_local.len(),
+            local_frontier_truncated: local.len() > considered_local.len(),
+            input_transferred_model_count: transferred.len(),
+            matching_transferred_model_count,
+            considered_transferred_model_count: considered_transferred.len(),
+            transferred_frontier_truncated: matching_transferred_model_count
+                > considered_transferred.len(),
+            rejected_target_domain_mismatch,
+            admitted_before_frontier,
+            relations,
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, Hash, PartialEq)]
+pub struct UniversalIntegratedDomainModel;
+
+impl UniversalIntegratedDomainModel {
+    pub fn evaluate(
+        domain: &CognitiveStructure,
+        local: &[GroundedInterventionalCausalHypothesis],
+        transferred: &[CompressedDomainModel],
+        policy: IntegratedDomainModelPolicy,
+    ) -> IntegratedDomainModelResult {
+        IntegratedDomainModel::build(domain, local, transferred, policy)
+    }
+}
