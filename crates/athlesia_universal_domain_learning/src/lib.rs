@@ -7612,3 +7612,743 @@ impl UniversalCrossDomainTransfer {
         CrossDomainTransfer::transfer(target_evidence, source_hypotheses, transfer_map, policy)
     }
 }
+
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub struct DomainModelCompressionPolicy {
+    max_input_hypotheses: usize,
+    max_model_groups: usize,
+    max_output_models: usize,
+}
+
+impl DomainModelCompressionPolicy {
+    pub fn new(
+        max_input_hypotheses: usize,
+        max_model_groups: usize,
+        max_output_models: usize,
+    ) -> Option<Self> {
+        if max_input_hypotheses == 0 || max_model_groups == 0 || max_output_models == 0 {
+            return None;
+        }
+
+        Some(Self {
+            max_input_hypotheses,
+            max_model_groups,
+            max_output_models,
+        })
+    }
+
+    pub fn max_input_hypotheses(self) -> usize {
+        self.max_input_hypotheses
+    }
+
+    pub fn max_model_groups(self) -> usize {
+        self.max_model_groups
+    }
+
+    pub fn max_output_models(self) -> usize {
+        self.max_output_models
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct CompressedTransferProvenance {
+    source_domain: CognitiveStructure,
+    source_transformation: CognitiveStructure,
+    source_contrast_transformation: CognitiveStructure,
+    source_effect_fact: CognitiveStructure,
+    source_validated_confidence: CognitiveSignal,
+    source_interventional_lift: CognitiveSignal,
+    transfer_confidence: CognitiveSignal,
+}
+
+impl CompressedTransferProvenance {
+    pub fn source_domain(&self) -> &CognitiveStructure {
+        &self.source_domain
+    }
+
+    pub fn source_transformation(&self) -> &CognitiveStructure {
+        &self.source_transformation
+    }
+
+    pub fn source_contrast_transformation(&self) -> &CognitiveStructure {
+        &self.source_contrast_transformation
+    }
+
+    pub fn source_effect_fact(&self) -> &CognitiveStructure {
+        &self.source_effect_fact
+    }
+
+    pub fn source_validated_confidence(&self) -> CognitiveSignal {
+        self.source_validated_confidence
+    }
+
+    pub fn source_interventional_lift(&self) -> CognitiveSignal {
+        self.source_interventional_lift
+    }
+
+    pub fn transfer_confidence(&self) -> CognitiveSignal {
+        self.transfer_confidence
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct CompressedDomainModel {
+    target_domain: CognitiveStructure,
+    target_transformation: CognitiveStructure,
+    target_contrast_transformation: CognitiveStructure,
+    target_context: ContextPremiseSet,
+    target_effect_fact: CognitiveStructure,
+    effect_kind: TransitionEffectKind,
+    matched_target_state_count: usize,
+    target_intervention_opportunity_count: u64,
+    target_intervention_success_count: u64,
+    target_intervention_failure_count: u64,
+    contrast_intervention_opportunity_count: u64,
+    contrast_intervention_success_count: u64,
+    contrast_intervention_failure_count: u64,
+    target_effect_rate: CognitiveSignal,
+    target_contrast_effect_rate: CognitiveSignal,
+    target_interventional_lift: CognitiveSignal,
+    balanced_target_support: u64,
+    target_support_adequacy: CognitiveSignal,
+    target_evidence_confidence: CognitiveSignal,
+    passive_corroborating_count: u64,
+    passive_counterevidence_count: u64,
+    member_count: usize,
+    provenances: Vec<CompressedTransferProvenance>,
+    strongest_transfer_confidence: CognitiveSignal,
+    weakest_transfer_confidence: CognitiveSignal,
+}
+
+impl CompressedDomainModel {
+    pub fn target_domain(&self) -> &CognitiveStructure {
+        &self.target_domain
+    }
+
+    pub fn target_transformation(&self) -> &CognitiveStructure {
+        &self.target_transformation
+    }
+
+    pub fn target_contrast_transformation(&self) -> &CognitiveStructure {
+        &self.target_contrast_transformation
+    }
+
+    pub fn target_context(&self) -> &ContextPremiseSet {
+        &self.target_context
+    }
+
+    pub fn target_effect_fact(&self) -> &CognitiveStructure {
+        &self.target_effect_fact
+    }
+
+    pub fn effect_kind(&self) -> TransitionEffectKind {
+        self.effect_kind
+    }
+
+    pub fn matched_target_state_count(&self) -> usize {
+        self.matched_target_state_count
+    }
+
+    pub fn target_intervention_opportunity_count(&self) -> u64 {
+        self.target_intervention_opportunity_count
+    }
+
+    pub fn target_intervention_success_count(&self) -> u64 {
+        self.target_intervention_success_count
+    }
+
+    pub fn target_intervention_failure_count(&self) -> u64 {
+        self.target_intervention_failure_count
+    }
+
+    pub fn contrast_intervention_opportunity_count(&self) -> u64 {
+        self.contrast_intervention_opportunity_count
+    }
+
+    pub fn contrast_intervention_success_count(&self) -> u64 {
+        self.contrast_intervention_success_count
+    }
+
+    pub fn contrast_intervention_failure_count(&self) -> u64 {
+        self.contrast_intervention_failure_count
+    }
+
+    pub fn target_effect_rate(&self) -> CognitiveSignal {
+        self.target_effect_rate
+    }
+
+    pub fn target_contrast_effect_rate(&self) -> CognitiveSignal {
+        self.target_contrast_effect_rate
+    }
+
+    pub fn target_interventional_lift(&self) -> CognitiveSignal {
+        self.target_interventional_lift
+    }
+
+    pub fn balanced_target_support(&self) -> u64 {
+        self.balanced_target_support
+    }
+
+    pub fn target_support_adequacy(&self) -> CognitiveSignal {
+        self.target_support_adequacy
+    }
+
+    pub fn target_evidence_confidence(&self) -> CognitiveSignal {
+        self.target_evidence_confidence
+    }
+
+    pub fn passive_corroborating_count(&self) -> u64 {
+        self.passive_corroborating_count
+    }
+
+    pub fn passive_counterevidence_count(&self) -> u64 {
+        self.passive_counterevidence_count
+    }
+
+    pub fn member_count(&self) -> usize {
+        self.member_count
+    }
+
+    pub fn provenances(&self) -> &[CompressedTransferProvenance] {
+        &self.provenances
+    }
+
+    pub fn provenance_count(&self) -> usize {
+        self.provenances.len()
+    }
+
+    pub fn strongest_transfer_confidence(&self) -> CognitiveSignal {
+        self.strongest_transfer_confidence
+    }
+
+    pub fn weakest_transfer_confidence(&self) -> CognitiveSignal {
+        self.weakest_transfer_confidence
+    }
+
+    pub fn structurally_removed_member_count(&self) -> usize {
+        self.member_count.saturating_sub(1)
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+struct DomainModelCompressionGroup {
+    representative: GroundedCrossDomainTransferHypothesis,
+    members: Vec<GroundedCrossDomainTransferHypothesis>,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct DomainModelCompressionResult {
+    input_hypothesis_count: usize,
+    considered_hypothesis_count: usize,
+    input_frontier_truncated: bool,
+    possible_model_group_count: usize,
+    generated_model_group_count: usize,
+    group_generation_truncated: bool,
+    grouped_member_count: usize,
+    structurally_removed_member_count: usize,
+    compression_gain: CognitiveSignal,
+    admitted_before_frontier: usize,
+    selected: Vec<CompressedDomainModel>,
+}
+
+impl DomainModelCompressionResult {
+    pub fn input_hypothesis_count(&self) -> usize {
+        self.input_hypothesis_count
+    }
+
+    pub fn considered_hypothesis_count(&self) -> usize {
+        self.considered_hypothesis_count
+    }
+
+    pub fn input_frontier_truncated(&self) -> bool {
+        self.input_frontier_truncated
+    }
+
+    pub fn possible_model_group_count(&self) -> usize {
+        self.possible_model_group_count
+    }
+
+    pub fn generated_model_group_count(&self) -> usize {
+        self.generated_model_group_count
+    }
+
+    pub fn group_generation_truncated(&self) -> bool {
+        self.group_generation_truncated
+    }
+
+    pub fn grouped_member_count(&self) -> usize {
+        self.grouped_member_count
+    }
+
+    pub fn structurally_removed_member_count(&self) -> usize {
+        self.structurally_removed_member_count
+    }
+
+    pub fn compression_gain(&self) -> CognitiveSignal {
+        self.compression_gain
+    }
+
+    pub fn admitted_before_frontier(&self) -> usize {
+        self.admitted_before_frontier
+    }
+
+    pub fn selected(&self) -> &[CompressedDomainModel] {
+        &self.selected
+    }
+
+    pub fn selected_count(&self) -> usize {
+        self.selected.len()
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, Hash, PartialEq)]
+pub struct DomainModelCompression;
+
+impl DomainModelCompression {
+    fn scaled_rate(numerator: usize, denominator: usize) -> CognitiveSignal {
+        debug_assert!(denominator > 0);
+
+        let scaled = ((numerator as u128) * 1000) / denominator as u128;
+
+        CognitiveSignal::new(scaled as u16)
+            .expect("bounded domain-model compression gain remains on signal scale")
+    }
+
+    fn compare_context(left: &ContextPremiseSet, right: &ContextPremiseSet) -> std::cmp::Ordering {
+        let mut left_iterator = left.premises().iter();
+
+        let mut right_iterator = right.premises().iter();
+
+        loop {
+            match (left_iterator.next(), right_iterator.next()) {
+                (Some(left_value), Some(right_value)) => {
+                    let ordering = PredicateDiscovery::compare_structure(left_value, right_value);
+
+                    if ordering != std::cmp::Ordering::Equal {
+                        return ordering;
+                    }
+                }
+
+                (None, Some(_)) => {
+                    return std::cmp::Ordering::Less;
+                }
+
+                (Some(_), None) => {
+                    return std::cmp::Ordering::Greater;
+                }
+
+                (None, None) => {
+                    return std::cmp::Ordering::Equal;
+                }
+            }
+        }
+    }
+
+    fn same_target_model(
+        left: &GroundedCrossDomainTransferHypothesis,
+        right: &GroundedCrossDomainTransferHypothesis,
+    ) -> bool {
+        left.target_domain() == right.target_domain()
+            && left.target_transformation() == right.target_transformation()
+            && left.target_contrast_transformation() == right.target_contrast_transformation()
+            && left.target_context() == right.target_context()
+            && left.target_effect_fact() == right.target_effect_fact()
+            && left.effect_kind() == right.effect_kind()
+            && left.matched_target_state_count() == right.matched_target_state_count()
+            && left.target_intervention_opportunity_count()
+                == right.target_intervention_opportunity_count()
+            && left.target_intervention_success_count() == right.target_intervention_success_count()
+            && left.target_intervention_failure_count() == right.target_intervention_failure_count()
+            && left.contrast_intervention_opportunity_count()
+                == right.contrast_intervention_opportunity_count()
+            && left.contrast_intervention_success_count()
+                == right.contrast_intervention_success_count()
+            && left.contrast_intervention_failure_count()
+                == right.contrast_intervention_failure_count()
+            && left.target_effect_rate() == right.target_effect_rate()
+            && left.target_contrast_effect_rate() == right.target_contrast_effect_rate()
+            && left.target_interventional_lift() == right.target_interventional_lift()
+            && left.balanced_target_support() == right.balanced_target_support()
+            && left.target_support_adequacy() == right.target_support_adequacy()
+            && left.target_evidence_confidence() == right.target_evidence_confidence()
+            && left.passive_corroborating_count() == right.passive_corroborating_count()
+            && left.passive_counterevidence_count() == right.passive_counterevidence_count()
+    }
+
+    fn compare_target_identity(
+        left: &GroundedCrossDomainTransferHypothesis,
+        right: &GroundedCrossDomainTransferHypothesis,
+    ) -> std::cmp::Ordering {
+        PredicateDiscovery::compare_structure(left.target_domain(), right.target_domain())
+            .then_with(|| {
+                PredicateDiscovery::compare_structure(
+                    left.target_transformation(),
+                    right.target_transformation(),
+                )
+            })
+            .then_with(|| {
+                PredicateDiscovery::compare_structure(
+                    left.target_contrast_transformation(),
+                    right.target_contrast_transformation(),
+                )
+            })
+            .then_with(|| left.effect_kind().cmp(&right.effect_kind()))
+            .then_with(|| {
+                PredicateDiscovery::compare_structure(
+                    left.target_effect_fact(),
+                    right.target_effect_fact(),
+                )
+            })
+            .then_with(|| Self::compare_context(left.target_context(), right.target_context()))
+    }
+
+    fn compare_hypothesis(
+        left: &GroundedCrossDomainTransferHypothesis,
+        right: &GroundedCrossDomainTransferHypothesis,
+    ) -> std::cmp::Ordering {
+        right
+            .transfer_confidence()
+            .value()
+            .cmp(&left.transfer_confidence().value())
+            .then_with(|| {
+                right
+                    .target_evidence_confidence()
+                    .value()
+                    .cmp(&left.target_evidence_confidence().value())
+            })
+            .then_with(|| {
+                right
+                    .target_interventional_lift()
+                    .value()
+                    .cmp(&left.target_interventional_lift().value())
+            })
+            .then_with(|| Self::compare_target_identity(left, right))
+            .then_with(|| {
+                PredicateDiscovery::compare_structure(left.source_domain(), right.source_domain())
+            })
+            .then_with(|| {
+                PredicateDiscovery::compare_structure(
+                    left.source_transformation(),
+                    right.source_transformation(),
+                )
+            })
+            .then_with(|| {
+                PredicateDiscovery::compare_structure(
+                    left.source_contrast_transformation(),
+                    right.source_contrast_transformation(),
+                )
+            })
+            .then_with(|| {
+                PredicateDiscovery::compare_structure(
+                    left.source_effect_fact(),
+                    right.source_effect_fact(),
+                )
+            })
+    }
+
+    fn considered(
+        hypotheses: &[GroundedCrossDomainTransferHypothesis],
+        policy: DomainModelCompressionPolicy,
+    ) -> Vec<&GroundedCrossDomainTransferHypothesis> {
+        let mut considered = hypotheses.iter().collect::<Vec<_>>();
+
+        considered.sort_by(|left, right| Self::compare_hypothesis(left, right));
+
+        considered.truncate(policy.max_input_hypotheses());
+
+        considered
+    }
+
+    fn possible_group_count(considered: &[&GroundedCrossDomainTransferHypothesis]) -> usize {
+        let mut representatives = Vec::<&GroundedCrossDomainTransferHypothesis>::new();
+
+        for hypothesis in considered {
+            if representatives
+                .iter()
+                .any(|representative| Self::same_target_model(representative, hypothesis))
+            {
+                continue;
+            }
+
+            representatives.push(hypothesis);
+        }
+
+        representatives.len()
+    }
+
+    fn build_groups(
+        considered: &[&GroundedCrossDomainTransferHypothesis],
+        policy: DomainModelCompressionPolicy,
+    ) -> Vec<DomainModelCompressionGroup> {
+        let mut groups = Vec::<DomainModelCompressionGroup>::new();
+
+        for hypothesis in considered {
+            if let Some(group) = groups
+                .iter_mut()
+                .find(|group| Self::same_target_model(&group.representative, hypothesis))
+            {
+                group.members.push((*hypothesis).clone());
+
+                continue;
+            }
+
+            if groups.len() >= policy.max_model_groups() {
+                continue;
+            }
+
+            groups.push(DomainModelCompressionGroup {
+                representative: (*hypothesis).clone(),
+                members: vec![(*hypothesis).clone()],
+            });
+        }
+
+        groups
+    }
+
+    fn provenance_from(
+        hypothesis: &GroundedCrossDomainTransferHypothesis,
+    ) -> CompressedTransferProvenance {
+        CompressedTransferProvenance {
+            source_domain: hypothesis.source_domain().clone(),
+            source_transformation: hypothesis.source_transformation().clone(),
+            source_contrast_transformation: hypothesis.source_contrast_transformation().clone(),
+            source_effect_fact: hypothesis.source_effect_fact().clone(),
+            source_validated_confidence: hypothesis.source_validated_confidence(),
+            source_interventional_lift: hypothesis.source_interventional_lift(),
+            transfer_confidence: hypothesis.transfer_confidence(),
+        }
+    }
+
+    fn compare_provenance(
+        left: &CompressedTransferProvenance,
+        right: &CompressedTransferProvenance,
+    ) -> std::cmp::Ordering {
+        PredicateDiscovery::compare_structure(left.source_domain(), right.source_domain())
+            .then_with(|| {
+                PredicateDiscovery::compare_structure(
+                    left.source_transformation(),
+                    right.source_transformation(),
+                )
+            })
+            .then_with(|| {
+                PredicateDiscovery::compare_structure(
+                    left.source_contrast_transformation(),
+                    right.source_contrast_transformation(),
+                )
+            })
+            .then_with(|| {
+                PredicateDiscovery::compare_structure(
+                    left.source_effect_fact(),
+                    right.source_effect_fact(),
+                )
+            })
+            .then_with(|| {
+                right
+                    .source_validated_confidence()
+                    .value()
+                    .cmp(&left.source_validated_confidence().value())
+            })
+            .then_with(|| {
+                right
+                    .source_interventional_lift()
+                    .value()
+                    .cmp(&left.source_interventional_lift().value())
+            })
+            .then_with(|| {
+                right
+                    .transfer_confidence()
+                    .value()
+                    .cmp(&left.transfer_confidence().value())
+            })
+    }
+
+    fn compress_group(group: DomainModelCompressionGroup) -> CompressedDomainModel {
+        let representative = &group.representative;
+
+        let mut provenances = group
+            .members
+            .iter()
+            .map(Self::provenance_from)
+            .collect::<Vec<_>>();
+
+        provenances.sort_by(Self::compare_provenance);
+
+        provenances.dedup();
+
+        let strongest_transfer_confidence = group
+            .members
+            .iter()
+            .map(GroundedCrossDomainTransferHypothesis::transfer_confidence)
+            .max_by_key(|signal| signal.value())
+            .expect("compression group always has at least one member");
+
+        let weakest_transfer_confidence = group
+            .members
+            .iter()
+            .map(GroundedCrossDomainTransferHypothesis::transfer_confidence)
+            .min_by_key(|signal| signal.value())
+            .expect("compression group always has at least one member");
+
+        CompressedDomainModel {
+            target_domain: representative.target_domain().clone(),
+            target_transformation: representative.target_transformation().clone(),
+            target_contrast_transformation: representative.target_contrast_transformation().clone(),
+            target_context: representative.target_context().clone(),
+            target_effect_fact: representative.target_effect_fact().clone(),
+            effect_kind: representative.effect_kind(),
+            matched_target_state_count: representative.matched_target_state_count(),
+            target_intervention_opportunity_count: representative
+                .target_intervention_opportunity_count(),
+            target_intervention_success_count: representative.target_intervention_success_count(),
+            target_intervention_failure_count: representative.target_intervention_failure_count(),
+            contrast_intervention_opportunity_count: representative
+                .contrast_intervention_opportunity_count(),
+            contrast_intervention_success_count: representative
+                .contrast_intervention_success_count(),
+            contrast_intervention_failure_count: representative
+                .contrast_intervention_failure_count(),
+            target_effect_rate: representative.target_effect_rate(),
+            target_contrast_effect_rate: representative.target_contrast_effect_rate(),
+            target_interventional_lift: representative.target_interventional_lift(),
+            balanced_target_support: representative.balanced_target_support(),
+            target_support_adequacy: representative.target_support_adequacy(),
+            target_evidence_confidence: representative.target_evidence_confidence(),
+            passive_corroborating_count: representative.passive_corroborating_count(),
+            passive_counterevidence_count: representative.passive_counterevidence_count(),
+            member_count: group.members.len(),
+            provenances,
+            strongest_transfer_confidence,
+            weakest_transfer_confidence,
+        }
+    }
+
+    fn compare_compressed(
+        left: &CompressedDomainModel,
+        right: &CompressedDomainModel,
+    ) -> std::cmp::Ordering {
+        right
+            .member_count()
+            .cmp(&left.member_count())
+            .then_with(|| {
+                right
+                    .strongest_transfer_confidence()
+                    .value()
+                    .cmp(&left.strongest_transfer_confidence().value())
+            })
+            .then_with(|| {
+                right
+                    .target_evidence_confidence()
+                    .value()
+                    .cmp(&left.target_evidence_confidence().value())
+            })
+            .then_with(|| {
+                right
+                    .target_interventional_lift()
+                    .value()
+                    .cmp(&left.target_interventional_lift().value())
+            })
+            .then_with(|| {
+                PredicateDiscovery::compare_structure(left.target_domain(), right.target_domain())
+            })
+            .then_with(|| {
+                PredicateDiscovery::compare_structure(
+                    left.target_transformation(),
+                    right.target_transformation(),
+                )
+            })
+            .then_with(|| {
+                PredicateDiscovery::compare_structure(
+                    left.target_contrast_transformation(),
+                    right.target_contrast_transformation(),
+                )
+            })
+            .then_with(|| left.effect_kind().cmp(&right.effect_kind()))
+            .then_with(|| {
+                PredicateDiscovery::compare_structure(
+                    left.target_effect_fact(),
+                    right.target_effect_fact(),
+                )
+            })
+            .then_with(|| Self::compare_context(left.target_context(), right.target_context()))
+    }
+
+    pub fn compress(
+        hypotheses: &[GroundedCrossDomainTransferHypothesis],
+        policy: DomainModelCompressionPolicy,
+    ) -> DomainModelCompressionResult {
+        if hypotheses.is_empty() {
+            return DomainModelCompressionResult {
+                input_hypothesis_count: 0,
+                considered_hypothesis_count: 0,
+                input_frontier_truncated: false,
+                possible_model_group_count: 0,
+                generated_model_group_count: 0,
+                group_generation_truncated: false,
+                grouped_member_count: 0,
+                structurally_removed_member_count: 0,
+                compression_gain: CognitiveSignal::zero(),
+                admitted_before_frontier: 0,
+                selected: Vec::new(),
+            };
+        }
+
+        let considered = Self::considered(hypotheses, policy);
+
+        let possible_model_group_count = Self::possible_group_count(&considered);
+
+        let groups = Self::build_groups(&considered, policy);
+
+        let generated_model_group_count = groups.len();
+
+        let grouped_member_count = groups
+            .iter()
+            .map(|group| group.members.len())
+            .sum::<usize>();
+
+        let structurally_removed_member_count =
+            grouped_member_count.saturating_sub(generated_model_group_count);
+
+        let compression_gain = if grouped_member_count == 0 {
+            CognitiveSignal::zero()
+        } else {
+            Self::scaled_rate(structurally_removed_member_count, grouped_member_count)
+        };
+
+        let mut compressed = groups
+            .into_iter()
+            .map(Self::compress_group)
+            .collect::<Vec<_>>();
+
+        compressed.sort_by(Self::compare_compressed);
+
+        let admitted_before_frontier = compressed.len();
+
+        compressed.truncate(policy.max_output_models());
+
+        DomainModelCompressionResult {
+            input_hypothesis_count: hypotheses.len(),
+            considered_hypothesis_count: considered.len(),
+            input_frontier_truncated: hypotheses.len() > considered.len(),
+            possible_model_group_count,
+            generated_model_group_count,
+            group_generation_truncated: possible_model_group_count > generated_model_group_count,
+            grouped_member_count,
+            structurally_removed_member_count,
+            compression_gain,
+            admitted_before_frontier,
+            selected: compressed,
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, Hash, PartialEq)]
+pub struct UniversalDomainModelCompression;
+
+impl UniversalDomainModelCompression {
+    pub fn evaluate(
+        hypotheses: &[GroundedCrossDomainTransferHypothesis],
+        policy: DomainModelCompressionPolicy,
+    ) -> DomainModelCompressionResult {
+        DomainModelCompression::compress(hypotheses, policy)
+    }
+}
