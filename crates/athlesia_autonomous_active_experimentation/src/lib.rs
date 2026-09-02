@@ -2959,3 +2959,713 @@ mod hypothesis_belief_revision_tests {
         assert_eq!(beliefs, before);
     }
 }
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct SequentialExperimentControlPolicy {
+    discrimination: HypothesisDiscriminationPolicy,
+    max_beliefs: usize,
+    max_experiment_cycles: usize,
+    minimum_winner_confidence: CognitiveSignal,
+    minimum_resolution_margin: CognitiveSignal,
+}
+
+impl SequentialExperimentControlPolicy {
+    pub fn new(
+        discrimination: HypothesisDiscriminationPolicy,
+        max_beliefs: usize,
+        max_experiment_cycles: usize,
+        minimum_winner_confidence: CognitiveSignal,
+        minimum_resolution_margin: CognitiveSignal,
+    ) -> Option<Self> {
+        if max_beliefs < 2
+            || max_experiment_cycles == 0
+            || minimum_winner_confidence == CognitiveSignal::zero()
+            || minimum_resolution_margin == CognitiveSignal::zero()
+        {
+            return None;
+        }
+
+        Some(Self {
+            discrimination,
+            max_beliefs,
+            max_experiment_cycles,
+            minimum_winner_confidence,
+            minimum_resolution_margin,
+        })
+    }
+
+    pub fn discrimination(self) -> HypothesisDiscriminationPolicy {
+        self.discrimination
+    }
+
+    pub fn max_beliefs(self) -> usize {
+        self.max_beliefs
+    }
+
+    pub fn max_experiment_cycles(self) -> usize {
+        self.max_experiment_cycles
+    }
+
+    pub fn minimum_winner_confidence(self) -> CognitiveSignal {
+        self.minimum_winner_confidence
+    }
+
+    pub fn minimum_resolution_margin(self) -> CognitiveSignal {
+        self.minimum_resolution_margin
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum SequentialExperimentDecision {
+    ContinueExperimentation,
+    StopResolved,
+    StopExperimentBudgetExhausted,
+    StopNoDiscriminatingExperiment,
+    AbstainBeliefFrontierExceeded,
+    AbstainDuplicateBeliefIdentity,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct SequentialExperimentControlResult {
+    decision: SequentialExperimentDecision,
+    input_belief_count: usize,
+    active_belief_count: usize,
+    eligible_candidate_count: usize,
+    current_experiment_cycle: usize,
+    resolved_winner: Option<CognitiveStructure>,
+    discrimination: Option<HypothesisDiscriminationResult>,
+    next_experiment: Option<SelectedHypothesisDiscriminatingExperiment>,
+}
+
+impl SequentialExperimentControlResult {
+    pub fn decision(&self) -> SequentialExperimentDecision {
+        self.decision
+    }
+
+    pub fn input_belief_count(&self) -> usize {
+        self.input_belief_count
+    }
+
+    pub fn active_belief_count(&self) -> usize {
+        self.active_belief_count
+    }
+
+    pub fn eligible_candidate_count(&self) -> usize {
+        self.eligible_candidate_count
+    }
+
+    pub fn current_experiment_cycle(&self) -> usize {
+        self.current_experiment_cycle
+    }
+
+    pub fn resolved_winner(&self) -> Option<&CognitiveStructure> {
+        self.resolved_winner.as_ref()
+    }
+
+    pub fn discrimination(&self) -> Option<&HypothesisDiscriminationResult> {
+        self.discrimination.as_ref()
+    }
+
+    pub fn next_experiment(&self) -> Option<&SelectedHypothesisDiscriminatingExperiment> {
+        self.next_experiment.as_ref()
+    }
+
+    pub fn continuing(&self) -> bool {
+        self.decision == SequentialExperimentDecision::ContinueExperimentation
+    }
+
+    pub fn stopped(&self) -> bool {
+        matches!(
+            self.decision,
+            SequentialExperimentDecision::StopResolved
+                | SequentialExperimentDecision::StopExperimentBudgetExhausted
+                | SequentialExperimentDecision::StopNoDiscriminatingExperiment
+        )
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct AutonomousSequentialExperimentControl;
+
+impl AutonomousSequentialExperimentControl {
+    fn belief_order(
+        left: &HypothesisBeliefState,
+        right: &HypothesisBeliefState,
+    ) -> std::cmp::Ordering {
+        right
+            .confidence()
+            .value()
+            .cmp(&left.confidence().value())
+            .then_with(|| {
+                format!("{:?}", left.hypothesis()).cmp(&format!("{:?}", right.hypothesis()))
+            })
+    }
+
+    fn base_result(
+        decision: SequentialExperimentDecision,
+        input_belief_count: usize,
+        active_belief_count: usize,
+        eligible_candidate_count: usize,
+        current_experiment_cycle: usize,
+        resolved_winner: Option<CognitiveStructure>,
+    ) -> SequentialExperimentControlResult {
+        SequentialExperimentControlResult {
+            decision,
+            input_belief_count,
+            active_belief_count,
+            eligible_candidate_count,
+            current_experiment_cycle,
+            resolved_winner,
+            discrimination: None,
+            next_experiment: None,
+        }
+    }
+
+    pub fn control(
+        beliefs: &[HypothesisBeliefState],
+        candidates: &[HypothesisDiscriminationCandidate],
+        current_experiment_cycle: usize,
+        policy: SequentialExperimentControlPolicy,
+    ) -> SequentialExperimentControlResult {
+        let input_belief_count = beliefs.len();
+
+        if input_belief_count > policy.max_beliefs() {
+            return Self::base_result(
+                SequentialExperimentDecision::AbstainBeliefFrontierExceeded,
+                input_belief_count,
+                0,
+                0,
+                current_experiment_cycle,
+                None,
+            );
+        }
+
+        let mut canonical_beliefs = beliefs.to_vec();
+
+        canonical_beliefs.sort_by(|left, right| {
+            format!("{:?}", left.hypothesis()).cmp(&format!("{:?}", right.hypothesis()))
+        });
+
+        for index in 1..canonical_beliefs.len() {
+            if canonical_beliefs[index - 1].hypothesis() == canonical_beliefs[index].hypothesis() {
+                return Self::base_result(
+                    SequentialExperimentDecision::AbstainDuplicateBeliefIdentity,
+                    input_belief_count,
+                    0,
+                    0,
+                    current_experiment_cycle,
+                    None,
+                );
+            }
+        }
+
+        let mut active: Vec<HypothesisBeliefState> = canonical_beliefs
+            .into_iter()
+            .filter(HypothesisBeliefState::active)
+            .collect();
+
+        active.sort_by(Self::belief_order);
+
+        let active_belief_count = active.len();
+
+        if active_belief_count < 2 {
+            return Self::base_result(
+                SequentialExperimentDecision::StopResolved,
+                input_belief_count,
+                active_belief_count,
+                0,
+                current_experiment_cycle,
+                active.first().map(|belief| belief.hypothesis().clone()),
+            );
+        }
+
+        let winner = &active[0];
+
+        let runner_up = &active[1];
+
+        let confidence_margin = winner
+            .confidence()
+            .value()
+            .saturating_sub(runner_up.confidence().value());
+
+        if winner.confidence().value() >= policy.minimum_winner_confidence().value()
+            && confidence_margin >= policy.minimum_resolution_margin().value()
+        {
+            return Self::base_result(
+                SequentialExperimentDecision::StopResolved,
+                input_belief_count,
+                active_belief_count,
+                0,
+                current_experiment_cycle,
+                Some(winner.hypothesis().clone()),
+            );
+        }
+
+        if current_experiment_cycle >= policy.max_experiment_cycles() {
+            return Self::base_result(
+                SequentialExperimentDecision::StopExperimentBudgetExhausted,
+                input_belief_count,
+                active_belief_count,
+                0,
+                current_experiment_cycle,
+                None,
+            );
+        }
+
+        let prediction_threshold = policy
+            .discrimination()
+            .thresholds()
+            .minimum_prediction_confidence();
+
+        let mut eligible = Vec::new();
+
+        for candidate in candidates {
+            let mut filtered_predictions = Vec::new();
+
+            for prediction in candidate.predictions() {
+                if prediction.confidence().value() < prediction_threshold.value() {
+                    continue;
+                }
+
+                if active
+                    .iter()
+                    .any(|belief| belief.hypothesis() == prediction.hypothesis())
+                {
+                    filtered_predictions.push(prediction.clone());
+                }
+            }
+
+            let mut distinct_hypotheses: Vec<CognitiveStructure> = Vec::new();
+
+            for prediction in &filtered_predictions {
+                if !distinct_hypotheses.contains(prediction.hypothesis()) {
+                    distinct_hypotheses.push(prediction.hypothesis().clone());
+                }
+            }
+
+            if distinct_hypotheses.len() < 2 {
+                continue;
+            }
+
+            if let Some(filtered) = HypothesisDiscriminationCandidate::new(
+                candidate.experiment().clone(),
+                filtered_predictions,
+            ) {
+                eligible.push(filtered);
+            }
+        }
+
+        let eligible_candidate_count = eligible.len();
+
+        if eligible.is_empty() {
+            return Self::base_result(
+                SequentialExperimentDecision::StopNoDiscriminatingExperiment,
+                input_belief_count,
+                active_belief_count,
+                0,
+                current_experiment_cycle,
+                None,
+            );
+        }
+
+        let discrimination =
+            AutonomousHypothesisDiscrimination::discriminate(&eligible, policy.discrimination());
+
+        let Some(next_experiment) = discrimination.selected().first().cloned() else {
+            return SequentialExperimentControlResult {
+                decision: SequentialExperimentDecision::StopNoDiscriminatingExperiment,
+                input_belief_count,
+                active_belief_count,
+                eligible_candidate_count,
+                current_experiment_cycle,
+                resolved_winner: None,
+                discrimination: Some(discrimination),
+                next_experiment: None,
+            };
+        };
+
+        SequentialExperimentControlResult {
+            decision: SequentialExperimentDecision::ContinueExperimentation,
+            input_belief_count,
+            active_belief_count,
+            eligible_candidate_count,
+            current_experiment_cycle,
+            resolved_winner: None,
+            discrimination: Some(discrimination),
+            next_experiment: Some(next_experiment),
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct UniversalAutonomousSequentialExperimentControl;
+
+impl UniversalAutonomousSequentialExperimentControl {
+    pub fn evaluate(
+        beliefs: &[HypothesisBeliefState],
+        candidates: &[HypothesisDiscriminationCandidate],
+        current_experiment_cycle: usize,
+        policy: SequentialExperimentControlPolicy,
+    ) -> SequentialExperimentControlResult {
+        AutonomousSequentialExperimentControl::control(
+            beliefs,
+            candidates,
+            current_experiment_cycle,
+            policy,
+        )
+    }
+}
+
+#[cfg(test)]
+mod sequential_experiment_control_tests {
+    use super::*;
+
+    fn s(value: u16) -> CognitiveSignal {
+        if value == 0 {
+            CognitiveSignal::zero()
+        } else {
+            CognitiveSignal::new(value).unwrap()
+        }
+    }
+
+    fn a(value: u64) -> CognitiveStructure {
+        CognitiveStructure::atom(value)
+    }
+
+    fn belief(hypothesis: u64, confidence: u16) -> HypothesisBeliefState {
+        HypothesisBeliefState::new(a(hypothesis), s(confidence)).unwrap()
+    }
+
+    fn suspended_belief(hypothesis: u64, confidence: u16) -> HypothesisBeliefState {
+        let mut state = belief(hypothesis, confidence);
+
+        state.availability = HypothesisBeliefAvailability::Suspended;
+
+        state
+    }
+
+    fn experiment(action: u64, information: u16) -> AutonomousExperimentProposal {
+        AutonomousExperimentProposal::new(
+            a(1),
+            a(action),
+            a(900),
+            ExperimentEvidence::new(s(800), s(information), s(900), s(900), s(100)).unwrap(),
+        )
+    }
+
+    fn prediction(hypothesis: u64, outcome: u64, confidence: u16) -> CompetingHypothesisPrediction {
+        CompetingHypothesisPrediction::new(a(hypothesis), a(outcome), s(confidence)).unwrap()
+    }
+
+    fn candidate(
+        action: u64,
+        information: u16,
+        predictions: Vec<CompetingHypothesisPrediction>,
+    ) -> HypothesisDiscriminationCandidate {
+        HypothesisDiscriminationCandidate::new(experiment(action, information), predictions)
+            .unwrap()
+    }
+
+    fn discrimination_policy() -> HypothesisDiscriminationPolicy {
+        HypothesisDiscriminationPolicy::new(
+            ActiveExperimentPolicy::new(
+                ActiveExperimentBounds::new(32, 32, 32).unwrap(),
+                ActiveExperimentThresholds::new(s(500), s(500), s(500), s(500)).unwrap(),
+            ),
+            HypothesisDiscriminationBounds::new(32, 32, 32, 32).unwrap(),
+            HypothesisDiscriminationThresholds::new(2, 2, s(500), s(500)).unwrap(),
+        )
+    }
+
+    fn policy() -> SequentialExperimentControlPolicy {
+        SequentialExperimentControlPolicy::new(discrimination_policy(), 16, 8, s(850), s(250))
+            .unwrap()
+    }
+
+    fn two_way_candidate(
+        action: u64,
+        information: u16,
+        left: u64,
+        right: u64,
+    ) -> HypothesisDiscriminationCandidate {
+        candidate(
+            action,
+            information,
+            vec![
+                prediction(left, left + 100, 900),
+                prediction(right, right + 100, 900),
+            ],
+        )
+    }
+
+    #[test]
+    fn sequential_control_policy_requires_positive_bounded_resolution_contract() {
+        assert_eq!(
+            SequentialExperimentControlPolicy::new(discrimination_policy(), 1, 8, s(850), s(250),),
+            None
+        );
+
+        assert_eq!(
+            SequentialExperimentControlPolicy::new(discrimination_policy(), 16, 0, s(850), s(250),),
+            None
+        );
+
+        assert_eq!(
+            SequentialExperimentControlPolicy::new(discrimination_policy(), 16, 8, s(0), s(250),),
+            None
+        );
+    }
+
+    #[test]
+    fn single_active_hypothesis_stops_as_resolved() {
+        let result = AutonomousSequentialExperimentControl::control(
+            &[belief(1, 700), suspended_belief(2, 800)],
+            &[],
+            0,
+            policy(),
+        );
+
+        assert_eq!(
+            result.decision(),
+            SequentialExperimentDecision::StopResolved
+        );
+
+        assert_eq!(result.active_belief_count(), 1);
+
+        assert_eq!(result.resolved_winner(), Some(&a(1)));
+    }
+
+    #[test]
+    fn dominant_high_confidence_belief_stops_without_extra_experiment() {
+        let result = AutonomousSequentialExperimentControl::control(
+            &[belief(1, 900), belief(2, 600)],
+            &[two_way_candidate(10, 900, 1, 2)],
+            0,
+            policy(),
+        );
+
+        assert_eq!(
+            result.decision(),
+            SequentialExperimentDecision::StopResolved
+        );
+
+        assert_eq!(result.resolved_winner(), Some(&a(1)));
+
+        assert!(result.next_experiment().is_none());
+    }
+
+    #[test]
+    fn unresolved_close_beliefs_continue_with_discriminating_experiment() {
+        let item = two_way_candidate(10, 900, 1, 2);
+
+        let result = AutonomousSequentialExperimentControl::control(
+            &[belief(1, 700), belief(2, 650)],
+            std::slice::from_ref(&item),
+            0,
+            policy(),
+        );
+
+        assert!(result.continuing());
+
+        assert_eq!(result.eligible_candidate_count(), 1);
+
+        assert_eq!(
+            result.next_experiment().unwrap().experiment(),
+            item.experiment()
+        );
+    }
+
+    #[test]
+    fn experiment_cycle_budget_stops_before_selecting_another_intervention() {
+        let result = AutonomousSequentialExperimentControl::control(
+            &[belief(1, 700), belief(2, 650)],
+            &[two_way_candidate(10, 900, 1, 2)],
+            8,
+            policy(),
+        );
+
+        assert_eq!(
+            result.decision(),
+            SequentialExperimentDecision::StopExperimentBudgetExhausted
+        );
+
+        assert!(result.next_experiment().is_none());
+    }
+
+    #[test]
+    fn suspended_hypotheses_are_excluded_from_live_competition() {
+        let result = AutonomousSequentialExperimentControl::control(
+            &[belief(1, 700), suspended_belief(2, 900), belief(3, 680)],
+            &[two_way_candidate(10, 900, 1, 3)],
+            0,
+            policy(),
+        );
+
+        assert_eq!(result.active_belief_count(), 2);
+
+        assert!(result.continuing());
+    }
+
+    #[test]
+    fn candidate_separating_only_one_active_belief_from_suspended_belief_is_ineligible() {
+        let result = AutonomousSequentialExperimentControl::control(
+            &[belief(1, 700), belief(2, 680), suspended_belief(3, 900)],
+            &[two_way_candidate(10, 900, 1, 3)],
+            0,
+            policy(),
+        );
+
+        assert_eq!(
+            result.decision(),
+            SequentialExperimentDecision::StopNoDiscriminatingExperiment
+        );
+
+        assert_eq!(result.eligible_candidate_count(), 0);
+    }
+
+    #[test]
+    fn identical_predictions_for_active_beliefs_stop_when_no_discrimination_survives() {
+        let item = candidate(
+            10,
+            900,
+            vec![prediction(1, 100, 900), prediction(2, 100, 900)],
+        );
+
+        let result = AutonomousSequentialExperimentControl::control(
+            &[belief(1, 700), belief(2, 680)],
+            &[item],
+            0,
+            policy(),
+        );
+
+        assert_eq!(
+            result.decision(),
+            SequentialExperimentDecision::StopNoDiscriminatingExperiment
+        );
+
+        assert!(result.discrimination().is_some());
+
+        assert!(result.next_experiment().is_none());
+    }
+
+    #[test]
+    fn duplicate_persistent_belief_identity_abstains_before_experiment_control() {
+        let result = AutonomousSequentialExperimentControl::control(
+            &[belief(1, 700), belief(1, 650)],
+            &[two_way_candidate(10, 900, 1, 2)],
+            0,
+            policy(),
+        );
+
+        assert_eq!(
+            result.decision(),
+            SequentialExperimentDecision::AbstainDuplicateBeliefIdentity
+        );
+
+        assert!(result.next_experiment().is_none());
+    }
+
+    #[test]
+    fn belief_frontier_overflow_abstains_atomically() {
+        let bounded =
+            SequentialExperimentControlPolicy::new(discrimination_policy(), 2, 8, s(850), s(250))
+                .unwrap();
+
+        let result = AutonomousSequentialExperimentControl::control(
+            &[belief(1, 700), belief(2, 680), belief(3, 660)],
+            &[two_way_candidate(10, 900, 1, 2)],
+            0,
+            bounded,
+        );
+
+        assert_eq!(
+            result.decision(),
+            SequentialExperimentDecision::AbstainBeliefFrontierExceeded
+        );
+
+        assert!(result.next_experiment().is_none());
+    }
+
+    #[test]
+    fn next_experiment_prefers_stronger_active_hypothesis_discrimination_gain() {
+        let partial = candidate(
+            10,
+            950,
+            vec![
+                prediction(1, 100, 900),
+                prediction(2, 100, 900),
+                prediction(3, 101, 900),
+            ],
+        );
+
+        let full = candidate(
+            11,
+            700,
+            vec![prediction(1, 110, 900), prediction(2, 111, 900)],
+        );
+
+        let result = AutonomousSequentialExperimentControl::control(
+            &[belief(1, 700), belief(2, 680), belief(3, 660)],
+            &[partial, full.clone()],
+            0,
+            policy(),
+        );
+
+        assert!(result.continuing());
+
+        assert_eq!(
+            result.next_experiment().unwrap().experiment(),
+            full.experiment()
+        );
+
+        assert_eq!(
+            result.next_experiment().unwrap().discrimination_gain(),
+            s(1000)
+        );
+    }
+
+    #[test]
+    fn sequential_control_is_order_invariant_non_mutating_and_facade_equivalent() {
+        let beliefs = vec![belief(2, 680), belief(1, 700), belief(3, 660)];
+
+        let candidates = vec![
+            two_way_candidate(10, 900, 1, 2),
+            two_way_candidate(11, 800, 2, 3),
+        ];
+
+        let before_beliefs = beliefs.clone();
+
+        let before_candidates = candidates.clone();
+
+        let mut reversed_beliefs = beliefs.clone();
+
+        reversed_beliefs.reverse();
+
+        let mut reversed_candidates = candidates.clone();
+
+        reversed_candidates.reverse();
+
+        let p = policy();
+
+        let direct = AutonomousSequentialExperimentControl::control(&beliefs, &candidates, 1, p);
+
+        let reordered = AutonomousSequentialExperimentControl::control(
+            &reversed_beliefs,
+            &reversed_candidates,
+            1,
+            p,
+        );
+
+        let facade =
+            UniversalAutonomousSequentialExperimentControl::evaluate(&beliefs, &candidates, 1, p);
+
+        let repeated =
+            UniversalAutonomousSequentialExperimentControl::evaluate(&beliefs, &candidates, 1, p);
+
+        assert_eq!(direct, reordered);
+        assert_eq!(direct, facade);
+        assert_eq!(facade, repeated);
+        assert_eq!(beliefs, before_beliefs);
+        assert_eq!(candidates, before_candidates);
+    }
+}
