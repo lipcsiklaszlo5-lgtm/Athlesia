@@ -4755,3 +4755,918 @@ mod belief_driven_experiment_proposal_tests {
         assert_eq!(possibilities, before_possibilities);
     }
 }
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct LearningProgressMeasurement {
+    prediction_error_before: CognitiveSignal,
+    prediction_error_after: CognitiveSignal,
+    uncertainty_before: CognitiveSignal,
+    uncertainty_after: CognitiveSignal,
+    evidence_confidence: CognitiveSignal,
+}
+
+impl LearningProgressMeasurement {
+    pub fn new(
+        prediction_error_before: CognitiveSignal,
+        prediction_error_after: CognitiveSignal,
+        uncertainty_before: CognitiveSignal,
+        uncertainty_after: CognitiveSignal,
+        evidence_confidence: CognitiveSignal,
+    ) -> Option<Self> {
+        if evidence_confidence == CognitiveSignal::zero() {
+            return None;
+        }
+
+        Some(Self {
+            prediction_error_before,
+            prediction_error_after,
+            uncertainty_before,
+            uncertainty_after,
+            evidence_confidence,
+        })
+    }
+
+    pub fn prediction_error_before(self) -> CognitiveSignal {
+        self.prediction_error_before
+    }
+
+    pub fn prediction_error_after(self) -> CognitiveSignal {
+        self.prediction_error_after
+    }
+
+    pub fn uncertainty_before(self) -> CognitiveSignal {
+        self.uncertainty_before
+    }
+
+    pub fn uncertainty_after(self) -> CognitiveSignal {
+        self.uncertainty_after
+    }
+
+    pub fn evidence_confidence(self) -> CognitiveSignal {
+        self.evidence_confidence
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ExperimentLearningProgressSample {
+    evidence_identity: CognitiveStructure,
+    source_state: CognitiveStructure,
+    action: CognitiveStructure,
+    measurement: LearningProgressMeasurement,
+}
+
+impl ExperimentLearningProgressSample {
+    pub fn new(
+        evidence_identity: CognitiveStructure,
+        source_state: CognitiveStructure,
+        action: CognitiveStructure,
+        measurement: LearningProgressMeasurement,
+    ) -> Self {
+        Self {
+            evidence_identity,
+            source_state,
+            action,
+            measurement,
+        }
+    }
+
+    pub fn evidence_identity(&self) -> &CognitiveStructure {
+        &self.evidence_identity
+    }
+
+    pub fn source_state(&self) -> &CognitiveStructure {
+        &self.source_state
+    }
+
+    pub fn action(&self) -> &CognitiveStructure {
+        &self.action
+    }
+
+    pub fn measurement(&self) -> LearningProgressMeasurement {
+        self.measurement
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct LearningProgressBounds {
+    max_input_samples: usize,
+    max_focuses: usize,
+    max_samples_per_focus: usize,
+}
+
+impl LearningProgressBounds {
+    pub fn new(
+        max_input_samples: usize,
+        max_focuses: usize,
+        max_samples_per_focus: usize,
+    ) -> Option<Self> {
+        if max_input_samples == 0 || max_focuses == 0 || max_samples_per_focus == 0 {
+            return None;
+        }
+
+        Some(Self {
+            max_input_samples,
+            max_focuses,
+            max_samples_per_focus,
+        })
+    }
+
+    pub fn max_input_samples(self) -> usize {
+        self.max_input_samples
+    }
+
+    pub fn max_focuses(self) -> usize {
+        self.max_focuses
+    }
+
+    pub fn max_samples_per_focus(self) -> usize {
+        self.max_samples_per_focus
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct LearningProgressThresholds {
+    minimum_evidence_confidence: CognitiveSignal,
+    minimum_samples_per_focus: usize,
+    minimum_learning_progress: CognitiveSignal,
+}
+
+impl LearningProgressThresholds {
+    pub fn new(
+        minimum_evidence_confidence: CognitiveSignal,
+        minimum_samples_per_focus: usize,
+        minimum_learning_progress: CognitiveSignal,
+    ) -> Option<Self> {
+        if minimum_evidence_confidence == CognitiveSignal::zero()
+            || minimum_samples_per_focus == 0
+            || minimum_learning_progress == CognitiveSignal::zero()
+        {
+            return None;
+        }
+
+        Some(Self {
+            minimum_evidence_confidence,
+            minimum_samples_per_focus,
+            minimum_learning_progress,
+        })
+    }
+
+    pub fn minimum_evidence_confidence(self) -> CognitiveSignal {
+        self.minimum_evidence_confidence
+    }
+
+    pub fn minimum_samples_per_focus(self) -> usize {
+        self.minimum_samples_per_focus
+    }
+
+    pub fn minimum_learning_progress(self) -> CognitiveSignal {
+        self.minimum_learning_progress
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct LearningProgressPolicy {
+    bounds: LearningProgressBounds,
+    thresholds: LearningProgressThresholds,
+}
+
+impl LearningProgressPolicy {
+    pub fn new(
+        bounds: LearningProgressBounds,
+        thresholds: LearningProgressThresholds,
+    ) -> Option<Self> {
+        if thresholds.minimum_samples_per_focus() > bounds.max_samples_per_focus() {
+            return None;
+        }
+
+        Some(Self { bounds, thresholds })
+    }
+
+    pub fn bounds(self) -> LearningProgressBounds {
+        self.bounds
+    }
+
+    pub fn thresholds(self) -> LearningProgressThresholds {
+        self.thresholds
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ExperimentLearningProgressEstimate {
+    source_state: CognitiveStructure,
+    action: CognitiveStructure,
+    qualifying_sample_count: usize,
+    mean_error_reduction: CognitiveSignal,
+    mean_uncertainty_reduction: CognitiveSignal,
+    mean_evidence_confidence: CognitiveSignal,
+    learning_progress: CognitiveSignal,
+}
+
+impl ExperimentLearningProgressEstimate {
+    pub fn source_state(&self) -> &CognitiveStructure {
+        &self.source_state
+    }
+
+    pub fn action(&self) -> &CognitiveStructure {
+        &self.action
+    }
+
+    pub fn qualifying_sample_count(&self) -> usize {
+        self.qualifying_sample_count
+    }
+
+    pub fn mean_error_reduction(&self) -> CognitiveSignal {
+        self.mean_error_reduction
+    }
+
+    pub fn mean_uncertainty_reduction(&self) -> CognitiveSignal {
+        self.mean_uncertainty_reduction
+    }
+
+    pub fn mean_evidence_confidence(&self) -> CognitiveSignal {
+        self.mean_evidence_confidence
+    }
+
+    pub fn learning_progress(&self) -> CognitiveSignal {
+        self.learning_progress
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum LearningProgressEstimationStatus {
+    Estimated,
+    NoQualifyingProgress,
+    InputFrontierExceeded,
+    FocusFrontierExceeded,
+    ConflictingEvidenceIdentity,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct LearningProgressEstimationResult {
+    status: LearningProgressEstimationStatus,
+    input_sample_count: usize,
+    unique_sample_count: usize,
+    qualifying_sample_count: usize,
+    rejected_confidence_count: usize,
+    focus_count: usize,
+    rejected_focus_sample_frontier_count: usize,
+    rejected_insufficient_sample_count: usize,
+    rejected_progress_count: usize,
+    estimates: Vec<ExperimentLearningProgressEstimate>,
+}
+
+impl LearningProgressEstimationResult {
+    pub fn status(&self) -> LearningProgressEstimationStatus {
+        self.status
+    }
+
+    pub fn input_sample_count(&self) -> usize {
+        self.input_sample_count
+    }
+
+    pub fn unique_sample_count(&self) -> usize {
+        self.unique_sample_count
+    }
+
+    pub fn qualifying_sample_count(&self) -> usize {
+        self.qualifying_sample_count
+    }
+
+    pub fn rejected_confidence_count(&self) -> usize {
+        self.rejected_confidence_count
+    }
+
+    pub fn focus_count(&self) -> usize {
+        self.focus_count
+    }
+
+    pub fn rejected_focus_sample_frontier_count(&self) -> usize {
+        self.rejected_focus_sample_frontier_count
+    }
+
+    pub fn rejected_insufficient_sample_count(&self) -> usize {
+        self.rejected_insufficient_sample_count
+    }
+
+    pub fn rejected_progress_count(&self) -> usize {
+        self.rejected_progress_count
+    }
+
+    pub fn estimates(&self) -> &[ExperimentLearningProgressEstimate] {
+        &self.estimates
+    }
+
+    pub fn estimate_count(&self) -> usize {
+        self.estimates.len()
+    }
+
+    pub fn estimated_any(&self) -> bool {
+        !self.estimates.is_empty()
+    }
+
+    pub fn abstained(&self) -> bool {
+        !self.estimated_any()
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+struct LearningProgressFocusGroup {
+    source_state: CognitiveStructure,
+    action: CognitiveStructure,
+    samples: Vec<ExperimentLearningProgressSample>,
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct AutonomousLearningProgressEstimation;
+
+impl AutonomousLearningProgressEstimation {
+    fn signal(value: u16) -> CognitiveSignal {
+        if value == 0 {
+            CognitiveSignal::zero()
+        } else {
+            CognitiveSignal::new(value).expect("bounded learning progress signal")
+        }
+    }
+
+    fn empty(
+        status: LearningProgressEstimationStatus,
+        input_sample_count: usize,
+        unique_sample_count: usize,
+        qualifying_sample_count: usize,
+        rejected_confidence_count: usize,
+        focus_count: usize,
+    ) -> LearningProgressEstimationResult {
+        LearningProgressEstimationResult {
+            status,
+            input_sample_count,
+            unique_sample_count,
+            qualifying_sample_count,
+            rejected_confidence_count,
+            focus_count,
+            rejected_focus_sample_frontier_count: 0,
+            rejected_insufficient_sample_count: 0,
+            rejected_progress_count: 0,
+            estimates: Vec::new(),
+        }
+    }
+
+    fn estimate_order(
+        left: &ExperimentLearningProgressEstimate,
+        right: &ExperimentLearningProgressEstimate,
+    ) -> std::cmp::Ordering {
+        right
+            .learning_progress()
+            .value()
+            .cmp(&left.learning_progress().value())
+            .then_with(|| {
+                right
+                    .mean_error_reduction()
+                    .value()
+                    .cmp(&left.mean_error_reduction().value())
+            })
+            .then_with(|| {
+                right
+                    .mean_uncertainty_reduction()
+                    .value()
+                    .cmp(&left.mean_uncertainty_reduction().value())
+            })
+            .then_with(|| {
+                right
+                    .mean_evidence_confidence()
+                    .value()
+                    .cmp(&left.mean_evidence_confidence().value())
+            })
+            .then_with(|| format!("{left:?}").cmp(&format!("{right:?}")))
+    }
+
+    pub fn estimate(
+        samples: &[ExperimentLearningProgressSample],
+        policy: LearningProgressPolicy,
+    ) -> LearningProgressEstimationResult {
+        let bounds = policy.bounds();
+
+        let thresholds = policy.thresholds();
+
+        let input_sample_count = samples.len();
+
+        if input_sample_count > bounds.max_input_samples() {
+            return Self::empty(
+                LearningProgressEstimationStatus::InputFrontierExceeded,
+                input_sample_count,
+                0,
+                0,
+                0,
+                0,
+            );
+        }
+
+        let mut ordered = samples.to_vec();
+
+        ordered.sort_by(|left, right| {
+            format!("{:?}", left.evidence_identity())
+                .cmp(&format!("{:?}", right.evidence_identity()))
+                .then_with(|| format!("{left:?}").cmp(&format!("{right:?}")))
+        });
+
+        let mut canonical: Vec<ExperimentLearningProgressSample> = Vec::new();
+
+        for sample in ordered {
+            if let Some(existing) = canonical
+                .iter()
+                .find(|existing| existing.evidence_identity() == sample.evidence_identity())
+            {
+                if existing != &sample {
+                    return Self::empty(
+                        LearningProgressEstimationStatus::ConflictingEvidenceIdentity,
+                        input_sample_count,
+                        canonical.len(),
+                        0,
+                        0,
+                        0,
+                    );
+                }
+
+                continue;
+            }
+
+            canonical.push(sample);
+        }
+
+        let unique_sample_count = canonical.len();
+
+        let mut rejected_confidence_count = 0;
+
+        let qualifying: Vec<ExperimentLearningProgressSample> = canonical
+            .into_iter()
+            .filter(|sample| {
+                if sample.measurement().evidence_confidence().value()
+                    < thresholds.minimum_evidence_confidence().value()
+                {
+                    rejected_confidence_count += 1;
+                    false
+                } else {
+                    true
+                }
+            })
+            .collect();
+
+        let qualifying_sample_count = qualifying.len();
+
+        let mut groups: Vec<LearningProgressFocusGroup> = Vec::new();
+
+        for sample in qualifying {
+            if let Some(group) = groups.iter_mut().find(|group| {
+                group.source_state == *sample.source_state() && group.action == *sample.action()
+            }) {
+                group.samples.push(sample);
+            } else {
+                groups.push(LearningProgressFocusGroup {
+                    source_state: sample.source_state().clone(),
+                    action: sample.action().clone(),
+                    samples: vec![sample],
+                });
+            }
+        }
+
+        groups.sort_by(|left, right| {
+            format!("{:?}", left.source_state)
+                .cmp(&format!("{:?}", right.source_state))
+                .then_with(|| format!("{:?}", left.action).cmp(&format!("{:?}", right.action)))
+        });
+
+        let focus_count = groups.len();
+
+        if focus_count > bounds.max_focuses() {
+            return Self::empty(
+                LearningProgressEstimationStatus::FocusFrontierExceeded,
+                input_sample_count,
+                unique_sample_count,
+                qualifying_sample_count,
+                rejected_confidence_count,
+                focus_count,
+            );
+        }
+
+        let mut rejected_focus_sample_frontier_count = 0;
+
+        let mut rejected_insufficient_sample_count = 0;
+
+        let mut rejected_progress_count = 0;
+
+        let mut estimates = Vec::new();
+
+        for group in groups {
+            if group.samples.len() > bounds.max_samples_per_focus() {
+                rejected_focus_sample_frontier_count += 1;
+                continue;
+            }
+
+            if group.samples.len() < thresholds.minimum_samples_per_focus() {
+                rejected_insufficient_sample_count += 1;
+                continue;
+            }
+
+            let mut error_reduction_sum: u32 = 0;
+
+            let mut uncertainty_reduction_sum: u32 = 0;
+
+            let mut confidence_sum: u32 = 0;
+
+            for sample in &group.samples {
+                let measurement = sample.measurement();
+
+                error_reduction_sum = error_reduction_sum.saturating_add(u32::from(
+                    measurement
+                        .prediction_error_before()
+                        .value()
+                        .saturating_sub(measurement.prediction_error_after().value()),
+                ));
+
+                uncertainty_reduction_sum = uncertainty_reduction_sum.saturating_add(u32::from(
+                    measurement
+                        .uncertainty_before()
+                        .value()
+                        .saturating_sub(measurement.uncertainty_after().value()),
+                ));
+
+                confidence_sum = confidence_sum
+                    .saturating_add(u32::from(measurement.evidence_confidence().value()));
+            }
+
+            let denominator =
+                u32::try_from(group.samples.len()).expect("bounded sample count fits u32");
+
+            let mean_error = (error_reduction_sum / denominator).min(1000) as u16;
+
+            let mean_uncertainty = (uncertainty_reduction_sum / denominator).min(1000) as u16;
+
+            let mean_confidence = (confidence_sum / denominator).min(1000) as u16;
+
+            let progress = mean_error.min(mean_uncertainty);
+
+            if progress < thresholds.minimum_learning_progress().value() {
+                rejected_progress_count += 1;
+                continue;
+            }
+
+            estimates.push(ExperimentLearningProgressEstimate {
+                source_state: group.source_state,
+                action: group.action,
+                qualifying_sample_count: group.samples.len(),
+                mean_error_reduction: Self::signal(mean_error),
+                mean_uncertainty_reduction: Self::signal(mean_uncertainty),
+                mean_evidence_confidence: Self::signal(mean_confidence),
+                learning_progress: Self::signal(progress),
+            });
+        }
+
+        estimates.sort_by(Self::estimate_order);
+
+        let status = if estimates.is_empty() {
+            LearningProgressEstimationStatus::NoQualifyingProgress
+        } else {
+            LearningProgressEstimationStatus::Estimated
+        };
+
+        LearningProgressEstimationResult {
+            status,
+            input_sample_count,
+            unique_sample_count,
+            qualifying_sample_count,
+            rejected_confidence_count,
+            focus_count,
+            rejected_focus_sample_frontier_count,
+            rejected_insufficient_sample_count,
+            rejected_progress_count,
+            estimates,
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct UniversalAutonomousLearningProgressEstimation;
+
+impl UniversalAutonomousLearningProgressEstimation {
+    pub fn evaluate(
+        samples: &[ExperimentLearningProgressSample],
+        policy: LearningProgressPolicy,
+    ) -> LearningProgressEstimationResult {
+        AutonomousLearningProgressEstimation::estimate(samples, policy)
+    }
+}
+
+#[cfg(test)]
+mod learning_progress_estimation_tests {
+    use super::*;
+
+    fn s(value: u16) -> CognitiveSignal {
+        if value == 0 {
+            CognitiveSignal::zero()
+        } else {
+            CognitiveSignal::new(value).unwrap()
+        }
+    }
+
+    fn a(value: u64) -> CognitiveStructure {
+        CognitiveStructure::atom(value)
+    }
+
+    fn measurement(values: [u16; 5]) -> LearningProgressMeasurement {
+        LearningProgressMeasurement::new(
+            s(values[0]),
+            s(values[1]),
+            s(values[2]),
+            s(values[3]),
+            s(values[4]),
+        )
+        .unwrap()
+    }
+
+    fn progress_sample(
+        identity: u64,
+        state: u64,
+        action: u64,
+        values: [u16; 5],
+    ) -> ExperimentLearningProgressSample {
+        ExperimentLearningProgressSample::new(a(identity), a(state), a(action), measurement(values))
+    }
+
+    fn policy() -> LearningProgressPolicy {
+        LearningProgressPolicy::new(
+            LearningProgressBounds::new(32, 16, 8).unwrap(),
+            LearningProgressThresholds::new(s(500), 2, s(50)).unwrap(),
+        )
+        .unwrap()
+    }
+
+    #[test]
+    fn learning_progress_contract_requires_confident_evidence_and_consistent_bounds() {
+        assert_eq!(
+            LearningProgressMeasurement::new(s(900), s(800), s(900), s(800), s(0),),
+            None
+        );
+
+        assert_eq!(LearningProgressBounds::new(0, 1, 1), None);
+
+        assert_eq!(LearningProgressThresholds::new(s(500), 0, s(50),), None);
+
+        assert_eq!(
+            LearningProgressPolicy::new(
+                LearningProgressBounds::new(10, 10, 1).unwrap(),
+                LearningProgressThresholds::new(s(500), 2, s(50),).unwrap(),
+            ),
+            None
+        );
+    }
+
+    #[test]
+    fn repeated_confident_error_and_uncertainty_reduction_estimates_learning_progress() {
+        let result = AutonomousLearningProgressEstimation::estimate(
+            &[
+                progress_sample(1, 10, 20, [900, 700, 800, 600, 900]),
+                progress_sample(2, 10, 20, [800, 600, 700, 500, 900]),
+            ],
+            policy(),
+        );
+
+        assert_eq!(result.status(), LearningProgressEstimationStatus::Estimated);
+
+        assert_eq!(result.estimate_count(), 1);
+
+        assert_eq!(result.estimates()[0].mean_error_reduction(), s(200));
+
+        assert_eq!(result.estimates()[0].mean_uncertainty_reduction(), s(200));
+
+        assert_eq!(result.estimates()[0].learning_progress(), s(200));
+    }
+
+    #[test]
+    fn high_raw_uncertainty_without_reduction_is_not_learning_progress() {
+        let result = AutonomousLearningProgressEstimation::estimate(
+            &[
+                progress_sample(1, 10, 20, [900, 900, 1000, 1000, 900]),
+                progress_sample(2, 10, 20, [900, 900, 1000, 1000, 900]),
+            ],
+            policy(),
+        );
+
+        assert!(result.abstained());
+
+        assert_eq!(result.rejected_progress_count(), 1);
+    }
+
+    #[test]
+    fn error_reduction_without_uncertainty_reduction_is_not_sufficient_progress() {
+        let result = AutonomousLearningProgressEstimation::estimate(
+            &[
+                progress_sample(1, 10, 20, [900, 600, 900, 900, 900]),
+                progress_sample(2, 10, 20, [800, 500, 800, 800, 900]),
+            ],
+            policy(),
+        );
+
+        assert!(result.abstained());
+
+        assert_eq!(result.rejected_progress_count(), 1);
+    }
+
+    #[test]
+    fn uncertainty_reduction_without_prediction_error_reduction_is_not_sufficient_progress() {
+        let result = AutonomousLearningProgressEstimation::estimate(
+            &[
+                progress_sample(1, 10, 20, [900, 900, 900, 600, 900]),
+                progress_sample(2, 10, 20, [800, 800, 800, 500, 900]),
+            ],
+            policy(),
+        );
+
+        assert!(result.abstained());
+
+        assert_eq!(result.rejected_progress_count(), 1);
+    }
+
+    #[test]
+    fn low_confidence_samples_cannot_manufacture_learning_progress() {
+        let result = AutonomousLearningProgressEstimation::estimate(
+            &[
+                progress_sample(1, 10, 20, [900, 500, 900, 500, 900]),
+                progress_sample(2, 10, 20, [900, 500, 900, 500, 400]),
+            ],
+            policy(),
+        );
+
+        assert!(result.abstained());
+
+        assert_eq!(result.rejected_confidence_count(), 1);
+
+        assert_eq!(result.rejected_insufficient_sample_count(), 1);
+    }
+
+    #[test]
+    fn exact_evidence_duplicate_is_deduplicated_without_fake_repetition() {
+        let duplicate = progress_sample(1, 10, 20, [900, 700, 900, 700, 900]);
+
+        let result = AutonomousLearningProgressEstimation::estimate(
+            &[
+                duplicate.clone(),
+                duplicate,
+                progress_sample(2, 10, 20, [800, 600, 800, 600, 900]),
+            ],
+            policy(),
+        );
+
+        assert_eq!(result.input_sample_count(), 3);
+
+        assert_eq!(result.unique_sample_count(), 2);
+
+        assert_eq!(result.estimates()[0].qualifying_sample_count(), 2);
+    }
+
+    #[test]
+    fn conflicting_reuse_of_exact_evidence_identity_abstains_atomically() {
+        let result = AutonomousLearningProgressEstimation::estimate(
+            &[
+                progress_sample(1, 10, 20, [900, 700, 900, 700, 900]),
+                progress_sample(1, 10, 20, [900, 500, 900, 500, 900]),
+            ],
+            policy(),
+        );
+
+        assert_eq!(
+            result.status(),
+            LearningProgressEstimationStatus::ConflictingEvidenceIdentity
+        );
+
+        assert!(result.estimates().is_empty());
+    }
+
+    #[test]
+    fn state_and_action_define_exact_learning_progress_focus_identity() {
+        let result = AutonomousLearningProgressEstimation::estimate(
+            &[
+                progress_sample(1, 10, 20, [900, 700, 900, 700, 900]),
+                progress_sample(2, 10, 20, [800, 600, 800, 600, 900]),
+                progress_sample(3, 10, 21, [900, 600, 900, 600, 900]),
+                progress_sample(4, 10, 21, [800, 500, 800, 500, 900]),
+                progress_sample(5, 11, 20, [900, 500, 900, 500, 900]),
+                progress_sample(6, 11, 20, [800, 400, 800, 400, 900]),
+            ],
+            policy(),
+        );
+
+        assert_eq!(result.focus_count(), 3);
+
+        assert_eq!(result.estimate_count(), 3);
+    }
+
+    #[test]
+    fn measured_learning_progress_ranks_before_raw_initial_uncertainty() {
+        let result = AutonomousLearningProgressEstimation::estimate(
+            &[
+                progress_sample(1, 10, 20, [1000, 900, 1000, 900, 900]),
+                progress_sample(2, 10, 20, [1000, 900, 1000, 900, 900]),
+                progress_sample(3, 10, 21, [700, 400, 700, 400, 900]),
+                progress_sample(4, 10, 21, [700, 400, 700, 400, 900]),
+            ],
+            policy(),
+        );
+
+        assert_eq!(result.estimate_count(), 2);
+
+        assert_eq!(result.estimates()[0].action(), &a(21));
+
+        assert_eq!(result.estimates()[0].learning_progress(), s(300));
+
+        assert_eq!(result.estimates()[1].learning_progress(), s(100));
+    }
+
+    #[test]
+    fn input_focus_and_per_focus_sample_frontiers_are_hard_bounded() {
+        let two_samples = vec![
+            progress_sample(1, 10, 20, [900, 700, 900, 700, 900]),
+            progress_sample(2, 10, 20, [800, 600, 800, 600, 900]),
+        ];
+
+        let input_policy = LearningProgressPolicy::new(
+            LearningProgressBounds::new(1, 16, 8).unwrap(),
+            LearningProgressThresholds::new(s(500), 1, s(50)).unwrap(),
+        )
+        .unwrap();
+
+        let input = AutonomousLearningProgressEstimation::estimate(&two_samples, input_policy);
+
+        assert_eq!(
+            input.status(),
+            LearningProgressEstimationStatus::InputFrontierExceeded
+        );
+
+        let focus_policy = LearningProgressPolicy::new(
+            LearningProgressBounds::new(16, 1, 8).unwrap(),
+            LearningProgressThresholds::new(s(500), 1, s(50)).unwrap(),
+        )
+        .unwrap();
+
+        let focus = AutonomousLearningProgressEstimation::estimate(
+            &[
+                progress_sample(3, 10, 20, [900, 700, 900, 700, 900]),
+                progress_sample(4, 10, 21, [900, 700, 900, 700, 900]),
+            ],
+            focus_policy,
+        );
+
+        assert_eq!(
+            focus.status(),
+            LearningProgressEstimationStatus::FocusFrontierExceeded
+        );
+
+        let per_focus_policy = LearningProgressPolicy::new(
+            LearningProgressBounds::new(16, 16, 2).unwrap(),
+            LearningProgressThresholds::new(s(500), 2, s(50)).unwrap(),
+        )
+        .unwrap();
+
+        let per_focus = AutonomousLearningProgressEstimation::estimate(
+            &[
+                progress_sample(5, 10, 20, [900, 700, 900, 700, 900]),
+                progress_sample(6, 10, 20, [800, 600, 800, 600, 900]),
+                progress_sample(7, 10, 20, [700, 500, 700, 500, 900]),
+            ],
+            per_focus_policy,
+        );
+
+        assert!(per_focus.abstained());
+
+        assert_eq!(per_focus.rejected_focus_sample_frontier_count(), 1);
+    }
+
+    #[test]
+    fn learning_progress_estimation_is_order_invariant_non_mutating_and_facade_equivalent() {
+        let samples = vec![
+            progress_sample(1, 10, 20, [900, 700, 900, 700, 900]),
+            progress_sample(2, 10, 20, [800, 600, 800, 600, 900]),
+            progress_sample(3, 10, 21, [900, 600, 900, 600, 900]),
+            progress_sample(4, 10, 21, [800, 500, 800, 500, 900]),
+        ];
+
+        let before = samples.clone();
+
+        let mut reversed = samples.clone();
+
+        reversed.reverse();
+
+        let p = policy();
+
+        let direct = AutonomousLearningProgressEstimation::estimate(&samples, p);
+
+        let reordered = AutonomousLearningProgressEstimation::estimate(&reversed, p);
+
+        let facade = UniversalAutonomousLearningProgressEstimation::evaluate(&samples, p);
+
+        let repeated = UniversalAutonomousLearningProgressEstimation::evaluate(&samples, p);
+
+        assert_eq!(direct, reordered);
+        assert_eq!(direct, facade);
+        assert_eq!(facade, repeated);
+        assert_eq!(samples, before);
+    }
+}

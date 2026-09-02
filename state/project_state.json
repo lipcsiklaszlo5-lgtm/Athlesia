@@ -12,7 +12,7 @@
     "Cargo.toml": "e852faab0d9dff23b09e1ee2323d0998955f837450c70ea015382ffe5ec52bff",
     "crates/athlesia_autonomous_active_experimentation/Cargo.lock": "1c12abed42af5b27b1bea85545134dfa5356790380225f867fa22410c5c6291a",
     "crates/athlesia_autonomous_active_experimentation/Cargo.toml": "49498766817cc955e460692355ff4c0b30cbe6cb5c8add30139fd646632ce666",
-    "crates/athlesia_autonomous_active_experimentation/src/lib.rs": "54408fb125679251b01a1386ef412a20678788f9dd38c282f4a9fe843aebfb3e",
+    "crates/athlesia_autonomous_active_experimentation/src/lib.rs": "b26dbaaa851063da677bab591c75f8ec90841d33b5698a28d32870ee18ce435e",
     "crates/athlesia_autonomous_active_experimentation/tests/autonomous_active_experimentation_foundation.rs": "7c3a148fc604232d9e66f4f4fa9a023a920ad0b8bc36be0759e71d074731d62c",
     "crates/athlesia_core_knowledge_perceptual_grounding/Cargo.lock": "fbefd559ec01ff3860d153fdf05e9a29f10ecff62eb63206d1b8e643c35ec7b4",
     "crates/athlesia_core_knowledge_perceptual_grounding/Cargo.toml": "04ffcd03f7862aac5423b16466ca1ea5ad1ad65856a76a9f4a4265c6dca64ff8",
@@ -606,7 +606,8 @@
       "module_50_autonomous_active_experimentation_outcome_evidence_update",
       "module_50_autonomous_active_experimentation_hypothesis_belief_revision",
       "module_50_autonomous_active_experimentation_sequential_experiment_control",
-      "module_50_autonomous_active_experimentation_belief_driven_experiment_proposal"
+      "module_50_autonomous_active_experimentation_belief_driven_experiment_proposal",
+      "module_50_autonomous_active_experimentation_learning_progress_estimation"
     ],
     "module_23_integrity": {
       "status": "pass",
@@ -619,8 +620,8 @@
       "status": "frozen",
       "verifier": "tools/verify_module_23_parity.py"
     },
-    "next_layer": "module_50_autonomous_active_experimentation_learning_progress_estimation",
-    "stage": "module_50_autonomous_active_experimentation_belief_driven_experiment_proposal",
+    "next_layer": "module_50_autonomous_active_experimentation_experiment_sequence_planning",
+    "stage": "module_50_autonomous_active_experimentation_learning_progress_estimation",
     "status": "validated"
   },
   "validated_invariants": [
@@ -3063,6 +3064,18 @@
     "autonomous_experimentation_proposal_derived_information_and_uncertainty",
     "autonomous_experimentation_proposal_foundation_gate_preservation",
     "autonomous_experimentation_proposal_hard_generation_frontiers",
-    "autonomous_experimentation_proposal_deterministic_facade_equivalence"
+    "autonomous_experimentation_proposal_deterministic_facade_equivalence",
+    "autonomous_experimentation_learning_progress_positive_contract",
+    "autonomous_experimentation_learning_progress_error_and_uncertainty_reduction",
+    "autonomous_experimentation_learning_progress_not_raw_uncertainty",
+    "autonomous_experimentation_learning_progress_requires_error_reduction",
+    "autonomous_experimentation_learning_progress_requires_uncertainty_reduction",
+    "autonomous_experimentation_learning_progress_confidence_gate",
+    "autonomous_experimentation_learning_progress_exact_evidence_deduplication",
+    "autonomous_experimentation_learning_progress_conflicting_identity_abstention",
+    "autonomous_experimentation_learning_progress_exact_state_action_focus",
+    "autonomous_experimentation_learning_progress_priority_over_initial_uncertainty",
+    "autonomous_experimentation_learning_progress_hard_frontiers",
+    "autonomous_experimentation_learning_progress_deterministic_facade_equivalence"
   ]
 }
