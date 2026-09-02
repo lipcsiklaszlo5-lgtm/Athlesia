@@ -5441,3 +5441,689 @@ mod skill_memory_consolidation_forgetting_tests {
         assert_eq!(items, before);
     }
 }
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct IntegratedSkillLearningCycleInput {
+    memory: SkillRevisionMemoryEntry,
+    reuse_request: GroundedSkillReuseRequest,
+    execution_observations: Vec<SkillExecutionObservation>,
+    use_evidence: SkillMemoryUseEvidence,
+}
+
+impl IntegratedSkillLearningCycleInput {
+    pub fn new(
+        memory: SkillRevisionMemoryEntry,
+        reuse_request: GroundedSkillReuseRequest,
+        execution_observations: Vec<SkillExecutionObservation>,
+        use_evidence: SkillMemoryUseEvidence,
+    ) -> Self {
+        Self {
+            memory,
+            reuse_request,
+            execution_observations,
+            use_evidence,
+        }
+    }
+
+    pub fn memory(&self) -> &SkillRevisionMemoryEntry {
+        &self.memory
+    }
+
+    pub fn reuse_request(&self) -> &GroundedSkillReuseRequest {
+        &self.reuse_request
+    }
+
+    pub fn execution_observations(&self) -> &[SkillExecutionObservation] {
+        &self.execution_observations
+    }
+
+    pub fn use_evidence(&self) -> &SkillMemoryUseEvidence {
+        &self.use_evidence
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct IntegratedSkillLearningCyclePolicy {
+    reuse: SkillReusePolicy,
+    feedback: SkillOutcomeFeedbackPolicy,
+    revision: SkillRevisionMemoryPolicy,
+    consolidation: SkillMemoryConsolidationPolicy,
+}
+
+impl IntegratedSkillLearningCyclePolicy {
+    pub fn new(
+        reuse: SkillReusePolicy,
+        feedback: SkillOutcomeFeedbackPolicy,
+        revision: SkillRevisionMemoryPolicy,
+        consolidation: SkillMemoryConsolidationPolicy,
+    ) -> Self {
+        Self {
+            reuse,
+            feedback,
+            revision,
+            consolidation,
+        }
+    }
+
+    pub fn reuse(self) -> SkillReusePolicy {
+        self.reuse
+    }
+
+    pub fn feedback(self) -> SkillOutcomeFeedbackPolicy {
+        self.feedback
+    }
+
+    pub fn revision(self) -> SkillRevisionMemoryPolicy {
+        self.revision
+    }
+
+    pub fn consolidation(self) -> SkillMemoryConsolidationPolicy {
+        self.consolidation
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct IntegratedSkillLearningCycleResult {
+    retrieval: SkillRetrievalReuseResult,
+    selected_plan: Option<GroundedSkillReusePlan>,
+    feedback: Option<SkillOutcomeFeedbackResult>,
+    revision: Option<SkillRevisionApplicationResult>,
+    updated_memory: SkillRevisionMemoryEntry,
+    updated_use_evidence: SkillMemoryUseEvidence,
+    consolidation: SkillMemoryConsolidationResult,
+}
+
+impl IntegratedSkillLearningCycleResult {
+    pub fn retrieval(&self) -> &SkillRetrievalReuseResult {
+        &self.retrieval
+    }
+
+    pub fn selected_plan(&self) -> Option<&GroundedSkillReusePlan> {
+        self.selected_plan.as_ref()
+    }
+
+    pub fn feedback(&self) -> Option<&SkillOutcomeFeedbackResult> {
+        self.feedback.as_ref()
+    }
+
+    pub fn revision(&self) -> Option<&SkillRevisionApplicationResult> {
+        self.revision.as_ref()
+    }
+
+    pub fn updated_memory(&self) -> &SkillRevisionMemoryEntry {
+        &self.updated_memory
+    }
+
+    pub fn updated_use_evidence(&self) -> &SkillMemoryUseEvidence {
+        &self.updated_use_evidence
+    }
+
+    pub fn consolidation(&self) -> &SkillMemoryConsolidationResult {
+        &self.consolidation
+    }
+
+    pub fn reused_skill(&self) -> bool {
+        self.selected_plan.is_some()
+    }
+
+    pub fn revised_memory(&self) -> bool {
+        self.revision
+            .as_ref()
+            .is_some_and(SkillRevisionApplicationResult::revision_applied)
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct IntegratedSkillLearningCycle;
+
+impl IntegratedSkillLearningCycle {
+    fn update_use_evidence(
+        evidence: &SkillMemoryUseEvidence,
+        disposition: SkillRevisionDisposition,
+    ) -> SkillMemoryUseEvidence {
+        let mut successes = evidence.successful_reuse_count();
+
+        let mut failures = evidence.failed_reuse_count();
+
+        match disposition {
+            SkillRevisionDisposition::Reinforce | SkillRevisionDisposition::Retain => {
+                successes = successes.saturating_add(1);
+            }
+
+            SkillRevisionDisposition::Weaken | SkillRevisionDisposition::Suspend => {
+                failures = failures.saturating_add(1);
+            }
+
+            SkillRevisionDisposition::Abstain => {}
+        }
+
+        SkillMemoryUseEvidence::new(
+            evidence.access_count().saturating_add(1),
+            successes,
+            failures,
+            evidence.recency_signal(),
+        )
+        .unwrap()
+    }
+
+    pub fn run(
+        input: &IntegratedSkillLearningCycleInput,
+        policy: IntegratedSkillLearningCyclePolicy,
+    ) -> IntegratedSkillLearningCycleResult {
+        let records = if input.memory().reusable() {
+            vec![input.memory().record().clone()]
+        } else {
+            Vec::new()
+        };
+
+        let retrieval =
+            SkillRetrievalAndReuse::retrieve(&records, input.reuse_request(), policy.reuse());
+
+        let selected_plan = retrieval.plans().first().cloned();
+
+        let (feedback, revision, updated_memory, updated_use_evidence) =
+            if let Some(plan) = selected_plan.as_ref() {
+                let feedback = SkillOutcomeFeedbackAndRevision::evaluate(
+                    plan,
+                    input.execution_observations(),
+                    policy.feedback(),
+                );
+
+                let revision = SkillRevisionApplicationAndMemoryUpdate::apply(
+                    input.memory(),
+                    &feedback,
+                    policy.revision(),
+                );
+
+                let use_evidence =
+                    Self::update_use_evidence(input.use_evidence(), feedback.disposition());
+
+                (
+                    Some(feedback),
+                    Some(revision.clone()),
+                    revision.memory().clone(),
+                    use_evidence,
+                )
+            } else {
+                (
+                    None,
+                    None,
+                    input.memory().clone(),
+                    input.use_evidence().clone(),
+                )
+            };
+
+        let consolidation_candidate = SkillMemoryConsolidationCandidate::new(
+            updated_memory.clone(),
+            updated_use_evidence.clone(),
+        );
+
+        let consolidation = SkillMemoryConsolidationAndForgetting::consolidate(
+            &[consolidation_candidate],
+            policy.consolidation(),
+        );
+
+        IntegratedSkillLearningCycleResult {
+            retrieval,
+            selected_plan,
+            feedback,
+            revision,
+            updated_memory,
+            updated_use_evidence,
+            consolidation,
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct UniversalIntegratedSkillLearningCycle;
+
+impl UniversalIntegratedSkillLearningCycle {
+    pub fn evaluate(
+        input: &IntegratedSkillLearningCycleInput,
+        policy: IntegratedSkillLearningCyclePolicy,
+    ) -> IntegratedSkillLearningCycleResult {
+        IntegratedSkillLearningCycle::run(input, policy)
+    }
+}
+
+#[cfg(test)]
+mod integrated_skill_learning_cycle_tests {
+    use super::*;
+
+    fn s(value: u16) -> CognitiveSignal {
+        if value == 0 {
+            CognitiveSignal::zero()
+        } else {
+            CognitiveSignal::new(value).unwrap()
+        }
+    }
+
+    fn a(value: u64) -> CognitiveStructure {
+        CognitiveStructure::atom(value)
+    }
+
+    fn record() -> CompressedSkillRecord {
+        CompressedSkillRecord {
+            invariant_dictionary: vec![a(7)],
+            initial_state: CompressedSkillTerm::StructuralSlot(0),
+            goal_identity: CompressedSkillTerm::InvariantRef(0),
+            steps: vec![
+                CompressedSkillStep {
+                    required_state: CompressedSkillTerm::StructuralSlot(0),
+                    action: CompressedSkillTerm::StructuralSlot(1),
+                    observed_outcome: CompressedSkillTerm::StructuralSlot(2),
+                },
+                CompressedSkillStep {
+                    required_state: CompressedSkillTerm::StructuralSlot(2),
+                    action: CompressedSkillTerm::InvariantRef(0),
+                    observed_outcome: CompressedSkillTerm::InvariantRef(0),
+                },
+            ],
+            structural_slot_count: 3,
+            context_slot_count: 0,
+            invariant_occurrence_count: 3,
+            compression_gain: 2,
+            source_generalization_count: 2,
+            source_support_sum: 8,
+            success_confidence_floor: s(900),
+            step_confidence_floor: s(900),
+        }
+    }
+
+    fn memory() -> SkillRevisionMemoryEntry {
+        SkillRevisionMemoryEntry::new(record())
+    }
+
+    fn binding(id: usize, value: u64) -> GroundedSkillSlotBinding {
+        GroundedSkillSlotBinding::new(SkillReuseSlotKind::Structural, id, a(value), s(900)).unwrap()
+    }
+
+    fn request() -> GroundedSkillReuseRequest {
+        GroundedSkillReuseRequest::new(a(900), a(7), vec![binding(1, 910), binding(2, 1010)])
+    }
+
+    fn observation(
+        state: u64,
+        action: u64,
+        outcome: u64,
+        confidence: u16,
+    ) -> SkillExecutionObservation {
+        SkillExecutionObservation::new(a(state), a(action), a(outcome), s(confidence)).unwrap()
+    }
+
+    fn exact_observations() -> Vec<SkillExecutionObservation> {
+        vec![
+            observation(900, 910, 1010, 900),
+            observation(1010, 7, 7, 900),
+        ]
+    }
+
+    fn use_evidence(accesses: usize, successes: usize, failures: usize) -> SkillMemoryUseEvidence {
+        SkillMemoryUseEvidence::new(accesses, successes, failures, s(900)).unwrap()
+    }
+
+    fn consolidation_thresholds() -> SkillMemoryConsolidationThresholds {
+        SkillMemoryConsolidationThresholds::new(s(700), s(500), s(200), 3, 5).unwrap()
+    }
+
+    fn policy() -> IntegratedSkillLearningCyclePolicy {
+        IntegratedSkillLearningCyclePolicy::new(
+            SkillReusePolicy::new(
+                SkillReuseBounds::new(16, 16, 16, 16, 1).unwrap(),
+                SkillReuseThresholds::new(1, 1, s(500), s(500), s(500)).unwrap(),
+            ),
+            SkillOutcomeFeedbackPolicy::new(16, 16, s(500)).unwrap(),
+            SkillRevisionMemoryPolicy::new(16, 200, 100, s(500), s(500)).unwrap(),
+            SkillMemoryConsolidationPolicy::new(
+                SkillMemoryConsolidationBounds::new(16, 16, 16, 16, 16, 16).unwrap(),
+                consolidation_thresholds(),
+            ),
+        )
+    }
+
+    fn input(
+        memory: SkillRevisionMemoryEntry,
+        observations: Vec<SkillExecutionObservation>,
+        usage: SkillMemoryUseEvidence,
+    ) -> IntegratedSkillLearningCycleInput {
+        IntegratedSkillLearningCycleInput::new(memory, request(), observations, usage)
+    }
+
+    fn suspension_feedback() -> SkillOutcomeFeedbackResult {
+        SkillOutcomeFeedbackResult {
+            input_observation_count: 2,
+            considered_observation_count: 2,
+            observation_frontier_truncated: false,
+            evaluation_count: 2,
+            evaluation_frontier_truncated: false,
+            low_confidence_count: 0,
+            exact_step_count: 0,
+            execution_mismatch_count: 1,
+            outcome_mismatch_count: 0,
+            missing_plan_step_count: 0,
+            extra_observation_count: 0,
+            feedback_confidence_floor: Some(s(900)),
+            disposition: SkillRevisionDisposition::Suspend,
+        }
+    }
+
+    #[test]
+    fn exact_success_closes_retrieval_feedback_revision_and_consolidation_loop() {
+        let cycle = IntegratedSkillLearningCycle::run(
+            &input(memory(), exact_observations(), use_evidence(9, 8, 0)),
+            policy(),
+        );
+
+        assert!(cycle.reused_skill());
+
+        assert_eq!(
+            cycle.feedback().unwrap().disposition(),
+            SkillRevisionDisposition::Reinforce
+        );
+
+        assert!(cycle.revised_memory());
+
+        assert_eq!(cycle.updated_use_evidence().access_count(), 10);
+
+        assert_eq!(cycle.updated_use_evidence().successful_reuse_count(), 9);
+
+        assert_eq!(cycle.consolidation().hot().len(), 1);
+    }
+
+    #[test]
+    fn prediction_error_flows_into_persistent_weakening_and_failure_usage() {
+        let observations = vec![
+            observation(900, 910, 999, 900),
+            observation(1010, 7, 7, 900),
+        ];
+
+        let cycle = IntegratedSkillLearningCycle::run(
+            &input(memory(), observations, use_evidence(5, 4, 0)),
+            policy(),
+        );
+
+        assert_eq!(
+            cycle.feedback().unwrap().disposition(),
+            SkillRevisionDisposition::Weaken
+        );
+
+        assert_eq!(cycle.updated_memory().revision_confidence_cap(), s(700));
+
+        assert_eq!(cycle.updated_use_evidence().failed_reuse_count(), 1);
+    }
+
+    #[test]
+    fn execution_mismatch_suspends_memory_and_moves_it_out_of_active_tiers() {
+        let observations = vec![
+            observation(901, 910, 1010, 900),
+            observation(1010, 7, 7, 900),
+        ];
+
+        let cycle = IntegratedSkillLearningCycle::run(
+            &input(memory(), observations, use_evidence(5, 4, 0)),
+            policy(),
+        );
+
+        assert_eq!(
+            cycle.updated_memory().availability(),
+            SkillMemoryAvailability::Suspended
+        );
+
+        assert!(cycle.consolidation().hot().is_empty());
+
+        assert!(cycle.consolidation().warm().is_empty());
+
+        assert_eq!(cycle.consolidation().cold().len(), 1);
+    }
+
+    #[test]
+    fn unresolved_retrieval_abstains_without_feedback_or_memory_mutation() {
+        let no_bindings = GroundedSkillReuseRequest::new(a(900), a(7), Vec::new());
+
+        let original = memory();
+
+        let input = IntegratedSkillLearningCycleInput::new(
+            original.clone(),
+            no_bindings,
+            exact_observations(),
+            use_evidence(4, 3, 0),
+        );
+
+        let cycle = IntegratedSkillLearningCycle::run(&input, policy());
+
+        assert!(!cycle.reused_skill());
+
+        assert!(cycle.feedback().is_none());
+
+        assert!(cycle.revision().is_none());
+
+        assert_eq!(cycle.updated_memory(), &original);
+
+        assert_eq!(cycle.updated_use_evidence(), input.use_evidence());
+    }
+
+    #[test]
+    fn suspended_memory_is_excluded_before_retrieval() {
+        let suspended = SkillRevisionApplicationAndMemoryUpdate::apply(
+            &memory(),
+            &suspension_feedback(),
+            SkillRevisionMemoryPolicy::new(8, 100, 100, s(500), s(500)).unwrap(),
+        )
+        .memory()
+        .clone();
+
+        let cycle = IntegratedSkillLearningCycle::run(
+            &input(
+                suspended.clone(),
+                exact_observations(),
+                use_evidence(5, 4, 0),
+            ),
+            policy(),
+        );
+
+        assert_eq!(cycle.retrieval().input_record_count(), 0);
+
+        assert!(!cycle.reused_skill());
+
+        assert_eq!(cycle.updated_memory(), &suspended);
+    }
+
+    #[test]
+    fn low_confidence_feedback_does_not_modify_memory_but_records_access() {
+        let observations = vec![
+            observation(900, 910, 1010, 400),
+            observation(1010, 7, 7, 900),
+        ];
+
+        let original = memory();
+
+        let cycle = IntegratedSkillLearningCycle::run(
+            &input(original.clone(), observations, use_evidence(5, 4, 0)),
+            policy(),
+        );
+
+        assert_eq!(
+            cycle.feedback().unwrap().disposition(),
+            SkillRevisionDisposition::Abstain
+        );
+
+        assert!(!cycle.revised_memory());
+
+        assert_eq!(cycle.updated_memory(), &original);
+
+        assert_eq!(cycle.updated_use_evidence().access_count(), 6);
+
+        assert_eq!(cycle.updated_use_evidence().successful_reuse_count(), 4);
+
+        assert_eq!(cycle.updated_use_evidence().failed_reuse_count(), 0);
+    }
+
+    #[test]
+    fn revision_budget_exhaustion_survives_integrated_cycle() {
+        let limited_policy = SkillRevisionMemoryPolicy::new(1, 200, 100, s(500), s(500)).unwrap();
+
+        let weakened_feedback = SkillOutcomeFeedbackResult {
+            input_observation_count: 2,
+            considered_observation_count: 2,
+            observation_frontier_truncated: false,
+            evaluation_count: 2,
+            evaluation_frontier_truncated: false,
+            low_confidence_count: 0,
+            exact_step_count: 1,
+            execution_mismatch_count: 0,
+            outcome_mismatch_count: 1,
+            missing_plan_step_count: 0,
+            extra_observation_count: 0,
+            feedback_confidence_floor: Some(s(900)),
+            disposition: SkillRevisionDisposition::Weaken,
+        };
+
+        let exhausted = SkillRevisionApplicationAndMemoryUpdate::apply(
+            &memory(),
+            &weakened_feedback,
+            limited_policy,
+        )
+        .memory()
+        .clone();
+
+        let p = IntegratedSkillLearningCyclePolicy::new(
+            policy().reuse(),
+            policy().feedback(),
+            limited_policy,
+            policy().consolidation(),
+        );
+
+        let cycle = IntegratedSkillLearningCycle::run(
+            &input(
+                exhausted.clone(),
+                exact_observations(),
+                use_evidence(5, 3, 1),
+            ),
+            p,
+        );
+
+        assert!(cycle.revision().unwrap().revision_budget_exhausted());
+
+        assert_eq!(cycle.updated_memory(), &exhausted);
+    }
+
+    #[test]
+    fn integrated_cycle_never_mutates_compressed_skill_provenance() {
+        let original = memory();
+
+        let provenance = original.record().clone();
+
+        let observations = vec![
+            observation(900, 910, 999, 900),
+            observation(1010, 7, 7, 900),
+        ];
+
+        let cycle = IntegratedSkillLearningCycle::run(
+            &input(original, observations, use_evidence(5, 4, 0)),
+            policy(),
+        );
+
+        assert_eq!(cycle.updated_memory().record(), &provenance);
+    }
+
+    #[test]
+    fn consolidation_consumes_the_post_revision_memory_state() {
+        let observations = vec![
+            observation(901, 910, 1010, 900),
+            observation(1010, 7, 7, 900),
+        ];
+
+        let cycle = IntegratedSkillLearningCycle::run(
+            &input(memory(), observations, use_evidence(10, 9, 0)),
+            policy(),
+        );
+
+        assert_eq!(
+            cycle.updated_memory().availability(),
+            SkillMemoryAvailability::Suspended
+        );
+
+        assert_eq!(
+            cycle.consolidation().cold()[0].memory().availability(),
+            SkillMemoryAvailability::Suspended
+        );
+    }
+
+    #[test]
+    fn retrieval_step_bound_prevents_downstream_revision() {
+        let bounded_reuse = SkillReusePolicy::new(
+            SkillReuseBounds::new(16, 16, 16, 1, 1).unwrap(),
+            policy().reuse().thresholds(),
+        );
+
+        let p = IntegratedSkillLearningCyclePolicy::new(
+            bounded_reuse,
+            policy().feedback(),
+            policy().revision(),
+            policy().consolidation(),
+        );
+
+        let original = memory();
+
+        let cycle = IntegratedSkillLearningCycle::run(
+            &input(
+                original.clone(),
+                exact_observations(),
+                use_evidence(5, 4, 0),
+            ),
+            p,
+        );
+
+        assert_eq!(cycle.retrieval().rejected_step_bound_count(), 1);
+
+        assert!(cycle.feedback().is_none());
+
+        assert!(cycle.revision().is_none());
+
+        assert_eq!(cycle.updated_memory(), &original);
+    }
+
+    #[test]
+    fn repeated_failures_can_flow_through_cycle_into_forgetting() {
+        let observations = vec![
+            observation(900, 910, 999, 900),
+            observation(1010, 7, 7, 900),
+        ];
+
+        let cycle = IntegratedSkillLearningCycle::run(
+            &input(memory(), observations, use_evidence(9, 4, 4)),
+            policy(),
+        );
+
+        assert_eq!(cycle.updated_use_evidence().failed_reuse_count(), 5);
+
+        assert_eq!(cycle.consolidation().forgotten_count(), 1);
+
+        assert_eq!(
+            cycle.consolidation().forgotten_archive()[0].tier(),
+            ConsolidatedSkillMemoryTier::Forgotten
+        );
+    }
+
+    #[test]
+    fn integrated_cycle_is_deterministic_non_mutating_and_facade_equivalent() {
+        let input = input(memory(), exact_observations(), use_evidence(9, 8, 0));
+
+        let before = input.clone();
+
+        let p = policy();
+
+        let direct = IntegratedSkillLearningCycle::run(&input, p);
+
+        let facade = UniversalIntegratedSkillLearningCycle::evaluate(&input, p);
+
+        let repeated = UniversalIntegratedSkillLearningCycle::evaluate(&input, p);
+
+        assert_eq!(direct, facade);
+
+        assert_eq!(facade, repeated);
+
+        assert_eq!(input, before);
+    }
+}
