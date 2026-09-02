@@ -551,7 +551,8 @@
       "module_47_universal_domain_learning_interventional_causal_validation",
       "module_47_universal_domain_learning_cross_domain_transfer",
       "module_47_universal_domain_learning_domain_model_compression",
-      "module_47_universal_domain_learning_integrated_domain_model"
+      "module_47_universal_domain_learning_integrated_domain_model",
+      "module_47_universal_domain_learning_frozen"
     ],
     "module_23_integrity": {
       "status": "pass",
@@ -564,8 +565,8 @@
       "status": "frozen",
       "verifier": "tools/verify_module_23_parity.py"
     },
-    "next_layer": "module_47_universal_domain_learning_freeze",
-    "stage": "module_47_universal_domain_learning_integrated_domain_model",
+    "next_layer": "module_48_executive_agency_foundation",
+    "stage": "module_47_universal_domain_learning_frozen",
     "status": "validated"
   },
   "validated_invariants": [
