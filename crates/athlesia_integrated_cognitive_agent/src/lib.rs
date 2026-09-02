@@ -6193,3 +6193,603 @@ mod closed_loop_agent_step_tests {
         assert_eq!(facade.next_anchor_state(), Some(&a(1005)));
     }
 }
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct RecurrentAgentStepInput {
+    contributions: Vec<IntegratedLayerContribution>,
+    transition_request: CognitiveCycleStateTransitionRequest,
+}
+
+impl RecurrentAgentStepInput {
+    pub fn new(
+        contributions: Vec<IntegratedLayerContribution>,
+        transition_request: CognitiveCycleStateTransitionRequest,
+    ) -> Self {
+        Self {
+            contributions,
+            transition_request,
+        }
+    }
+
+    pub fn contributions(&self) -> &[IntegratedLayerContribution] {
+        &self.contributions
+    }
+
+    pub fn transition_request(&self) -> &CognitiveCycleStateTransitionRequest {
+        &self.transition_request
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct BoundedRecurrentAgentLoopPolicy {
+    max_steps: usize,
+}
+
+impl BoundedRecurrentAgentLoopPolicy {
+    pub fn new(max_steps: usize) -> Option<Self> {
+        if max_steps == 0 {
+            return None;
+        }
+
+        Some(Self { max_steps })
+    }
+
+    pub fn max_steps(self) -> usize {
+        self.max_steps
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum BoundedRecurrentAgentLoopStatus {
+    Completed,
+    InputFrontierExceeded,
+    StepRejected,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct BoundedRecurrentAgentLoopResult {
+    status: BoundedRecurrentAgentLoopStatus,
+    initial_anchor_state: CognitiveStructure,
+    final_anchor_state: Option<CognitiveStructure>,
+    steps: Vec<ClosedLoopAgentStepResult>,
+    completed_step_count: usize,
+    rejected_step_index: Option<usize>,
+}
+
+impl BoundedRecurrentAgentLoopResult {
+    pub fn status(&self) -> BoundedRecurrentAgentLoopStatus {
+        self.status
+    }
+
+    pub fn initial_anchor_state(&self) -> &CognitiveStructure {
+        &self.initial_anchor_state
+    }
+
+    pub fn final_anchor_state(&self) -> Option<&CognitiveStructure> {
+        self.final_anchor_state.as_ref()
+    }
+
+    pub fn steps(&self) -> &[ClosedLoopAgentStepResult] {
+        &self.steps
+    }
+
+    pub fn executed_step_count(&self) -> usize {
+        self.steps.len()
+    }
+
+    pub fn completed_step_count(&self) -> usize {
+        self.completed_step_count
+    }
+
+    pub fn rejected_step_index(&self) -> Option<usize> {
+        self.rejected_step_index
+    }
+
+    pub fn completed(&self) -> bool {
+        self.status == BoundedRecurrentAgentLoopStatus::Completed
+    }
+
+    pub fn frontier_exceeded(&self) -> bool {
+        self.status == BoundedRecurrentAgentLoopStatus::InputFrontierExceeded
+    }
+
+    pub fn rejected(&self) -> bool {
+        self.status == BoundedRecurrentAgentLoopStatus::StepRejected
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct BoundedRecurrentAgentLoop;
+
+impl BoundedRecurrentAgentLoop {
+    pub fn run(
+        initial_anchor_state: &CognitiveStructure,
+        step_inputs: &[RecurrentAgentStepInput],
+        cycle_policy: IntegratedAgentPolicy,
+        loop_policy: BoundedRecurrentAgentLoopPolicy,
+    ) -> BoundedRecurrentAgentLoopResult {
+        if step_inputs.len() > loop_policy.max_steps() {
+            return BoundedRecurrentAgentLoopResult {
+                status: BoundedRecurrentAgentLoopStatus::InputFrontierExceeded,
+                initial_anchor_state: initial_anchor_state.clone(),
+                final_anchor_state: None,
+                steps: Vec::new(),
+                completed_step_count: 0,
+                rejected_step_index: None,
+            };
+        }
+
+        let mut current_anchor = initial_anchor_state.clone();
+
+        let mut steps = Vec::with_capacity(step_inputs.len());
+
+        let mut completed_step_count = 0;
+
+        for (index, input) in step_inputs.iter().enumerate() {
+            let result = ClosedLoopAgentStep::run(
+                &current_anchor,
+                input.contributions(),
+                cycle_policy,
+                input.transition_request(),
+            );
+
+            if result.rejected() {
+                steps.push(result);
+
+                return BoundedRecurrentAgentLoopResult {
+                    status: BoundedRecurrentAgentLoopStatus::StepRejected,
+                    initial_anchor_state: initial_anchor_state.clone(),
+                    final_anchor_state: Some(current_anchor),
+                    steps,
+                    completed_step_count,
+                    rejected_step_index: Some(index),
+                };
+            }
+
+            let Some(next_anchor) = result.next_anchor_state().cloned() else {
+                steps.push(result);
+
+                return BoundedRecurrentAgentLoopResult {
+                    status: BoundedRecurrentAgentLoopStatus::StepRejected,
+                    initial_anchor_state: initial_anchor_state.clone(),
+                    final_anchor_state: Some(current_anchor),
+                    steps,
+                    completed_step_count,
+                    rejected_step_index: Some(index),
+                };
+            };
+
+            current_anchor = next_anchor;
+
+            completed_step_count += 1;
+
+            steps.push(result);
+        }
+
+        BoundedRecurrentAgentLoopResult {
+            status: BoundedRecurrentAgentLoopStatus::Completed,
+            initial_anchor_state: initial_anchor_state.clone(),
+            final_anchor_state: Some(current_anchor),
+            steps,
+            completed_step_count,
+            rejected_step_index: None,
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct UniversalBoundedRecurrentAgentLoop;
+
+impl UniversalBoundedRecurrentAgentLoop {
+    pub fn evaluate(
+        initial_anchor_state: &CognitiveStructure,
+        step_inputs: &[RecurrentAgentStepInput],
+        cycle_policy: IntegratedAgentPolicy,
+        loop_policy: BoundedRecurrentAgentLoopPolicy,
+    ) -> BoundedRecurrentAgentLoopResult {
+        BoundedRecurrentAgentLoop::run(initial_anchor_state, step_inputs, cycle_policy, loop_policy)
+    }
+}
+
+#[cfg(test)]
+mod bounded_recurrent_agent_loop_tests {
+    use super::*;
+
+    fn s(value: u16) -> CognitiveSignal {
+        if value == 0 {
+            CognitiveSignal::zero()
+        } else {
+            CognitiveSignal::new(value).unwrap()
+        }
+    }
+
+    fn a(value: u64) -> CognitiveStructure {
+        CognitiveStructure::atom(value)
+    }
+
+    fn cycle_policy() -> IntegratedAgentPolicy {
+        IntegratedAgentPolicy::new(
+            IntegratedAgentBounds::new(5, 2000).unwrap(),
+            IntegratedAgentThresholds::new(s(500)).unwrap(),
+        )
+    }
+
+    fn loop_policy(max_steps: usize) -> BoundedRecurrentAgentLoopPolicy {
+        BoundedRecurrentAgentLoopPolicy::new(max_steps).unwrap()
+    }
+
+    fn contribution(
+        anchor: u64,
+        layer: IntegratedCognitiveLayer,
+        result_state: u64,
+        provenance: u64,
+    ) -> IntegratedLayerContribution {
+        IntegratedLayerContribution::new(
+            layer,
+            a(anchor),
+            a(result_state),
+            a(provenance),
+            s(900),
+            s(200),
+        )
+        .unwrap()
+    }
+
+    fn contributions(
+        anchor: u64,
+        result_base: u64,
+        provenance_base: u64,
+    ) -> Vec<IntegratedLayerContribution> {
+        vec![
+            contribution(
+                anchor,
+                IntegratedCognitiveLayer::PerceptualGrounding,
+                result_base + 1,
+                provenance_base + 1,
+            ),
+            contribution(
+                anchor,
+                IntegratedCognitiveLayer::UniversalDomainLearning,
+                result_base + 2,
+                provenance_base + 2,
+            ),
+            contribution(
+                anchor,
+                IntegratedCognitiveLayer::ExecutiveAgency,
+                result_base + 3,
+                provenance_base + 3,
+            ),
+            contribution(
+                anchor,
+                IntegratedCognitiveLayer::MetaLearningSkillMemory,
+                result_base + 4,
+                provenance_base + 4,
+            ),
+            contribution(
+                anchor,
+                IntegratedCognitiveLayer::AutonomousExperimentation,
+                result_base + 5,
+                provenance_base + 5,
+            ),
+        ]
+    }
+
+    fn adopt(
+        anchor: u64,
+        layer: IntegratedCognitiveLayer,
+        provenance: u64,
+    ) -> CognitiveCycleStateTransitionRequest {
+        CognitiveCycleStateTransitionRequest::new(
+            a(anchor),
+            CognitiveCycleTransitionAuthority::AdoptLayer(layer),
+            Some(a(provenance)),
+        )
+        .unwrap()
+    }
+
+    fn preserve(anchor: u64) -> CognitiveCycleStateTransitionRequest {
+        CognitiveCycleStateTransitionRequest::new(
+            a(anchor),
+            CognitiveCycleTransitionAuthority::PreserveAnchor,
+            None,
+        )
+        .unwrap()
+    }
+
+    fn first_step() -> RecurrentAgentStepInput {
+        RecurrentAgentStepInput::new(
+            contributions(1000, 1000, 9000),
+            adopt(1000, IntegratedCognitiveLayer::ExecutiveAgency, 9003),
+        )
+    }
+
+    fn second_step() -> RecurrentAgentStepInput {
+        RecurrentAgentStepInput::new(
+            contributions(1003, 2000, 9100),
+            adopt(
+                1003,
+                IntegratedCognitiveLayer::AutonomousExperimentation,
+                9105,
+            ),
+        )
+    }
+
+    #[test]
+    fn recurrent_loop_policy_requires_positive_hard_step_bound() {
+        assert_eq!(BoundedRecurrentAgentLoopPolicy::new(0), None);
+
+        assert_eq!(
+            BoundedRecurrentAgentLoopPolicy::new(3).unwrap().max_steps(),
+            3
+        );
+    }
+
+    #[test]
+    fn empty_recurrent_sequence_completes_without_changing_anchor() {
+        let result = BoundedRecurrentAgentLoop::run(&a(1000), &[], cycle_policy(), loop_policy(3));
+
+        assert!(result.completed());
+
+        assert_eq!(result.executed_step_count(), 0);
+
+        assert_eq!(result.completed_step_count(), 0);
+
+        assert_eq!(result.final_anchor_state(), Some(&a(1000)));
+    }
+
+    #[test]
+    fn accepted_next_anchor_drives_the_following_agent_step() {
+        let result = BoundedRecurrentAgentLoop::run(
+            &a(1000),
+            &[first_step(), second_step()],
+            cycle_policy(),
+            loop_policy(2),
+        );
+
+        assert!(result.completed());
+
+        assert_eq!(result.completed_step_count(), 2);
+
+        assert_eq!(result.steps()[0].next_anchor_state(), Some(&a(1003)));
+
+        assert_eq!(result.steps()[1].previous_anchor_state(), &a(1003));
+
+        assert_eq!(result.final_anchor_state(), Some(&a(2005)));
+    }
+
+    #[test]
+    fn preserved_anchor_remains_authoritative_for_next_step() {
+        let first = RecurrentAgentStepInput::new(contributions(1000, 1000, 9000), preserve(1000));
+
+        let second = RecurrentAgentStepInput::new(
+            contributions(1000, 2000, 9100),
+            adopt(
+                1000,
+                IntegratedCognitiveLayer::UniversalDomainLearning,
+                9102,
+            ),
+        );
+
+        let result = BoundedRecurrentAgentLoop::run(
+            &a(1000),
+            &[first, second],
+            cycle_policy(),
+            loop_policy(2),
+        );
+
+        assert!(result.completed());
+
+        assert!(result.steps()[0].preserved());
+
+        assert_eq!(result.steps()[1].previous_anchor_state(), &a(1000));
+
+        assert_eq!(result.final_anchor_state(), Some(&a(2002)));
+    }
+
+    #[test]
+    fn hard_step_frontier_rejects_entire_sequence_before_execution() {
+        let result = BoundedRecurrentAgentLoop::run(
+            &a(1000),
+            &[first_step(), second_step()],
+            cycle_policy(),
+            loop_policy(1),
+        );
+
+        assert!(result.frontier_exceeded());
+
+        assert_eq!(result.executed_step_count(), 0);
+
+        assert_eq!(result.completed_step_count(), 0);
+
+        assert_eq!(result.final_anchor_state(), None);
+    }
+
+    #[test]
+    fn stale_second_step_contributions_halt_after_first_committed_step() {
+        let stale_second = RecurrentAgentStepInput::new(
+            contributions(1000, 2000, 9100),
+            adopt(
+                1003,
+                IntegratedCognitiveLayer::AutonomousExperimentation,
+                9105,
+            ),
+        );
+
+        let result = BoundedRecurrentAgentLoop::run(
+            &a(1000),
+            &[first_step(), stale_second],
+            cycle_policy(),
+            loop_policy(2),
+        );
+
+        assert!(result.rejected());
+
+        assert_eq!(result.completed_step_count(), 1);
+
+        assert_eq!(result.rejected_step_index(), Some(1));
+
+        assert_eq!(result.final_anchor_state(), Some(&a(1003)));
+
+        assert_eq!(
+            result.steps()[1].status(),
+            ClosedLoopAgentStepStatus::RejectedCycle
+        );
+    }
+
+    #[test]
+    fn stale_second_transition_anchor_halts_after_first_committed_step() {
+        let stale_second = RecurrentAgentStepInput::new(
+            contributions(1003, 2000, 9100),
+            adopt(
+                1000,
+                IntegratedCognitiveLayer::AutonomousExperimentation,
+                9105,
+            ),
+        );
+
+        let result = BoundedRecurrentAgentLoop::run(
+            &a(1000),
+            &[first_step(), stale_second],
+            cycle_policy(),
+            loop_policy(2),
+        );
+
+        assert!(result.rejected());
+
+        assert_eq!(result.completed_step_count(), 1);
+
+        assert_eq!(result.final_anchor_state(), Some(&a(1003)));
+
+        assert_eq!(
+            result.steps()[1].status(),
+            ClosedLoopAgentStepStatus::RejectedTransition
+        );
+    }
+
+    #[test]
+    fn rejection_at_first_step_preserves_initial_stable_anchor() {
+        let stale = RecurrentAgentStepInput::new(
+            contributions(9999, 1000, 9000),
+            adopt(1000, IntegratedCognitiveLayer::ExecutiveAgency, 9003),
+        );
+
+        let result =
+            BoundedRecurrentAgentLoop::run(&a(1000), &[stale], cycle_policy(), loop_policy(1));
+
+        assert!(result.rejected());
+
+        assert_eq!(result.completed_step_count(), 0);
+
+        assert_eq!(result.rejected_step_index(), Some(0));
+
+        assert_eq!(result.final_anchor_state(), Some(&a(1000)));
+    }
+
+    #[test]
+    fn rejection_halts_loop_before_any_later_step_executes() {
+        let stale_second = RecurrentAgentStepInput::new(
+            contributions(1000, 2000, 9100),
+            adopt(
+                1003,
+                IntegratedCognitiveLayer::AutonomousExperimentation,
+                9105,
+            ),
+        );
+
+        let unreachable_third = RecurrentAgentStepInput::new(
+            contributions(2005, 3000, 9200),
+            adopt(2005, IntegratedCognitiveLayer::ExecutiveAgency, 9203),
+        );
+
+        let result = BoundedRecurrentAgentLoop::run(
+            &a(1000),
+            &[first_step(), stale_second, unreachable_third],
+            cycle_policy(),
+            loop_policy(3),
+        );
+
+        assert!(result.rejected());
+
+        assert_eq!(result.executed_step_count(), 2);
+
+        assert_eq!(result.completed_step_count(), 1);
+
+        assert_eq!(result.rejected_step_index(), Some(1));
+    }
+
+    #[test]
+    fn contribution_order_inside_each_step_cannot_change_recurrent_result() {
+        let first = first_step();
+
+        let second = second_step();
+
+        let mut first_reversed = first.contributions().to_vec();
+
+        first_reversed.reverse();
+
+        let mut second_reversed = second.contributions().to_vec();
+
+        second_reversed.reverse();
+
+        let reordered = [
+            RecurrentAgentStepInput::new(first_reversed, first.transition_request().clone()),
+            RecurrentAgentStepInput::new(second_reversed, second.transition_request().clone()),
+        ];
+
+        let canonical = BoundedRecurrentAgentLoop::run(
+            &a(1000),
+            &[first, second],
+            cycle_policy(),
+            loop_policy(2),
+        );
+
+        let reversed =
+            BoundedRecurrentAgentLoop::run(&a(1000), &reordered, cycle_policy(), loop_policy(2));
+
+        assert_eq!(canonical, reversed);
+    }
+
+    #[test]
+    fn recurrent_loop_does_not_mutate_supplied_step_inputs() {
+        let inputs = vec![first_step(), second_step()];
+
+        let before = inputs.clone();
+
+        let result =
+            BoundedRecurrentAgentLoop::run(&a(1000), &inputs, cycle_policy(), loop_policy(2));
+
+        assert!(result.completed());
+
+        assert_eq!(inputs, before);
+    }
+
+    #[test]
+    fn recurrent_loop_is_deterministic_and_universal_facade_equivalent() {
+        let inputs = vec![first_step(), second_step()];
+
+        let direct =
+            BoundedRecurrentAgentLoop::run(&a(1000), &inputs, cycle_policy(), loop_policy(2));
+
+        let facade = UniversalBoundedRecurrentAgentLoop::evaluate(
+            &a(1000),
+            &inputs,
+            cycle_policy(),
+            loop_policy(2),
+        );
+
+        let repeated = UniversalBoundedRecurrentAgentLoop::evaluate(
+            &a(1000),
+            &inputs,
+            cycle_policy(),
+            loop_policy(2),
+        );
+
+        assert_eq!(direct, facade);
+
+        assert_eq!(facade, repeated);
+
+        assert_eq!(facade.initial_anchor_state(), &a(1000));
+
+        assert_eq!(facade.final_anchor_state(), Some(&a(2005)));
+    }
+}

@@ -56,7 +56,7 @@
     "crates/athlesia_hierarchy/tests/hierarchy_recognition.rs": "bc7fe6ac289f8697e65b2ebe9aab179ae0cdb2db655fed18afae454bf2132841",
     "crates/athlesia_integrated_cognitive_agent/Cargo.lock": "49d8133fab85c5e2dd210c1702d89886b12e48961f6783944f53192bbd9862f5",
     "crates/athlesia_integrated_cognitive_agent/Cargo.toml": "07fd7160447768911344f081f3efcbcf79270014d5a962fb6ad271f881e61951",
-    "crates/athlesia_integrated_cognitive_agent/src/lib.rs": "e915c7d73c40854929fb93814f2a6325f6cf8ee908cf8b135020775a476e1ba7",
+    "crates/athlesia_integrated_cognitive_agent/src/lib.rs": "c6e018e00b00f5e1752401fe04faa77f72bb63eed0bc9e4cc540ed468df347ef",
     "crates/athlesia_meta_learning_skill_memory/Cargo.lock": "641aac08044b700a765d2e6a93508989365f97801ae817d73c69c3c99c00506d",
     "crates/athlesia_meta_learning_skill_memory/Cargo.toml": "3ecb2ef81d5a7d2e6eb902981ff7fe2a1446969521a0544a22bb0ba360954265",
     "crates/athlesia_meta_learning_skill_memory/src/lib.rs": "7d90563d57c3ae9196eb5ee4bc01f43991f01aef7ce0f0cf8cb96fea3ba3aa04",
@@ -624,7 +624,8 @@
       "module_51_integrated_cognitive_agent_autonomous_experimentation_ingestion",
       "module_51_integrated_cognitive_agent_cognitive_cycle",
       "module_51_integrated_cognitive_agent_cycle_state_transition",
-      "module_51_integrated_cognitive_agent_closed_loop_agent_step"
+      "module_51_integrated_cognitive_agent_closed_loop_agent_step",
+      "module_51_integrated_cognitive_agent_bounded_recurrent_agent_loop"
     ],
     "module_23_integrity": {
       "status": "pass",
@@ -637,8 +638,8 @@
       "status": "frozen",
       "verifier": "tools/verify_module_23_parity.py"
     },
-    "next_layer": "module_51_integrated_cognitive_agent_bounded_recurrent_agent_loop",
-    "stage": "module_51_integrated_cognitive_agent_closed_loop_agent_step",
+    "next_layer": "module_51_integrated_cognitive_agent_recurrent_feedback_closure",
+    "stage": "module_51_integrated_cognitive_agent_bounded_recurrent_agent_loop",
     "status": "validated"
   },
   "validated_invariants": [
@@ -3249,6 +3250,18 @@
     "integrated_agent_closed_loop_all_five_layer_exact_state_adoption",
     "integrated_agent_closed_loop_input_order_invariance",
     "integrated_agent_closed_loop_non_mutation",
-    "integrated_agent_closed_loop_deterministic_facade_equivalence"
+    "integrated_agent_closed_loop_deterministic_facade_equivalence",
+    "integrated_agent_recurrent_positive_hard_step_bound",
+    "integrated_agent_recurrent_empty_sequence_anchor_preservation",
+    "integrated_agent_recurrent_exact_next_anchor_binding",
+    "integrated_agent_recurrent_preserved_anchor_binding",
+    "integrated_agent_recurrent_frontier_preexecution_atomicity",
+    "integrated_agent_recurrent_stale_contribution_halt",
+    "integrated_agent_recurrent_stale_transition_halt",
+    "integrated_agent_recurrent_last_stable_anchor_preservation",
+    "integrated_agent_recurrent_no_execution_after_rejection",
+    "integrated_agent_recurrent_per_step_order_invariance",
+    "integrated_agent_recurrent_non_mutation",
+    "integrated_agent_recurrent_deterministic_facade_equivalence"
   ]
 }
