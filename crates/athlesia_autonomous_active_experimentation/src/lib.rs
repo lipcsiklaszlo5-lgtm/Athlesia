@@ -5670,3 +5670,1095 @@ mod learning_progress_estimation_tests {
         assert_eq!(samples, before);
     }
 }
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct ExperimentSequencePlanningBounds {
+    max_input_candidates: usize,
+    max_learning_progress_estimates: usize,
+    max_plan_depth: usize,
+    max_expansions: usize,
+    max_selected_plans: usize,
+}
+
+impl ExperimentSequencePlanningBounds {
+    pub fn new(
+        max_input_candidates: usize,
+        max_learning_progress_estimates: usize,
+        max_plan_depth: usize,
+        max_expansions: usize,
+        max_selected_plans: usize,
+    ) -> Option<Self> {
+        if max_input_candidates == 0
+            || max_learning_progress_estimates == 0
+            || max_plan_depth == 0
+            || max_expansions == 0
+            || max_selected_plans == 0
+        {
+            return None;
+        }
+
+        Some(Self {
+            max_input_candidates,
+            max_learning_progress_estimates,
+            max_plan_depth,
+            max_expansions,
+            max_selected_plans,
+        })
+    }
+
+    pub fn max_input_candidates(self) -> usize {
+        self.max_input_candidates
+    }
+
+    pub fn max_learning_progress_estimates(self) -> usize {
+        self.max_learning_progress_estimates
+    }
+
+    pub fn max_plan_depth(self) -> usize {
+        self.max_plan_depth
+    }
+
+    pub fn max_expansions(self) -> usize {
+        self.max_expansions
+    }
+
+    pub fn max_selected_plans(self) -> usize {
+        self.max_selected_plans
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct ExperimentSequencePlanningPolicy {
+    bounds: ExperimentSequencePlanningBounds,
+    minimum_discrimination_gain: CognitiveSignal,
+}
+
+impl ExperimentSequencePlanningPolicy {
+    pub fn new(
+        bounds: ExperimentSequencePlanningBounds,
+        minimum_discrimination_gain: CognitiveSignal,
+    ) -> Option<Self> {
+        if minimum_discrimination_gain == CognitiveSignal::zero() {
+            return None;
+        }
+
+        Some(Self {
+            bounds,
+            minimum_discrimination_gain,
+        })
+    }
+
+    pub fn bounds(self) -> ExperimentSequencePlanningBounds {
+        self.bounds
+    }
+
+    pub fn minimum_discrimination_gain(self) -> CognitiveSignal {
+        self.minimum_discrimination_gain
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct PlannedExperimentStep {
+    candidate: HypothesisDiscriminationCandidate,
+    learning_progress: CognitiveSignal,
+    discrimination_gain: CognitiveSignal,
+}
+
+impl PlannedExperimentStep {
+    pub fn candidate(&self) -> &HypothesisDiscriminationCandidate {
+        &self.candidate
+    }
+
+    pub fn source_state(&self) -> &CognitiveStructure {
+        self.candidate.experiment().source_state()
+    }
+
+    pub fn action(&self) -> &CognitiveStructure {
+        self.candidate.experiment().action()
+    }
+
+    pub fn predicted_outcome(&self) -> &CognitiveStructure {
+        self.candidate.experiment().predicted_outcome()
+    }
+
+    pub fn learning_progress(&self) -> CognitiveSignal {
+        self.learning_progress
+    }
+
+    pub fn discrimination_gain(&self) -> CognitiveSignal {
+        self.discrimination_gain
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ExperimentSequencePlan {
+    initial_state: CognitiveStructure,
+    steps: Vec<PlannedExperimentStep>,
+    cumulative_learning_progress: u32,
+    cumulative_discrimination_gain: u32,
+    cumulative_information_gain: u32,
+}
+
+impl ExperimentSequencePlan {
+    pub fn initial_state(&self) -> &CognitiveStructure {
+        &self.initial_state
+    }
+
+    pub fn steps(&self) -> &[PlannedExperimentStep] {
+        &self.steps
+    }
+
+    pub fn depth(&self) -> usize {
+        self.steps.len()
+    }
+
+    pub fn cumulative_learning_progress(&self) -> u32 {
+        self.cumulative_learning_progress
+    }
+
+    pub fn cumulative_discrimination_gain(&self) -> u32 {
+        self.cumulative_discrimination_gain
+    }
+
+    pub fn cumulative_information_gain(&self) -> u32 {
+        self.cumulative_information_gain
+    }
+
+    pub fn terminal_state(&self) -> &CognitiveStructure {
+        self.steps
+            .last()
+            .expect("sequence plans contain at least one step")
+            .predicted_outcome()
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum ExperimentSequencePlanningStatus {
+    Planned,
+    NoContinuousPlan,
+    CandidateFrontierExceeded,
+    LearningProgressFrontierExceeded,
+    ExpansionFrontierExceeded,
+    ConflictingCandidateIdentity,
+    ConflictingLearningProgressFocus,
+    ConflictingPredictionIdentity,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ExperimentSequencePlanningResult {
+    status: ExperimentSequencePlanningStatus,
+    input_candidate_count: usize,
+    unique_candidate_count: usize,
+    input_learning_progress_count: usize,
+    unique_learning_progress_count: usize,
+    rejected_discrimination_count: usize,
+    expansion_count: usize,
+    plans_before_selection_frontier: usize,
+    plans: Vec<ExperimentSequencePlan>,
+}
+
+impl ExperimentSequencePlanningResult {
+    pub fn status(&self) -> ExperimentSequencePlanningStatus {
+        self.status
+    }
+
+    pub fn input_candidate_count(&self) -> usize {
+        self.input_candidate_count
+    }
+
+    pub fn unique_candidate_count(&self) -> usize {
+        self.unique_candidate_count
+    }
+
+    pub fn input_learning_progress_count(&self) -> usize {
+        self.input_learning_progress_count
+    }
+
+    pub fn unique_learning_progress_count(&self) -> usize {
+        self.unique_learning_progress_count
+    }
+
+    pub fn rejected_discrimination_count(&self) -> usize {
+        self.rejected_discrimination_count
+    }
+
+    pub fn expansion_count(&self) -> usize {
+        self.expansion_count
+    }
+
+    pub fn plans_before_selection_frontier(&self) -> usize {
+        self.plans_before_selection_frontier
+    }
+
+    pub fn plans(&self) -> &[ExperimentSequencePlan] {
+        &self.plans
+    }
+
+    pub fn planned_any(&self) -> bool {
+        !self.plans.is_empty()
+    }
+
+    pub fn abstained(&self) -> bool {
+        !self.planned_any()
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+struct SequenceCandidateEvaluation {
+    candidate: HypothesisDiscriminationCandidate,
+    learning_progress: CognitiveSignal,
+    discrimination_gain: CognitiveSignal,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+struct ExperimentSequenceNode {
+    current_state: CognitiveStructure,
+    steps: Vec<PlannedExperimentStep>,
+    used_experiments: Vec<AutonomousExperimentProposal>,
+    cumulative_learning_progress: u32,
+    cumulative_discrimination_gain: u32,
+    cumulative_information_gain: u32,
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct AutonomousExperimentSequencePlanning;
+
+impl AutonomousExperimentSequencePlanning {
+    fn signal(value: u16) -> CognitiveSignal {
+        if value == 0 {
+            CognitiveSignal::zero()
+        } else {
+            CognitiveSignal::new(value).expect("bounded sequence planning signal")
+        }
+    }
+
+    fn same_experiment_identity(
+        left: &AutonomousExperimentProposal,
+        right: &AutonomousExperimentProposal,
+    ) -> bool {
+        left.source_state() == right.source_state()
+            && left.action() == right.action()
+            && left.predicted_outcome() == right.predicted_outcome()
+    }
+
+    fn discrimination_gain(
+        candidate: &HypothesisDiscriminationCandidate,
+    ) -> Result<CognitiveSignal, ()> {
+        let mut predictions = candidate.predictions().to_vec();
+
+        predictions.sort_by(|left, right| {
+            format!("{:?}", left.hypothesis())
+                .cmp(&format!("{:?}", right.hypothesis()))
+                .then_with(|| {
+                    format!("{:?}", left.predicted_outcome())
+                        .cmp(&format!("{:?}", right.predicted_outcome()))
+                })
+        });
+
+        let mut canonical: Vec<CompetingHypothesisPrediction> = Vec::new();
+
+        for prediction in predictions {
+            if let Some(existing) = canonical
+                .iter()
+                .find(|existing| existing.hypothesis() == prediction.hypothesis())
+            {
+                if existing.predicted_outcome() != prediction.predicted_outcome() {
+                    return Err(());
+                }
+
+                continue;
+            }
+
+            canonical.push(prediction);
+        }
+
+        if canonical.len() < 2 {
+            return Ok(CognitiveSignal::zero());
+        }
+
+        let mut total_pairs = 0usize;
+        let mut disagreeing_pairs = 0usize;
+
+        for left in 0..canonical.len() {
+            for right in (left + 1)..canonical.len() {
+                total_pairs += 1;
+
+                if canonical[left].predicted_outcome() != canonical[right].predicted_outcome() {
+                    disagreeing_pairs += 1;
+                }
+            }
+        }
+
+        if total_pairs == 0 {
+            return Ok(CognitiveSignal::zero());
+        }
+
+        let value = (disagreeing_pairs.saturating_mul(1000) / total_pairs).min(1000) as u16;
+
+        Ok(Self::signal(value))
+    }
+
+    fn evaluation_order(
+        left: &SequenceCandidateEvaluation,
+        right: &SequenceCandidateEvaluation,
+    ) -> std::cmp::Ordering {
+        right
+            .learning_progress
+            .value()
+            .cmp(&left.learning_progress.value())
+            .then_with(|| {
+                right
+                    .discrimination_gain
+                    .value()
+                    .cmp(&left.discrimination_gain.value())
+            })
+            .then_with(|| {
+                right
+                    .candidate
+                    .experiment()
+                    .evidence()
+                    .expected_information_gain()
+                    .value()
+                    .cmp(
+                        &left
+                            .candidate
+                            .experiment()
+                            .evidence()
+                            .expected_information_gain()
+                            .value(),
+                    )
+            })
+            .then_with(|| format!("{:?}", left.candidate).cmp(&format!("{:?}", right.candidate)))
+    }
+
+    fn plan_order(
+        left: &ExperimentSequencePlan,
+        right: &ExperimentSequencePlan,
+    ) -> std::cmp::Ordering {
+        right
+            .cumulative_learning_progress
+            .cmp(&left.cumulative_learning_progress)
+            .then_with(|| {
+                right
+                    .cumulative_discrimination_gain
+                    .cmp(&left.cumulative_discrimination_gain)
+            })
+            .then_with(|| {
+                right
+                    .cumulative_information_gain
+                    .cmp(&left.cumulative_information_gain)
+            })
+            .then_with(|| right.depth().cmp(&left.depth()))
+            .then_with(|| format!("{left:?}").cmp(&format!("{right:?}")))
+    }
+
+    fn empty(
+        status: ExperimentSequencePlanningStatus,
+        input_candidate_count: usize,
+        unique_candidate_count: usize,
+        input_learning_progress_count: usize,
+        unique_learning_progress_count: usize,
+        rejected_discrimination_count: usize,
+        expansion_count: usize,
+    ) -> ExperimentSequencePlanningResult {
+        ExperimentSequencePlanningResult {
+            status,
+            input_candidate_count,
+            unique_candidate_count,
+            input_learning_progress_count,
+            unique_learning_progress_count,
+            rejected_discrimination_count,
+            expansion_count,
+            plans_before_selection_frontier: 0,
+            plans: Vec::new(),
+        }
+    }
+
+    pub fn plan(
+        initial_state: &CognitiveStructure,
+        candidates: &[HypothesisDiscriminationCandidate],
+        learning_progress: &[ExperimentLearningProgressEstimate],
+        policy: ExperimentSequencePlanningPolicy,
+    ) -> ExperimentSequencePlanningResult {
+        let bounds = policy.bounds();
+
+        let input_candidate_count = candidates.len();
+        let input_learning_progress_count = learning_progress.len();
+
+        if input_candidate_count > bounds.max_input_candidates() {
+            return Self::empty(
+                ExperimentSequencePlanningStatus::CandidateFrontierExceeded,
+                input_candidate_count,
+                0,
+                input_learning_progress_count,
+                0,
+                0,
+                0,
+            );
+        }
+
+        if input_learning_progress_count > bounds.max_learning_progress_estimates() {
+            return Self::empty(
+                ExperimentSequencePlanningStatus::LearningProgressFrontierExceeded,
+                input_candidate_count,
+                0,
+                input_learning_progress_count,
+                0,
+                0,
+                0,
+            );
+        }
+
+        let mut canonical_candidates = candidates.to_vec();
+
+        canonical_candidates.sort_by(|left, right| {
+            format!("{:?}", left.experiment().source_state())
+                .cmp(&format!("{:?}", right.experiment().source_state()))
+                .then_with(|| {
+                    format!("{:?}", left.experiment().action())
+                        .cmp(&format!("{:?}", right.experiment().action()))
+                })
+                .then_with(|| {
+                    format!("{:?}", left.experiment().predicted_outcome())
+                        .cmp(&format!("{:?}", right.experiment().predicted_outcome()))
+                })
+                .then_with(|| format!("{left:?}").cmp(&format!("{right:?}")))
+        });
+
+        let mut unique_candidates: Vec<HypothesisDiscriminationCandidate> = Vec::new();
+
+        for candidate in canonical_candidates {
+            if let Some(existing) = unique_candidates.iter().find(|existing| {
+                Self::same_experiment_identity(existing.experiment(), candidate.experiment())
+            }) {
+                if existing != &candidate {
+                    return Self::empty(
+                        ExperimentSequencePlanningStatus::ConflictingCandidateIdentity,
+                        input_candidate_count,
+                        unique_candidates.len(),
+                        input_learning_progress_count,
+                        0,
+                        0,
+                        0,
+                    );
+                }
+
+                continue;
+            }
+
+            unique_candidates.push(candidate);
+        }
+
+        let unique_candidate_count = unique_candidates.len();
+
+        let mut ordered_progress = learning_progress.to_vec();
+
+        ordered_progress.sort_by(|left, right| {
+            format!("{:?}", left.source_state())
+                .cmp(&format!("{:?}", right.source_state()))
+                .then_with(|| format!("{:?}", left.action()).cmp(&format!("{:?}", right.action())))
+                .then_with(|| format!("{left:?}").cmp(&format!("{right:?}")))
+        });
+
+        let mut unique_progress: Vec<ExperimentLearningProgressEstimate> = Vec::new();
+
+        for estimate in ordered_progress {
+            if let Some(existing) = unique_progress.iter().find(|existing| {
+                existing.source_state() == estimate.source_state()
+                    && existing.action() == estimate.action()
+            }) {
+                if existing != &estimate {
+                    return Self::empty(
+                        ExperimentSequencePlanningStatus::ConflictingLearningProgressFocus,
+                        input_candidate_count,
+                        unique_candidate_count,
+                        input_learning_progress_count,
+                        unique_progress.len(),
+                        0,
+                        0,
+                    );
+                }
+
+                continue;
+            }
+
+            unique_progress.push(estimate);
+        }
+
+        let unique_learning_progress_count = unique_progress.len();
+
+        let mut rejected_discrimination_count = 0usize;
+        let mut evaluations = Vec::new();
+
+        for candidate in unique_candidates {
+            let discrimination_gain = match Self::discrimination_gain(&candidate) {
+                Ok(value) => value,
+                Err(()) => {
+                    return Self::empty(
+                        ExperimentSequencePlanningStatus::ConflictingPredictionIdentity,
+                        input_candidate_count,
+                        unique_candidate_count,
+                        input_learning_progress_count,
+                        unique_learning_progress_count,
+                        rejected_discrimination_count,
+                        0,
+                    );
+                }
+            };
+
+            if discrimination_gain.value() < policy.minimum_discrimination_gain().value() {
+                rejected_discrimination_count += 1;
+                continue;
+            }
+
+            let progress = unique_progress
+                .iter()
+                .find(|estimate| {
+                    estimate.source_state() == candidate.experiment().source_state()
+                        && estimate.action() == candidate.experiment().action()
+                })
+                .map(ExperimentLearningProgressEstimate::learning_progress)
+                .unwrap_or_else(CognitiveSignal::zero);
+
+            evaluations.push(SequenceCandidateEvaluation {
+                candidate,
+                learning_progress: progress,
+                discrimination_gain,
+            });
+        }
+
+        evaluations.sort_by(Self::evaluation_order);
+
+        let mut nodes = vec![ExperimentSequenceNode {
+            current_state: initial_state.clone(),
+            steps: Vec::new(),
+            used_experiments: Vec::new(),
+            cumulative_learning_progress: 0,
+            cumulative_discrimination_gain: 0,
+            cumulative_information_gain: 0,
+        }];
+
+        let mut plans = Vec::new();
+        let mut expansion_count = 0usize;
+
+        for _ in 0..bounds.max_plan_depth() {
+            let mut next_nodes = Vec::new();
+
+            for node in nodes {
+                let mut options: Vec<SequenceCandidateEvaluation> = evaluations
+                    .iter()
+                    .filter(|evaluation| {
+                        evaluation.candidate.experiment().source_state() == &node.current_state
+                            && !node.used_experiments.iter().any(|used| {
+                                Self::same_experiment_identity(
+                                    used,
+                                    evaluation.candidate.experiment(),
+                                )
+                            })
+                    })
+                    .cloned()
+                    .collect();
+
+                options.sort_by(Self::evaluation_order);
+
+                for evaluation in options {
+                    if expansion_count >= bounds.max_expansions() {
+                        return Self::empty(
+                            ExperimentSequencePlanningStatus::ExpansionFrontierExceeded,
+                            input_candidate_count,
+                            unique_candidate_count,
+                            input_learning_progress_count,
+                            unique_learning_progress_count,
+                            rejected_discrimination_count,
+                            expansion_count,
+                        );
+                    }
+
+                    expansion_count += 1;
+
+                    let experiment = evaluation.candidate.experiment();
+
+                    let mut steps = node.steps.clone();
+
+                    steps.push(PlannedExperimentStep {
+                        candidate: evaluation.candidate.clone(),
+                        learning_progress: evaluation.learning_progress,
+                        discrimination_gain: evaluation.discrimination_gain,
+                    });
+
+                    let mut used_experiments = node.used_experiments.clone();
+
+                    used_experiments.push(experiment.clone());
+
+                    let learning_sum = node
+                        .cumulative_learning_progress
+                        .saturating_add(u32::from(evaluation.learning_progress.value()));
+
+                    let discrimination_sum = node
+                        .cumulative_discrimination_gain
+                        .saturating_add(u32::from(evaluation.discrimination_gain.value()));
+
+                    let information_sum = node.cumulative_information_gain.saturating_add(
+                        u32::from(experiment.evidence().expected_information_gain().value()),
+                    );
+
+                    let next_state = experiment.predicted_outcome().clone();
+
+                    plans.push(ExperimentSequencePlan {
+                        initial_state: initial_state.clone(),
+                        steps: steps.clone(),
+                        cumulative_learning_progress: learning_sum,
+                        cumulative_discrimination_gain: discrimination_sum,
+                        cumulative_information_gain: information_sum,
+                    });
+
+                    next_nodes.push(ExperimentSequenceNode {
+                        current_state: next_state,
+                        steps,
+                        used_experiments,
+                        cumulative_learning_progress: learning_sum,
+                        cumulative_discrimination_gain: discrimination_sum,
+                        cumulative_information_gain: information_sum,
+                    });
+                }
+            }
+
+            if next_nodes.is_empty() {
+                break;
+            }
+
+            nodes = next_nodes;
+        }
+
+        if plans.is_empty() {
+            return Self::empty(
+                ExperimentSequencePlanningStatus::NoContinuousPlan,
+                input_candidate_count,
+                unique_candidate_count,
+                input_learning_progress_count,
+                unique_learning_progress_count,
+                rejected_discrimination_count,
+                expansion_count,
+            );
+        }
+
+        plans.sort_by(Self::plan_order);
+        plans.dedup();
+
+        let plans_before_selection_frontier = plans.len();
+
+        plans.truncate(bounds.max_selected_plans());
+
+        ExperimentSequencePlanningResult {
+            status: ExperimentSequencePlanningStatus::Planned,
+            input_candidate_count,
+            unique_candidate_count,
+            input_learning_progress_count,
+            unique_learning_progress_count,
+            rejected_discrimination_count,
+            expansion_count,
+            plans_before_selection_frontier,
+            plans,
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct UniversalAutonomousExperimentSequencePlanning;
+
+impl UniversalAutonomousExperimentSequencePlanning {
+    pub fn evaluate(
+        initial_state: &CognitiveStructure,
+        candidates: &[HypothesisDiscriminationCandidate],
+        learning_progress: &[ExperimentLearningProgressEstimate],
+        policy: ExperimentSequencePlanningPolicy,
+    ) -> ExperimentSequencePlanningResult {
+        AutonomousExperimentSequencePlanning::plan(
+            initial_state,
+            candidates,
+            learning_progress,
+            policy,
+        )
+    }
+}
+
+#[cfg(test)]
+mod experiment_sequence_planning_tests {
+    use super::*;
+
+    fn s(value: u16) -> CognitiveSignal {
+        if value == 0 {
+            CognitiveSignal::zero()
+        } else {
+            CognitiveSignal::new(value).unwrap()
+        }
+    }
+
+    fn a(value: u64) -> CognitiveStructure {
+        CognitiveStructure::atom(value)
+    }
+
+    fn p(hypothesis: u64, outcome: u64) -> CompetingHypothesisPrediction {
+        CompetingHypothesisPrediction::new(a(hypothesis), a(outcome), s(900)).unwrap()
+    }
+
+    fn candidate(
+        source: u64,
+        action: u64,
+        outcome: u64,
+        information: u16,
+        predictions: Vec<CompetingHypothesisPrediction>,
+    ) -> HypothesisDiscriminationCandidate {
+        HypothesisDiscriminationCandidate::new(
+            AutonomousExperimentProposal::new(
+                a(source),
+                a(action),
+                a(outcome),
+                ExperimentEvidence::new(s(800), s(information), s(900), s(900), s(100)).unwrap(),
+            ),
+            predictions,
+        )
+        .unwrap()
+    }
+
+    fn two_way(
+        source: u64,
+        action: u64,
+        outcome: u64,
+        information: u16,
+    ) -> HypothesisDiscriminationCandidate {
+        candidate(
+            source,
+            action,
+            outcome,
+            information,
+            vec![p(1, 100), p(2, 101)],
+        )
+    }
+
+    fn progress(state: u64, action: u64, value: u16) -> ExperimentLearningProgressEstimate {
+        ExperimentLearningProgressEstimate {
+            source_state: a(state),
+            action: a(action),
+            qualifying_sample_count: 2,
+            mean_error_reduction: s(value),
+            mean_uncertainty_reduction: s(value),
+            mean_evidence_confidence: s(900),
+            learning_progress: s(value),
+        }
+    }
+
+    fn policy() -> ExperimentSequencePlanningPolicy {
+        ExperimentSequencePlanningPolicy::new(
+            ExperimentSequencePlanningBounds::new(16, 16, 4, 64, 8).unwrap(),
+            s(500),
+        )
+        .unwrap()
+    }
+
+    #[test]
+    fn sequence_policy_requires_positive_hard_bounds_and_discrimination_gate() {
+        assert_eq!(ExperimentSequencePlanningBounds::new(0, 1, 1, 1, 1), None);
+
+        assert_eq!(
+            ExperimentSequencePlanningPolicy::new(
+                ExperimentSequencePlanningBounds::new(1, 1, 1, 1, 1).unwrap(),
+                s(0),
+            ),
+            None
+        );
+    }
+
+    #[test]
+    fn exact_predicted_state_continuity_builds_multi_step_experiment_sequence() {
+        let first = two_way(1, 10, 2, 800);
+
+        let second = two_way(2, 20, 3, 800);
+
+        let result =
+            AutonomousExperimentSequencePlanning::plan(&a(1), &[first, second], &[], policy());
+
+        assert_eq!(result.status(), ExperimentSequencePlanningStatus::Planned);
+
+        assert_eq!(result.plans()[0].depth(), 2);
+
+        assert_eq!(result.plans()[0].initial_state(), &a(1));
+
+        assert_eq!(result.plans()[0].terminal_state(), &a(3));
+    }
+
+    #[test]
+    fn disconnected_candidate_cannot_be_spliced_into_sequence() {
+        let first = two_way(1, 10, 2, 800);
+
+        let disconnected = two_way(99, 20, 3, 1000);
+
+        let result = AutonomousExperimentSequencePlanning::plan(
+            &a(1),
+            &[first, disconnected],
+            &[],
+            policy(),
+        );
+
+        assert_eq!(result.plans()[0].depth(), 1);
+
+        assert_eq!(result.plans()[0].terminal_state(), &a(2));
+    }
+
+    #[test]
+    fn measured_learning_progress_ranks_before_generic_information_value() {
+        let high_information = two_way(1, 10, 2, 1000);
+
+        let learning = two_way(1, 11, 3, 600);
+
+        let bounded = ExperimentSequencePlanningPolicy::new(
+            ExperimentSequencePlanningBounds::new(16, 16, 1, 32, 8).unwrap(),
+            s(500),
+        )
+        .unwrap();
+
+        let result = AutonomousExperimentSequencePlanning::plan(
+            &a(1),
+            &[high_information, learning],
+            &[progress(1, 11, 300)],
+            bounded,
+        );
+
+        assert_eq!(result.plans()[0].steps()[0].action(), &a(11));
+
+        assert_eq!(result.plans()[0].steps()[0].learning_progress(), s(300));
+    }
+
+    #[test]
+    fn discrimination_gain_ranks_before_information_when_progress_is_equal() {
+        let partial = candidate(1, 10, 2, 1000, vec![p(1, 100), p(2, 100), p(3, 101)]);
+
+        let full = candidate(1, 11, 3, 600, vec![p(1, 110), p(2, 111)]);
+
+        let bounded = ExperimentSequencePlanningPolicy::new(
+            ExperimentSequencePlanningBounds::new(16, 16, 1, 32, 8).unwrap(),
+            s(500),
+        )
+        .unwrap();
+
+        let result =
+            AutonomousExperimentSequencePlanning::plan(&a(1), &[partial, full], &[], bounded);
+
+        assert_eq!(result.plans()[0].steps()[0].action(), &a(11));
+
+        assert_eq!(result.plans()[0].steps()[0].discrimination_gain(), s(1000));
+    }
+
+    #[test]
+    fn exact_duplicate_candidate_is_deduplicated_without_fake_branching() {
+        let item = two_way(1, 10, 2, 800);
+
+        let result =
+            AutonomousExperimentSequencePlanning::plan(&a(1), &[item.clone(), item], &[], policy());
+
+        assert_eq!(result.input_candidate_count(), 2);
+
+        assert_eq!(result.unique_candidate_count(), 1);
+
+        assert_eq!(result.expansion_count(), 1);
+    }
+
+    #[test]
+    fn conflicting_semantic_experiment_identity_abstains_atomically() {
+        let first = two_way(1, 10, 2, 700);
+
+        let second = two_way(1, 10, 2, 900);
+
+        let result =
+            AutonomousExperimentSequencePlanning::plan(&a(1), &[first, second], &[], policy());
+
+        assert_eq!(
+            result.status(),
+            ExperimentSequencePlanningStatus::ConflictingCandidateIdentity
+        );
+
+        assert!(result.plans().is_empty());
+    }
+
+    #[test]
+    fn conflicting_learning_progress_focus_abstains_atomically() {
+        let result = AutonomousExperimentSequencePlanning::plan(
+            &a(1),
+            &[two_way(1, 10, 2, 800)],
+            &[progress(1, 10, 200), progress(1, 10, 300)],
+            policy(),
+        );
+
+        assert_eq!(
+            result.status(),
+            ExperimentSequencePlanningStatus::ConflictingLearningProgressFocus
+        );
+
+        assert!(result.abstained());
+    }
+
+    #[test]
+    fn contradictory_prediction_identity_abstains_before_planning() {
+        let conflicting = candidate(1, 10, 2, 900, vec![p(1, 100), p(1, 101), p(2, 102)]);
+
+        let result =
+            AutonomousExperimentSequencePlanning::plan(&a(1), &[conflicting], &[], policy());
+
+        assert_eq!(
+            result.status(),
+            ExperimentSequencePlanningStatus::ConflictingPredictionIdentity
+        );
+
+        assert!(result.abstained());
+    }
+
+    #[test]
+    fn exact_experiment_cannot_repeat_forever_inside_cycle() {
+        let cycle = two_way(1, 10, 1, 900);
+
+        let result = AutonomousExperimentSequencePlanning::plan(&a(1), &[cycle], &[], policy());
+
+        assert_eq!(result.plans()[0].depth(), 1);
+
+        assert_eq!(result.expansion_count(), 1);
+    }
+
+    #[test]
+    fn candidate_progress_depth_expansion_and_plan_frontiers_are_hard_bounded() {
+        let item = two_way(1, 10, 2, 900);
+
+        let candidate_bound = ExperimentSequencePlanningPolicy::new(
+            ExperimentSequencePlanningBounds::new(1, 16, 4, 64, 8).unwrap(),
+            s(500),
+        )
+        .unwrap();
+
+        let candidate_result = AutonomousExperimentSequencePlanning::plan(
+            &a(1),
+            &[item.clone(), two_way(1, 11, 3, 900)],
+            &[],
+            candidate_bound,
+        );
+
+        assert_eq!(
+            candidate_result.status(),
+            ExperimentSequencePlanningStatus::CandidateFrontierExceeded
+        );
+
+        let progress_bound = ExperimentSequencePlanningPolicy::new(
+            ExperimentSequencePlanningBounds::new(16, 1, 4, 64, 8).unwrap(),
+            s(500),
+        )
+        .unwrap();
+
+        let progress_result = AutonomousExperimentSequencePlanning::plan(
+            &a(1),
+            std::slice::from_ref(&item),
+            &[progress(1, 10, 100), progress(2, 20, 100)],
+            progress_bound,
+        );
+
+        assert_eq!(
+            progress_result.status(),
+            ExperimentSequencePlanningStatus::LearningProgressFrontierExceeded
+        );
+
+        let expansion_bound = ExperimentSequencePlanningPolicy::new(
+            ExperimentSequencePlanningBounds::new(16, 16, 4, 1, 8).unwrap(),
+            s(500),
+        )
+        .unwrap();
+
+        let expansion_result = AutonomousExperimentSequencePlanning::plan(
+            &a(1),
+            &[item.clone(), two_way(1, 11, 3, 900)],
+            &[],
+            expansion_bound,
+        );
+
+        assert_eq!(
+            expansion_result.status(),
+            ExperimentSequencePlanningStatus::ExpansionFrontierExceeded
+        );
+
+        assert!(expansion_result.abstained());
+
+        let depth_bound = ExperimentSequencePlanningPolicy::new(
+            ExperimentSequencePlanningBounds::new(16, 16, 1, 64, 1).unwrap(),
+            s(500),
+        )
+        .unwrap();
+
+        let depth_result = AutonomousExperimentSequencePlanning::plan(
+            &a(1),
+            &[item, two_way(2, 20, 3, 900), two_way(1, 11, 4, 800)],
+            &[],
+            depth_bound,
+        );
+
+        assert_eq!(depth_result.plans().len(), 1);
+
+        assert_eq!(depth_result.plans()[0].depth(), 1);
+
+        assert!(depth_result.plans_before_selection_frontier() >= 2);
+    }
+
+    #[test]
+    fn sequence_planning_is_order_invariant_non_mutating_and_facade_equivalent() {
+        let candidates = vec![
+            two_way(1, 10, 2, 800),
+            two_way(1, 11, 3, 700),
+            two_way(2, 20, 4, 800),
+        ];
+
+        let progress_values = vec![
+            progress(1, 10, 200),
+            progress(1, 11, 100),
+            progress(2, 20, 300),
+        ];
+
+        let before_candidates = candidates.clone();
+
+        let before_progress = progress_values.clone();
+
+        let mut reversed_candidates = candidates.clone();
+
+        reversed_candidates.reverse();
+
+        let mut reversed_progress = progress_values.clone();
+
+        reversed_progress.reverse();
+
+        let p = policy();
+
+        let direct =
+            AutonomousExperimentSequencePlanning::plan(&a(1), &candidates, &progress_values, p);
+
+        let reordered = AutonomousExperimentSequencePlanning::plan(
+            &a(1),
+            &reversed_candidates,
+            &reversed_progress,
+            p,
+        );
+
+        let facade = UniversalAutonomousExperimentSequencePlanning::evaluate(
+            &a(1),
+            &candidates,
+            &progress_values,
+            p,
+        );
+
+        let repeated = UniversalAutonomousExperimentSequencePlanning::evaluate(
+            &a(1),
+            &candidates,
+            &progress_values,
+            p,
+        );
+
+        assert_eq!(direct, reordered);
+        assert_eq!(direct, facade);
+        assert_eq!(facade, repeated);
+        assert_eq!(candidates, before_candidates);
+        assert_eq!(progress_values, before_progress);
+    }
+}
