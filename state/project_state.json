@@ -52,11 +52,12 @@
     "crates/athlesia_hierarchy/tests/hierarchy_recognition.rs": "bc7fe6ac289f8697e65b2ebe9aab179ae0cdb2db655fed18afae454bf2132841",
     "crates/athlesia_meta_learning_skill_memory/Cargo.lock": "641aac08044b700a765d2e6a93508989365f97801ae817d73c69c3c99c00506d",
     "crates/athlesia_meta_learning_skill_memory/Cargo.toml": "3ecb2ef81d5a7d2e6eb902981ff7fe2a1446969521a0544a22bb0ba360954265",
-    "crates/athlesia_meta_learning_skill_memory/src/lib.rs": "18311d76c4a45520574988a79c9560c294a88587bf96e36466b970121b8e7c82",
+    "crates/athlesia_meta_learning_skill_memory/src/lib.rs": "69e1d700fe507eebce3c83924b82215c5b5f24c63315f3f0e3c5c39f39c187a0",
     "crates/athlesia_meta_learning_skill_memory/tests/meta_learning_cross_context_skill_generalization.rs": "1d2c3337a2c8f1cd3a296cd5b8d43d9f1cb9d4c87c7f8cce10ef02131e66b72d",
     "crates/athlesia_meta_learning_skill_memory/tests/meta_learning_repeated_skill_candidate_discovery.rs": "94003729f2ffd64425216b6d947f3cd678af993fd982c26bcaaaa5577c39a808",
     "crates/athlesia_meta_learning_skill_memory/tests/meta_learning_skill_compression.rs": "d7482d0221a10b7d7d95dd0fb49fdd4c897af01292d1121e5519091b694c9c02",
     "crates/athlesia_meta_learning_skill_memory/tests/meta_learning_skill_memory_foundation.rs": "a3bd6e23372dc7615e8d0cd24bd103a8127ac796abf9e9d26fde79ee73d3d2c0",
+    "crates/athlesia_meta_learning_skill_memory/tests/meta_learning_skill_retrieval_and_reuse.rs": "81918a4b3634fd4bdfaee8fc59650795e66e88d665cab5bbf64fc25956aad16b",
     "crates/athlesia_meta_learning_skill_memory/tests/meta_learning_skill_structural_abstraction_induction.rs": "d76a172b432ad297eebb5ce98d24a0c50834477e84caa56aa136ec6299131309",
     "crates/athlesia_mindstone_sparse_cognition/Cargo.lock": "d67e0a5b9f7be917468be052c0febda5861b9c25ce92228c287ab0181d3fb201",
     "crates/athlesia_mindstone_sparse_cognition/Cargo.toml": "5cf3f615255e7419fa2240e54b4f49e9a4cc45d5b142a545fb856a66fc43f401",
@@ -588,7 +589,8 @@
       "module_49_meta_learning_repeated_skill_candidate_discovery",
       "module_49_meta_learning_skill_structural_abstraction_induction",
       "module_49_meta_learning_cross_context_skill_generalization",
-      "module_49_meta_learning_skill_compression"
+      "module_49_meta_learning_skill_compression",
+      "module_49_meta_learning_skill_retrieval_and_reuse"
     ],
     "module_23_integrity": {
       "status": "pass",
@@ -601,8 +603,8 @@
       "status": "frozen",
       "verifier": "tools/verify_module_23_parity.py"
     },
-    "next_layer": "module_49_meta_learning_skill_retrieval_and_reuse",
-    "stage": "module_49_meta_learning_skill_compression",
+    "next_layer": "module_49_meta_learning_skill_outcome_feedback_and_revision",
+    "stage": "module_49_meta_learning_skill_retrieval_and_reuse",
     "status": "validated"
   },
   "validated_invariants": [
@@ -2913,6 +2915,18 @@
     "meta_learning_skill_compression_support_gate",
     "meta_learning_skill_compression_distinct_schema_preservation",
     "meta_learning_skill_compression_hard_frontiers",
-    "meta_learning_skill_compression_deterministic_facade_equivalence"
+    "meta_learning_skill_compression_deterministic_facade_equivalence",
+    "meta_learning_skill_reuse_positive_policy_and_binding_contract",
+    "meta_learning_skill_reuse_exact_invariant_goal_grounding",
+    "meta_learning_skill_reuse_initial_state_anchor_inference",
+    "meta_learning_skill_reuse_context_goal_slot_grounding",
+    "meta_learning_skill_reuse_conflicting_binding_rejection",
+    "meta_learning_skill_reuse_binding_confidence_gate",
+    "meta_learning_skill_reuse_unresolved_slot_abstention",
+    "meta_learning_skill_reuse_exact_goal_mismatch_rejection",
+    "meta_learning_skill_reuse_ordered_state_continuous_plan",
+    "meta_learning_skill_reuse_stronger_duplicate_provenance",
+    "meta_learning_skill_reuse_hard_frontiers",
+    "meta_learning_skill_reuse_deterministic_facade_equivalence"
   ]
 }

@@ -2448,3 +2448,793 @@ impl UniversalLossControlledSkillCompression {
         LossControlledSkillCompression::compress_all(generalizations, policy)
     }
 }
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum SkillReuseSlotKind {
+    Structural,
+    Context,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct GroundedSkillSlotBinding {
+    kind: SkillReuseSlotKind,
+    slot_id: usize,
+    value: CognitiveStructure,
+    evidence_confidence: CognitiveSignal,
+}
+
+impl GroundedSkillSlotBinding {
+    pub fn new(
+        kind: SkillReuseSlotKind,
+        slot_id: usize,
+        value: CognitiveStructure,
+        evidence_confidence: CognitiveSignal,
+    ) -> Option<Self> {
+        if evidence_confidence == CognitiveSignal::zero() {
+            return None;
+        }
+
+        Some(Self {
+            kind,
+            slot_id,
+            value,
+            evidence_confidence,
+        })
+    }
+
+    pub fn kind(&self) -> SkillReuseSlotKind {
+        self.kind
+    }
+
+    pub fn slot_id(&self) -> usize {
+        self.slot_id
+    }
+
+    pub fn value(&self) -> &CognitiveStructure {
+        &self.value
+    }
+
+    pub fn evidence_confidence(&self) -> CognitiveSignal {
+        self.evidence_confidence
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct GroundedSkillReuseRequest {
+    current_state: CognitiveStructure,
+    goal_identity: CognitiveStructure,
+    bindings: Vec<GroundedSkillSlotBinding>,
+}
+
+impl GroundedSkillReuseRequest {
+    pub fn new(
+        current_state: CognitiveStructure,
+        goal_identity: CognitiveStructure,
+        bindings: Vec<GroundedSkillSlotBinding>,
+    ) -> Self {
+        Self {
+            current_state,
+            goal_identity,
+            bindings,
+        }
+    }
+
+    pub fn current_state(&self) -> &CognitiveStructure {
+        &self.current_state
+    }
+
+    pub fn goal_identity(&self) -> &CognitiveStructure {
+        &self.goal_identity
+    }
+
+    pub fn bindings(&self) -> &[GroundedSkillSlotBinding] {
+        &self.bindings
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct SkillReuseBounds {
+    max_input_records: usize,
+    max_record_evaluations: usize,
+    max_bindings: usize,
+    max_steps: usize,
+    max_selected_plans: usize,
+}
+
+impl SkillReuseBounds {
+    pub fn new(
+        max_input_records: usize,
+        max_record_evaluations: usize,
+        max_bindings: usize,
+        max_steps: usize,
+        max_selected_plans: usize,
+    ) -> Option<Self> {
+        if max_input_records == 0
+            || max_record_evaluations == 0
+            || max_bindings == 0
+            || max_steps == 0
+            || max_selected_plans == 0
+        {
+            return None;
+        }
+
+        Some(Self {
+            max_input_records,
+            max_record_evaluations,
+            max_bindings,
+            max_steps,
+            max_selected_plans,
+        })
+    }
+
+    pub fn max_input_records(self) -> usize {
+        self.max_input_records
+    }
+
+    pub fn max_record_evaluations(self) -> usize {
+        self.max_record_evaluations
+    }
+
+    pub fn max_bindings(self) -> usize {
+        self.max_bindings
+    }
+
+    pub fn max_steps(self) -> usize {
+        self.max_steps
+    }
+
+    pub fn max_selected_plans(self) -> usize {
+        self.max_selected_plans
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct SkillReuseThresholds {
+    minimum_source_generalization_count: usize,
+    minimum_source_support_sum: usize,
+    minimum_success_confidence: CognitiveSignal,
+    minimum_step_confidence: CognitiveSignal,
+    minimum_binding_confidence: CognitiveSignal,
+}
+
+impl SkillReuseThresholds {
+    pub fn new(
+        minimum_source_generalization_count: usize,
+        minimum_source_support_sum: usize,
+        minimum_success_confidence: CognitiveSignal,
+        minimum_step_confidence: CognitiveSignal,
+        minimum_binding_confidence: CognitiveSignal,
+    ) -> Option<Self> {
+        if minimum_source_generalization_count == 0
+            || minimum_source_support_sum == 0
+            || minimum_success_confidence == CognitiveSignal::zero()
+            || minimum_step_confidence == CognitiveSignal::zero()
+            || minimum_binding_confidence == CognitiveSignal::zero()
+        {
+            return None;
+        }
+
+        Some(Self {
+            minimum_source_generalization_count,
+            minimum_source_support_sum,
+            minimum_success_confidence,
+            minimum_step_confidence,
+            minimum_binding_confidence,
+        })
+    }
+
+    pub fn minimum_source_generalization_count(self) -> usize {
+        self.minimum_source_generalization_count
+    }
+
+    pub fn minimum_source_support_sum(self) -> usize {
+        self.minimum_source_support_sum
+    }
+
+    pub fn minimum_success_confidence(self) -> CognitiveSignal {
+        self.minimum_success_confidence
+    }
+
+    pub fn minimum_step_confidence(self) -> CognitiveSignal {
+        self.minimum_step_confidence
+    }
+
+    pub fn minimum_binding_confidence(self) -> CognitiveSignal {
+        self.minimum_binding_confidence
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct SkillReusePolicy {
+    bounds: SkillReuseBounds,
+    thresholds: SkillReuseThresholds,
+}
+
+impl SkillReusePolicy {
+    pub fn new(bounds: SkillReuseBounds, thresholds: SkillReuseThresholds) -> Self {
+        Self { bounds, thresholds }
+    }
+
+    pub fn bounds(self) -> SkillReuseBounds {
+        self.bounds
+    }
+
+    pub fn thresholds(self) -> SkillReuseThresholds {
+        self.thresholds
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct GroundedReusableSkillStep {
+    required_state: CognitiveStructure,
+    action: CognitiveStructure,
+    predicted_outcome: CognitiveStructure,
+}
+
+impl GroundedReusableSkillStep {
+    pub fn required_state(&self) -> &CognitiveStructure {
+        &self.required_state
+    }
+
+    pub fn action(&self) -> &CognitiveStructure {
+        &self.action
+    }
+
+    pub fn predicted_outcome(&self) -> &CognitiveStructure {
+        &self.predicted_outcome
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct GroundedSkillReusePlan {
+    source_record: CompressedSkillRecord,
+    initial_state: CognitiveStructure,
+    goal_identity: CognitiveStructure,
+    steps: Vec<GroundedReusableSkillStep>,
+    effective_confidence_floor: CognitiveSignal,
+}
+
+impl GroundedSkillReusePlan {
+    pub fn source_record(&self) -> &CompressedSkillRecord {
+        &self.source_record
+    }
+
+    pub fn initial_state(&self) -> &CognitiveStructure {
+        &self.initial_state
+    }
+
+    pub fn goal_identity(&self) -> &CognitiveStructure {
+        &self.goal_identity
+    }
+
+    pub fn steps(&self) -> &[GroundedReusableSkillStep] {
+        &self.steps
+    }
+
+    pub fn step_count(&self) -> usize {
+        self.steps.len()
+    }
+
+    pub fn first_step(&self) -> Option<&GroundedReusableSkillStep> {
+        self.steps.first()
+    }
+
+    pub fn effective_confidence_floor(&self) -> CognitiveSignal {
+        self.effective_confidence_floor
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct SkillRetrievalReuseResult {
+    input_record_count: usize,
+    unique_record_count: usize,
+    considered_record_count: usize,
+    record_frontier_truncated: bool,
+    evaluation_count: usize,
+    evaluation_frontier_truncated: bool,
+    binding_frontier_exceeded: bool,
+    binding_conflict: bool,
+    binding_threshold_failed: bool,
+    rejected_support_count: usize,
+    rejected_step_bound_count: usize,
+    rejected_evidence_count: usize,
+    rejected_anchor_mismatch_count: usize,
+    rejected_unresolved_count: usize,
+    rejected_continuity_count: usize,
+    plans_before_frontier: usize,
+    plan_frontier_truncated: bool,
+    plans: Vec<GroundedSkillReusePlan>,
+}
+
+impl SkillRetrievalReuseResult {
+    pub fn input_record_count(&self) -> usize {
+        self.input_record_count
+    }
+    pub fn unique_record_count(&self) -> usize {
+        self.unique_record_count
+    }
+    pub fn considered_record_count(&self) -> usize {
+        self.considered_record_count
+    }
+    pub fn record_frontier_truncated(&self) -> bool {
+        self.record_frontier_truncated
+    }
+    pub fn evaluation_count(&self) -> usize {
+        self.evaluation_count
+    }
+    pub fn evaluation_frontier_truncated(&self) -> bool {
+        self.evaluation_frontier_truncated
+    }
+    pub fn binding_frontier_exceeded(&self) -> bool {
+        self.binding_frontier_exceeded
+    }
+    pub fn binding_conflict(&self) -> bool {
+        self.binding_conflict
+    }
+    pub fn binding_threshold_failed(&self) -> bool {
+        self.binding_threshold_failed
+    }
+    pub fn rejected_support_count(&self) -> usize {
+        self.rejected_support_count
+    }
+    pub fn rejected_step_bound_count(&self) -> usize {
+        self.rejected_step_bound_count
+    }
+    pub fn rejected_evidence_count(&self) -> usize {
+        self.rejected_evidence_count
+    }
+    pub fn rejected_anchor_mismatch_count(&self) -> usize {
+        self.rejected_anchor_mismatch_count
+    }
+    pub fn rejected_unresolved_count(&self) -> usize {
+        self.rejected_unresolved_count
+    }
+    pub fn rejected_continuity_count(&self) -> usize {
+        self.rejected_continuity_count
+    }
+    pub fn plans_before_frontier(&self) -> usize {
+        self.plans_before_frontier
+    }
+    pub fn plan_frontier_truncated(&self) -> bool {
+        self.plan_frontier_truncated
+    }
+    pub fn plans(&self) -> &[GroundedSkillReusePlan] {
+        &self.plans
+    }
+    pub fn plan_count(&self) -> usize {
+        self.plans.len()
+    }
+    pub fn abstained(&self) -> bool {
+        self.plans.is_empty()
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct SkillRetrievalAndReuse;
+
+impl SkillRetrievalAndReuse {
+    fn floor(left: CognitiveSignal, right: CognitiveSignal) -> CognitiveSignal {
+        if left.value() <= right.value() {
+            left
+        } else {
+            right
+        }
+    }
+
+    fn same_semantics(left: &CompressedSkillRecord, right: &CompressedSkillRecord) -> bool {
+        left.invariant_dictionary() == right.invariant_dictionary()
+            && left.initial_state() == right.initial_state()
+            && left.goal_identity() == right.goal_identity()
+            && left.steps() == right.steps()
+            && left.structural_slot_count() == right.structural_slot_count()
+            && left.context_slot_count() == right.context_slot_count()
+    }
+
+    fn record_order(
+        left: &CompressedSkillRecord,
+        right: &CompressedSkillRecord,
+    ) -> std::cmp::Ordering {
+        right
+            .source_generalization_count()
+            .cmp(&left.source_generalization_count())
+            .then_with(|| right.source_support_sum().cmp(&left.source_support_sum()))
+            .then_with(|| {
+                right
+                    .success_confidence_floor()
+                    .value()
+                    .cmp(&left.success_confidence_floor().value())
+            })
+            .then_with(|| {
+                right
+                    .step_confidence_floor()
+                    .value()
+                    .cmp(&left.step_confidence_floor().value())
+            })
+            .then_with(|| right.compression_gain().cmp(&left.compression_gain()))
+            .then_with(|| format!("{left:?}").cmp(&format!("{right:?}")))
+    }
+
+    fn insert_binding(
+        map: &mut Vec<(usize, CognitiveStructure)>,
+        id: usize,
+        value: &CognitiveStructure,
+    ) -> bool {
+        if let Some((_, existing)) = map.iter().find(|(slot, _)| *slot == id) {
+            return existing == value;
+        }
+
+        map.push((id, value.clone()));
+        true
+    }
+
+    fn resolve(
+        record: &CompressedSkillRecord,
+        term: &CompressedSkillTerm,
+        structural: &[(usize, CognitiveStructure)],
+        context: &[(usize, CognitiveStructure)],
+    ) -> Option<CognitiveStructure> {
+        match term {
+            CompressedSkillTerm::InvariantRef(index) => {
+                record.invariant_dictionary().get(*index).cloned()
+            }
+            CompressedSkillTerm::StructuralSlot(id) => structural
+                .iter()
+                .find(|(slot, _)| slot == id)
+                .map(|(_, value)| value.clone()),
+            CompressedSkillTerm::ContextSlot(id) => context
+                .iter()
+                .find(|(slot, _)| slot == id)
+                .map(|(_, value)| value.clone()),
+        }
+    }
+
+    fn bind_anchor(
+        record: &CompressedSkillRecord,
+        term: &CompressedSkillTerm,
+        value: &CognitiveStructure,
+        structural: &mut Vec<(usize, CognitiveStructure)>,
+        context: &mut Vec<(usize, CognitiveStructure)>,
+    ) -> bool {
+        match term {
+            CompressedSkillTerm::InvariantRef(index) => record
+                .invariant_dictionary()
+                .get(*index)
+                .is_some_and(|invariant| invariant == value),
+            CompressedSkillTerm::StructuralSlot(id) => Self::insert_binding(structural, *id, value),
+            CompressedSkillTerm::ContextSlot(id) => Self::insert_binding(context, *id, value),
+        }
+    }
+
+    fn plan_order(
+        left: &GroundedSkillReusePlan,
+        right: &GroundedSkillReusePlan,
+    ) -> std::cmp::Ordering {
+        right
+            .source_record()
+            .source_generalization_count()
+            .cmp(&left.source_record().source_generalization_count())
+            .then_with(|| {
+                right
+                    .source_record()
+                    .source_support_sum()
+                    .cmp(&left.source_record().source_support_sum())
+            })
+            .then_with(|| {
+                right
+                    .effective_confidence_floor()
+                    .value()
+                    .cmp(&left.effective_confidence_floor().value())
+            })
+            .then_with(|| {
+                right
+                    .source_record()
+                    .compression_gain()
+                    .cmp(&left.source_record().compression_gain())
+            })
+            .then_with(|| format!("{left:?}").cmp(&format!("{right:?}")))
+    }
+
+    pub fn retrieve(
+        records: &[CompressedSkillRecord],
+        request: &GroundedSkillReuseRequest,
+        policy: SkillReusePolicy,
+    ) -> SkillRetrievalReuseResult {
+        let bounds = policy.bounds();
+        let thresholds = policy.thresholds();
+
+        let input_record_count = records.len();
+
+        if request.bindings().len() > bounds.max_bindings() {
+            return SkillRetrievalReuseResult {
+                input_record_count,
+                unique_record_count: 0,
+                considered_record_count: 0,
+                record_frontier_truncated: false,
+                evaluation_count: 0,
+                evaluation_frontier_truncated: false,
+                binding_frontier_exceeded: true,
+                binding_conflict: false,
+                binding_threshold_failed: false,
+                rejected_support_count: 0,
+                rejected_step_bound_count: 0,
+                rejected_evidence_count: 0,
+                rejected_anchor_mismatch_count: 0,
+                rejected_unresolved_count: 0,
+                rejected_continuity_count: 0,
+                plans_before_frontier: 0,
+                plan_frontier_truncated: false,
+                plans: Vec::new(),
+            };
+        }
+
+        let mut structural = Vec::new();
+        let mut context = Vec::new();
+        let mut binding_floor: Option<CognitiveSignal> = None;
+
+        for binding in request.bindings() {
+            if binding.evidence_confidence().value()
+                < thresholds.minimum_binding_confidence().value()
+            {
+                return SkillRetrievalReuseResult {
+                    input_record_count,
+                    unique_record_count: 0,
+                    considered_record_count: 0,
+                    record_frontier_truncated: false,
+                    evaluation_count: 0,
+                    evaluation_frontier_truncated: false,
+                    binding_frontier_exceeded: false,
+                    binding_conflict: false,
+                    binding_threshold_failed: true,
+                    rejected_support_count: 0,
+                    rejected_step_bound_count: 0,
+                    rejected_evidence_count: 0,
+                    rejected_anchor_mismatch_count: 0,
+                    rejected_unresolved_count: 0,
+                    rejected_continuity_count: 0,
+                    plans_before_frontier: 0,
+                    plan_frontier_truncated: false,
+                    plans: Vec::new(),
+                };
+            }
+
+            binding_floor = Some(match binding_floor {
+                Some(current) => Self::floor(current, binding.evidence_confidence()),
+                None => binding.evidence_confidence(),
+            });
+
+            let target = match binding.kind() {
+                SkillReuseSlotKind::Structural => &mut structural,
+                SkillReuseSlotKind::Context => &mut context,
+            };
+
+            if !Self::insert_binding(target, binding.slot_id(), binding.value()) {
+                return SkillRetrievalReuseResult {
+                    input_record_count,
+                    unique_record_count: 0,
+                    considered_record_count: 0,
+                    record_frontier_truncated: false,
+                    evaluation_count: 0,
+                    evaluation_frontier_truncated: false,
+                    binding_frontier_exceeded: false,
+                    binding_conflict: true,
+                    binding_threshold_failed: false,
+                    rejected_support_count: 0,
+                    rejected_step_bound_count: 0,
+                    rejected_evidence_count: 0,
+                    rejected_anchor_mismatch_count: 0,
+                    rejected_unresolved_count: 0,
+                    rejected_continuity_count: 0,
+                    plans_before_frontier: 0,
+                    plan_frontier_truncated: false,
+                    plans: Vec::new(),
+                };
+            }
+        }
+
+        let mut ranked = records.to_vec();
+        ranked.sort_by(Self::record_order);
+        ranked.dedup_by(|a, b| Self::same_semantics(a, b));
+
+        let unique_record_count = ranked.len();
+
+        ranked.truncate(bounds.max_input_records());
+        let considered_record_count = ranked.len();
+
+        let mut evaluation_count = 0;
+        let mut evaluation_frontier_truncated = false;
+        let mut rejected_support_count = 0;
+        let mut rejected_step_bound_count = 0;
+        let mut rejected_evidence_count = 0;
+        let mut rejected_anchor_mismatch_count = 0;
+        let mut rejected_unresolved_count = 0;
+        let mut rejected_continuity_count = 0;
+        let mut plans = Vec::new();
+
+        for record in ranked {
+            if evaluation_count >= bounds.max_record_evaluations() {
+                evaluation_frontier_truncated = true;
+                break;
+            }
+
+            evaluation_count += 1;
+
+            if record.source_generalization_count()
+                < thresholds.minimum_source_generalization_count()
+                || record.source_support_sum() < thresholds.minimum_source_support_sum()
+            {
+                rejected_support_count += 1;
+                continue;
+            }
+
+            if record.step_count() > bounds.max_steps() {
+                rejected_step_bound_count += 1;
+                continue;
+            }
+
+            if record.success_confidence_floor().value()
+                < thresholds.minimum_success_confidence().value()
+                || record.step_confidence_floor().value()
+                    < thresholds.minimum_step_confidence().value()
+            {
+                rejected_evidence_count += 1;
+                continue;
+            }
+
+            let mut local_structural = structural.clone();
+            let mut local_context = context.clone();
+
+            if !Self::bind_anchor(
+                &record,
+                record.initial_state(),
+                request.current_state(),
+                &mut local_structural,
+                &mut local_context,
+            ) || !Self::bind_anchor(
+                &record,
+                record.goal_identity(),
+                request.goal_identity(),
+                &mut local_structural,
+                &mut local_context,
+            ) {
+                rejected_anchor_mismatch_count += 1;
+                continue;
+            }
+
+            let Some(initial_state) = Self::resolve(
+                &record,
+                record.initial_state(),
+                &local_structural,
+                &local_context,
+            ) else {
+                rejected_unresolved_count += 1;
+                continue;
+            };
+
+            let Some(goal_identity) = Self::resolve(
+                &record,
+                record.goal_identity(),
+                &local_structural,
+                &local_context,
+            ) else {
+                rejected_unresolved_count += 1;
+                continue;
+            };
+
+            let mut steps = Vec::new();
+            let mut unresolved = false;
+
+            for step in record.steps() {
+                let Some(required_state) = Self::resolve(
+                    &record,
+                    step.required_state(),
+                    &local_structural,
+                    &local_context,
+                ) else {
+                    unresolved = true;
+                    break;
+                };
+
+                let Some(action) =
+                    Self::resolve(&record, step.action(), &local_structural, &local_context)
+                else {
+                    unresolved = true;
+                    break;
+                };
+
+                let Some(predicted_outcome) = Self::resolve(
+                    &record,
+                    step.observed_outcome(),
+                    &local_structural,
+                    &local_context,
+                ) else {
+                    unresolved = true;
+                    break;
+                };
+
+                steps.push(GroundedReusableSkillStep {
+                    required_state,
+                    action,
+                    predicted_outcome,
+                });
+            }
+
+            if unresolved {
+                rejected_unresolved_count += 1;
+                continue;
+            }
+
+            let first_matches = steps
+                .first()
+                .is_some_and(|step| step.required_state() == request.current_state());
+
+            let continuous = steps
+                .windows(2)
+                .all(|pair| pair[0].predicted_outcome() == pair[1].required_state());
+
+            if initial_state != *request.current_state()
+                || goal_identity != *request.goal_identity()
+                || !first_matches
+                || !continuous
+            {
+                rejected_continuity_count += 1;
+                continue;
+            }
+
+            let mut confidence = Self::floor(
+                record.success_confidence_floor(),
+                record.step_confidence_floor(),
+            );
+
+            if let Some(binding_confidence) = binding_floor {
+                confidence = Self::floor(confidence, binding_confidence);
+            }
+
+            plans.push(GroundedSkillReusePlan {
+                source_record: record,
+                initial_state,
+                goal_identity,
+                steps,
+                effective_confidence_floor: confidence,
+            });
+        }
+
+        plans.sort_by(Self::plan_order);
+
+        let plans_before_frontier = plans.len();
+        plans.truncate(bounds.max_selected_plans());
+
+        SkillRetrievalReuseResult {
+            input_record_count,
+            unique_record_count,
+            considered_record_count,
+            record_frontier_truncated: unique_record_count > considered_record_count,
+            evaluation_count,
+            evaluation_frontier_truncated,
+            binding_frontier_exceeded: false,
+            binding_conflict: false,
+            binding_threshold_failed: false,
+            rejected_support_count,
+            rejected_step_bound_count,
+            rejected_evidence_count,
+            rejected_anchor_mismatch_count,
+            rejected_unresolved_count,
+            rejected_continuity_count,
+            plans_before_frontier,
+            plan_frontier_truncated: plans_before_frontier > plans.len(),
+            plans,
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct UniversalSkillRetrievalAndReuse;
+
+impl UniversalSkillRetrievalAndReuse {
+    pub fn evaluate(
+        records: &[CompressedSkillRecord],
+        request: &GroundedSkillReuseRequest,
+        policy: SkillReusePolicy,
+    ) -> SkillRetrievalReuseResult {
+        SkillRetrievalAndReuse::retrieve(records, request, policy)
+    }
+}
