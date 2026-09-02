@@ -779,3 +779,519 @@ impl UniversalRepeatedSkillCandidateDiscovery {
         RepeatedSkillCandidateDiscovery::discover(entries, policy)
     }
 }
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum StructuralSkillTerm {
+    Invariant(CognitiveStructure),
+    Variable(usize),
+}
+
+impl StructuralSkillTerm {
+    pub fn invariant(&self) -> Option<&CognitiveStructure> {
+        match self {
+            Self::Invariant(value) => Some(value),
+            Self::Variable(_) => None,
+        }
+    }
+
+    pub fn variable_id(&self) -> Option<usize> {
+        match self {
+            Self::Invariant(_) => None,
+            Self::Variable(id) => Some(*id),
+        }
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct StructuralSkillStep {
+    required_state: StructuralSkillTerm,
+    action: StructuralSkillTerm,
+    observed_outcome: StructuralSkillTerm,
+}
+
+impl StructuralSkillStep {
+    pub fn required_state(&self) -> &StructuralSkillTerm {
+        &self.required_state
+    }
+
+    pub fn action(&self) -> &StructuralSkillTerm {
+        &self.action
+    }
+
+    pub fn observed_outcome(&self) -> &StructuralSkillTerm {
+        &self.observed_outcome
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct StructuralSkillAbstraction {
+    initial_state: StructuralSkillTerm,
+    goal_identity: StructuralSkillTerm,
+    steps: Vec<StructuralSkillStep>,
+    variable_count: usize,
+}
+
+impl StructuralSkillAbstraction {
+    pub fn initial_state(&self) -> &StructuralSkillTerm {
+        &self.initial_state
+    }
+
+    pub fn goal_identity(&self) -> &StructuralSkillTerm {
+        &self.goal_identity
+    }
+
+    pub fn steps(&self) -> &[StructuralSkillStep] {
+        &self.steps
+    }
+
+    pub fn step_count(&self) -> usize {
+        self.steps.len()
+    }
+
+    pub fn variable_count(&self) -> usize {
+        self.variable_count
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct StructuralSkillAbstractionPolicy {
+    max_input_candidates: usize,
+    max_pair_evaluations: usize,
+    max_candidate_steps: usize,
+    max_abstractions: usize,
+    minimum_candidate_support: usize,
+    minimum_success_confidence: CognitiveSignal,
+    minimum_step_confidence: CognitiveSignal,
+}
+
+impl StructuralSkillAbstractionPolicy {
+    pub fn new(
+        max_input_candidates: usize,
+        max_pair_evaluations: usize,
+        max_candidate_steps: usize,
+        max_abstractions: usize,
+        minimum_candidate_support: usize,
+        minimum_success_confidence: CognitiveSignal,
+        minimum_step_confidence: CognitiveSignal,
+    ) -> Option<Self> {
+        if max_input_candidates < 2
+            || max_pair_evaluations == 0
+            || max_candidate_steps == 0
+            || max_abstractions == 0
+            || minimum_candidate_support < 2
+            || minimum_success_confidence == CognitiveSignal::zero()
+            || minimum_step_confidence == CognitiveSignal::zero()
+        {
+            return None;
+        }
+
+        Some(Self {
+            max_input_candidates,
+            max_pair_evaluations,
+            max_candidate_steps,
+            max_abstractions,
+            minimum_candidate_support,
+            minimum_success_confidence,
+            minimum_step_confidence,
+        })
+    }
+
+    pub fn max_input_candidates(self) -> usize {
+        self.max_input_candidates
+    }
+    pub fn max_pair_evaluations(self) -> usize {
+        self.max_pair_evaluations
+    }
+    pub fn max_candidate_steps(self) -> usize {
+        self.max_candidate_steps
+    }
+    pub fn max_abstractions(self) -> usize {
+        self.max_abstractions
+    }
+    pub fn minimum_candidate_support(self) -> usize {
+        self.minimum_candidate_support
+    }
+    pub fn minimum_success_confidence(self) -> CognitiveSignal {
+        self.minimum_success_confidence
+    }
+    pub fn minimum_step_confidence(self) -> CognitiveSignal {
+        self.minimum_step_confidence
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct StructuralSkillAbstractionEvidence {
+    abstraction: StructuralSkillAbstraction,
+    source_pair_count: usize,
+    source_support_sum: usize,
+    success_confidence_floor: CognitiveSignal,
+    step_confidence_floor: CognitiveSignal,
+}
+
+impl StructuralSkillAbstractionEvidence {
+    fn new(
+        abstraction: StructuralSkillAbstraction,
+        left: &RepeatedSkillCandidate,
+        right: &RepeatedSkillCandidate,
+    ) -> Self {
+        Self {
+            abstraction,
+            source_pair_count: 1,
+            source_support_sum: left.support_count().saturating_add(right.support_count()),
+            success_confidence_floor: Self::signal_floor(
+                left.success_confidence_floor(),
+                right.success_confidence_floor(),
+            ),
+            step_confidence_floor: Self::signal_floor(
+                left.step_confidence_floor(),
+                right.step_confidence_floor(),
+            ),
+        }
+    }
+
+    fn signal_floor(a: CognitiveSignal, b: CognitiveSignal) -> CognitiveSignal {
+        if a.value() <= b.value() {
+            a
+        } else {
+            b
+        }
+    }
+
+    fn observe(&mut self, left: &RepeatedSkillCandidate, right: &RepeatedSkillCandidate) {
+        self.source_pair_count = self.source_pair_count.saturating_add(1);
+        self.source_support_sum = self
+            .source_support_sum
+            .saturating_add(left.support_count().saturating_add(right.support_count()));
+        self.success_confidence_floor = Self::signal_floor(
+            self.success_confidence_floor,
+            Self::signal_floor(
+                left.success_confidence_floor(),
+                right.success_confidence_floor(),
+            ),
+        );
+        self.step_confidence_floor = Self::signal_floor(
+            self.step_confidence_floor,
+            Self::signal_floor(left.step_confidence_floor(), right.step_confidence_floor()),
+        );
+    }
+
+    pub fn abstraction(&self) -> &StructuralSkillAbstraction {
+        &self.abstraction
+    }
+
+    pub fn source_pair_count(&self) -> usize {
+        self.source_pair_count
+    }
+
+    pub fn source_support_sum(&self) -> usize {
+        self.source_support_sum
+    }
+
+    pub fn success_confidence_floor(&self) -> CognitiveSignal {
+        self.success_confidence_floor
+    }
+
+    pub fn step_confidence_floor(&self) -> CognitiveSignal {
+        self.step_confidence_floor
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct StructuralSkillAbstractionResult {
+    input_candidate_count: usize,
+    unique_candidate_count: usize,
+    considered_candidate_count: usize,
+    candidate_frontier_truncated: bool,
+    rejected_support_count: usize,
+    rejected_step_bound_count: usize,
+    rejected_threshold_count: usize,
+    pair_evaluation_count: usize,
+    pair_evaluation_truncated: bool,
+    rejected_step_mismatch_count: usize,
+    abstractions_before_frontier: usize,
+    abstraction_frontier_truncated: bool,
+    abstractions: Vec<StructuralSkillAbstractionEvidence>,
+}
+
+impl StructuralSkillAbstractionResult {
+    pub fn input_candidate_count(&self) -> usize {
+        self.input_candidate_count
+    }
+    pub fn unique_candidate_count(&self) -> usize {
+        self.unique_candidate_count
+    }
+    pub fn considered_candidate_count(&self) -> usize {
+        self.considered_candidate_count
+    }
+    pub fn candidate_frontier_truncated(&self) -> bool {
+        self.candidate_frontier_truncated
+    }
+    pub fn rejected_support_count(&self) -> usize {
+        self.rejected_support_count
+    }
+    pub fn rejected_step_bound_count(&self) -> usize {
+        self.rejected_step_bound_count
+    }
+    pub fn rejected_threshold_count(&self) -> usize {
+        self.rejected_threshold_count
+    }
+    pub fn pair_evaluation_count(&self) -> usize {
+        self.pair_evaluation_count
+    }
+    pub fn pair_evaluation_truncated(&self) -> bool {
+        self.pair_evaluation_truncated
+    }
+    pub fn rejected_step_mismatch_count(&self) -> usize {
+        self.rejected_step_mismatch_count
+    }
+    pub fn abstractions_before_frontier(&self) -> usize {
+        self.abstractions_before_frontier
+    }
+    pub fn abstraction_frontier_truncated(&self) -> bool {
+        self.abstraction_frontier_truncated
+    }
+    pub fn abstractions(&self) -> &[StructuralSkillAbstractionEvidence] {
+        &self.abstractions
+    }
+    pub fn abstraction_count(&self) -> usize {
+        self.abstractions.len()
+    }
+    pub fn abstained(&self) -> bool {
+        self.abstractions.is_empty()
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct StructuralSkillAbstractionInduction;
+
+impl StructuralSkillAbstractionInduction {
+    fn trace_key(trace: &ExactSkillTrace) -> String {
+        format!("{trace:?}")
+    }
+
+    fn candidate_order(
+        left: &RepeatedSkillCandidate,
+        right: &RepeatedSkillCandidate,
+    ) -> std::cmp::Ordering {
+        right
+            .support_count()
+            .cmp(&left.support_count())
+            .then_with(|| {
+                right
+                    .conservative_evidence_floor()
+                    .value()
+                    .cmp(&left.conservative_evidence_floor().value())
+            })
+            .then_with(|| Self::trace_key(left.trace()).cmp(&Self::trace_key(right.trace())))
+    }
+
+    fn variable_for(
+        left: &CognitiveStructure,
+        right: &CognitiveStructure,
+        variables: &mut Vec<(CognitiveStructure, CognitiveStructure)>,
+    ) -> StructuralSkillTerm {
+        if left == right {
+            return StructuralSkillTerm::Invariant(left.clone());
+        }
+
+        if let Some(index) = variables
+            .iter()
+            .position(|(a, b)| (a == left && b == right) || (a == right && b == left))
+        {
+            return StructuralSkillTerm::Variable(index);
+        }
+
+        let index = variables.len();
+        variables.push((left.clone(), right.clone()));
+        StructuralSkillTerm::Variable(index)
+    }
+
+    fn abstract_pair(
+        left: &RepeatedSkillCandidate,
+        right: &RepeatedSkillCandidate,
+    ) -> StructuralSkillAbstraction {
+        let mut variables = Vec::new();
+
+        let initial_state = Self::variable_for(
+            left.trace().initial_state(),
+            right.trace().initial_state(),
+            &mut variables,
+        );
+
+        let goal_identity = Self::variable_for(
+            left.trace().goal_identity(),
+            right.trace().goal_identity(),
+            &mut variables,
+        );
+
+        let steps = left
+            .trace()
+            .steps()
+            .iter()
+            .zip(right.trace().steps())
+            .map(|(a, b)| StructuralSkillStep {
+                required_state: Self::variable_for(
+                    a.required_state(),
+                    b.required_state(),
+                    &mut variables,
+                ),
+                action: Self::variable_for(a.action(), b.action(), &mut variables),
+                observed_outcome: Self::variable_for(
+                    a.observed_outcome(),
+                    b.observed_outcome(),
+                    &mut variables,
+                ),
+            })
+            .collect();
+
+        StructuralSkillAbstraction {
+            initial_state,
+            goal_identity,
+            steps,
+            variable_count: variables.len(),
+        }
+    }
+
+    fn evidence_order(
+        left: &StructuralSkillAbstractionEvidence,
+        right: &StructuralSkillAbstractionEvidence,
+    ) -> std::cmp::Ordering {
+        right
+            .source_pair_count()
+            .cmp(&left.source_pair_count())
+            .then_with(|| right.source_support_sum().cmp(&left.source_support_sum()))
+            .then_with(|| {
+                right
+                    .success_confidence_floor()
+                    .value()
+                    .cmp(&left.success_confidence_floor().value())
+            })
+            .then_with(|| {
+                left.abstraction()
+                    .variable_count()
+                    .cmp(&right.abstraction().variable_count())
+            })
+            .then_with(|| {
+                format!("{:?}", left.abstraction()).cmp(&format!("{:?}", right.abstraction()))
+            })
+    }
+
+    pub fn induce(
+        candidates: &[RepeatedSkillCandidate],
+        policy: StructuralSkillAbstractionPolicy,
+    ) -> StructuralSkillAbstractionResult {
+        let input_candidate_count = candidates.len();
+        let mut ranked = candidates.to_vec();
+
+        ranked.sort_by(Self::candidate_order);
+        ranked.dedup_by(|a, b| a.trace() == b.trace());
+
+        let unique_candidate_count = ranked.len();
+        ranked.truncate(policy.max_input_candidates());
+        let considered_candidate_count = ranked.len();
+
+        let mut rejected_support_count = 0;
+        let mut rejected_step_bound_count = 0;
+        let mut rejected_threshold_count = 0;
+
+        let eligible: Vec<_> = ranked
+            .into_iter()
+            .filter(|candidate| {
+                if candidate.support_count() < policy.minimum_candidate_support() {
+                    rejected_support_count += 1;
+                    return false;
+                }
+
+                if candidate.trace().step_count() > policy.max_candidate_steps() {
+                    rejected_step_bound_count += 1;
+                    return false;
+                }
+
+                if candidate.success_confidence_floor().value()
+                    < policy.minimum_success_confidence().value()
+                    || candidate.step_confidence_floor().value()
+                        < policy.minimum_step_confidence().value()
+                {
+                    rejected_threshold_count += 1;
+                    return false;
+                }
+
+                true
+            })
+            .collect();
+
+        let total_possible_pairs = eligible
+            .len()
+            .saturating_mul(eligible.len().saturating_sub(1))
+            / 2;
+
+        let mut pair_evaluation_count = 0;
+        let mut rejected_step_mismatch_count = 0;
+        let mut abstractions: Vec<StructuralSkillAbstractionEvidence> = Vec::new();
+
+        'outer: for left_index in 0..eligible.len() {
+            for right_index in (left_index + 1)..eligible.len() {
+                if pair_evaluation_count >= policy.max_pair_evaluations() {
+                    break 'outer;
+                }
+
+                pair_evaluation_count += 1;
+
+                let left = &eligible[left_index];
+                let right = &eligible[right_index];
+
+                if left.trace().step_count() != right.trace().step_count() {
+                    rejected_step_mismatch_count += 1;
+                    continue;
+                }
+
+                let abstraction = Self::abstract_pair(left, right);
+
+                if let Some(existing) = abstractions
+                    .iter_mut()
+                    .find(|item| item.abstraction() == &abstraction)
+                {
+                    existing.observe(left, right);
+                } else {
+                    abstractions.push(StructuralSkillAbstractionEvidence::new(
+                        abstraction,
+                        left,
+                        right,
+                    ));
+                }
+            }
+        }
+
+        abstractions.sort_by(Self::evidence_order);
+        let abstractions_before_frontier = abstractions.len();
+        abstractions.truncate(policy.max_abstractions());
+
+        StructuralSkillAbstractionResult {
+            input_candidate_count,
+            unique_candidate_count,
+            considered_candidate_count,
+            candidate_frontier_truncated: unique_candidate_count > considered_candidate_count,
+            rejected_support_count,
+            rejected_step_bound_count,
+            rejected_threshold_count,
+            pair_evaluation_count,
+            pair_evaluation_truncated: total_possible_pairs > pair_evaluation_count,
+            rejected_step_mismatch_count,
+            abstractions_before_frontier,
+            abstraction_frontier_truncated: abstractions_before_frontier > abstractions.len(),
+            abstractions,
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct UniversalStructuralSkillAbstractionInduction;
+
+impl UniversalStructuralSkillAbstractionInduction {
+    pub fn evaluate(
+        candidates: &[RepeatedSkillCandidate],
+        policy: StructuralSkillAbstractionPolicy,
+    ) -> StructuralSkillAbstractionResult {
+        StructuralSkillAbstractionInduction::induce(candidates, policy)
+    }
+}
