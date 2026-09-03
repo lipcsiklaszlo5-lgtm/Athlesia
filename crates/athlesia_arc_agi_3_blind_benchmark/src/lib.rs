@@ -275,3 +275,5 @@ impl UniversalArcAgi3BlindBenchmarkFoundation {
 }
 
 pub mod execution_runtime;
+
+pub mod harness_bridge;
