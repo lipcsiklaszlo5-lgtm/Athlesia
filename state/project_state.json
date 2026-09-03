@@ -6,7 +6,7 @@
     "Every integrated Rust component must be complete, compilable and tested.",
     "Existing validated invariants may not be weakened by later modules."
   ],
-  "generated_at_utc": "2026-09-03T11:03:47.233199+00:00",
+  "generated_at_utc": "2026-09-03T11:41:06Z",
   "implementation_language": "Rust",
   "implementation_sha256": {
     "Cargo.toml": "e852faab0d9dff23b09e1ee2323d0998955f837450c70ea015382ffe5ec52bff",
@@ -56,7 +56,7 @@
     "crates/athlesia_hierarchy/tests/hierarchy_recognition.rs": "bc7fe6ac289f8697e65b2ebe9aab179ae0cdb2db655fed18afae454bf2132841",
     "crates/athlesia_integrated_cognitive_agent/Cargo.lock": "49d8133fab85c5e2dd210c1702d89886b12e48961f6783944f53192bbd9862f5",
     "crates/athlesia_integrated_cognitive_agent/Cargo.toml": "07fd7160447768911344f081f3efcbcf79270014d5a962fb6ad271f881e61951",
-    "crates/athlesia_integrated_cognitive_agent/src/lib.rs": "9c15891d80fbd95c18fbb47e0a809c24e9805b71ee1d67946edc7523573568e9",
+    "crates/athlesia_integrated_cognitive_agent/src/lib.rs": "43e8c2743a1a23cf634c0634392b59556f70c4c470622a48d360c6b5faca7b7c",
     "crates/athlesia_integrated_cognitive_agent/tests/online_cognitive_orchestration.rs": "4e87c3d0b424e327456ad5ef97dc4cf15c99dd03a399617881cfd1c68800c3e3",
     "crates/athlesia_meta_learning_skill_memory/Cargo.lock": "641aac08044b700a765d2e6a93508989365f97801ae817d73c69c3c99c00506d",
     "crates/athlesia_meta_learning_skill_memory/Cargo.toml": "3ecb2ef81d5a7d2e6eb902981ff7fe2a1446969521a0544a22bb0ba360954265",
@@ -358,7 +358,8 @@
     "tools/verify_module_46_core_knowledge_perceptual_grounding.py": "7de5b551521a2ee7fe579fdce955fc7e0e726383a06efe408fa2e65188bd4243",
     "tools/verify_module_48_executive_agency.py": "d1f74179ad66b3f1d9919efef1f0fe5d74692578ff4a335aa4cda0a12ad59db8",
     "tools/verify_module_49_meta_learning_skill_memory.py": "d04b6d703d50676974a5996aa94035a427870bac5c15cd66e1ad60b9f07e2ccb",
-    "tools/verify_module_50_autonomous_active_experimentation.py": "1167060175c0979b187c5449f7d55c205edb92ad264b9a97117e561afe66ac22"
+    "tools/verify_module_50_autonomous_active_experimentation.py": "1167060175c0979b187c5449f7d55c205edb92ad264b9a97117e561afe66ac22",
+    "crates/athlesia_integrated_cognitive_agent/tests/online_recurrent_cognitive_control_loop.rs": "583a08362073fb4219052b64c4836282c66341d08495b53932c0924807e3409b"
   },
   "project": "Athlesia",
   "research_baseline": {
@@ -628,7 +629,8 @@
       "module_51_integrated_cognitive_agent_closed_loop_agent_step",
       "module_51_integrated_cognitive_agent_bounded_recurrent_agent_loop",
       "module_51_integrated_cognitive_agent_recurrent_feedback_closure",
-      "module_51_integrated_cognitive_agent_online_cognitive_orchestration"
+      "module_51_integrated_cognitive_agent_online_cognitive_orchestration",
+      "module_51_integrated_cognitive_agent_online_recurrent_control_loop"
     ],
     "module_23_integrity": {
       "status": "pass",
@@ -641,8 +643,8 @@
       "status": "frozen",
       "verifier": "tools/verify_module_23_parity.py"
     },
-    "next_layer": "module_51_integrated_cognitive_agent_online_recurrent_control_loop",
-    "stage": "module_51_integrated_cognitive_agent_online_cognitive_orchestration",
+    "next_layer": "module_51_integrated_cognitive_agent_environment_interaction_boundary",
+    "stage": "module_51_integrated_cognitive_agent_online_recurrent_control_loop",
     "status": "validated"
   },
   "validated_invariants": [
@@ -3289,6 +3291,16 @@
     "integrated_agent_online_cycle_rejection_atomicity",
     "integrated_agent_online_transition_authority",
     "integrated_agent_online_determinism",
-    "integrated_agent_online_universal_facade_equivalence"
+    "integrated_agent_online_universal_facade_equivalence",
+    "integrated_agent_online_recurrent_real_two_step_runtime_chain",
+    "integrated_agent_online_recurrent_feedback_protocol",
+    "integrated_agent_online_recurrent_exact_step_index_binding",
+    "integrated_agent_online_recurrent_exact_predecessor_anchor_binding",
+    "integrated_agent_online_recurrent_exact_authority_provenance_binding",
+    "integrated_agent_online_recurrent_hard_frontier_preexecution_atomicity",
+    "integrated_agent_online_recurrent_rejected_step_anchor_preservation",
+    "integrated_agent_online_recurrent_preserved_anchor_none_provenance",
+    "integrated_agent_online_recurrent_completed_step_accounting",
+    "integrated_agent_online_recurrent_deterministic_facade_equivalence"
   ]
 }
