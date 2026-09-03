@@ -6,7 +6,7 @@
     "Every integrated Rust component must be complete, compilable and tested.",
     "Existing validated invariants may not be weakened by later modules."
   ],
-  "generated_at_utc": "2026-08-30T18:56:17.159452+00:00",
+  "generated_at_utc": "2026-09-03T11:03:47.233199+00:00",
   "implementation_language": "Rust",
   "implementation_sha256": {
     "Cargo.toml": "e852faab0d9dff23b09e1ee2323d0998955f837450c70ea015382ffe5ec52bff",
@@ -56,7 +56,8 @@
     "crates/athlesia_hierarchy/tests/hierarchy_recognition.rs": "bc7fe6ac289f8697e65b2ebe9aab179ae0cdb2db655fed18afae454bf2132841",
     "crates/athlesia_integrated_cognitive_agent/Cargo.lock": "49d8133fab85c5e2dd210c1702d89886b12e48961f6783944f53192bbd9862f5",
     "crates/athlesia_integrated_cognitive_agent/Cargo.toml": "07fd7160447768911344f081f3efcbcf79270014d5a962fb6ad271f881e61951",
-    "crates/athlesia_integrated_cognitive_agent/src/lib.rs": "b83392ade6a9bcbeebb4afba749784581da24851769317d0d4d8c77a1525660b",
+    "crates/athlesia_integrated_cognitive_agent/src/lib.rs": "9c15891d80fbd95c18fbb47e0a809c24e9805b71ee1d67946edc7523573568e9",
+    "crates/athlesia_integrated_cognitive_agent/tests/online_cognitive_orchestration.rs": "4e87c3d0b424e327456ad5ef97dc4cf15c99dd03a399617881cfd1c68800c3e3",
     "crates/athlesia_meta_learning_skill_memory/Cargo.lock": "641aac08044b700a765d2e6a93508989365f97801ae817d73c69c3c99c00506d",
     "crates/athlesia_meta_learning_skill_memory/Cargo.toml": "3ecb2ef81d5a7d2e6eb902981ff7fe2a1446969521a0544a22bb0ba360954265",
     "crates/athlesia_meta_learning_skill_memory/src/lib.rs": "7d90563d57c3ae9196eb5ee4bc01f43991f01aef7ce0f0cf8cb96fea3ba3aa04",
@@ -626,7 +627,8 @@
       "module_51_integrated_cognitive_agent_cycle_state_transition",
       "module_51_integrated_cognitive_agent_closed_loop_agent_step",
       "module_51_integrated_cognitive_agent_bounded_recurrent_agent_loop",
-      "module_51_integrated_cognitive_agent_recurrent_feedback_closure"
+      "module_51_integrated_cognitive_agent_recurrent_feedback_closure",
+      "module_51_integrated_cognitive_agent_online_cognitive_orchestration"
     ],
     "module_23_integrity": {
       "status": "pass",
@@ -639,8 +641,8 @@
       "status": "frozen",
       "verifier": "tools/verify_module_23_parity.py"
     },
-    "next_layer": "module_51_integrated_cognitive_agent_online_cognitive_orchestration",
-    "stage": "module_51_integrated_cognitive_agent_recurrent_feedback_closure",
+    "next_layer": "module_51_integrated_cognitive_agent_online_recurrent_control_loop",
+    "stage": "module_51_integrated_cognitive_agent_online_cognitive_orchestration",
     "status": "validated"
   },
   "validated_invariants": [
@@ -3275,6 +3277,18 @@
     "integrated_agent_feedback_hard_frontier_preexecution_atomicity",
     "integrated_agent_feedback_cannot_override_stale_current_input",
     "integrated_agent_feedback_non_mutation",
-    "integrated_agent_feedback_deterministic_facade_equivalence"
+    "integrated_agent_feedback_deterministic_facade_equivalence",
+    "integrated_agent_online_runtime_request_anchor_preflight",
+    "integrated_agent_online_real_perceptual_execution",
+    "integrated_agent_online_real_domain_learning_execution",
+    "integrated_agent_online_real_executive_execution",
+    "integrated_agent_online_real_skill_memory_execution",
+    "integrated_agent_online_real_experimentation_execution",
+    "integrated_agent_online_five_contribution_canonicalization",
+    "integrated_agent_online_exact_state_provenance_preservation",
+    "integrated_agent_online_cycle_rejection_atomicity",
+    "integrated_agent_online_transition_authority",
+    "integrated_agent_online_determinism",
+    "integrated_agent_online_universal_facade_equivalence"
   ]
 }
