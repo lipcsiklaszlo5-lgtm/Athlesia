@@ -6,7 +6,7 @@
     "Every integrated Rust component must be complete, compilable and tested.",
     "Existing validated invariants may not be weakened by later modules."
   ],
-  "generated_at_utc": "2026-09-03T17:55:30Z",
+  "generated_at_utc": "2026-09-03T18:03:41Z",
   "implementation_language": "Rust",
   "implementation_sha256": {
     "Cargo.toml": "e852faab0d9dff23b09e1ee2323d0998955f837450c70ea015382ffe5ec52bff",
@@ -386,12 +386,14 @@
     "crates/athlesia_arc_agi_3_adapter/tests/competition_session_runtime.rs": "638b7f635773961b165734703e0511035a70be540a1cb094529c68b7a576ecaa",
     "crates/athlesia_arc_agi_3_blind_benchmark/Cargo.toml": "c0a9777db8c01be8477f564f143940f8020fa3b45aec552f15f2f8049250129d",
     "crates/athlesia_arc_agi_3_blind_benchmark/Cargo.lock": "7e0033e2b4fff1f2fc1900bbba5cd20c71b2e1976275ff637ad22ccd938b7a41",
-    "crates/athlesia_arc_agi_3_blind_benchmark/src/lib.rs": "4abc0718cf4436024f16f95033b7568461b8bdc8993947f6730541c649cb41ff",
+    "crates/athlesia_arc_agi_3_blind_benchmark/src/lib.rs": "78a23ca51b33e0a27b9bc913a66c69ea2d7298eaf57cb15cad6ba9b2f1c20594",
     "crates/athlesia_arc_agi_3_blind_benchmark/tests/blind_benchmark_foundation.rs": "11e6f13763e5bc84d4524368b0586019d025bef2b6450681c90db4448efc982a",
     "crates/athlesia_arc_agi_3_blind_benchmark/src/execution_runtime.rs": "c86bea2ac6cbdaf52370b9b9ca3dcf35dd6b7dedce1807886a6001bf06b7f26a",
     "crates/athlesia_arc_agi_3_blind_benchmark/tests/blind_benchmark_execution_runtime.rs": "ff1677f8cdc73965a08eef1bdff371ef6d356d2328a35b352ea274cc6febbb54",
     "crates/athlesia_arc_agi_3_blind_benchmark/src/harness_bridge.rs": "9cccab7cd2dd29f6295bc45b15110ff93b48732811504d42b33e04371a1325a5",
-    "crates/athlesia_arc_agi_3_blind_benchmark/tests/blind_benchmark_harness_bridge.rs": "82eeb662ff6bbfdf12b0f2e4406500fdbaa89a3c63cb8789e3997a2b069a08ad"
+    "crates/athlesia_arc_agi_3_blind_benchmark/tests/blind_benchmark_harness_bridge.rs": "82eeb662ff6bbfdf12b0f2e4406500fdbaa89a3c63cb8789e3997a2b069a08ad",
+    "crates/athlesia_arc_agi_3_blind_benchmark/src/run_manifest.rs": "4a62597d414b0167f1aa16285137166051cde20e7e955d84eadddfc8b2baaec9",
+    "crates/athlesia_arc_agi_3_blind_benchmark/tests/blind_benchmark_run_manifest.rs": "f9b904638594c25b5621fc9e23efb17d5240b6ec1b0b566228ec3724c187984f"
   },
   "project": "Athlesia",
   "research_baseline": {
@@ -677,7 +679,8 @@
       "module_52_arc_agi_3_adapter_final_integration_validation",
       "module_53_arc_agi_3_blind_benchmark_foundation",
       "module_53_arc_agi_3_blind_benchmark_execution_runtime",
-      "module_53_arc_agi_3_blind_benchmark_harness_bridge"
+      "module_53_arc_agi_3_blind_benchmark_harness_bridge",
+      "module_53_arc_agi_3_blind_benchmark_run_manifest"
     ],
     "module_23_integrity": {
       "status": "pass",
@@ -690,8 +693,8 @@
       "status": "frozen",
       "verifier": "tools/verify_module_23_parity.py"
     },
-    "next_layer": "module_53_arc_agi_3_blind_benchmark_run_manifest",
-    "stage": "module_53_arc_agi_3_blind_benchmark_harness_bridge",
+    "next_layer": "module_53_arc_agi_3_blind_benchmark_run_binding",
+    "stage": "module_53_arc_agi_3_blind_benchmark_run_manifest",
     "status": "validated"
   },
   "validated_invariants": [
@@ -3666,6 +3669,30 @@
     "m53_harness_bridge_preserves_exact_external_harness_state_on_recovery",
     "m53_harness_bridge_contains_no_hidden_catalog_transport_action_score_or_session_authority",
     "m53_harness_bridge_15_tests_are_green",
-    "m53_harness_bridge_full_m53_45_tests_and_all_targets_clippy_are_green"
+    "m53_harness_bridge_full_m53_45_tests_and_all_targets_clippy_are_green",
+    "m53_run_manifest_operates_above_frozen_harness_bridge",
+    "m53_run_manifest_preserves_frozen_m51_m52_immutability",
+    "m53_run_manifest_preserves_frozen_prior_m53_artifacts",
+    "m53_run_manifest_retains_exact_frozen_benchmark_spec",
+    "m53_run_manifest_retains_exact_run_and_agent_identity",
+    "m53_run_manifest_retains_exact_harness_name_and_version",
+    "m53_run_manifest_retains_exact_build_source_revision",
+    "m53_run_manifest_retains_exact_build_target",
+    "m53_run_manifest_retains_exact_build_profile",
+    "m53_run_manifest_retains_exact_protocol_name_and_revision",
+    "m53_run_manifest_retains_exact_configuration_fingerprint",
+    "m53_run_manifest_configuration_fingerprint_requires_lowercase_sha256_shape",
+    "m53_run_manifest_retains_exact_deterministic_seed_including_zero",
+    "m53_run_manifest_retains_exact_episode_cognitive_step_budget",
+    "m53_run_manifest_build_revision_must_equal_agent_source_revision",
+    "m53_run_manifest_source_revision_mismatch_is_transactionally_rejected",
+    "m53_run_manifest_identity_components_reject_empty_required_values",
+    "m53_run_manifest_has_no_mutation_surface_after_construction",
+    "m53_run_manifest_contains_no_hidden_environment_catalog",
+    "m53_run_manifest_contains_no_execution_or_harness_execution_authority",
+    "m53_run_manifest_contains_no_network_action_or_local_score_authority",
+    "m53_run_manifest_universal_facade_matches_direct_construction",
+    "m53_run_manifest_15_tests_are_green",
+    "m53_run_manifest_full_m53_60_tests_and_all_targets_clippy_are_green"
   ]
 }
