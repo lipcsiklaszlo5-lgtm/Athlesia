@@ -521,3 +521,5 @@ impl UniversalArcAgi3Protocol {
         ArcAgi3Protocol::authorize_action(observation, action)
     }
 }
+
+pub mod cognitive_protocol_bridge;
