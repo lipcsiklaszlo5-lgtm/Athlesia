@@ -1,0 +1,11 @@
+[package]
+name = "athlesia_arc_agi_3_blind_benchmark"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[dependencies]
+athlesia_arc_agi_3_adapter = { path = "../athlesia_arc_agi_3_adapter" }
+
+[dev-dependencies]
+serde_json = "1"
