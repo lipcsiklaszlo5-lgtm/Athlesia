@@ -523,3 +523,5 @@ impl UniversalArcAgi3Protocol {
 }
 
 pub mod cognitive_protocol_bridge;
+
+pub mod interactive_session_runtime;

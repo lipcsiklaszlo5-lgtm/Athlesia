@@ -6,7 +6,7 @@
     "Every integrated Rust component must be complete, compilable and tested.",
     "Existing validated invariants may not be weakened by later modules."
   ],
-  "generated_at_utc": "2026-09-03T12:53:19Z",
+  "generated_at_utc": "2026-09-03T13:01:47Z",
   "implementation_language": "Rust",
   "implementation_sha256": {
     "Cargo.toml": "e852faab0d9dff23b09e1ee2323d0998955f837450c70ea015382ffe5ec52bff",
@@ -362,11 +362,13 @@
     "crates/athlesia_integrated_cognitive_agent/tests/online_recurrent_cognitive_control_loop.rs": "583a08362073fb4219052b64c4836282c66341d08495b53932c0924807e3409b",
     "crates/athlesia_integrated_cognitive_agent/tests/environment_interaction_boundary.rs": "17145a815bd8cc6ca1e815a017639ce1b889cf47bc8ed4fb9a8867dc37b1ca02",
     "crates/athlesia_arc_agi_3_adapter/Cargo.toml": "c74bd13213298be41b2959676d7c76a522ec8e7ffcad59d29493a10fe2e8c1f0",
-    "crates/athlesia_arc_agi_3_adapter/src/lib.rs": "67036dd7efb7beab498b6b45e6201f536c39256d03a88fe9003eb9099adbedfe",
+    "crates/athlesia_arc_agi_3_adapter/src/lib.rs": "1238111048eddf35786d9a731585e5e33db30ab67e08ac23eaf34ca2cd00f590",
     "crates/athlesia_arc_agi_3_adapter/tests/arc_agi_3_adapter_foundation.rs": "6dd197bf42a68f70eab19f6f6c00a3717ebab3bfde8d07e38e82ac5f8f44a077",
     "crates/athlesia_arc_agi_3_adapter/Cargo.lock": "b0f79531e49ceeb092fc886287f29fc9bda63e73470fc0b02607ac6c9482ede5",
     "crates/athlesia_arc_agi_3_adapter/src/cognitive_protocol_bridge.rs": "8c39642651fe55ef804500af5d37a583f6b078821e2594ce58bd271e2460b9b9",
-    "crates/athlesia_arc_agi_3_adapter/tests/cognitive_protocol_bridge.rs": "d97de5868a2a4da23477c05740656b23744cdfb7bad416b043a024f51a8cdd86"
+    "crates/athlesia_arc_agi_3_adapter/tests/cognitive_protocol_bridge.rs": "d97de5868a2a4da23477c05740656b23744cdfb7bad416b043a024f51a8cdd86",
+    "crates/athlesia_arc_agi_3_adapter/src/interactive_session_runtime.rs": "f44bb1a613c56dfc1f791ef8d6a576bdbe07a9d301968ee962fc765fe06c681a",
+    "crates/athlesia_arc_agi_3_adapter/tests/interactive_session_runtime.rs": "508a177ba7c1979c9ed157c7b07daf5876078577a69c2d38356a011af5a62f24"
   },
   "project": "Athlesia",
   "research_baseline": {
@@ -640,7 +642,8 @@
       "module_51_integrated_cognitive_agent_online_recurrent_control_loop",
       "module_51_integrated_cognitive_agent_environment_interaction_boundary",
       "module_52_arc_agi_3_adapter_foundation",
-      "module_52_arc_agi_3_adapter_cognitive_protocol_bridge"
+      "module_52_arc_agi_3_adapter_cognitive_protocol_bridge",
+      "module_52_arc_agi_3_adapter_interactive_session_runtime"
     ],
     "module_23_integrity": {
       "status": "pass",
@@ -653,8 +656,8 @@
       "status": "frozen",
       "verifier": "tools/verify_module_23_parity.py"
     },
-    "next_layer": "module_52_arc_agi_3_adapter_interactive_session_runtime",
-    "stage": "module_52_arc_agi_3_adapter_cognitive_protocol_bridge",
+    "next_layer": "module_52_arc_agi_3_adapter_perceptual_ingestion_bridge",
+    "stage": "module_52_arc_agi_3_adapter_interactive_session_runtime",
     "status": "validated"
   },
   "validated_invariants": [
@@ -3352,6 +3355,24 @@
     "arc_agi_3_cognitive_bridge_real_m51_environment_contract_binding",
     "arc_agi_3_cognitive_bridge_no_hash_semantic_authority",
     "arc_agi_3_cognitive_bridge_no_predicted_outcome_fabrication",
-    "arc_agi_3_cognitive_bridge_preserves_frozen_m51_boundary"
+    "arc_agi_3_cognitive_bridge_preserves_frozen_m51_boundary",
+    "arc_agi_3_session_exact_game_lifecycle_projection",
+    "arc_agi_3_session_single_pending_command_atomicity",
+    "arc_agi_3_session_explicit_available_action_authorization",
+    "arc_agi_3_session_non_reset_terminal_action_rejection",
+    "arc_agi_3_session_coordinate_action_exact_preservation",
+    "arc_agi_3_session_response_game_identity_enforcement",
+    "arc_agi_3_session_reported_action_pairing_enforcement",
+    "arc_agi_3_session_missing_reported_action_no_identity_fabrication",
+    "arc_agi_3_session_complete_observation_preservation",
+    "arc_agi_3_session_turn_action_reset_counter_separation",
+    "arc_agi_3_session_no_pending_completion_rejection",
+    "arc_agi_3_session_rejection_atomicity",
+    "arc_agi_3_session_deterministic_transition_history",
+    "arc_agi_3_session_real_m51_dispatch_contract_binding",
+    "arc_agi_3_session_real_m51_feedback_contract_binding",
+    "arc_agi_3_session_universal_facade_equivalence",
+    "arc_agi_3_session_transport_independence",
+    "arc_agi_3_session_frozen_m51_integrity"
   ]
 }
