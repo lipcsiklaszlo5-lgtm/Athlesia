@@ -7484,3 +7484,459 @@ mod recurrent_feedback_closure_tests {
         assert_eq!(facade.final_anchor_state(), Some(&a(2005)));
     }
 }
+
+pub struct OnlinePerceptualGroundingRuntime<'a> {
+    request: &'a PerceptualGroundingIngestionRequest,
+    input: &'a athlesia_core_knowledge_perceptual_grounding::IntegratedPerceptualWorldInput,
+    context: athlesia_core_knowledge_perceptual_grounding::IntegratedPerceptualWorldContext,
+    policy: PerceptualGroundingIngestionPolicy,
+}
+
+impl<'a> OnlinePerceptualGroundingRuntime<'a> {
+    pub fn new(
+        request: &'a PerceptualGroundingIngestionRequest,
+        input: &'a athlesia_core_knowledge_perceptual_grounding::IntegratedPerceptualWorldInput,
+        context: athlesia_core_knowledge_perceptual_grounding::IntegratedPerceptualWorldContext,
+        policy: PerceptualGroundingIngestionPolicy,
+    ) -> Self {
+        Self {
+            request,
+            input,
+            context,
+            policy,
+        }
+    }
+}
+
+pub struct OnlineUniversalDomainRuntime<'a> {
+    request: &'a UniversalDomainLearningIngestionRequest,
+    local: &'a [athlesia_universal_domain_learning::GroundedInterventionalCausalHypothesis],
+    transferred: &'a [athlesia_universal_domain_learning::CompressedDomainModel],
+    domain_policy: athlesia_universal_domain_learning::IntegratedDomainModelPolicy,
+    ingestion_policy: UniversalDomainLearningIngestionPolicy,
+}
+
+impl<'a> OnlineUniversalDomainRuntime<'a> {
+    pub fn new(
+        request: &'a UniversalDomainLearningIngestionRequest,
+        local: &'a [athlesia_universal_domain_learning::GroundedInterventionalCausalHypothesis],
+        transferred: &'a [athlesia_universal_domain_learning::CompressedDomainModel],
+        domain_policy: athlesia_universal_domain_learning::IntegratedDomainModelPolicy,
+        ingestion_policy: UniversalDomainLearningIngestionPolicy,
+    ) -> Self {
+        Self {
+            request,
+            local,
+            transferred,
+            domain_policy,
+            ingestion_policy,
+        }
+    }
+}
+
+pub struct OnlineExecutiveAgencyRuntime<'a> {
+    request: &'a ExecutiveAgencyIngestionRequest,
+    context: athlesia_executive_agency::IntegratedExecutiveControlContext<'a>,
+    policy: athlesia_executive_agency::IntegratedExecutiveControlPolicy,
+}
+
+impl<'a> OnlineExecutiveAgencyRuntime<'a> {
+    pub fn new(
+        request: &'a ExecutiveAgencyIngestionRequest,
+        context: athlesia_executive_agency::IntegratedExecutiveControlContext<'a>,
+        policy: athlesia_executive_agency::IntegratedExecutiveControlPolicy,
+    ) -> Self {
+        Self {
+            request,
+            context,
+            policy,
+        }
+    }
+}
+
+pub struct OnlineSkillMemoryRuntime<'a> {
+    request: &'a MetaLearningSkillMemoryIngestionRequest,
+    input: &'a athlesia_meta_learning_skill_memory::IntegratedSkillLearningCycleInput,
+    policy: athlesia_meta_learning_skill_memory::IntegratedSkillLearningCyclePolicy,
+}
+
+impl<'a> OnlineSkillMemoryRuntime<'a> {
+    pub fn new(
+        request: &'a MetaLearningSkillMemoryIngestionRequest,
+        input: &'a athlesia_meta_learning_skill_memory::IntegratedSkillLearningCycleInput,
+        policy: athlesia_meta_learning_skill_memory::IntegratedSkillLearningCyclePolicy,
+    ) -> Self {
+        Self {
+            request,
+            input,
+            policy,
+        }
+    }
+}
+
+pub struct OnlineAutonomousExperimentationRuntime<'a> {
+    request: &'a AutonomousExperimentationIngestionRequest,
+    beliefs: &'a [athlesia_autonomous_active_experimentation::HypothesisBeliefState],
+    possibilities:
+        &'a [athlesia_autonomous_active_experimentation::GroundedExperimentPossibility],
+    learning_samples:
+        &'a [athlesia_autonomous_active_experimentation::ExperimentLearningProgressSample],
+    current_experiment_cycle: usize,
+    policy: athlesia_autonomous_active_experimentation::IntegratedAutonomousExperimentationPolicy,
+}
+
+impl<'a> OnlineAutonomousExperimentationRuntime<'a> {
+    pub fn new(
+        request: &'a AutonomousExperimentationIngestionRequest,
+        beliefs: &'a [athlesia_autonomous_active_experimentation::HypothesisBeliefState],
+        possibilities: &'a [athlesia_autonomous_active_experimentation::GroundedExperimentPossibility],
+        learning_samples: &'a [athlesia_autonomous_active_experimentation::ExperimentLearningProgressSample],
+        current_experiment_cycle: usize,
+        policy: athlesia_autonomous_active_experimentation::IntegratedAutonomousExperimentationPolicy,
+    ) -> Self {
+        Self {
+            request,
+            beliefs,
+            possibilities,
+            learning_samples,
+            current_experiment_cycle,
+            policy,
+        }
+    }
+}
+
+pub struct OnlineCognitiveOrchestrationInput<'a> {
+    perceptual: OnlinePerceptualGroundingRuntime<'a>,
+    domain: OnlineUniversalDomainRuntime<'a>,
+    executive: OnlineExecutiveAgencyRuntime<'a>,
+    skill_memory: OnlineSkillMemoryRuntime<'a>,
+    experimentation: OnlineAutonomousExperimentationRuntime<'a>,
+}
+
+impl<'a> OnlineCognitiveOrchestrationInput<'a> {
+    pub fn new(
+        perceptual: OnlinePerceptualGroundingRuntime<'a>,
+        domain: OnlineUniversalDomainRuntime<'a>,
+        executive: OnlineExecutiveAgencyRuntime<'a>,
+        skill_memory: OnlineSkillMemoryRuntime<'a>,
+        experimentation: OnlineAutonomousExperimentationRuntime<'a>,
+    ) -> Self {
+        Self {
+            perceptual,
+            domain,
+            executive,
+            skill_memory,
+            experimentation,
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum OnlineCognitiveOrchestrationStatus {
+    Advanced,
+    Preserved,
+    RequestAnchorMismatch(IntegratedCognitiveLayer),
+    PerceptualGroundingRejected,
+    UniversalDomainLearningRejected,
+    ExecutiveAgencyRejected,
+    MetaLearningSkillMemoryRejected,
+    AutonomousExperimentationRejected,
+    CognitiveCycleRejected,
+    StateTransitionRejected,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct OnlineCognitiveOrchestrationResult {
+    status: OnlineCognitiveOrchestrationStatus,
+    contributions: Vec<IntegratedLayerContribution>,
+    executive_decision: Option<athlesia_executive_agency::IntegratedExecutiveControlDecision>,
+    skill_reused: Option<bool>,
+    experimentation_status: Option<
+        athlesia_autonomous_active_experimentation::IntegratedAutonomousExperimentationStatus,
+    >,
+    step: Option<ClosedLoopAgentStepResult>,
+}
+
+impl OnlineCognitiveOrchestrationResult {
+    fn partial(
+        status: OnlineCognitiveOrchestrationStatus,
+        contributions: Vec<IntegratedLayerContribution>,
+        executive_decision: Option<athlesia_executive_agency::IntegratedExecutiveControlDecision>,
+        skill_reused: Option<bool>,
+        experimentation_status: Option<
+            athlesia_autonomous_active_experimentation::IntegratedAutonomousExperimentationStatus,
+        >,
+    ) -> Self {
+        Self {
+            status,
+            contributions,
+            executive_decision,
+            skill_reused,
+            experimentation_status,
+            step: None,
+        }
+    }
+
+    pub fn status(&self) -> OnlineCognitiveOrchestrationStatus {
+        self.status
+    }
+
+    pub fn contributions(&self) -> &[IntegratedLayerContribution] {
+        &self.contributions
+    }
+
+    pub fn contribution(
+        &self,
+        layer: IntegratedCognitiveLayer,
+    ) -> Option<&IntegratedLayerContribution> {
+        self.contributions
+            .iter()
+            .find(|candidate| candidate.layer() == layer)
+    }
+
+    pub fn executive_decision(
+        &self,
+    ) -> Option<athlesia_executive_agency::IntegratedExecutiveControlDecision> {
+        self.executive_decision
+    }
+
+    pub fn skill_reused(&self) -> Option<bool> {
+        self.skill_reused
+    }
+
+    pub fn experimentation_status(
+        &self,
+    ) -> Option<athlesia_autonomous_active_experimentation::IntegratedAutonomousExperimentationStatus>
+    {
+        self.experimentation_status
+    }
+
+    pub fn step(&self) -> Option<&ClosedLoopAgentStepResult> {
+        self.step.as_ref()
+    }
+
+    pub fn next_anchor_state(&self) -> Option<&CognitiveStructure> {
+        self.step.as_ref().and_then(|step| step.next_anchor_state())
+    }
+
+    pub fn advanced(&self) -> bool {
+        self.status == OnlineCognitiveOrchestrationStatus::Advanced
+    }
+
+    pub fn preserved(&self) -> bool {
+        self.status == OnlineCognitiveOrchestrationStatus::Preserved
+    }
+
+    pub fn rejected(&self) -> bool {
+        !self.advanced() && !self.preserved()
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct OnlineCognitiveOrchestration;
+
+impl OnlineCognitiveOrchestration {
+    pub fn run(
+        anchor_state: &CognitiveStructure,
+        input: OnlineCognitiveOrchestrationInput<'_>,
+        cycle_policy: IntegratedAgentPolicy,
+        transition_request: &CognitiveCycleStateTransitionRequest,
+    ) -> OnlineCognitiveOrchestrationResult {
+        let OnlineCognitiveOrchestrationInput {
+            perceptual,
+            domain,
+            executive,
+            skill_memory,
+            experimentation,
+        } = input;
+
+        for (layer, candidate_anchor) in [
+            (
+                IntegratedCognitiveLayer::PerceptualGrounding,
+                perceptual.request.anchor_state(),
+            ),
+            (
+                IntegratedCognitiveLayer::UniversalDomainLearning,
+                domain.request.anchor_state(),
+            ),
+            (
+                IntegratedCognitiveLayer::ExecutiveAgency,
+                executive.request.anchor_state(),
+            ),
+            (
+                IntegratedCognitiveLayer::MetaLearningSkillMemory,
+                skill_memory.request.anchor_state(),
+            ),
+            (
+                IntegratedCognitiveLayer::AutonomousExperimentation,
+                experimentation.request.anchor_state(),
+            ),
+        ] {
+            if candidate_anchor != anchor_state {
+                return OnlineCognitiveOrchestrationResult::partial(
+                    OnlineCognitiveOrchestrationStatus::RequestAnchorMismatch(layer),
+                    Vec::new(),
+                    None,
+                    None,
+                    None,
+                );
+            }
+        }
+
+        let mut contributions = Vec::with_capacity(IntegratedCognitiveCycle::PHASE_COUNT);
+
+        let perceptual_result = AutonomousPerceptualGroundingIngestion::ingest(
+            perceptual.request,
+            perceptual.input,
+            perceptual.context,
+            perceptual.policy,
+        );
+
+        let Some(contribution) = perceptual_result.contribution().cloned() else {
+            return OnlineCognitiveOrchestrationResult::partial(
+                OnlineCognitiveOrchestrationStatus::PerceptualGroundingRejected,
+                contributions,
+                None,
+                None,
+                None,
+            );
+        };
+
+        contributions.push(contribution);
+
+        let domain_result = AutonomousUniversalDomainLearningIngestion::ingest(
+            domain.request,
+            domain.local,
+            domain.transferred,
+            domain.domain_policy,
+            domain.ingestion_policy,
+        );
+
+        let Some(contribution) = domain_result.contribution().cloned() else {
+            return OnlineCognitiveOrchestrationResult::partial(
+                OnlineCognitiveOrchestrationStatus::UniversalDomainLearningRejected,
+                contributions,
+                None,
+                None,
+                None,
+            );
+        };
+
+        contributions.push(contribution);
+
+        let executive_result = athlesia_executive_agency::IntegratedExecutiveControl::evaluate(
+            executive.context,
+            executive.policy,
+        );
+
+        let executive_decision = executive_result.decision();
+
+        let executive_ingestion =
+            AutonomousExecutiveAgencyIngestion::ingest(executive.request, &executive_result);
+
+        let Some(contribution) = executive_ingestion.contribution().cloned() else {
+            return OnlineCognitiveOrchestrationResult::partial(
+                OnlineCognitiveOrchestrationStatus::ExecutiveAgencyRejected,
+                contributions,
+                Some(executive_decision),
+                None,
+                None,
+            );
+        };
+
+        contributions.push(contribution);
+
+        let skill_result = athlesia_meta_learning_skill_memory::IntegratedSkillLearningCycle::run(
+            skill_memory.input,
+            skill_memory.policy,
+        );
+
+        let skill_reused = skill_result.reused_skill();
+
+        let skill_ingestion =
+            AutonomousMetaLearningSkillMemoryIngestion::ingest(skill_memory.request, &skill_result);
+
+        let Some(contribution) = skill_ingestion.contribution().cloned() else {
+            return OnlineCognitiveOrchestrationResult::partial(
+                OnlineCognitiveOrchestrationStatus::MetaLearningSkillMemoryRejected,
+                contributions,
+                Some(executive_decision),
+                Some(skill_reused),
+                None,
+            );
+        };
+
+        contributions.push(contribution);
+
+        let experimentation_result =
+            athlesia_autonomous_active_experimentation::
+                AutonomousIntegratedExperimentationCycle::run_cycle(
+                    anchor_state,
+                    experimentation.beliefs,
+                    experimentation.possibilities,
+                    experimentation.learning_samples,
+                    experimentation.current_experiment_cycle,
+                    experimentation.policy,
+                );
+
+        let experimentation_status = experimentation_result.status();
+
+        let experimentation_ingestion = AutonomousExperimentationIngestion::ingest(
+            experimentation.request,
+            &experimentation_result,
+        );
+
+        let Some(contribution) = experimentation_ingestion.contribution().cloned() else {
+            return OnlineCognitiveOrchestrationResult::partial(
+                OnlineCognitiveOrchestrationStatus::AutonomousExperimentationRejected,
+                contributions,
+                Some(executive_decision),
+                Some(skill_reused),
+                Some(experimentation_status),
+            );
+        };
+
+        contributions.push(contribution);
+
+        let step = ClosedLoopAgentStep::run(
+            anchor_state,
+            &contributions,
+            cycle_policy,
+            transition_request,
+        );
+
+        let status = match step.status() {
+            ClosedLoopAgentStepStatus::Advanced => OnlineCognitiveOrchestrationStatus::Advanced,
+            ClosedLoopAgentStepStatus::Preserved => OnlineCognitiveOrchestrationStatus::Preserved,
+            ClosedLoopAgentStepStatus::RejectedCycle => {
+                OnlineCognitiveOrchestrationStatus::CognitiveCycleRejected
+            }
+            ClosedLoopAgentStepStatus::RejectedTransition => {
+                OnlineCognitiveOrchestrationStatus::StateTransitionRejected
+            }
+        };
+
+        OnlineCognitiveOrchestrationResult {
+            status,
+            contributions,
+            executive_decision: Some(executive_decision),
+            skill_reused: Some(skill_reused),
+            experimentation_status: Some(experimentation_status),
+            step: Some(step),
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct UniversalOnlineCognitiveOrchestration;
+
+impl UniversalOnlineCognitiveOrchestration {
+    pub fn evaluate(
+        anchor_state: &CognitiveStructure,
+        input: OnlineCognitiveOrchestrationInput<'_>,
+        cycle_policy: IntegratedAgentPolicy,
+        transition_request: &CognitiveCycleStateTransitionRequest,
+    ) -> OnlineCognitiveOrchestrationResult {
+        OnlineCognitiveOrchestration::run(anchor_state, input, cycle_policy, transition_request)
+    }
+}
