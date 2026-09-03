@@ -1,0 +1,9 @@
+[package]
+name = "athlesia_arc_agi_3_adapter"
+version = "0.1.0"
+edition = "2021"
+description = "ATHLESIA ARC-AGI-3 protocol adapter"
+
+[dependencies]
+
+[workspace]

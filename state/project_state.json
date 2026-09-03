@@ -6,7 +6,7 @@
     "Every integrated Rust component must be complete, compilable and tested.",
     "Existing validated invariants may not be weakened by later modules."
   ],
-  "generated_at_utc": "2026-09-03T11:59:56Z",
+  "generated_at_utc": "2026-09-03T12:43:45Z",
   "implementation_language": "Rust",
   "implementation_sha256": {
     "Cargo.toml": "e852faab0d9dff23b09e1ee2323d0998955f837450c70ea015382ffe5ec52bff",
@@ -360,7 +360,11 @@
     "tools/verify_module_49_meta_learning_skill_memory.py": "d04b6d703d50676974a5996aa94035a427870bac5c15cd66e1ad60b9f07e2ccb",
     "tools/verify_module_50_autonomous_active_experimentation.py": "1167060175c0979b187c5449f7d55c205edb92ad264b9a97117e561afe66ac22",
     "crates/athlesia_integrated_cognitive_agent/tests/online_recurrent_cognitive_control_loop.rs": "583a08362073fb4219052b64c4836282c66341d08495b53932c0924807e3409b",
-    "crates/athlesia_integrated_cognitive_agent/tests/environment_interaction_boundary.rs": "17145a815bd8cc6ca1e815a017639ce1b889cf47bc8ed4fb9a8867dc37b1ca02"
+    "crates/athlesia_integrated_cognitive_agent/tests/environment_interaction_boundary.rs": "17145a815bd8cc6ca1e815a017639ce1b889cf47bc8ed4fb9a8867dc37b1ca02",
+    "crates/athlesia_arc_agi_3_adapter/Cargo.toml": "0951959c2d40a622241181856f95a9d362f3d73fede283804361db20dc0555dd",
+    "crates/athlesia_arc_agi_3_adapter/src/lib.rs": "f665cffc8997efc40827f171ac5d6e4e81f0357ff76eb317411e5fded4d23664",
+    "crates/athlesia_arc_agi_3_adapter/tests/arc_agi_3_adapter_foundation.rs": "6dd197bf42a68f70eab19f6f6c00a3717ebab3bfde8d07e38e82ac5f8f44a077",
+    "crates/athlesia_arc_agi_3_adapter/Cargo.lock": "310eedc3b928beadf42666cf93f208feb40c66b7c8d5cbf8a1e48724db11ea6a"
   },
   "project": "Athlesia",
   "research_baseline": {
@@ -632,7 +636,8 @@
       "module_51_integrated_cognitive_agent_recurrent_feedback_closure",
       "module_51_integrated_cognitive_agent_online_cognitive_orchestration",
       "module_51_integrated_cognitive_agent_online_recurrent_control_loop",
-      "module_51_integrated_cognitive_agent_environment_interaction_boundary"
+      "module_51_integrated_cognitive_agent_environment_interaction_boundary",
+      "module_52_arc_agi_3_adapter_foundation"
     ],
     "module_23_integrity": {
       "status": "pass",
@@ -645,8 +650,8 @@
       "status": "frozen",
       "verifier": "tools/verify_module_23_parity.py"
     },
-    "next_layer": "module_52_arc_agi_3_adapter_foundation",
-    "stage": "module_51_integrated_cognitive_agent_environment_interaction_boundary",
+    "next_layer": "module_52_arc_agi_3_adapter_cognitive_protocol_bridge",
+    "stage": "module_52_arc_agi_3_adapter_foundation",
     "status": "validated"
   },
   "validated_invariants": [
@@ -3313,6 +3318,22 @@
     "integrated_agent_environment_grounded_execution_observation_binding",
     "integrated_agent_environment_experiment_outcome_observation_binding",
     "integrated_agent_environment_zero_confidence_observation_rejection",
-    "integrated_agent_environment_deterministic_facade_equivalence"
+    "integrated_agent_environment_deterministic_facade_equivalence",
+    "arc_agi_3_adapter_exact_game_state_lifecycle",
+    "arc_agi_3_adapter_action_protocol_identity_roundtrip",
+    "arc_agi_3_adapter_coordinate_domain_enforcement",
+    "arc_agi_3_adapter_action6_coordinate_payload_contract",
+    "arc_agi_3_adapter_reset_payload_separation",
+    "arc_agi_3_adapter_available_action_canonicalization",
+    "arc_agi_3_adapter_available_action_uniqueness",
+    "arc_agi_3_adapter_grid_dimension_and_cell_domain_enforcement",
+    "arc_agi_3_adapter_grid_exact_row_major_preservation",
+    "arc_agi_3_adapter_flat_grid_exact_shape_validation",
+    "arc_agi_3_adapter_frame_sequence_order_preservation",
+    "arc_agi_3_adapter_game_identity_validation",
+    "arc_agi_3_adapter_observation_metadata_preservation",
+    "arc_agi_3_adapter_explicit_available_action_authorization",
+    "arc_agi_3_adapter_terminal_action_gate_and_reset_authorization",
+    "arc_agi_3_adapter_deterministic_non_mutating_facade_equivalence"
   ]
 }
