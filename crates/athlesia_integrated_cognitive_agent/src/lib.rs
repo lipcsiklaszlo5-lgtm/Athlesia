@@ -8440,13 +8440,12 @@ impl EnvironmentInteractionBoundary {
                 dispatch.action().clone(),
             );
 
-        let execution_observation =
-            athlesia_executive_agency::GroundedExecutionObservation::new(
-                dispatch.source_anchor_state().clone(),
-                dispatch.action().clone(),
-                observation.observed_outcome().clone(),
-                observation.confidence(),
-            );
+        let execution_observation = athlesia_executive_agency::GroundedExecutionObservation::new(
+            dispatch.source_anchor_state().clone(),
+            dispatch.action().clone(),
+            observation.observed_outcome().clone(),
+            observation.confidence(),
+        );
 
         let experiment_observation =
             athlesia_autonomous_active_experimentation::ExperimentOutcomeObservation::new(
@@ -8508,9 +8507,7 @@ pub struct OnlineAutonomousSelfBootstrapDigest {
 }
 
 impl OnlineAutonomousSelfBootstrapDigest {
-    fn from_result(
-        result: &autonomous_cognitive_self_bootstrap::SelfBootstrapResult,
-    ) -> Self {
+    fn from_result(result: &autonomous_cognitive_self_bootstrap::SelfBootstrapResult) -> Self {
         let selected = result.selected();
 
         Self {
@@ -8518,12 +8515,10 @@ impl OnlineAutonomousSelfBootstrapDigest {
             objective_kind: result.objective().kind(),
             source_state: result.objective().source_state().clone(),
             target_state: result.objective().target_state().cloned(),
-            selected_action: selected
-                .map(|candidate| candidate.hypothesis().action().clone()),
+            selected_action: selected.map(|candidate| candidate.hypothesis().action().clone()),
             predicted_outcome: selected
                 .map(|candidate| candidate.hypothesis().predicted_outcome().clone()),
-            selected_confidence: selected
-                .map(|candidate| candidate.hypothesis().confidence()),
+            selected_confidence: selected.map(|candidate| candidate.hypothesis().confidence()),
             selected_information_gain: selected
                 .map(|candidate| candidate.hypothesis().information_gain()),
             selected_controllability: selected
@@ -8540,9 +8535,7 @@ impl OnlineAutonomousSelfBootstrapDigest {
         }
     }
 
-    pub const fn status(
-        &self,
-    ) -> autonomous_cognitive_self_bootstrap::SelfBootstrapStatus {
+    pub const fn status(&self) -> autonomous_cognitive_self_bootstrap::SelfBootstrapStatus {
         self.status
     }
 
@@ -8552,15 +8545,11 @@ impl OnlineAutonomousSelfBootstrapDigest {
         self.objective_kind
     }
 
-    pub fn source_state(
-        &self,
-    ) -> &athlesia_mindstone_sparse_cognition::CognitiveStructure {
+    pub fn source_state(&self) -> &athlesia_mindstone_sparse_cognition::CognitiveStructure {
         &self.source_state
     }
 
-    pub fn target_state(
-        &self,
-    ) -> Option<&athlesia_mindstone_sparse_cognition::CognitiveStructure> {
+    pub fn target_state(&self) -> Option<&athlesia_mindstone_sparse_cognition::CognitiveStructure> {
         self.target_state.as_ref()
     }
 
@@ -8576,91 +8565,70 @@ impl OnlineAutonomousSelfBootstrapDigest {
         self.predicted_outcome.as_ref()
     }
 
-
-pub const fn selected_confidence(
-    &self,
-) -> Option<autonomous_cognitive_self_bootstrap::BootstrapSignal> {
-    self.selected_confidence
-}
-
-pub const fn selected_information_gain(
-    &self,
-) -> Option<autonomous_cognitive_self_bootstrap::BootstrapSignal> {
-    self.selected_information_gain
-}
-
-pub const fn selected_controllability(
-    &self,
-) -> Option<autonomous_cognitive_self_bootstrap::BootstrapSignal> {
-    self.selected_controllability
-}
-
-pub const fn selected_execution_cost(
-    &self,
-) -> Option<autonomous_cognitive_self_bootstrap::BootstrapSignal> {
-    self.selected_execution_cost
-}
-
-    pub const fn candidate_frontier_len(
+    pub const fn selected_confidence(
         &self,
-    ) -> usize {
+    ) -> Option<autonomous_cognitive_self_bootstrap::BootstrapSignal> {
+        self.selected_confidence
+    }
+
+    pub const fn selected_information_gain(
+        &self,
+    ) -> Option<autonomous_cognitive_self_bootstrap::BootstrapSignal> {
+        self.selected_information_gain
+    }
+
+    pub const fn selected_controllability(
+        &self,
+    ) -> Option<autonomous_cognitive_self_bootstrap::BootstrapSignal> {
+        self.selected_controllability
+    }
+
+    pub const fn selected_execution_cost(
+        &self,
+    ) -> Option<autonomous_cognitive_self_bootstrap::BootstrapSignal> {
+        self.selected_execution_cost
+    }
+
+    pub const fn candidate_frontier_len(&self) -> usize {
         self.candidate_frontier_len
     }
 
-    pub const fn rejected_source_state_count(
-        &self,
-    ) -> usize {
+    pub const fn rejected_source_state_count(&self) -> usize {
         self.rejected_source_state_count
     }
 
-    pub const fn rejected_unauthorized_action_count(
-        &self,
-    ) -> usize {
+    pub const fn rejected_unauthorized_action_count(&self) -> usize {
         self.rejected_unauthorized_action_count
     }
 
-    pub const fn rejected_threshold_count(
-        &self,
-    ) -> usize {
+    pub const fn rejected_threshold_count(&self) -> usize {
         self.rejected_threshold_count
     }
 
-    pub const fn duplicate_affordance_count(
-        &self,
-    ) -> usize {
+    pub const fn duplicate_affordance_count(&self) -> usize {
         self.duplicate_affordance_count
     }
 
-    pub const fn duplicate_hypothesis_count(
-        &self,
-    ) -> usize {
+    pub const fn duplicate_hypothesis_count(&self) -> usize {
         self.duplicate_hypothesis_count
     }
 
-    pub const fn frontier_truncated(
-        &self,
-    ) -> bool {
+    pub const fn frontier_truncated(&self) -> bool {
         self.frontier_truncated
     }
 
-    pub const fn has_selected_action(
-        &self,
-    ) -> bool {
+    pub const fn has_selected_action(&self) -> bool {
         self.selected_action.is_some()
     }
 
-    pub const fn requires_model_expansion(
-        &self,
-    ) -> bool {
+    pub const fn requires_model_expansion(&self) -> bool {
         matches!(
             self.status,
             autonomous_cognitive_self_bootstrap::SelfBootstrapStatus::ModelExpansionRequired
         )
     }
 
-    pub const fn is_complete(
-        &self,
-    ) -> bool {
+    pub const fn is_complete(&self) -> bool {
         matches!(
             self.status,
             autonomous_cognitive_self_bootstrap::SelfBootstrapStatus::Complete
@@ -8683,11 +8651,7 @@ impl OnlineAutonomousCognitiveSelfBootstrapRuntime {
             autonomous_cognitive_self_bootstrap::UniversalAutonomousCognitiveSelfBootstrap::
                 evaluate(input, policy)?;
 
-        Ok(
-            OnlineAutonomousSelfBootstrapDigest::from_result(
-                &result,
-            ),
-        )
+        Ok(OnlineAutonomousSelfBootstrapDigest::from_result(&result))
     }
 }
 
@@ -8702,10 +8666,7 @@ impl UniversalOnlineAutonomousCognitiveSelfBootstrap {
         OnlineAutonomousSelfBootstrapDigest,
         autonomous_cognitive_self_bootstrap::SelfBootstrapError,
     > {
-        OnlineAutonomousCognitiveSelfBootstrapRuntime::evaluate(
-            input,
-            policy,
-        )
+        OnlineAutonomousCognitiveSelfBootstrapRuntime::evaluate(input, policy)
     }
 }
 
@@ -8737,15 +8698,11 @@ impl OnlineAutonomousColdStartExplorationPolicy {
         }
     }
 
-    pub fn goal_priority(
-        self,
-    ) -> athlesia_mindstone_sparse_cognition::CognitiveSignal {
+    pub fn goal_priority(self) -> athlesia_mindstone_sparse_cognition::CognitiveSignal {
         self.goal_priority
     }
 
-    pub fn cold_start(
-        self,
-    ) -> athlesia_executive_agency::ColdStartExplorationPolicy {
+    pub fn cold_start(self) -> athlesia_executive_agency::ColdStartExplorationPolicy {
         self.cold_start
     }
 }
@@ -8758,27 +8715,19 @@ pub struct OnlineAutonomousColdStartExplorationBundle {
 }
 
 impl OnlineAutonomousColdStartExplorationBundle {
-    pub fn goal(
-        &self,
-    ) -> &athlesia_executive_agency::ExecutiveGoal {
+    pub fn goal(&self) -> &athlesia_executive_agency::ExecutiveGoal {
         &self.goal
     }
 
-    pub fn candidate(
-        &self,
-    ) -> &athlesia_executive_agency::GroundedExplorationCandidate {
+    pub fn candidate(&self) -> &athlesia_executive_agency::GroundedExplorationCandidate {
         &self.candidate
     }
 
-    pub fn result(
-        &self,
-    ) -> &athlesia_executive_agency::ColdStartExplorationResult {
+    pub fn result(&self) -> &athlesia_executive_agency::ColdStartExplorationResult {
         &self.result
     }
 
-    pub fn selected_exploration(
-        &self,
-    ) -> &athlesia_executive_agency::RankedExplorationCandidate {
+    pub fn selected_exploration(&self) -> &athlesia_executive_agency::RankedExplorationCandidate {
         self.result
             .selected_exploration()
             .expect("successful cold-start bundle retains its grounded selection")
@@ -8792,157 +8741,91 @@ impl OnlineAutonomousColdStartExplorationSynthesis {
     fn cognitive_signal(
         signal: autonomous_cognitive_self_bootstrap::BootstrapSignal,
     ) -> athlesia_mindstone_sparse_cognition::CognitiveSignal {
-        athlesia_mindstone_sparse_cognition::CognitiveSignal::new(
-            signal.value(),
-        )
-        .expect("bootstrap signal stays on the cognitive signal scale")
+        athlesia_mindstone_sparse_cognition::CognitiveSignal::new(signal.value())
+            .expect("bootstrap signal stays on the cognitive signal scale")
     }
 
     pub fn synthesize(
         digest: &OnlineAutonomousSelfBootstrapDigest,
         policy: OnlineAutonomousColdStartExplorationPolicy,
-    ) -> Result<
-        OnlineAutonomousColdStartExplorationBundle,
-        OnlineAutonomousColdStartExplorationError,
-    > {
-        if digest.status()
-            != autonomous_cognitive_self_bootstrap::SelfBootstrapStatus::Selected
-        {
-            return Err(
-                OnlineAutonomousColdStartExplorationError::
-                    BootstrapDecisionNotSelected,
-            );
+    ) -> Result<OnlineAutonomousColdStartExplorationBundle, OnlineAutonomousColdStartExplorationError>
+    {
+        if digest.status() != autonomous_cognitive_self_bootstrap::SelfBootstrapStatus::Selected {
+            return Err(OnlineAutonomousColdStartExplorationError::BootstrapDecisionNotSelected);
         }
 
-        let Some(action) =
-            digest.selected_action().cloned()
-        else {
-            return Err(
-                OnlineAutonomousColdStartExplorationError::
-                    MissingBootstrapEvidence,
-            );
+        let Some(action) = digest.selected_action().cloned() else {
+            return Err(OnlineAutonomousColdStartExplorationError::MissingBootstrapEvidence);
         };
 
-        let Some(predicted_outcome) =
-            digest.predicted_outcome().cloned()
-        else {
-            return Err(
-                OnlineAutonomousColdStartExplorationError::
-                    MissingBootstrapEvidence,
-            );
+        let Some(predicted_outcome) = digest.predicted_outcome().cloned() else {
+            return Err(OnlineAutonomousColdStartExplorationError::MissingBootstrapEvidence);
         };
 
-        let Some(target_state) =
-            digest.target_state().cloned()
-        else {
-            return Err(
-                OnlineAutonomousColdStartExplorationError::
-                    MissingBootstrapEvidence,
-            );
+        let Some(target_state) = digest.target_state().cloned() else {
+            return Err(OnlineAutonomousColdStartExplorationError::MissingBootstrapEvidence);
         };
 
-        let Some(confidence) =
-            digest.selected_confidence()
-        else {
-            return Err(
-                OnlineAutonomousColdStartExplorationError::
-                    MissingBootstrapEvidence,
-            );
+        let Some(confidence) = digest.selected_confidence() else {
+            return Err(OnlineAutonomousColdStartExplorationError::MissingBootstrapEvidence);
         };
 
-        let Some(information_gain) =
-            digest.selected_information_gain()
-        else {
-            return Err(
-                OnlineAutonomousColdStartExplorationError::
-                    MissingBootstrapEvidence,
-            );
+        let Some(information_gain) = digest.selected_information_gain() else {
+            return Err(OnlineAutonomousColdStartExplorationError::MissingBootstrapEvidence);
         };
 
-        let Some(controllability) =
-            digest.selected_controllability()
-        else {
-            return Err(
-                OnlineAutonomousColdStartExplorationError::
-                    MissingBootstrapEvidence,
-            );
+        let Some(controllability) = digest.selected_controllability() else {
+            return Err(OnlineAutonomousColdStartExplorationError::MissingBootstrapEvidence);
         };
 
-        let Some(execution_cost) =
-            digest.selected_execution_cost()
-        else {
-            return Err(
-                OnlineAutonomousColdStartExplorationError::
-                    MissingBootstrapEvidence,
-            );
+        let Some(execution_cost) = digest.selected_execution_cost() else {
+            return Err(OnlineAutonomousColdStartExplorationError::MissingBootstrapEvidence);
         };
 
-        let confidence =
-            Self::cognitive_signal(
-                confidence,
-            );
+        let confidence = Self::cognitive_signal(confidence);
 
-        let information_gain =
-            Self::cognitive_signal(
-                information_gain,
-            );
+        let information_gain = Self::cognitive_signal(information_gain);
 
-        let controllability =
-            Self::cognitive_signal(
-                controllability,
-            );
+        let controllability = Self::cognitive_signal(controllability);
 
-        let execution_cost =
-            Self::cognitive_signal(
-                execution_cost,
-            );
+        let execution_cost = Self::cognitive_signal(execution_cost);
 
-        let goal =
-            athlesia_executive_agency::ExecutiveGoal::new(
-                target_state.clone(),
-                policy.goal_priority(),
-                athlesia_mindstone_sparse_cognition::CognitiveSignal::zero(),
-            );
+        let goal = athlesia_executive_agency::ExecutiveGoal::new(
+            target_state.clone(),
+            policy.goal_priority(),
+            athlesia_mindstone_sparse_cognition::CognitiveSignal::zero(),
+        );
 
-        let exploration_signals =
-            athlesia_executive_agency::ExplorationSignals::new(
-                information_gain,
-                athlesia_mindstone_sparse_cognition::CognitiveSignal::zero(),
-                controllability,
-                confidence,
-                execution_cost,
-            );
+        let exploration_signals = athlesia_executive_agency::ExplorationSignals::new(
+            information_gain,
+            athlesia_mindstone_sparse_cognition::CognitiveSignal::zero(),
+            controllability,
+            confidence,
+            execution_cost,
+        );
 
-        let candidate =
-            athlesia_executive_agency::GroundedExplorationCandidate::new(
-                target_state,
-                action,
-                predicted_outcome,
-                exploration_signals,
-            );
+        let candidate = athlesia_executive_agency::GroundedExplorationCandidate::new(
+            target_state,
+            action,
+            predicted_outcome,
+            exploration_signals,
+        );
 
-        let result =
-            athlesia_executive_agency::
-                UniversalColdStartExplorationController::evaluate(
-                    &goal,
-                    std::slice::from_ref(&candidate),
-                    policy.cold_start(),
-                );
+        let result = athlesia_executive_agency::UniversalColdStartExplorationController::evaluate(
+            &goal,
+            std::slice::from_ref(&candidate),
+            policy.cold_start(),
+        );
 
         if !result.selected() {
-            return Err(
-                OnlineAutonomousColdStartExplorationError::
-                    ColdStartExplorationRejected,
-            );
+            return Err(OnlineAutonomousColdStartExplorationError::ColdStartExplorationRejected);
         }
 
-        Ok(
-            OnlineAutonomousColdStartExplorationBundle {
-                goal,
-                candidate,
-                result,
-            },
-        )
+        Ok(OnlineAutonomousColdStartExplorationBundle {
+            goal,
+            candidate,
+            result,
+        })
     }
 }
 
@@ -8953,15 +8836,478 @@ impl UniversalOnlineAutonomousColdStartExplorationSynthesis {
     pub fn evaluate(
         digest: &OnlineAutonomousSelfBootstrapDigest,
         policy: OnlineAutonomousColdStartExplorationPolicy,
-    ) -> Result<
-        OnlineAutonomousColdStartExplorationBundle,
-        OnlineAutonomousColdStartExplorationError,
-    > {
-        OnlineAutonomousColdStartExplorationSynthesis::synthesize(
-            digest,
-            policy,
-        )
+    ) -> Result<OnlineAutonomousColdStartExplorationBundle, OnlineAutonomousColdStartExplorationError>
+    {
+        OnlineAutonomousColdStartExplorationSynthesis::synthesize(digest, policy)
     }
 }
 
 // === ATHLESIA DOMAIN-GENERAL AUTONOMOUS EXECUTIVE CONTEXT SYNTHESIS END ===
+
+// ============================================================================
+// E5D — PERCEPTUAL DOMAIN-LEARNING EVIDENCE BRIDGE
+// ============================================================================
+//
+// This bridge closes one previously missing endogenous path:
+//
+// selected grounded M46 perception
+// -> exact M47 before/after fact snapshots
+// -> exact self-generated action as transformation
+// -> controlled interventional M47 evidence.
+//
+// The environment's observed outcome remains environment evidence. It is not
+// inserted into either state snapshot unless perception independently grounds
+// the same CognitiveStructure as a perceptual fact.
+
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub enum PerceptualDomainLearningEvidenceBridgeStatus {
+    Bridged,
+    PerceptualProjectionRejected,
+    ActionSourceNotSelfGenerated,
+    ActionOutsidePerceptualWindow,
+    InconsistentEnvironmentEvidence,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct PerceptualDomainLearningEvidenceBridgeResult {
+    status: PerceptualDomainLearningEvidenceBridgeStatus,
+    projection_status:
+        athlesia_core_knowledge_perceptual_grounding::GroundedPerceptualStateProjectionStatus,
+    projection:
+        Option<athlesia_core_knowledge_perceptual_grounding::GroundedPerceptualStateProjection>,
+    controlled_evidence:
+        Option<athlesia_universal_domain_learning::InterventionalTransformationEpisode>,
+}
+
+impl PerceptualDomainLearningEvidenceBridgeResult {
+    fn rejected(
+        status: PerceptualDomainLearningEvidenceBridgeStatus,
+        projection_status:
+            athlesia_core_knowledge_perceptual_grounding::GroundedPerceptualStateProjectionStatus,
+        projection: Option<
+            athlesia_core_knowledge_perceptual_grounding::GroundedPerceptualStateProjection,
+        >,
+    ) -> Self {
+        Self {
+            status,
+            projection_status,
+            projection,
+            controlled_evidence: None,
+        }
+    }
+
+    pub fn status(&self) -> PerceptualDomainLearningEvidenceBridgeStatus {
+        self.status
+    }
+
+    pub fn projection_status(
+        &self,
+    ) -> athlesia_core_knowledge_perceptual_grounding::GroundedPerceptualStateProjectionStatus {
+        self.projection_status
+    }
+
+    pub fn projection(
+        &self,
+    ) -> Option<&athlesia_core_knowledge_perceptual_grounding::GroundedPerceptualStateProjection>
+    {
+        self.projection.as_ref()
+    }
+
+    pub fn controlled_evidence(
+        &self,
+    ) -> Option<&athlesia_universal_domain_learning::InterventionalTransformationEpisode> {
+        self.controlled_evidence.as_ref()
+    }
+
+    pub fn episode(
+        &self,
+    ) -> Option<&athlesia_universal_domain_learning::GroundedTransformationEpisode> {
+        self.controlled_evidence
+            .as_ref()
+            .map(athlesia_universal_domain_learning::InterventionalTransformationEpisode::episode)
+    }
+
+    pub fn bridged(&self) -> bool {
+        self.status == PerceptualDomainLearningEvidenceBridgeStatus::Bridged
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, Hash, PartialEq)]
+pub struct PerceptualDomainLearningEvidenceBridge;
+
+impl PerceptualDomainLearningEvidenceBridge {
+    pub fn derive(
+        input: &athlesia_core_knowledge_perceptual_grounding::IntegratedPerceptualWorldInput,
+        context: athlesia_core_knowledge_perceptual_grounding::IntegratedPerceptualWorldContext,
+        environment_evidence: &EnvironmentInteractionEvidence,
+    ) -> PerceptualDomainLearningEvidenceBridgeResult {
+        let projection_result =
+            athlesia_core_knowledge_perceptual_grounding::
+                UniversalGroundedPerceptualStateProjection::evaluate(
+                    input,
+                    context,
+                );
+
+        let projection_status = projection_result.status();
+
+        let Some(projection) = projection_result.projection().cloned() else {
+            return PerceptualDomainLearningEvidenceBridgeResult::rejected(
+                PerceptualDomainLearningEvidenceBridgeStatus::PerceptualProjectionRejected,
+                projection_status,
+                None,
+            );
+        };
+
+        let action_observation = environment_evidence.action_observation();
+
+        if action_observation.source()
+            != athlesia_core_knowledge_perceptual_grounding::ActionSource::SelfGenerated
+        {
+            return PerceptualDomainLearningEvidenceBridgeResult::rejected(
+                PerceptualDomainLearningEvidenceBridgeStatus::ActionSourceNotSelfGenerated,
+                projection_status,
+                Some(projection),
+            );
+        }
+
+        let start_index = input.previous_frame().observation_index();
+        let end_index = input.current_frame().observation_index();
+        let event_index = action_observation.event_index();
+
+        if event_index < start_index || event_index >= end_index {
+            return PerceptualDomainLearningEvidenceBridgeResult::rejected(
+                PerceptualDomainLearningEvidenceBridgeStatus::ActionOutsidePerceptualWindow,
+                projection_status,
+                Some(projection),
+            );
+        }
+
+        let execution = environment_evidence.execution_observation();
+        let experiment = environment_evidence.experiment_observation();
+
+        let evidence_consistent = execution.observed_action() == action_observation.descriptor()
+            && experiment.action() == action_observation.descriptor()
+            && execution.observed_state() == experiment.source_state()
+            && execution.observed_outcome() == experiment.observed_outcome()
+            && execution.observation_confidence() == experiment.confidence();
+
+        if !evidence_consistent {
+            return PerceptualDomainLearningEvidenceBridgeResult::rejected(
+                PerceptualDomainLearningEvidenceBridgeStatus::InconsistentEnvironmentEvidence,
+                projection_status,
+                Some(projection),
+            );
+        }
+
+        let before = athlesia_universal_domain_learning::GroundedStateSnapshot::new(
+            projection.previous_facts().to_vec(),
+        )
+        .expect("projected previous perceptual state contains grounded facts");
+
+        let after = athlesia_universal_domain_learning::GroundedStateSnapshot::new(
+            projection.current_facts().to_vec(),
+        )
+        .expect("projected current perceptual state contains grounded facts");
+
+        let episode = athlesia_universal_domain_learning::GroundedTransformationEpisode::new(
+            before,
+            after,
+            action_observation.descriptor().clone(),
+        );
+
+        let controlled_evidence =
+            athlesia_universal_domain_learning::InterventionalTransformationEpisode::controlled(
+                episode,
+            );
+
+        PerceptualDomainLearningEvidenceBridgeResult {
+            status: PerceptualDomainLearningEvidenceBridgeStatus::Bridged,
+            projection_status,
+            projection: Some(projection),
+            controlled_evidence: Some(controlled_evidence),
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, Hash, PartialEq)]
+pub struct UniversalPerceptualDomainLearningEvidenceBridge;
+
+impl UniversalPerceptualDomainLearningEvidenceBridge {
+    pub fn evaluate(
+        input: &athlesia_core_knowledge_perceptual_grounding::IntegratedPerceptualWorldInput,
+        context: athlesia_core_knowledge_perceptual_grounding::IntegratedPerceptualWorldContext,
+        environment_evidence: &EnvironmentInteractionEvidence,
+    ) -> PerceptualDomainLearningEvidenceBridgeResult {
+        PerceptualDomainLearningEvidenceBridge::derive(input, context, environment_evidence)
+    }
+}
+
+#[cfg(test)]
+mod perceptual_domain_learning_evidence_bridge_tests {
+    use super::*;
+
+    use athlesia_core_knowledge_perceptual_grounding::{
+        ActionConsequencePolicy, ActionObservation, ActionSource,
+        IntegratedPerceptualWorldCandidates, IntegratedPerceptualWorldContext,
+        IntegratedPerceptualWorldInput, ObjectHypothesis, ObjecthoodEvidence,
+        PerceptualChangePolicy, PerceptualElement, PerceptualElementHandle, PerceptualFrame,
+        PerceptualGroundingPolicy, PersistenceTrackingPolicy, SceneInterpretation,
+        TopologicalRelationPolicy,
+    };
+
+    fn s(value: u16) -> CognitiveSignal {
+        CognitiveSignal::new(value).expect("test signal must be positive and bounded")
+    }
+
+    fn a(value: u64) -> CognitiveStructure {
+        CognitiveStructure::atom(value)
+    }
+
+    fn objecthood() -> ObjecthoodEvidence {
+        ObjecthoodEvidence::new(s(900), s(900), s(900), s(900), s(900), s(900))
+    }
+
+    fn frame(observation_index: u64, elements: &[(u64, u64)]) -> PerceptualFrame {
+        PerceptualFrame::new(
+            observation_index,
+            elements
+                .iter()
+                .map(|(handle, signature)| {
+                    PerceptualElement::new(PerceptualElementHandle::new(*handle), a(*signature))
+                })
+                .collect(),
+        )
+        .expect("test frame is valid")
+    }
+
+    fn scene(handles: &[u64]) -> SceneInterpretation {
+        SceneInterpretation::new(
+            vec![ObjectHypothesis::new(
+                handles
+                    .iter()
+                    .copied()
+                    .map(PerceptualElementHandle::new)
+                    .collect(),
+                objecthood(),
+            )
+            .expect("test object is valid")],
+            s(900),
+        )
+        .expect("test scene is valid")
+    }
+
+    fn perceptual_input() -> IntegratedPerceptualWorldInput {
+        IntegratedPerceptualWorldInput::new(
+            frame(1, &[(1001, 10), (1002, 20)]),
+            frame(3, &[(1001, 10), (1002, 30)]),
+            IntegratedPerceptualWorldCandidates::new(
+                vec![scene(&[1001, 1002])],
+                vec![scene(&[1001, 1002])],
+                Vec::new(),
+                Vec::new(),
+                Vec::new(),
+                Vec::new(),
+            ),
+        )
+        .expect("test perceptual input is valid")
+    }
+
+    fn empty_perceptual_input() -> IntegratedPerceptualWorldInput {
+        IntegratedPerceptualWorldInput::new(
+            frame(1, &[(1001, 10)]),
+            frame(3, &[(1001, 20)]),
+            IntegratedPerceptualWorldCandidates::new(
+                Vec::new(),
+                Vec::new(),
+                Vec::new(),
+                Vec::new(),
+                Vec::new(),
+                Vec::new(),
+            ),
+        )
+        .expect("test perceptual input is valid")
+    }
+
+    fn context() -> IntegratedPerceptualWorldContext {
+        IntegratedPerceptualWorldContext::new(
+            PerceptualGroundingPolicy::new(8, 8).expect("scene policy is valid"),
+            PersistenceTrackingPolicy::new(8, 8, 16).expect("persistence policy is valid"),
+            TopologicalRelationPolicy::new(8, 16).expect("topology policy is valid"),
+            PerceptualChangePolicy::new(8, 16).expect("change policy is valid"),
+            ActionConsequencePolicy::new(8, 8, 16).expect("action consequence policy is valid"),
+        )
+    }
+
+    fn environment_evidence(
+        event_index: u64,
+        source: ActionSource,
+        action: u64,
+        execution_action: u64,
+        outcome: u64,
+    ) -> EnvironmentInteractionEvidence {
+        EnvironmentInteractionEvidence {
+            action_observation: ActionObservation::new(event_index, source, a(action)),
+            execution_observation: athlesia_executive_agency::GroundedExecutionObservation::new(
+                a(9000),
+                a(execution_action),
+                a(outcome),
+                s(900),
+            ),
+            experiment_observation:
+                athlesia_autonomous_active_experimentation::ExperimentOutcomeObservation::new(
+                    a(9000),
+                    a(action),
+                    a(outcome),
+                    s(900),
+                )
+                .expect("experiment observation is valid"),
+        }
+    }
+
+    #[test]
+    fn exact_grounded_perception_becomes_controlled_m47_learning_evidence() {
+        let input = perceptual_input();
+
+        let evidence = environment_evidence(2, ActionSource::SelfGenerated, 500, 500, 600);
+
+        let result =
+            UniversalPerceptualDomainLearningEvidenceBridge::evaluate(&input, context(), &evidence);
+
+        assert_eq!(
+            result.status(),
+            PerceptualDomainLearningEvidenceBridgeStatus::Bridged
+        );
+
+        assert_eq!(
+            result.projection_status(),
+            athlesia_core_knowledge_perceptual_grounding::
+                GroundedPerceptualStateProjectionStatus::Projected
+        );
+
+        let controlled = result
+            .controlled_evidence()
+            .expect("bridged result contains controlled evidence");
+
+        assert!(controlled.is_controlled());
+
+        let episode = controlled.episode();
+
+        assert_eq!(episode.transformation(), &a(500));
+        assert!(episode.before().contains_fact(&a(10)));
+        assert!(episode.before().contains_fact(&a(20)));
+        assert!(episode.after().contains_fact(&a(10)));
+        assert!(episode.after().contains_fact(&a(30)));
+    }
+
+    #[test]
+    fn environment_outcome_and_action_are_not_fabricated_into_state_facts() {
+        let input = perceptual_input();
+
+        let evidence = environment_evidence(2, ActionSource::SelfGenerated, 500, 500, 600);
+
+        let result = PerceptualDomainLearningEvidenceBridge::derive(&input, context(), &evidence);
+
+        let episode = result.episode().expect("bridged result contains episode");
+
+        for structure in [a(500), a(600), a(9000)] {
+            assert!(!episode.before().contains_fact(&structure));
+            assert!(!episode.after().contains_fact(&structure));
+        }
+
+        assert_eq!(episode.transformation(), &a(500));
+    }
+
+    #[test]
+    fn action_must_occur_inside_exact_perceptual_transition_window() {
+        let input = perceptual_input();
+
+        let evidence = environment_evidence(3, ActionSource::SelfGenerated, 500, 500, 600);
+
+        let result = PerceptualDomainLearningEvidenceBridge::derive(&input, context(), &evidence);
+
+        assert_eq!(
+            result.status(),
+            PerceptualDomainLearningEvidenceBridgeStatus::ActionOutsidePerceptualWindow
+        );
+
+        assert!(result.controlled_evidence().is_none());
+    }
+
+    #[test]
+    fn externally_observed_action_is_not_promoted_to_controlled_intervention() {
+        let input = perceptual_input();
+
+        let evidence = environment_evidence(2, ActionSource::ObservedExternal, 500, 500, 600);
+
+        let result = PerceptualDomainLearningEvidenceBridge::derive(&input, context(), &evidence);
+
+        assert_eq!(
+            result.status(),
+            PerceptualDomainLearningEvidenceBridgeStatus::ActionSourceNotSelfGenerated
+        );
+
+        assert!(result.controlled_evidence().is_none());
+    }
+
+    #[test]
+    fn inconsistent_cross_layer_environment_evidence_is_rejected() {
+        let input = perceptual_input();
+
+        let evidence = environment_evidence(2, ActionSource::SelfGenerated, 500, 501, 600);
+
+        let result = PerceptualDomainLearningEvidenceBridge::derive(&input, context(), &evidence);
+
+        assert_eq!(
+            result.status(),
+            PerceptualDomainLearningEvidenceBridgeStatus::InconsistentEnvironmentEvidence
+        );
+
+        assert!(result.controlled_evidence().is_none());
+    }
+
+    #[test]
+    fn missing_grounded_scene_prevents_domain_learning_evidence_creation() {
+        let input = empty_perceptual_input();
+
+        let evidence = environment_evidence(2, ActionSource::SelfGenerated, 500, 500, 600);
+
+        let result = PerceptualDomainLearningEvidenceBridge::derive(&input, context(), &evidence);
+
+        assert_eq!(
+            result.status(),
+            PerceptualDomainLearningEvidenceBridgeStatus::PerceptualProjectionRejected
+        );
+
+        assert_eq!(
+            result.projection_status(),
+            athlesia_core_knowledge_perceptual_grounding::
+                GroundedPerceptualStateProjectionStatus::MissingPreviousScene
+        );
+
+        assert!(result.projection().is_none());
+        assert!(result.controlled_evidence().is_none());
+    }
+
+    #[test]
+    fn bridge_is_deterministic_and_does_not_mutate_perception_or_evidence() {
+        let input = perceptual_input();
+
+        let evidence = environment_evidence(2, ActionSource::SelfGenerated, 500, 500, 600);
+
+        let input_before = input.clone();
+        let evidence_before = evidence.clone();
+
+        let direct = PerceptualDomainLearningEvidenceBridge::derive(&input, context(), &evidence);
+
+        let facade =
+            UniversalPerceptualDomainLearningEvidenceBridge::evaluate(&input, context(), &evidence);
+
+        let repeated =
+            UniversalPerceptualDomainLearningEvidenceBridge::evaluate(&input, context(), &evidence);
+
+        assert_eq!(direct, facade);
+        assert_eq!(facade, repeated);
+        assert_eq!(input, input_before);
+        assert_eq!(evidence, evidence_before);
+    }
+}

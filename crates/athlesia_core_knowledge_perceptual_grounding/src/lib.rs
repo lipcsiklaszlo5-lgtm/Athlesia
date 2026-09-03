@@ -2605,3 +2605,413 @@ impl CoreKnowledgePerceptualWorld {
         IntegratedPerceptualWorld::evaluate(input, context)
     }
 }
+
+// ============================================================================
+// E5D — GROUNDED PERCEPTUAL STATE FACT PROJECTION
+// ============================================================================
+//
+// This projection is intentionally conservative.
+//
+// State facts are derived only from:
+//   1. exact CognitiveStructure signatures already present in PerceptualElement,
+//   2. object membership already admitted by the selected grounded scene.
+//
+// No observation index, element handle, enum discriminant, synthetic tag atom,
+// action descriptor, predicted outcome, or observed outcome is fabricated into
+// a state fact.
+//
+// Object and scene composition use CognitiveStructure::Unordered directly.
+// This preserves structural grouping without introducing a new symbolic
+// namespace or benchmark-specific vocabulary.
+
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub enum GroundedPerceptualStateProjectionStatus {
+    Projected,
+    MissingPreviousScene,
+    AmbiguousPreviousScene,
+    MissingCurrentScene,
+    AmbiguousCurrentScene,
+    UngroundedPreviousScene,
+    UngroundedCurrentScene,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct GroundedPerceptualStateProjection {
+    previous_facts: Vec<CognitiveStructure>,
+    current_facts: Vec<CognitiveStructure>,
+}
+
+impl GroundedPerceptualStateProjection {
+    pub fn previous_facts(&self) -> &[CognitiveStructure] {
+        &self.previous_facts
+    }
+
+    pub fn current_facts(&self) -> &[CognitiveStructure] {
+        &self.current_facts
+    }
+
+    pub fn previous_fact_count(&self) -> usize {
+        self.previous_facts.len()
+    }
+
+    pub fn current_fact_count(&self) -> usize {
+        self.current_facts.len()
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct GroundedPerceptualStateProjectionResult {
+    status: GroundedPerceptualStateProjectionStatus,
+    projection: Option<GroundedPerceptualStateProjection>,
+}
+
+impl GroundedPerceptualStateProjectionResult {
+    fn rejected(status: GroundedPerceptualStateProjectionStatus) -> Self {
+        Self {
+            status,
+            projection: None,
+        }
+    }
+
+    pub fn status(&self) -> GroundedPerceptualStateProjectionStatus {
+        self.status
+    }
+
+    pub fn projection(&self) -> Option<&GroundedPerceptualStateProjection> {
+        self.projection.as_ref()
+    }
+
+    pub fn projected(&self) -> bool {
+        self.status == GroundedPerceptualStateProjectionStatus::Projected
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, Hash, PartialEq)]
+pub struct GroundedPerceptualStateProjector;
+
+impl GroundedPerceptualStateProjector {
+    fn scene_facts(
+        frame: &PerceptualFrame,
+        scene: &SceneInterpretation,
+    ) -> Option<Vec<CognitiveStructure>> {
+        if !scene.is_grounded_in(frame) {
+            return None;
+        }
+
+        let mut facts = Vec::new();
+        let mut object_facts = Vec::with_capacity(scene.hypothesis_count());
+
+        for hypothesis in scene.hypotheses() {
+            let mut member_signatures = Vec::with_capacity(hypothesis.member_count());
+
+            for handle in hypothesis.members() {
+                let element = frame.element(*handle)?;
+                let signature = element.signature().clone();
+
+                facts.push(signature.clone());
+                member_signatures.push(signature);
+            }
+
+            let object_fact = CognitiveStructure::unordered(member_signatures)?;
+
+            facts.push(object_fact.clone());
+            object_facts.push(object_fact);
+        }
+
+        let scene_fact = CognitiveStructure::unordered(object_facts)?;
+
+        facts.push(scene_fact);
+        facts.sort();
+        facts.dedup();
+
+        if facts.is_empty() {
+            return None;
+        }
+
+        Some(facts)
+    }
+
+    pub fn project(
+        input: &IntegratedPerceptualWorldInput,
+        context: IntegratedPerceptualWorldContext,
+    ) -> GroundedPerceptualStateProjectionResult {
+        let world = CoreKnowledgePerceptualWorld::evaluate(input, context);
+
+        let previous_scene = match world.previous_scene().selected() {
+            [] => {
+                return GroundedPerceptualStateProjectionResult::rejected(
+                    GroundedPerceptualStateProjectionStatus::MissingPreviousScene,
+                );
+            }
+            [scene] => scene,
+            _ => {
+                return GroundedPerceptualStateProjectionResult::rejected(
+                    GroundedPerceptualStateProjectionStatus::AmbiguousPreviousScene,
+                );
+            }
+        };
+
+        let current_scene = match world.current_scene().selected() {
+            [] => {
+                return GroundedPerceptualStateProjectionResult::rejected(
+                    GroundedPerceptualStateProjectionStatus::MissingCurrentScene,
+                );
+            }
+            [scene] => scene,
+            _ => {
+                return GroundedPerceptualStateProjectionResult::rejected(
+                    GroundedPerceptualStateProjectionStatus::AmbiguousCurrentScene,
+                );
+            }
+        };
+
+        let Some(previous_facts) = Self::scene_facts(input.previous_frame(), previous_scene) else {
+            return GroundedPerceptualStateProjectionResult::rejected(
+                GroundedPerceptualStateProjectionStatus::UngroundedPreviousScene,
+            );
+        };
+
+        let Some(current_facts) = Self::scene_facts(input.current_frame(), current_scene) else {
+            return GroundedPerceptualStateProjectionResult::rejected(
+                GroundedPerceptualStateProjectionStatus::UngroundedCurrentScene,
+            );
+        };
+
+        GroundedPerceptualStateProjectionResult {
+            status: GroundedPerceptualStateProjectionStatus::Projected,
+            projection: Some(GroundedPerceptualStateProjection {
+                previous_facts,
+                current_facts,
+            }),
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, Hash, PartialEq)]
+pub struct UniversalGroundedPerceptualStateProjection;
+
+impl UniversalGroundedPerceptualStateProjection {
+    pub fn evaluate(
+        input: &IntegratedPerceptualWorldInput,
+        context: IntegratedPerceptualWorldContext,
+    ) -> GroundedPerceptualStateProjectionResult {
+        GroundedPerceptualStateProjector::project(input, context)
+    }
+}
+
+#[cfg(test)]
+mod grounded_perceptual_state_projection_tests {
+    use super::*;
+
+    fn s(value: u16) -> CognitiveSignal {
+        CognitiveSignal::new(value).expect("test signal must be positive and bounded")
+    }
+
+    fn a(value: u64) -> CognitiveStructure {
+        CognitiveStructure::atom(value)
+    }
+
+    fn frame(observation_index: u64, elements: &[(u64, u64)]) -> PerceptualFrame {
+        PerceptualFrame::new(
+            observation_index,
+            elements
+                .iter()
+                .map(|(handle, signature)| {
+                    PerceptualElement::new(PerceptualElementHandle::new(*handle), a(*signature))
+                })
+                .collect(),
+        )
+        .expect("test frame is valid")
+    }
+
+    fn evidence() -> ObjecthoodEvidence {
+        ObjecthoodEvidence::new(s(900), s(900), s(900), s(900), s(900), s(900))
+    }
+
+    fn scene(groups: &[Vec<u64>]) -> SceneInterpretation {
+        let hypotheses = groups
+            .iter()
+            .map(|members| {
+                ObjectHypothesis::new(
+                    members
+                        .iter()
+                        .copied()
+                        .map(PerceptualElementHandle::new)
+                        .collect(),
+                    evidence(),
+                )
+                .expect("test object hypothesis is grounded")
+            })
+            .collect();
+
+        SceneInterpretation::new(hypotheses, s(900)).expect("test scene is valid")
+    }
+
+    fn context() -> IntegratedPerceptualWorldContext {
+        IntegratedPerceptualWorldContext::new(
+            PerceptualGroundingPolicy::new(8, 8).expect("scene policy is valid"),
+            PersistenceTrackingPolicy::new(8, 8, 16).expect("persistence policy is valid"),
+            TopologicalRelationPolicy::new(8, 16).expect("topology policy is valid"),
+            PerceptualChangePolicy::new(8, 16).expect("change policy is valid"),
+            ActionConsequencePolicy::new(8, 8, 16).expect("action consequence policy is valid"),
+        )
+    }
+
+    fn input(
+        previous_elements: &[(u64, u64)],
+        current_elements: &[(u64, u64)],
+        previous_groups: &[Vec<u64>],
+        current_groups: &[Vec<u64>],
+    ) -> IntegratedPerceptualWorldInput {
+        IntegratedPerceptualWorldInput::new(
+            frame(1, previous_elements),
+            frame(3, current_elements),
+            IntegratedPerceptualWorldCandidates::new(
+                vec![scene(previous_groups)],
+                vec![scene(current_groups)],
+                Vec::new(),
+                Vec::new(),
+                Vec::new(),
+                Vec::new(),
+            ),
+        )
+        .expect("test perceptual input is valid")
+    }
+
+    fn canonical(mut facts: Vec<CognitiveStructure>) -> Vec<CognitiveStructure> {
+        facts.sort();
+        facts.dedup();
+        facts
+    }
+
+    #[test]
+    fn exact_selected_scene_signatures_become_grounded_multilevel_facts() {
+        let input = input(
+            &[(1001, 10), (1002, 20)],
+            &[(1001, 10), (1002, 30)],
+            &[vec![1001, 1002]],
+            &[vec![1001, 1002]],
+        );
+
+        let result = UniversalGroundedPerceptualStateProjection::evaluate(&input, context());
+
+        assert_eq!(
+            result.status(),
+            GroundedPerceptualStateProjectionStatus::Projected
+        );
+
+        let projection = result
+            .projection()
+            .expect("projected result contains projection");
+
+        let previous_object = CognitiveStructure::unordered(vec![a(10), a(20)])
+            .expect("object structure is nonempty");
+
+        let previous_scene = CognitiveStructure::unordered(vec![previous_object.clone()])
+            .expect("scene structure is nonempty");
+
+        let current_object = CognitiveStructure::unordered(vec![a(10), a(30)])
+            .expect("object structure is nonempty");
+
+        let current_scene = CognitiveStructure::unordered(vec![current_object.clone()])
+            .expect("scene structure is nonempty");
+
+        assert_eq!(
+            projection.previous_facts(),
+            canonical(vec![a(10), a(20), previous_object, previous_scene,]).as_slice()
+        );
+
+        assert_eq!(
+            projection.current_facts(),
+            canonical(vec![a(10), a(30), current_object, current_scene,]).as_slice()
+        );
+    }
+
+    #[test]
+    fn opaque_handles_and_observation_indices_are_not_fabricated_as_facts() {
+        let input = input(
+            &[(1001, 10), (1002, 20)],
+            &[(1001, 10), (1002, 30)],
+            &[vec![1001, 1002]],
+            &[vec![1001, 1002]],
+        );
+
+        let result = UniversalGroundedPerceptualStateProjection::evaluate(&input, context());
+
+        let projection = result.projection().expect("projection must succeed");
+
+        for forbidden in [a(1), a(3), a(1001), a(1002)] {
+            assert!(!projection.previous_facts().contains(&forbidden));
+            assert!(!projection.current_facts().contains(&forbidden));
+        }
+    }
+
+    #[test]
+    fn scene_composition_preserves_repeated_object_structure_without_synthetic_tags() {
+        let input = input(
+            &[(1001, 10), (1002, 10)],
+            &[(1001, 10), (1002, 10)],
+            &[vec![1001], vec![1002]],
+            &[vec![1001], vec![1002]],
+        );
+
+        let result = UniversalGroundedPerceptualStateProjection::evaluate(&input, context());
+
+        let projection = result.projection().expect("projection must succeed");
+
+        let object =
+            CognitiveStructure::unordered(vec![a(10)]).expect("object structure is nonempty");
+
+        let repeated_scene = CognitiveStructure::unordered(vec![object.clone(), object])
+            .expect("scene structure is nonempty");
+
+        assert!(projection.previous_facts().contains(&repeated_scene));
+
+        assert!(projection.current_facts().contains(&repeated_scene));
+    }
+
+    #[test]
+    fn missing_selected_scene_causes_epistemic_abstention() {
+        let input = IntegratedPerceptualWorldInput::new(
+            frame(1, &[(1001, 10)]),
+            frame(3, &[(1001, 20)]),
+            IntegratedPerceptualWorldCandidates::new(
+                Vec::new(),
+                Vec::new(),
+                Vec::new(),
+                Vec::new(),
+                Vec::new(),
+                Vec::new(),
+            ),
+        )
+        .expect("test perceptual input is valid");
+
+        let result = UniversalGroundedPerceptualStateProjection::evaluate(&input, context());
+
+        assert_eq!(
+            result.status(),
+            GroundedPerceptualStateProjectionStatus::MissingPreviousScene
+        );
+
+        assert!(result.projection().is_none());
+    }
+
+    #[test]
+    fn projection_is_deterministic_and_non_mutating() {
+        let input = input(
+            &[(1001, 10), (1002, 20)],
+            &[(1001, 10), (1002, 30)],
+            &[vec![1001, 1002]],
+            &[vec![1001, 1002]],
+        );
+
+        let before = input.clone();
+
+        let first = GroundedPerceptualStateProjector::project(&input, context());
+
+        let second = UniversalGroundedPerceptualStateProjection::evaluate(&input, context());
+
+        assert_eq!(first, second);
+        assert_eq!(input, before);
+    }
+}
