@@ -9311,3 +9311,542 @@ mod perceptual_domain_learning_evidence_bridge_tests {
         assert_eq!(evidence, evidence_before);
     }
 }
+
+// ============================================================================
+// E5E — ENDOGENOUS TRANSITION SCHEMA LEARNING CLOSURE
+// ============================================================================
+//
+// This layer accumulates only controlled transformation episodes produced by
+// the E5D grounded perceptual evidence bridge.
+//
+// Hypothesis seeds are intentionally absent.
+//
+// Existing M47 TransitionSchemaInduction receives:
+//   - endogenous grounded transformation episodes,
+//   - an empty invariant seed frontier,
+//   - a bounded domain-general induction policy.
+//
+// A single transformation is not sufficient evidence for a schema because
+// M47 requires positive association lift relative to the global evidence
+// baseline. Distinct experienced transformations provide the contrast needed
+// for a transformation-specific predictive hypothesis.
+
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub struct EndogenousTransitionSchemaLearningPolicy {
+    max_evidence_episodes: usize,
+    schema_policy: athlesia_universal_domain_learning::TransitionSchemaPolicy,
+}
+
+impl EndogenousTransitionSchemaLearningPolicy {
+    pub fn new(
+        max_evidence_episodes: usize,
+        schema_policy: athlesia_universal_domain_learning::TransitionSchemaPolicy,
+    ) -> Option<Self> {
+        if max_evidence_episodes == 0 {
+            return None;
+        }
+
+        Some(Self {
+            max_evidence_episodes,
+            schema_policy,
+        })
+    }
+
+    pub fn max_evidence_episodes(self) -> usize {
+        self.max_evidence_episodes
+    }
+
+    pub fn schema_policy(self) -> athlesia_universal_domain_learning::TransitionSchemaPolicy {
+        self.schema_policy
+    }
+}
+
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
+pub struct EndogenousTransitionSchemaLearningState {
+    episodes: Vec<athlesia_universal_domain_learning::GroundedTransformationEpisode>,
+}
+
+impl EndogenousTransitionSchemaLearningState {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    pub fn episodes(&self) -> &[athlesia_universal_domain_learning::GroundedTransformationEpisode] {
+        &self.episodes
+    }
+
+    pub fn episode_count(&self) -> usize {
+        self.episodes.len()
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub enum EndogenousTransitionSchemaLearningStatus {
+    EvidenceRejected,
+    EvidenceFrontierExceeded,
+    AccumulatingContrast,
+    NoAdmittedHypothesis,
+    HypothesisInduced,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct EndogenousTransitionSchemaLearningResult {
+    status: EndogenousTransitionSchemaLearningStatus,
+    bridge_status: PerceptualDomainLearningEvidenceBridgeStatus,
+    state: EndogenousTransitionSchemaLearningState,
+    induction: Option<athlesia_universal_domain_learning::TransitionSchemaInductionResult>,
+}
+
+impl EndogenousTransitionSchemaLearningResult {
+    pub fn status(&self) -> EndogenousTransitionSchemaLearningStatus {
+        self.status
+    }
+
+    pub fn bridge_status(&self) -> PerceptualDomainLearningEvidenceBridgeStatus {
+        self.bridge_status
+    }
+
+    pub fn state(&self) -> &EndogenousTransitionSchemaLearningState {
+        &self.state
+    }
+
+    pub fn induction(
+        &self,
+    ) -> Option<&athlesia_universal_domain_learning::TransitionSchemaInductionResult> {
+        self.induction.as_ref()
+    }
+
+    pub fn selected_hypotheses(
+        &self,
+    ) -> &[athlesia_universal_domain_learning::GroundedTransitionSchemaHypothesis] {
+        match &self.induction {
+            Some(induction) => induction.selected(),
+            None => &[],
+        }
+    }
+
+    pub fn hypothesis_count(&self) -> usize {
+        self.selected_hypotheses().len()
+    }
+
+    pub fn hypothesis_induced(&self) -> bool {
+        self.status == EndogenousTransitionSchemaLearningStatus::HypothesisInduced
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, Hash, PartialEq)]
+pub struct EndogenousTransitionSchemaLearningCycle;
+
+impl EndogenousTransitionSchemaLearningCycle {
+    pub fn observe(
+        state: &EndogenousTransitionSchemaLearningState,
+        input: &athlesia_core_knowledge_perceptual_grounding::IntegratedPerceptualWorldInput,
+        context: athlesia_core_knowledge_perceptual_grounding::IntegratedPerceptualWorldContext,
+        environment_evidence: &EnvironmentInteractionEvidence,
+        policy: EndogenousTransitionSchemaLearningPolicy,
+    ) -> EndogenousTransitionSchemaLearningResult {
+        let bridge =
+            PerceptualDomainLearningEvidenceBridge::derive(input, context, environment_evidence);
+
+        let bridge_status = bridge.status();
+
+        let Some(controlled_evidence) = bridge.controlled_evidence() else {
+            return EndogenousTransitionSchemaLearningResult {
+                status: EndogenousTransitionSchemaLearningStatus::EvidenceRejected,
+                bridge_status,
+                state: state.clone(),
+                induction: None,
+            };
+        };
+
+        if state.episode_count() >= policy.max_evidence_episodes() {
+            return EndogenousTransitionSchemaLearningResult {
+                status: EndogenousTransitionSchemaLearningStatus::EvidenceFrontierExceeded,
+                bridge_status,
+                state: state.clone(),
+                induction: None,
+            };
+        }
+
+        let mut next_state = state.clone();
+
+        next_state
+            .episodes
+            .push(controlled_evidence.episode().clone());
+
+        let induction =
+            athlesia_universal_domain_learning::UniversalTransitionSchemaInduction::evaluate(
+                next_state.episodes(),
+                &[],
+                policy.schema_policy(),
+            );
+
+        let status = if induction.selected_count() > 0 {
+            EndogenousTransitionSchemaLearningStatus::HypothesisInduced
+        } else if induction.transformation_count() < 2 {
+            EndogenousTransitionSchemaLearningStatus::AccumulatingContrast
+        } else {
+            EndogenousTransitionSchemaLearningStatus::NoAdmittedHypothesis
+        };
+
+        EndogenousTransitionSchemaLearningResult {
+            status,
+            bridge_status,
+            state: next_state,
+            induction: Some(induction),
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, Hash, PartialEq)]
+pub struct UniversalEndogenousTransitionSchemaLearningCycle;
+
+impl UniversalEndogenousTransitionSchemaLearningCycle {
+    pub fn evaluate(
+        state: &EndogenousTransitionSchemaLearningState,
+        input: &athlesia_core_knowledge_perceptual_grounding::IntegratedPerceptualWorldInput,
+        context: athlesia_core_knowledge_perceptual_grounding::IntegratedPerceptualWorldContext,
+        environment_evidence: &EnvironmentInteractionEvidence,
+        policy: EndogenousTransitionSchemaLearningPolicy,
+    ) -> EndogenousTransitionSchemaLearningResult {
+        EndogenousTransitionSchemaLearningCycle::observe(
+            state,
+            input,
+            context,
+            environment_evidence,
+            policy,
+        )
+    }
+}
+
+#[cfg(test)]
+mod endogenous_transition_schema_learning_tests {
+    use super::*;
+
+    use athlesia_core_knowledge_perceptual_grounding::{
+        ActionConsequencePolicy, ActionObservation, ActionSource,
+        IntegratedPerceptualWorldCandidates, IntegratedPerceptualWorldContext,
+        IntegratedPerceptualWorldInput, ObjectHypothesis, ObjecthoodEvidence,
+        PerceptualChangePolicy, PerceptualElement, PerceptualElementHandle, PerceptualFrame,
+        PerceptualGroundingPolicy, PersistenceTrackingPolicy, SceneInterpretation,
+        TopologicalRelationPolicy,
+    };
+
+    fn s(value: u16) -> CognitiveSignal {
+        CognitiveSignal::new(value).expect("test signal must be positive and bounded")
+    }
+
+    fn a(value: u64) -> CognitiveStructure {
+        CognitiveStructure::atom(value)
+    }
+
+    fn objecthood() -> ObjecthoodEvidence {
+        ObjecthoodEvidence::new(s(900), s(900), s(900), s(900), s(900), s(900))
+    }
+
+    fn frame(observation_index: u64, elements: &[(u64, u64)]) -> PerceptualFrame {
+        PerceptualFrame::new(
+            observation_index,
+            elements
+                .iter()
+                .map(|(handle, signature)| {
+                    PerceptualElement::new(PerceptualElementHandle::new(*handle), a(*signature))
+                })
+                .collect(),
+        )
+        .expect("test frame is valid")
+    }
+
+    fn scene(handles: &[u64]) -> SceneInterpretation {
+        SceneInterpretation::new(
+            vec![ObjectHypothesis::new(
+                handles
+                    .iter()
+                    .copied()
+                    .map(PerceptualElementHandle::new)
+                    .collect(),
+                objecthood(),
+            )
+            .expect("test object hypothesis is valid")],
+            s(900),
+        )
+        .expect("test scene is valid")
+    }
+
+    fn perceptual_input(
+        previous_index: u64,
+        current_index: u64,
+        effect_present_after: bool,
+    ) -> IntegratedPerceptualWorldInput {
+        let previous_frame = frame(previous_index, &[(1001, 10)]);
+
+        let previous_scene = scene(&[1001]);
+
+        let (current_frame, current_scene) = if effect_present_after {
+            (
+                frame(current_index, &[(1001, 10), (1002, 20)]),
+                scene(&[1001, 1002]),
+            )
+        } else {
+            (frame(current_index, &[(1001, 10)]), scene(&[1001]))
+        };
+
+        IntegratedPerceptualWorldInput::new(
+            previous_frame,
+            current_frame,
+            IntegratedPerceptualWorldCandidates::new(
+                vec![previous_scene],
+                vec![current_scene],
+                Vec::new(),
+                Vec::new(),
+                Vec::new(),
+                Vec::new(),
+            ),
+        )
+        .expect("test perceptual input is valid")
+    }
+
+    fn context() -> IntegratedPerceptualWorldContext {
+        IntegratedPerceptualWorldContext::new(
+            PerceptualGroundingPolicy::new(8, 8).expect("scene policy is valid"),
+            PersistenceTrackingPolicy::new(8, 8, 16).expect("persistence policy is valid"),
+            TopologicalRelationPolicy::new(8, 16).expect("topology policy is valid"),
+            PerceptualChangePolicy::new(8, 16).expect("change policy is valid"),
+            ActionConsequencePolicy::new(8, 8, 16).expect("action consequence policy is valid"),
+        )
+    }
+
+    fn environment_evidence(
+        event_index: u64,
+        source: ActionSource,
+        action: u64,
+        outcome: u64,
+    ) -> EnvironmentInteractionEvidence {
+        EnvironmentInteractionEvidence {
+            action_observation: ActionObservation::new(event_index, source, a(action)),
+            execution_observation: athlesia_executive_agency::GroundedExecutionObservation::new(
+                a(9000),
+                a(action),
+                a(outcome),
+                s(900),
+            ),
+            experiment_observation:
+                athlesia_autonomous_active_experimentation::ExperimentOutcomeObservation::new(
+                    a(9000),
+                    a(action),
+                    a(outcome),
+                    s(900),
+                )
+                .expect("experiment observation is valid"),
+        }
+    }
+
+    fn policy(max_evidence_episodes: usize) -> EndogenousTransitionSchemaLearningPolicy {
+        let schema_policy = athlesia_universal_domain_learning::TransitionSchemaPolicy::new(
+            1,
+            s(1000),
+            s(1),
+            256,
+            64,
+        )
+        .expect("schema policy is valid");
+
+        EndogenousTransitionSchemaLearningPolicy::new(max_evidence_episodes, schema_policy)
+            .expect("learning policy is valid")
+    }
+
+    #[test]
+    fn one_self_generated_transformation_does_not_self_confirm_a_schema() {
+        let state = EndogenousTransitionSchemaLearningState::new();
+
+        let input = perceptual_input(1, 3, true);
+
+        let evidence = environment_evidence(2, ActionSource::SelfGenerated, 500, 600);
+
+        let result = UniversalEndogenousTransitionSchemaLearningCycle::evaluate(
+            &state,
+            &input,
+            context(),
+            &evidence,
+            policy(8),
+        );
+
+        assert_eq!(
+            result.status(),
+            EndogenousTransitionSchemaLearningStatus::AccumulatingContrast
+        );
+
+        assert_eq!(result.state().episode_count(), 1);
+        assert_eq!(result.hypothesis_count(), 0);
+
+        let induction = result
+            .induction()
+            .expect("accepted evidence produces an induction result");
+
+        assert_eq!(induction.transformation_count(), 1);
+        assert_eq!(induction.invariant_seeded_fact_count(), 0);
+        assert_eq!(induction.selected_count(), 0);
+    }
+
+    #[test]
+    fn contrasting_self_generated_actions_induce_a_predictive_schema_without_host_seeds() {
+        let initial = EndogenousTransitionSchemaLearningState::new();
+
+        let action_a_input = perceptual_input(1, 3, true);
+
+        let action_a_evidence = environment_evidence(2, ActionSource::SelfGenerated, 500, 600);
+
+        let first = EndogenousTransitionSchemaLearningCycle::observe(
+            &initial,
+            &action_a_input,
+            context(),
+            &action_a_evidence,
+            policy(8),
+        );
+
+        assert_eq!(
+            first.status(),
+            EndogenousTransitionSchemaLearningStatus::AccumulatingContrast
+        );
+
+        let action_b_input = perceptual_input(4, 6, false);
+
+        let action_b_evidence = environment_evidence(5, ActionSource::SelfGenerated, 501, 601);
+
+        let second = UniversalEndogenousTransitionSchemaLearningCycle::evaluate(
+            first.state(),
+            &action_b_input,
+            context(),
+            &action_b_evidence,
+            policy(8),
+        );
+
+        assert_eq!(
+            second.status(),
+            EndogenousTransitionSchemaLearningStatus::HypothesisInduced
+        );
+
+        assert_eq!(second.state().episode_count(), 2);
+
+        let induction = second
+            .induction()
+            .expect("contrasting evidence produces induction");
+
+        assert_eq!(induction.transformation_count(), 2);
+        assert_eq!(induction.invariant_seeded_fact_count(), 0);
+
+        let hypothesis = second
+            .selected_hypotheses()
+            .iter()
+            .find(|hypothesis| {
+                hypothesis.transformation() == &a(500)
+                    && hypothesis.effect_kind()
+                        == athlesia_universal_domain_learning::TransitionEffectKind::Added
+                    && hypothesis.fact() == &a(20)
+            })
+            .expect("action A must predict the perceptually grounded added fact");
+
+        assert_eq!(hypothesis.support_count(), 1);
+        assert_eq!(hypothesis.transformation_opportunity_count(), 1);
+        assert_eq!(hypothesis.counterexample_count(), 0);
+        assert_eq!(hypothesis.global_support_count(), 1);
+        assert_eq!(hypothesis.global_opportunity_count(), 2);
+        assert_eq!(hypothesis.precision(), s(1000));
+        assert_eq!(hypothesis.baseline_rate(), s(500));
+        assert_eq!(hypothesis.association_lift(), s(500));
+    }
+
+    #[test]
+    fn identical_effects_across_distinct_actions_do_not_create_spurious_specificity() {
+        let initial = EndogenousTransitionSchemaLearningState::new();
+
+        let first = EndogenousTransitionSchemaLearningCycle::observe(
+            &initial,
+            &perceptual_input(1, 3, true),
+            context(),
+            &environment_evidence(2, ActionSource::SelfGenerated, 500, 600),
+            policy(8),
+        );
+
+        let second = EndogenousTransitionSchemaLearningCycle::observe(
+            first.state(),
+            &perceptual_input(4, 6, true),
+            context(),
+            &environment_evidence(5, ActionSource::SelfGenerated, 501, 601),
+            policy(8),
+        );
+
+        assert_eq!(
+            second.status(),
+            EndogenousTransitionSchemaLearningStatus::NoAdmittedHypothesis
+        );
+
+        assert_eq!(second.state().episode_count(), 2);
+        assert_eq!(second.hypothesis_count(), 0);
+
+        let induction = second
+            .induction()
+            .expect("accepted evidence produces induction");
+
+        assert_eq!(induction.transformation_count(), 2);
+        assert_eq!(induction.invariant_seeded_fact_count(), 0);
+    }
+
+    #[test]
+    fn bounded_evidence_frontier_refuses_hidden_unbounded_memory_growth() {
+        let initial = EndogenousTransitionSchemaLearningState::new();
+
+        let first = EndogenousTransitionSchemaLearningCycle::observe(
+            &initial,
+            &perceptual_input(1, 3, true),
+            context(),
+            &environment_evidence(2, ActionSource::SelfGenerated, 500, 600),
+            policy(1),
+        );
+
+        assert_eq!(first.state().episode_count(), 1);
+
+        let second = EndogenousTransitionSchemaLearningCycle::observe(
+            first.state(),
+            &perceptual_input(4, 6, false),
+            context(),
+            &environment_evidence(5, ActionSource::SelfGenerated, 501, 601),
+            policy(1),
+        );
+
+        assert_eq!(
+            second.status(),
+            EndogenousTransitionSchemaLearningStatus::EvidenceFrontierExceeded
+        );
+
+        assert_eq!(second.state().episode_count(), 1);
+        assert!(second.induction().is_none());
+    }
+
+    #[test]
+    fn non_self_generated_evidence_is_not_admitted_to_endogenous_learning_memory() {
+        let state = EndogenousTransitionSchemaLearningState::new();
+
+        let result = EndogenousTransitionSchemaLearningCycle::observe(
+            &state,
+            &perceptual_input(1, 3, true),
+            context(),
+            &environment_evidence(2, ActionSource::ObservedExternal, 500, 600),
+            policy(8),
+        );
+
+        assert_eq!(
+            result.status(),
+            EndogenousTransitionSchemaLearningStatus::EvidenceRejected
+        );
+
+        assert_eq!(
+            result.bridge_status(),
+            PerceptualDomainLearningEvidenceBridgeStatus::ActionSourceNotSelfGenerated
+        );
+
+        assert_eq!(result.state().episode_count(), 0);
+        assert!(result.induction().is_none());
+        assert_eq!(result.hypothesis_count(), 0);
+    }
+}

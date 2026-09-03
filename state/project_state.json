@@ -56,7 +56,7 @@
     "crates/athlesia_hierarchy/tests/hierarchy_recognition.rs": "bc7fe6ac289f8697e65b2ebe9aab179ae0cdb2db655fed18afae454bf2132841",
     "crates/athlesia_integrated_cognitive_agent/Cargo.lock": "33ab2f51658f7e85fe0c5900adb10957d50c7725c6f61eedb48853e68bbdd0d7",
     "crates/athlesia_integrated_cognitive_agent/Cargo.toml": "acc75a43a81a81ab0262e98762225ec6be4cc20b4c68293c703507e3c2975b30",
-    "crates/athlesia_integrated_cognitive_agent/src/lib.rs": "3a1d12302aab50b49ba991222b0b3ab84822234ba7c933e5e07f73cd26141206",
+    "crates/athlesia_integrated_cognitive_agent/src/lib.rs": "ef7c370abd3728bdcd72d67bd93a5a44736b41997a8ae221fb5d0a4dedaadee7",
     "crates/athlesia_integrated_cognitive_agent/tests/online_cognitive_orchestration.rs": "4e87c3d0b424e327456ad5ef97dc4cf15c99dd03a399617881cfd1c68800c3e3",
     "crates/athlesia_meta_learning_skill_memory/Cargo.lock": "641aac08044b700a765d2e6a93508989365f97801ae817d73c69c3c99c00506d",
     "crates/athlesia_meta_learning_skill_memory/Cargo.toml": "3ecb2ef81d5a7d2e6eb902981ff7fe2a1446969521a0544a22bb0ba360954265",
