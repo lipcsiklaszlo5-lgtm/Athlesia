@@ -6,7 +6,7 @@
     "Every integrated Rust component must be complete, compilable and tested.",
     "Existing validated invariants may not be weakened by later modules."
   ],
-  "generated_at_utc": "2026-09-03T13:10:21Z",
+  "generated_at_utc": "2026-09-03T13:33:55Z",
   "implementation_language": "Rust",
   "implementation_sha256": {
     "Cargo.toml": "e852faab0d9dff23b09e1ee2323d0998955f837450c70ea015382ffe5ec52bff",
@@ -361,16 +361,18 @@
     "tools/verify_module_50_autonomous_active_experimentation.py": "1167060175c0979b187c5449f7d55c205edb92ad264b9a97117e561afe66ac22",
     "crates/athlesia_integrated_cognitive_agent/tests/online_recurrent_cognitive_control_loop.rs": "583a08362073fb4219052b64c4836282c66341d08495b53932c0924807e3409b",
     "crates/athlesia_integrated_cognitive_agent/tests/environment_interaction_boundary.rs": "17145a815bd8cc6ca1e815a017639ce1b889cf47bc8ed4fb9a8867dc37b1ca02",
-    "crates/athlesia_arc_agi_3_adapter/Cargo.toml": "ce51297bfa3a12e6a7e18319a81ac25b632e0e13f213c29614784db88c89f2d4",
-    "crates/athlesia_arc_agi_3_adapter/src/lib.rs": "523dfa0c2cd9dbb45e4abcd458c456c8fb2758de14f9a2d6a210fcffcb5f070c",
+    "crates/athlesia_arc_agi_3_adapter/Cargo.toml": "7a5a3f48c71b7e2431b65d78478f50e49f3c41222493262459ab3929cf18082e",
+    "crates/athlesia_arc_agi_3_adapter/src/lib.rs": "90b70eec694dab7b93308d2435ffc4f845a16ebc93b8aa3a6c9117f72a0a8496",
     "crates/athlesia_arc_agi_3_adapter/tests/arc_agi_3_adapter_foundation.rs": "6dd197bf42a68f70eab19f6f6c00a3717ebab3bfde8d07e38e82ac5f8f44a077",
-    "crates/athlesia_arc_agi_3_adapter/Cargo.lock": "2f30941702dfddb2d1467276df33a55846da774334fa7269f96643691f383955",
+    "crates/athlesia_arc_agi_3_adapter/Cargo.lock": "ba67d493ece454537d6ec20805da6efbf2b672c7ba491e4b4fa362dab6dfdbce",
     "crates/athlesia_arc_agi_3_adapter/src/cognitive_protocol_bridge.rs": "8c39642651fe55ef804500af5d37a583f6b078821e2594ce58bd271e2460b9b9",
     "crates/athlesia_arc_agi_3_adapter/tests/cognitive_protocol_bridge.rs": "d97de5868a2a4da23477c05740656b23744cdfb7bad416b043a024f51a8cdd86",
     "crates/athlesia_arc_agi_3_adapter/src/interactive_session_runtime.rs": "f44bb1a613c56dfc1f791ef8d6a576bdbe07a9d301968ee962fc765fe06c681a",
     "crates/athlesia_arc_agi_3_adapter/tests/interactive_session_runtime.rs": "508a177ba7c1979c9ed157c7b07daf5876078577a69c2d38356a011af5a62f24",
     "crates/athlesia_arc_agi_3_adapter/src/perceptual_ingestion_bridge.rs": "e27ace0dbeb6775fbf1f5902026282946286fe893f9dd557b69ad209a7c80332",
-    "crates/athlesia_arc_agi_3_adapter/tests/perceptual_ingestion_bridge.rs": "945cdae9f1c71a2b390c2c862618c58d7731dff9fa6c0c4b04e1d11ddb3f04de"
+    "crates/athlesia_arc_agi_3_adapter/tests/perceptual_ingestion_bridge.rs": "945cdae9f1c71a2b390c2c862618c58d7731dff9fa6c0c4b04e1d11ddb3f04de",
+    "crates/athlesia_arc_agi_3_adapter/src/action_grounding_bridge.rs": "e808d504f47618728a3291776d4062cbf6f0ed156bb51a0ea29c640bcad5003b",
+    "crates/athlesia_arc_agi_3_adapter/tests/action_grounding_bridge.rs": "ea1ae2490693c039688f0aa8b7e0e7f7d0cbbeb59d2bfcad7d3b6416a7731860"
   },
   "project": "Athlesia",
   "research_baseline": {
@@ -646,7 +648,8 @@
       "module_52_arc_agi_3_adapter_foundation",
       "module_52_arc_agi_3_adapter_cognitive_protocol_bridge",
       "module_52_arc_agi_3_adapter_interactive_session_runtime",
-      "module_52_arc_agi_3_adapter_perceptual_ingestion_bridge"
+      "module_52_arc_agi_3_adapter_perceptual_ingestion_bridge",
+      "module_52_arc_agi_3_adapter_action_grounding_bridge"
     ],
     "module_23_integrity": {
       "status": "pass",
@@ -659,8 +662,8 @@
       "status": "frozen",
       "verifier": "tools/verify_module_23_parity.py"
     },
-    "next_layer": "module_52_arc_agi_3_adapter_action_grounding_bridge",
-    "stage": "module_52_arc_agi_3_adapter_perceptual_ingestion_bridge",
+    "next_layer": "module_52_arc_agi_3_adapter_cognitive_interaction_runtime",
+    "stage": "module_52_arc_agi_3_adapter_action_grounding_bridge",
     "status": "validated"
   },
   "validated_invariants": [
@@ -3397,6 +3400,28 @@
     "arc_agi_3_perception_real_m46_type_binding",
     "arc_agi_3_perception_real_m51_runtime_binding",
     "arc_agi_3_perception_deterministic_non_mutating_projection",
-    "arc_agi_3_perception_frozen_m51_integrity"
+    "arc_agi_3_perception_frozen_m51_integrity",
+    "arc_agi_3_action_existing_m48_candidate_preserved_exactly",
+    "arc_agi_3_action_availability_is_protocol_authority_only",
+    "arc_agi_3_action_availability_never_derives_predicted_outcome",
+    "arc_agi_3_action_availability_never_derives_goal_alignment",
+    "arc_agi_3_action_unavailable_candidate_rejected",
+    "arc_agi_3_action_malformed_cognitive_action_rejected",
+    "arc_agi_3_action_executive_reset_forbidden",
+    "arc_agi_3_action_terminal_game_blocks_executive_action",
+    "arc_agi_3_action_coordinate_identity_preserved_exactly",
+    "arc_agi_3_action_m50_source_state_exact_match_required",
+    "arc_agi_3_action_m50_prediction_preserved_exactly",
+    "arc_agi_3_action_m50_experiment_evidence_preserved_exactly",
+    "arc_agi_3_action_m50_to_m48_goal_identity_from_explicit_goal",
+    "arc_agi_3_action_m50_to_m48_goal_alignment_explicit_authority",
+    "arc_agi_3_action_m50_to_m48_controllability_from_experiment_evidence",
+    "arc_agi_3_action_m50_to_m48_confidence_from_experiment_evidence",
+    "arc_agi_3_action_m50_to_m48_information_gain_from_experiment_evidence",
+    "arc_agi_3_action_m50_to_m48_execution_cost_from_experiment_evidence",
+    "arc_agi_3_action_grounding_deterministic_non_mutating",
+    "arc_agi_3_action_real_m48_type_binding",
+    "arc_agi_3_action_real_m50_type_binding",
+    "arc_agi_3_action_frozen_m51_integrity"
   ]
 }

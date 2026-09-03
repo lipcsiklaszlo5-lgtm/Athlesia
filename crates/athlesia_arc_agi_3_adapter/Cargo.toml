@@ -5,6 +5,8 @@ edition = "2021"
 description = "ATHLESIA ARC-AGI-3 protocol adapter"
 
 [dependencies]
+athlesia_executive_agency = { path = "../athlesia_executive_agency" }
+athlesia_autonomous_active_experimentation = { path = "../athlesia_autonomous_active_experimentation" }
 athlesia_core_knowledge_perceptual_grounding = { path = "../athlesia_core_knowledge_perceptual_grounding" }
 athlesia_mindstone_sparse_cognition = { path = "../athlesia_mindstone_sparse_cognition" }
 athlesia_integrated_cognitive_agent = { path = "../athlesia_integrated_cognitive_agent" }
