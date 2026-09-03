@@ -6,7 +6,7 @@
     "Every integrated Rust component must be complete, compilable and tested.",
     "Existing validated invariants may not be weakened by later modules."
   ],
-  "generated_at_utc": "2026-09-03T16:56:07Z",
+  "generated_at_utc": "2026-09-03T17:03:21Z",
   "implementation_language": "Rust",
   "implementation_sha256": {
     "Cargo.toml": "e852faab0d9dff23b09e1ee2323d0998955f837450c70ea015382ffe5ec52bff",
@@ -665,7 +665,8 @@
       "module_52_arc_agi_3_adapter_environment_transport_boundary",
       "module_52_arc_agi_3_adapter_live_environment_runtime",
       "module_52_arc_agi_3_adapter_bounded_episode_runtime",
-      "module_52_arc_agi_3_adapter_competition_session_runtime"
+      "module_52_arc_agi_3_adapter_competition_session_runtime",
+      "module_52_arc_agi_3_adapter_final_integration_validation"
     ],
     "module_23_integrity": {
       "status": "pass",
@@ -678,8 +679,8 @@
       "status": "frozen",
       "verifier": "tools/verify_module_23_parity.py"
     },
-    "next_layer": "module_52_arc_agi_3_adapter_final_integration_validation",
-    "stage": "module_52_arc_agi_3_adapter_competition_session_runtime",
+    "next_layer": "module_53_arc_agi_3_blind_benchmark_foundation",
+    "stage": "module_52_arc_agi_3_adapter_final_integration_validation",
     "status": "validated"
   },
   "validated_invariants": [
@@ -3558,6 +3559,30 @@
     "arc_agi_3_competition_session_contains_no_arc_action_semantics",
     "arc_agi_3_competition_session_contains_no_automatic_reset_policy",
     "arc_agi_3_competition_session_preserves_frozen_m51_and_prior_m52_semantics",
-    "arc_agi_3_competition_session_full_m52_regression_140_tests_and_clippy_green"
+    "arc_agi_3_competition_session_full_m52_regression_140_tests_and_clippy_green",
+    "m52_final_validation_repository_authority_matches_frozen_head",
+    "m52_final_validation_worktree_is_clean_before_state_transition",
+    "m52_final_validation_canonical_state_verifier_passes",
+    "m52_final_validation_all_required_adapter_files_are_present",
+    "m52_final_validation_all_required_module_exports_exist_exactly_once",
+    "m52_final_validation_preserves_m51_arc_independence",
+    "m52_final_validation_dependency_direction_is_m52_to_m51_only",
+    "m52_final_validation_protocol_bridge_precedes_runtime_orchestration",
+    "m52_final_validation_perceptual_bridge_preserves_m46_m51_boundary",
+    "m52_final_validation_action_grounding_preserves_m48_m50_authority",
+    "m52_final_validation_transport_live_bounded_competition_layer_order_is_valid",
+    "m52_final_validation_bounded_runtime_contains_no_arc_action_semantics",
+    "m52_final_validation_competition_runtime_contains_no_local_score_formula",
+    "m52_final_validation_competition_runtime_contains_no_automatic_retry_policy",
+    "m52_final_validation_competition_score_remains_server_authoritative",
+    "m52_final_validation_source_hygiene_is_clean",
+    "m52_final_validation_cargo_fmt_is_green",
+    "m52_final_validation_m52_integration_suite_is_140_of_140_green",
+    "m52_final_validation_m52_all_targets_clippy_is_green",
+    "m52_final_validation_frozen_m51_full_suite_is_160_of_160_green",
+    "m52_final_validation_frozen_m51_all_targets_clippy_is_green",
+    "m52_final_validation_post_build_state_verifier_passes",
+    "m52_final_validation_repository_remains_clean_after_validation",
+    "m52_arc_agi_3_adapter_is_ready_for_blind_benchmark_layer"
   ]
 }
