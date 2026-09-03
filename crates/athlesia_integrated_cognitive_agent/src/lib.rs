@@ -7650,6 +7650,7 @@ pub struct OnlineCognitiveOrchestrationResult {
     status: OnlineCognitiveOrchestrationStatus,
     contributions: Vec<IntegratedLayerContribution>,
     executive_decision: Option<athlesia_executive_agency::IntegratedExecutiveControlDecision>,
+    executive_selection: Option<athlesia_executive_agency::IntegratedExecutiveSelection>,
     skill_reused: Option<bool>,
     experimentation_status: Option<
         athlesia_autonomous_active_experimentation::IntegratedAutonomousExperimentationStatus,
@@ -7671,6 +7672,7 @@ impl OnlineCognitiveOrchestrationResult {
             status,
             contributions,
             executive_decision,
+            executive_selection: None,
             skill_reused,
             experimentation_status,
             step: None,
@@ -7698,6 +7700,12 @@ impl OnlineCognitiveOrchestrationResult {
         &self,
     ) -> Option<athlesia_executive_agency::IntegratedExecutiveControlDecision> {
         self.executive_decision
+    }
+
+    pub fn executive_selection(
+        &self,
+    ) -> Option<&athlesia_executive_agency::IntegratedExecutiveSelection> {
+        self.executive_selection.as_ref()
     }
 
     pub fn skill_reused(&self) -> Option<bool> {
@@ -7831,6 +7839,8 @@ impl OnlineCognitiveOrchestration {
 
         let executive_decision = executive_result.decision();
 
+        let executive_selection = executive_result.selection().cloned();
+
         let executive_ingestion =
             AutonomousExecutiveAgencyIngestion::ingest(executive.request, &executive_result);
 
@@ -7920,6 +7930,7 @@ impl OnlineCognitiveOrchestration {
             status,
             contributions,
             executive_decision: Some(executive_decision),
+            executive_selection,
             skill_reused: Some(skill_reused),
             experimentation_status: Some(experimentation_status),
             step: Some(step),
@@ -8211,3 +8222,263 @@ impl UniversalOnlineRecurrentCognitiveLoop {
         )
     }
 }
+
+// ============================================================================
+// M51 — ENVIRONMENT INTERACTION BOUNDARY
+// ============================================================================
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum EnvironmentActionDispatchStatus {
+    Ready,
+    OnlineStepRejected,
+    ExecutionNotAuthorized,
+    MissingExecutiveSelection,
+    SelectionDecisionMismatch,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct EnvironmentActionDispatch {
+    source_anchor_state: CognitiveStructure,
+    selection: athlesia_executive_agency::IntegratedExecutiveSelection,
+}
+
+impl EnvironmentActionDispatch {
+    pub fn source_anchor_state(&self) -> &CognitiveStructure {
+        &self.source_anchor_state
+    }
+
+    pub fn selection(&self) -> &athlesia_executive_agency::IntegratedExecutiveSelection {
+        &self.selection
+    }
+
+    pub fn action(&self) -> &CognitiveStructure {
+        self.selection.action()
+    }
+
+    pub fn predicted_outcome(&self) -> &CognitiveStructure {
+        self.selection.predicted_outcome()
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct EnvironmentActionDispatchResult {
+    status: EnvironmentActionDispatchStatus,
+    dispatch: Option<EnvironmentActionDispatch>,
+}
+
+impl EnvironmentActionDispatchResult {
+    fn rejection(status: EnvironmentActionDispatchStatus) -> Self {
+        Self {
+            status,
+            dispatch: None,
+        }
+    }
+
+    pub fn status(&self) -> EnvironmentActionDispatchStatus {
+        self.status
+    }
+
+    pub fn dispatch(&self) -> Option<&EnvironmentActionDispatch> {
+        self.dispatch.as_ref()
+    }
+
+    pub fn ready(&self) -> bool {
+        self.status == EnvironmentActionDispatchStatus::Ready
+    }
+
+    pub fn rejected(&self) -> bool {
+        !self.ready()
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct EnvironmentInteractionObservation {
+    event_index: u64,
+    observed_outcome: CognitiveStructure,
+    confidence: CognitiveSignal,
+}
+
+impl EnvironmentInteractionObservation {
+    pub fn new(
+        event_index: u64,
+        observed_outcome: CognitiveStructure,
+        confidence: CognitiveSignal,
+    ) -> Option<Self> {
+        if confidence == CognitiveSignal::zero() {
+            return None;
+        }
+
+        Some(Self {
+            event_index,
+            observed_outcome,
+            confidence,
+        })
+    }
+
+    pub fn event_index(&self) -> u64 {
+        self.event_index
+    }
+
+    pub fn observed_outcome(&self) -> &CognitiveStructure {
+        &self.observed_outcome
+    }
+
+    pub fn confidence(&self) -> CognitiveSignal {
+        self.confidence
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct EnvironmentInteractionEvidence {
+    action_observation: athlesia_core_knowledge_perceptual_grounding::ActionObservation,
+    execution_observation: athlesia_executive_agency::GroundedExecutionObservation,
+    experiment_observation:
+        athlesia_autonomous_active_experimentation::ExperimentOutcomeObservation,
+}
+
+impl EnvironmentInteractionEvidence {
+    pub fn action_observation(
+        &self,
+    ) -> &athlesia_core_knowledge_perceptual_grounding::ActionObservation {
+        &self.action_observation
+    }
+
+    pub fn execution_observation(
+        &self,
+    ) -> &athlesia_executive_agency::GroundedExecutionObservation {
+        &self.execution_observation
+    }
+
+    pub fn experiment_observation(
+        &self,
+    ) -> &athlesia_autonomous_active_experimentation::ExperimentOutcomeObservation {
+        &self.experiment_observation
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct EnvironmentInteractionBoundary;
+
+impl EnvironmentInteractionBoundary {
+    pub fn dispatch(
+        result: &OnlineCognitiveOrchestrationResult,
+    ) -> EnvironmentActionDispatchResult {
+        if result.rejected() {
+            return EnvironmentActionDispatchResult::rejection(
+                EnvironmentActionDispatchStatus::OnlineStepRejected,
+            );
+        }
+
+        let Some(decision) = result.executive_decision() else {
+            return EnvironmentActionDispatchResult::rejection(
+                EnvironmentActionDispatchStatus::ExecutionNotAuthorized,
+            );
+        };
+
+        let executable = matches!(
+            decision,
+            athlesia_executive_agency::IntegratedExecutiveControlDecision::ExecuteCurrent
+                | athlesia_executive_agency::IntegratedExecutiveControlDecision::ExecuteReplacement
+                | athlesia_executive_agency::IntegratedExecutiveControlDecision::ExecuteExploration
+        );
+
+        if !executable {
+            return EnvironmentActionDispatchResult::rejection(
+                EnvironmentActionDispatchStatus::ExecutionNotAuthorized,
+            );
+        }
+
+        let Some(selection) = result.executive_selection() else {
+            return EnvironmentActionDispatchResult::rejection(
+                EnvironmentActionDispatchStatus::MissingExecutiveSelection,
+            );
+        };
+
+        let decision_matches_selection = matches!(
+            (decision, selection.source()),
+            (
+                athlesia_executive_agency::IntegratedExecutiveControlDecision::ExecuteCurrent,
+                athlesia_executive_agency::IntegratedExecutiveSelectionSource::CurrentIntention,
+            ) | (
+                athlesia_executive_agency::IntegratedExecutiveControlDecision::ExecuteReplacement,
+                athlesia_executive_agency::IntegratedExecutiveSelectionSource::ReplacementIntention,
+            ) | (
+                athlesia_executive_agency::IntegratedExecutiveControlDecision::ExecuteExploration,
+                athlesia_executive_agency::IntegratedExecutiveSelectionSource::Exploration,
+            )
+        );
+
+        if !decision_matches_selection {
+            return EnvironmentActionDispatchResult::rejection(
+                EnvironmentActionDispatchStatus::SelectionDecisionMismatch,
+            );
+        }
+
+        let Some(step) = result.step() else {
+            return EnvironmentActionDispatchResult::rejection(
+                EnvironmentActionDispatchStatus::OnlineStepRejected,
+            );
+        };
+
+        EnvironmentActionDispatchResult {
+            status: EnvironmentActionDispatchStatus::Ready,
+            dispatch: Some(EnvironmentActionDispatch {
+                source_anchor_state: step.previous_anchor_state().clone(),
+                selection: selection.clone(),
+            }),
+        }
+    }
+
+    pub fn bind_observation(
+        dispatch: &EnvironmentActionDispatch,
+        observation: &EnvironmentInteractionObservation,
+    ) -> Option<EnvironmentInteractionEvidence> {
+        let action_observation =
+            athlesia_core_knowledge_perceptual_grounding::ActionObservation::new(
+                observation.event_index(),
+                athlesia_core_knowledge_perceptual_grounding::ActionSource::SelfGenerated,
+                dispatch.action().clone(),
+            );
+
+        let execution_observation =
+            athlesia_executive_agency::GroundedExecutionObservation::new(
+                dispatch.source_anchor_state().clone(),
+                dispatch.action().clone(),
+                observation.observed_outcome().clone(),
+                observation.confidence(),
+            );
+
+        let experiment_observation =
+            athlesia_autonomous_active_experimentation::ExperimentOutcomeObservation::new(
+                dispatch.source_anchor_state().clone(),
+                dispatch.action().clone(),
+                observation.observed_outcome().clone(),
+                observation.confidence(),
+            )?;
+
+        Some(EnvironmentInteractionEvidence {
+            action_observation,
+            execution_observation,
+            experiment_observation,
+        })
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct UniversalEnvironmentInteractionBoundary;
+
+impl UniversalEnvironmentInteractionBoundary {
+    pub fn dispatch(
+        result: &OnlineCognitiveOrchestrationResult,
+    ) -> EnvironmentActionDispatchResult {
+        EnvironmentInteractionBoundary::dispatch(result)
+    }
+
+    pub fn bind_observation(
+        dispatch: &EnvironmentActionDispatch,
+        observation: &EnvironmentInteractionObservation,
+    ) -> Option<EnvironmentInteractionEvidence> {
+        EnvironmentInteractionBoundary::bind_observation(dispatch, observation)
+    }
+}
+

@@ -6,7 +6,7 @@
     "Every integrated Rust component must be complete, compilable and tested.",
     "Existing validated invariants may not be weakened by later modules."
   ],
-  "generated_at_utc": "2026-09-03T11:41:06Z",
+  "generated_at_utc": "2026-09-03T11:59:56Z",
   "implementation_language": "Rust",
   "implementation_sha256": {
     "Cargo.toml": "e852faab0d9dff23b09e1ee2323d0998955f837450c70ea015382ffe5ec52bff",
@@ -56,7 +56,7 @@
     "crates/athlesia_hierarchy/tests/hierarchy_recognition.rs": "bc7fe6ac289f8697e65b2ebe9aab179ae0cdb2db655fed18afae454bf2132841",
     "crates/athlesia_integrated_cognitive_agent/Cargo.lock": "49d8133fab85c5e2dd210c1702d89886b12e48961f6783944f53192bbd9862f5",
     "crates/athlesia_integrated_cognitive_agent/Cargo.toml": "07fd7160447768911344f081f3efcbcf79270014d5a962fb6ad271f881e61951",
-    "crates/athlesia_integrated_cognitive_agent/src/lib.rs": "43e8c2743a1a23cf634c0634392b59556f70c4c470622a48d360c6b5faca7b7c",
+    "crates/athlesia_integrated_cognitive_agent/src/lib.rs": "636260768d44f00861a42e8b4d27c88ff25a041160d61590b6def587db85451c",
     "crates/athlesia_integrated_cognitive_agent/tests/online_cognitive_orchestration.rs": "4e87c3d0b424e327456ad5ef97dc4cf15c99dd03a399617881cfd1c68800c3e3",
     "crates/athlesia_meta_learning_skill_memory/Cargo.lock": "641aac08044b700a765d2e6a93508989365f97801ae817d73c69c3c99c00506d",
     "crates/athlesia_meta_learning_skill_memory/Cargo.toml": "3ecb2ef81d5a7d2e6eb902981ff7fe2a1446969521a0544a22bb0ba360954265",
@@ -359,7 +359,8 @@
     "tools/verify_module_48_executive_agency.py": "d1f74179ad66b3f1d9919efef1f0fe5d74692578ff4a335aa4cda0a12ad59db8",
     "tools/verify_module_49_meta_learning_skill_memory.py": "d04b6d703d50676974a5996aa94035a427870bac5c15cd66e1ad60b9f07e2ccb",
     "tools/verify_module_50_autonomous_active_experimentation.py": "1167060175c0979b187c5449f7d55c205edb92ad264b9a97117e561afe66ac22",
-    "crates/athlesia_integrated_cognitive_agent/tests/online_recurrent_cognitive_control_loop.rs": "583a08362073fb4219052b64c4836282c66341d08495b53932c0924807e3409b"
+    "crates/athlesia_integrated_cognitive_agent/tests/online_recurrent_cognitive_control_loop.rs": "583a08362073fb4219052b64c4836282c66341d08495b53932c0924807e3409b",
+    "crates/athlesia_integrated_cognitive_agent/tests/environment_interaction_boundary.rs": "17145a815bd8cc6ca1e815a017639ce1b889cf47bc8ed4fb9a8867dc37b1ca02"
   },
   "project": "Athlesia",
   "research_baseline": {
@@ -630,7 +631,8 @@
       "module_51_integrated_cognitive_agent_bounded_recurrent_agent_loop",
       "module_51_integrated_cognitive_agent_recurrent_feedback_closure",
       "module_51_integrated_cognitive_agent_online_cognitive_orchestration",
-      "module_51_integrated_cognitive_agent_online_recurrent_control_loop"
+      "module_51_integrated_cognitive_agent_online_recurrent_control_loop",
+      "module_51_integrated_cognitive_agent_environment_interaction_boundary"
     ],
     "module_23_integrity": {
       "status": "pass",
@@ -643,8 +645,8 @@
       "status": "frozen",
       "verifier": "tools/verify_module_23_parity.py"
     },
-    "next_layer": "module_51_integrated_cognitive_agent_environment_interaction_boundary",
-    "stage": "module_51_integrated_cognitive_agent_online_recurrent_control_loop",
+    "next_layer": "module_52_arc_agi_3_adapter_foundation",
+    "stage": "module_51_integrated_cognitive_agent_environment_interaction_boundary",
     "status": "validated"
   },
   "validated_invariants": [
@@ -3301,6 +3303,16 @@
     "integrated_agent_online_recurrent_rejected_step_anchor_preservation",
     "integrated_agent_online_recurrent_preserved_anchor_none_provenance",
     "integrated_agent_online_recurrent_completed_step_accounting",
-    "integrated_agent_online_recurrent_deterministic_facade_equivalence"
+    "integrated_agent_online_recurrent_deterministic_facade_equivalence",
+    "integrated_agent_environment_exact_m48_selection_propagation",
+    "integrated_agent_environment_execute_decision_selection_source_binding",
+    "integrated_agent_environment_rejected_online_step_no_dispatch",
+    "integrated_agent_environment_non_execute_decision_no_dispatch",
+    "integrated_agent_environment_authoritative_previous_anchor_dispatch",
+    "integrated_agent_environment_self_generated_action_observation_binding",
+    "integrated_agent_environment_grounded_execution_observation_binding",
+    "integrated_agent_environment_experiment_outcome_observation_binding",
+    "integrated_agent_environment_zero_confidence_observation_rejection",
+    "integrated_agent_environment_deterministic_facade_equivalence"
   ]
 }
