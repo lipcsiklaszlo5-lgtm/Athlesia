@@ -535,3 +535,5 @@ pub mod cognitive_interaction_runtime;
 pub mod environment_transport_boundary;
 
 pub mod live_environment_runtime;
+
+pub mod bounded_episode_runtime;

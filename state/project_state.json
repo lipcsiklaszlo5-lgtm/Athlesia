@@ -6,7 +6,7 @@
     "Every integrated Rust component must be complete, compilable and tested.",
     "Existing validated invariants may not be weakened by later modules."
   ],
-  "generated_at_utc": "2026-09-03T15:46:50Z",
+  "generated_at_utc": "2026-09-03T16:02:53Z",
   "implementation_language": "Rust",
   "implementation_sha256": {
     "Cargo.toml": "e852faab0d9dff23b09e1ee2323d0998955f837450c70ea015382ffe5ec52bff",
@@ -362,7 +362,7 @@
     "crates/athlesia_integrated_cognitive_agent/tests/online_recurrent_cognitive_control_loop.rs": "583a08362073fb4219052b64c4836282c66341d08495b53932c0924807e3409b",
     "crates/athlesia_integrated_cognitive_agent/tests/environment_interaction_boundary.rs": "17145a815bd8cc6ca1e815a017639ce1b889cf47bc8ed4fb9a8867dc37b1ca02",
     "crates/athlesia_arc_agi_3_adapter/Cargo.toml": "9078a28fe8861206c15619f9cc1f2e754126bed58aeacafcc2437646318de97a",
-    "crates/athlesia_arc_agi_3_adapter/src/lib.rs": "9a59f135504cfb4536e86a27fa3a0d0fe6f265033552985c604ae81690cc89e9",
+    "crates/athlesia_arc_agi_3_adapter/src/lib.rs": "b43bab666c6bc3ad1db7082ede4ac37ab800f1659a4fe5d9192a28bca0df1d8d",
     "crates/athlesia_arc_agi_3_adapter/tests/arc_agi_3_adapter_foundation.rs": "6dd197bf42a68f70eab19f6f6c00a3717ebab3bfde8d07e38e82ac5f8f44a077",
     "crates/athlesia_arc_agi_3_adapter/Cargo.lock": "48fbaba977ddcdf5d22fda6f873146a8855c4d4f71bbc751cb34fa705f6ced2d",
     "crates/athlesia_arc_agi_3_adapter/src/cognitive_protocol_bridge.rs": "8c39642651fe55ef804500af5d37a583f6b078821e2594ce58bd271e2460b9b9",
@@ -379,7 +379,9 @@
     "crates/athlesia_arc_agi_3_adapter/src/environment_transport_boundary.rs": "f69e2186a49c9ea8abf362f11cb8cc036e8255a71b56e60f799d4ba38c0f69da",
     "crates/athlesia_arc_agi_3_adapter/tests/environment_transport_boundary.rs": "5b2e074835c2c1056cb0e5a93efd6d964b7b70230bd5442365bef47ddc360fd5",
     "crates/athlesia_arc_agi_3_adapter/src/live_environment_runtime.rs": "bdff9f07e40493b7ed19b13efcfa4de193d704c2e9e3b1a4afebfa060da6d20f",
-    "crates/athlesia_arc_agi_3_adapter/tests/live_environment_runtime.rs": "29d9b18e796257f7b16be1e3203e7a8408374ed53e5f2f81361d932c54fe12fb"
+    "crates/athlesia_arc_agi_3_adapter/tests/live_environment_runtime.rs": "29d9b18e796257f7b16be1e3203e7a8408374ed53e5f2f81361d932c54fe12fb",
+    "crates/athlesia_arc_agi_3_adapter/src/bounded_episode_runtime.rs": "86dcbd9f391ed1c780fbe7da7feb1b0c118b8718c768ca1805904626760c81cf",
+    "crates/athlesia_arc_agi_3_adapter/tests/bounded_episode_runtime.rs": "b8667e74f175fcdfdff5e8230931eebf5c092d65498f3769daa895be039f074d"
   },
   "project": "Athlesia",
   "research_baseline": {
@@ -659,7 +661,8 @@
       "module_52_arc_agi_3_adapter_action_grounding_bridge",
       "module_52_arc_agi_3_adapter_cognitive_interaction_runtime",
       "module_52_arc_agi_3_adapter_environment_transport_boundary",
-      "module_52_arc_agi_3_adapter_live_environment_runtime"
+      "module_52_arc_agi_3_adapter_live_environment_runtime",
+      "module_52_arc_agi_3_adapter_bounded_episode_runtime"
     ],
     "module_23_integrity": {
       "status": "pass",
@@ -672,8 +675,8 @@
       "status": "frozen",
       "verifier": "tools/verify_module_23_parity.py"
     },
-    "next_layer": "module_52_arc_agi_3_adapter_bounded_episode_runtime",
-    "stage": "module_52_arc_agi_3_adapter_live_environment_runtime",
+    "next_layer": "module_52_arc_agi_3_adapter_competition_session_runtime",
+    "stage": "module_52_arc_agi_3_adapter_bounded_episode_runtime",
     "status": "validated"
   },
   "validated_invariants": [
@@ -3504,6 +3507,30 @@
     "arc_agi_3_live_runtime_faulted_state_blocks_protocol_reset_and_new_actions",
     "arc_agi_3_live_runtime_has_no_mutable_transport_escape_hatch",
     "arc_agi_3_live_runtime_preserves_frozen_m51_and_prior_m52_semantics",
-    "arc_agi_3_live_runtime_full_m52_regression_111_tests_and_clippy_green"
+    "arc_agi_3_live_runtime_full_m52_regression_111_tests_and_clippy_green",
+    "arc_agi_3_bounded_episode_requires_positive_cognitive_step_budget",
+    "arc_agi_3_bounded_episode_step_budget_is_hard_upper_bound",
+    "arc_agi_3_bounded_episode_never_executes_step_beyond_budget",
+    "arc_agi_3_bounded_episode_existing_win_terminates_without_action",
+    "arc_agi_3_bounded_episode_existing_game_over_terminates_without_action",
+    "arc_agi_3_bounded_episode_game_over_never_auto_resets",
+    "arc_agi_3_bounded_episode_not_started_runtime_rejected_before_execution",
+    "arc_agi_3_bounded_episode_real_m51_steps_preserved_in_history",
+    "arc_agi_3_bounded_episode_real_environment_win_terminates_episode",
+    "arc_agi_3_bounded_episode_real_environment_game_over_terminates_episode",
+    "arc_agi_3_bounded_episode_budget_exhaustion_preserves_active_runtime",
+    "arc_agi_3_bounded_episode_transport_failure_aborts_at_exact_completed_count",
+    "arc_agi_3_bounded_episode_faulted_runtime_never_retries_pending_action",
+    "arc_agi_3_bounded_episode_failure_propagates_live_runtime_error_exactly",
+    "arc_agi_3_bounded_episode_accounting_is_relative_to_prior_live_history",
+    "arc_agi_3_bounded_episode_step_counter_verified_against_live_runtime",
+    "arc_agi_3_bounded_episode_every_successful_step_contains_real_cognitive_feedback",
+    "arc_agi_3_bounded_episode_history_contains_exact_live_cognitive_steps",
+    "arc_agi_3_bounded_episode_has_no_direct_transport_execution",
+    "arc_agi_3_bounded_episode_has_no_automatic_reset_policy",
+    "arc_agi_3_bounded_episode_contains_no_arc_action_semantics",
+    "arc_agi_3_bounded_episode_contains_no_direct_http_dependency",
+    "arc_agi_3_bounded_episode_preserves_frozen_m51_and_prior_m52_semantics",
+    "arc_agi_3_bounded_episode_full_m52_regression_124_tests_and_clippy_green"
   ]
 }
