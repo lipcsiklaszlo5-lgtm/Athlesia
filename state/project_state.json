@@ -6,7 +6,7 @@
     "Every integrated Rust component must be complete, compilable and tested.",
     "Existing validated invariants may not be weakened by later modules."
   ],
-  "generated_at_utc": "2026-09-03T13:01:47Z",
+  "generated_at_utc": "2026-09-03T13:10:21Z",
   "implementation_language": "Rust",
   "implementation_sha256": {
     "Cargo.toml": "e852faab0d9dff23b09e1ee2323d0998955f837450c70ea015382ffe5ec52bff",
@@ -361,14 +361,16 @@
     "tools/verify_module_50_autonomous_active_experimentation.py": "1167060175c0979b187c5449f7d55c205edb92ad264b9a97117e561afe66ac22",
     "crates/athlesia_integrated_cognitive_agent/tests/online_recurrent_cognitive_control_loop.rs": "583a08362073fb4219052b64c4836282c66341d08495b53932c0924807e3409b",
     "crates/athlesia_integrated_cognitive_agent/tests/environment_interaction_boundary.rs": "17145a815bd8cc6ca1e815a017639ce1b889cf47bc8ed4fb9a8867dc37b1ca02",
-    "crates/athlesia_arc_agi_3_adapter/Cargo.toml": "c74bd13213298be41b2959676d7c76a522ec8e7ffcad59d29493a10fe2e8c1f0",
-    "crates/athlesia_arc_agi_3_adapter/src/lib.rs": "1238111048eddf35786d9a731585e5e33db30ab67e08ac23eaf34ca2cd00f590",
+    "crates/athlesia_arc_agi_3_adapter/Cargo.toml": "ce51297bfa3a12e6a7e18319a81ac25b632e0e13f213c29614784db88c89f2d4",
+    "crates/athlesia_arc_agi_3_adapter/src/lib.rs": "523dfa0c2cd9dbb45e4abcd458c456c8fb2758de14f9a2d6a210fcffcb5f070c",
     "crates/athlesia_arc_agi_3_adapter/tests/arc_agi_3_adapter_foundation.rs": "6dd197bf42a68f70eab19f6f6c00a3717ebab3bfde8d07e38e82ac5f8f44a077",
-    "crates/athlesia_arc_agi_3_adapter/Cargo.lock": "b0f79531e49ceeb092fc886287f29fc9bda63e73470fc0b02607ac6c9482ede5",
+    "crates/athlesia_arc_agi_3_adapter/Cargo.lock": "2f30941702dfddb2d1467276df33a55846da774334fa7269f96643691f383955",
     "crates/athlesia_arc_agi_3_adapter/src/cognitive_protocol_bridge.rs": "8c39642651fe55ef804500af5d37a583f6b078821e2594ce58bd271e2460b9b9",
     "crates/athlesia_arc_agi_3_adapter/tests/cognitive_protocol_bridge.rs": "d97de5868a2a4da23477c05740656b23744cdfb7bad416b043a024f51a8cdd86",
     "crates/athlesia_arc_agi_3_adapter/src/interactive_session_runtime.rs": "f44bb1a613c56dfc1f791ef8d6a576bdbe07a9d301968ee962fc765fe06c681a",
-    "crates/athlesia_arc_agi_3_adapter/tests/interactive_session_runtime.rs": "508a177ba7c1979c9ed157c7b07daf5876078577a69c2d38356a011af5a62f24"
+    "crates/athlesia_arc_agi_3_adapter/tests/interactive_session_runtime.rs": "508a177ba7c1979c9ed157c7b07daf5876078577a69c2d38356a011af5a62f24",
+    "crates/athlesia_arc_agi_3_adapter/src/perceptual_ingestion_bridge.rs": "e27ace0dbeb6775fbf1f5902026282946286fe893f9dd557b69ad209a7c80332",
+    "crates/athlesia_arc_agi_3_adapter/tests/perceptual_ingestion_bridge.rs": "945cdae9f1c71a2b390c2c862618c58d7731dff9fa6c0c4b04e1d11ddb3f04de"
   },
   "project": "Athlesia",
   "research_baseline": {
@@ -643,7 +645,8 @@
       "module_51_integrated_cognitive_agent_environment_interaction_boundary",
       "module_52_arc_agi_3_adapter_foundation",
       "module_52_arc_agi_3_adapter_cognitive_protocol_bridge",
-      "module_52_arc_agi_3_adapter_interactive_session_runtime"
+      "module_52_arc_agi_3_adapter_interactive_session_runtime",
+      "module_52_arc_agi_3_adapter_perceptual_ingestion_bridge"
     ],
     "module_23_integrity": {
       "status": "pass",
@@ -656,8 +659,8 @@
       "status": "frozen",
       "verifier": "tools/verify_module_23_parity.py"
     },
-    "next_layer": "module_52_arc_agi_3_adapter_perceptual_ingestion_bridge",
-    "stage": "module_52_arc_agi_3_adapter_interactive_session_runtime",
+    "next_layer": "module_52_arc_agi_3_adapter_action_grounding_bridge",
+    "stage": "module_52_arc_agi_3_adapter_perceptual_ingestion_bridge",
     "status": "validated"
   },
   "validated_invariants": [
@@ -3373,6 +3376,27 @@
     "arc_agi_3_session_real_m51_feedback_contract_binding",
     "arc_agi_3_session_universal_facade_equivalence",
     "arc_agi_3_session_transport_independence",
-    "arc_agi_3_session_frozen_m51_integrity"
+    "arc_agi_3_session_frozen_m51_integrity",
+    "arc_agi_3_perception_exact_grid_projection",
+    "arc_agi_3_perception_geometry_explicitly_preserved",
+    "arc_agi_3_perception_every_cell_explicitly_preserved",
+    "arc_agi_3_perception_coordinate_handle_identity_stable",
+    "arc_agi_3_perception_geometry_handle_disjoint_from_cells",
+    "arc_agi_3_perception_complete_animation_sequence_preserved",
+    "arc_agi_3_perception_internal_frame_transition_order_preserved",
+    "arc_agi_3_perception_cross_turn_temporal_continuity",
+    "arc_agi_3_perception_invalid_temporal_order_rejected",
+    "arc_agi_3_perception_observation_index_overflow_rejected",
+    "arc_agi_3_perception_zero_fabricated_scene_candidates",
+    "arc_agi_3_perception_zero_fabricated_persistence_candidates",
+    "arc_agi_3_perception_zero_fabricated_topology_candidates",
+    "arc_agi_3_perception_zero_fabricated_change_candidates",
+    "arc_agi_3_perception_zero_fabricated_action_consequence_candidates",
+    "arc_agi_3_perception_exact_observation_grounded_state",
+    "arc_agi_3_perception_real_m51_ingestion_validation",
+    "arc_agi_3_perception_real_m46_type_binding",
+    "arc_agi_3_perception_real_m51_runtime_binding",
+    "arc_agi_3_perception_deterministic_non_mutating_projection",
+    "arc_agi_3_perception_frozen_m51_integrity"
   ]
 }

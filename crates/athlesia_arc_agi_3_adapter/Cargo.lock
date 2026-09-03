@@ -6,6 +6,7 @@ version = 4
 name = "athlesia_arc_agi_3_adapter"
 version = "0.1.0"
 dependencies = [
+ "athlesia_core_knowledge_perceptual_grounding",
  "athlesia_integrated_cognitive_agent",
  "athlesia_mindstone_sparse_cognition",
 ]
