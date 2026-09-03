@@ -2714,6 +2714,336 @@ impl IntentionExecutionMonitoringPolicy {
     }
 }
 
+
+// === ATHLESIA DOMAIN-GENERAL COLD-START EXPLORATION BEGIN ===
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct ColdStartExplorationPolicy {
+    max_candidates: usize,
+    max_candidate_evaluations: usize,
+    minimum_information_gain: CognitiveSignal,
+    minimum_evidence_confidence: CognitiveSignal,
+    minimum_controllability: CognitiveSignal,
+    minimum_exploration_value: CognitiveSignal,
+}
+
+impl ColdStartExplorationPolicy {
+    pub fn new(
+        max_candidates: usize,
+        max_candidate_evaluations: usize,
+        minimum_information_gain: CognitiveSignal,
+        minimum_evidence_confidence: CognitiveSignal,
+        minimum_controllability: CognitiveSignal,
+        minimum_exploration_value: CognitiveSignal,
+    ) -> Option<Self> {
+        if max_candidates == 0
+            || max_candidate_evaluations == 0
+            || minimum_information_gain == CognitiveSignal::zero()
+            || minimum_evidence_confidence == CognitiveSignal::zero()
+            || minimum_controllability == CognitiveSignal::zero()
+            || minimum_exploration_value == CognitiveSignal::zero()
+        {
+            return None;
+        }
+
+        Some(Self {
+            max_candidates,
+            max_candidate_evaluations,
+            minimum_information_gain,
+            minimum_evidence_confidence,
+            minimum_controllability,
+            minimum_exploration_value,
+        })
+    }
+
+    pub fn max_candidates(self) -> usize {
+        self.max_candidates
+    }
+
+    pub fn max_candidate_evaluations(self) -> usize {
+        self.max_candidate_evaluations
+    }
+
+    pub fn minimum_information_gain(self) -> CognitiveSignal {
+        self.minimum_information_gain
+    }
+
+    pub fn minimum_evidence_confidence(self) -> CognitiveSignal {
+        self.minimum_evidence_confidence
+    }
+
+    pub fn minimum_controllability(self) -> CognitiveSignal {
+        self.minimum_controllability
+    }
+
+    pub fn minimum_exploration_value(self) -> CognitiveSignal {
+        self.minimum_exploration_value
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub enum ColdStartExplorationStatus {
+    GoalSatisfied,
+    Selected,
+    NoViableCandidate,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ColdStartExplorationResult {
+    status: ColdStartExplorationStatus,
+    input_candidate_count: usize,
+    unique_candidate_count: usize,
+    duplicate_candidate_count: usize,
+    considered_candidate_count: usize,
+    candidate_frontier_truncated: bool,
+    candidate_evaluation_count: usize,
+    candidate_evaluation_truncated: bool,
+    rejected_goal_mismatch_count: usize,
+    rejected_threshold_count: usize,
+    selected_exploration: Option<RankedExplorationCandidate>,
+}
+
+impl ColdStartExplorationResult {
+    pub fn status(&self) -> ColdStartExplorationStatus {
+        self.status
+    }
+
+    pub fn input_candidate_count(&self) -> usize {
+        self.input_candidate_count
+    }
+
+    pub fn unique_candidate_count(&self) -> usize {
+        self.unique_candidate_count
+    }
+
+    pub fn duplicate_candidate_count(&self) -> usize {
+        self.duplicate_candidate_count
+    }
+
+    pub fn considered_candidate_count(&self) -> usize {
+        self.considered_candidate_count
+    }
+
+    pub fn candidate_frontier_truncated(&self) -> bool {
+        self.candidate_frontier_truncated
+    }
+
+    pub fn candidate_evaluation_count(&self) -> usize {
+        self.candidate_evaluation_count
+    }
+
+    pub fn candidate_evaluation_truncated(&self) -> bool {
+        self.candidate_evaluation_truncated
+    }
+
+    pub fn rejected_goal_mismatch_count(&self) -> usize {
+        self.rejected_goal_mismatch_count
+    }
+
+    pub fn rejected_threshold_count(&self) -> usize {
+        self.rejected_threshold_count
+    }
+
+    pub fn selected_exploration(&self) -> Option<&RankedExplorationCandidate> {
+        self.selected_exploration.as_ref()
+    }
+
+    pub fn selected(&self) -> bool {
+        self.status == ColdStartExplorationStatus::Selected
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, Hash, PartialEq)]
+pub struct ColdStartExplorationController;
+
+impl ColdStartExplorationController {
+    fn exploration_value(
+        candidate: &GroundedExplorationCandidate,
+    ) -> CognitiveSignal {
+        let signals = candidate.signals();
+
+        let grounded_learning_value = [
+            signals.expected_information_gain().value(),
+            signals.controllability().value(),
+            signals.evidence_confidence().value(),
+        ]
+        .into_iter()
+        .min()
+        .expect("cold-start exploration has fixed nonempty evidence axes");
+
+        CognitiveSignal::new(
+            grounded_learning_value
+                .saturating_sub(signals.execution_cost().value()),
+        )
+        .expect("cold-start exploration value stays on signal scale")
+    }
+
+    pub fn evaluate(
+        goal: &ExecutiveGoal,
+        candidates: &[GroundedExplorationCandidate],
+        policy: ColdStartExplorationPolicy,
+    ) -> ColdStartExplorationResult {
+        let input_candidate_count = candidates.len();
+
+        if goal.is_satisfied() {
+            return ColdStartExplorationResult {
+                status: ColdStartExplorationStatus::GoalSatisfied,
+                input_candidate_count,
+                unique_candidate_count: 0,
+                duplicate_candidate_count: 0,
+                considered_candidate_count: 0,
+                candidate_frontier_truncated: false,
+                candidate_evaluation_count: 0,
+                candidate_evaluation_truncated: false,
+                rejected_goal_mismatch_count: 0,
+                rejected_threshold_count: 0,
+                selected_exploration: None,
+            };
+        }
+
+        let mut unique = Vec::new();
+
+        for candidate in candidates {
+            if !unique.contains(candidate) {
+                unique.push(candidate.clone());
+            }
+        }
+
+        unique.sort_by(
+            ExplorationExploitationController::compare_candidate,
+        );
+
+        let unique_candidate_count = unique.len();
+
+        let duplicate_candidate_count =
+            input_candidate_count.saturating_sub(unique_candidate_count);
+
+        let considered_candidate_count =
+            unique_candidate_count.min(policy.max_candidates());
+
+        let candidate_frontier_truncated =
+            unique_candidate_count > considered_candidate_count;
+
+        let mut candidate_evaluation_count = 0usize;
+        let mut candidate_evaluation_truncated = false;
+        let mut rejected_goal_mismatch_count = 0usize;
+        let mut rejected_threshold_count = 0usize;
+        let mut admitted = Vec::new();
+
+        for candidate in unique
+            .into_iter()
+            .take(considered_candidate_count)
+        {
+            if candidate_evaluation_count
+                >= policy.max_candidate_evaluations()
+            {
+                candidate_evaluation_truncated = true;
+                break;
+            }
+
+            candidate_evaluation_count =
+                candidate_evaluation_count.saturating_add(1);
+
+            if candidate.goal_identity() != goal.identity() {
+                rejected_goal_mismatch_count =
+                    rejected_goal_mismatch_count.saturating_add(1);
+
+                continue;
+            }
+
+            let signals = candidate.signals();
+
+            if signals.expected_information_gain().value()
+                < policy.minimum_information_gain().value()
+                || signals.evidence_confidence().value()
+                    < policy.minimum_evidence_confidence().value()
+                || signals.controllability().value()
+                    < policy.minimum_controllability().value()
+            {
+                rejected_threshold_count =
+                    rejected_threshold_count.saturating_add(1);
+
+                continue;
+            }
+
+            let net_exploration_value =
+                Self::exploration_value(&candidate);
+
+            if net_exploration_value.value()
+                < policy.minimum_exploration_value().value()
+            {
+                rejected_threshold_count =
+                    rejected_threshold_count.saturating_add(1);
+
+                continue;
+            }
+
+            admitted.push(
+                RankedExplorationCandidate {
+                    candidate,
+                    net_exploration_value,
+                },
+            );
+        }
+
+        admitted.sort_by(|left, right| {
+            right
+                .net_exploration_value()
+                .value()
+                .cmp(&left.net_exploration_value().value())
+                .then_with(|| {
+                    ExplorationExploitationController::compare_candidate(
+                        left.candidate(),
+                        right.candidate(),
+                    )
+                })
+        });
+
+        let selected_exploration =
+            admitted.first().cloned();
+
+        let status =
+            if selected_exploration.is_some() {
+                ColdStartExplorationStatus::Selected
+            } else {
+                ColdStartExplorationStatus::NoViableCandidate
+            };
+
+        ColdStartExplorationResult {
+            status,
+            input_candidate_count,
+            unique_candidate_count,
+            duplicate_candidate_count,
+            considered_candidate_count,
+            candidate_frontier_truncated,
+            candidate_evaluation_count,
+            candidate_evaluation_truncated,
+            rejected_goal_mismatch_count,
+            rejected_threshold_count,
+            selected_exploration,
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, Hash, PartialEq)]
+pub struct UniversalColdStartExplorationController;
+
+impl UniversalColdStartExplorationController {
+    pub fn evaluate(
+        goal: &ExecutiveGoal,
+        candidates: &[GroundedExplorationCandidate],
+        policy: ColdStartExplorationPolicy,
+    ) -> ColdStartExplorationResult {
+        ColdStartExplorationController::evaluate(
+            goal,
+            candidates,
+            policy,
+        )
+    }
+}
+
+// === ATHLESIA DOMAIN-GENERAL COLD-START EXPLORATION END ===
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct IntentionExecutionMonitoringResult {
     status: IntentionExecutionStatus,

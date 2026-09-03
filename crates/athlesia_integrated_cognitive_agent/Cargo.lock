@@ -10,6 +10,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "athlesia_autonomous_cognitive_self_bootstrap"
+version = "0.1.0"
+dependencies = [
+ "athlesia_mindstone_sparse_cognition",
+]
+
+[[package]]
 name = "athlesia_core_knowledge_perceptual_grounding"
 version = "0.1.0"
 dependencies = [
@@ -28,6 +35,7 @@ name = "athlesia_integrated_cognitive_agent"
 version = "0.1.0"
 dependencies = [
  "athlesia_autonomous_active_experimentation",
+ "athlesia_autonomous_cognitive_self_bootstrap",
  "athlesia_core_knowledge_perceptual_grounding",
  "athlesia_executive_agency",
  "athlesia_meta_learning_skill_memory",

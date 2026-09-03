@@ -4,6 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+athlesia_autonomous_cognitive_self_bootstrap = { path = "../athlesia_autonomous_cognitive_self_bootstrap" }
 athlesia_mindstone_sparse_cognition = { path = "../athlesia_mindstone_sparse_cognition" }
 athlesia_core_knowledge_perceptual_grounding = { path = "../athlesia_core_knowledge_perceptual_grounding" }
 athlesia_universal_domain_learning = { path = "../athlesia_universal_domain_learning" }

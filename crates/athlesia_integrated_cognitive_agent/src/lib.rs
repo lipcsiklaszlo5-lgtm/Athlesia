@@ -8482,3 +8482,486 @@ impl UniversalEnvironmentInteractionBoundary {
     }
 }
 
+// === ATHLESIA DOMAIN-GENERAL AUTONOMOUS SELF-BOOTSTRAP ONLINE RUNTIME BEGIN ===
+
+pub use athlesia_autonomous_cognitive_self_bootstrap as autonomous_cognitive_self_bootstrap;
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct OnlineAutonomousSelfBootstrapDigest {
+    status: autonomous_cognitive_self_bootstrap::SelfBootstrapStatus,
+    objective_kind: autonomous_cognitive_self_bootstrap::BootstrapObjectiveKind,
+    source_state: athlesia_mindstone_sparse_cognition::CognitiveStructure,
+    target_state: Option<athlesia_mindstone_sparse_cognition::CognitiveStructure>,
+    selected_action: Option<athlesia_mindstone_sparse_cognition::CognitiveStructure>,
+    predicted_outcome: Option<athlesia_mindstone_sparse_cognition::CognitiveStructure>,
+    selected_confidence: Option<autonomous_cognitive_self_bootstrap::BootstrapSignal>,
+    selected_information_gain: Option<autonomous_cognitive_self_bootstrap::BootstrapSignal>,
+    selected_controllability: Option<autonomous_cognitive_self_bootstrap::BootstrapSignal>,
+    selected_execution_cost: Option<autonomous_cognitive_self_bootstrap::BootstrapSignal>,
+    candidate_frontier_len: usize,
+    rejected_source_state_count: usize,
+    rejected_unauthorized_action_count: usize,
+    rejected_threshold_count: usize,
+    duplicate_affordance_count: usize,
+    duplicate_hypothesis_count: usize,
+    frontier_truncated: bool,
+}
+
+impl OnlineAutonomousSelfBootstrapDigest {
+    fn from_result(
+        result: &autonomous_cognitive_self_bootstrap::SelfBootstrapResult,
+    ) -> Self {
+        let selected = result.selected();
+
+        Self {
+            status: result.status(),
+            objective_kind: result.objective().kind(),
+            source_state: result.objective().source_state().clone(),
+            target_state: result.objective().target_state().cloned(),
+            selected_action: selected
+                .map(|candidate| candidate.hypothesis().action().clone()),
+            predicted_outcome: selected
+                .map(|candidate| candidate.hypothesis().predicted_outcome().clone()),
+            selected_confidence: selected
+                .map(|candidate| candidate.hypothesis().confidence()),
+            selected_information_gain: selected
+                .map(|candidate| candidate.hypothesis().information_gain()),
+            selected_controllability: selected
+                .map(|candidate| candidate.hypothesis().controllability()),
+            selected_execution_cost: selected
+                .map(|candidate| candidate.hypothesis().execution_cost()),
+            candidate_frontier_len: result.candidate_frontier().len(),
+            rejected_source_state_count: result.rejected_source_state_count(),
+            rejected_unauthorized_action_count: result.rejected_unauthorized_action_count(),
+            rejected_threshold_count: result.rejected_threshold_count(),
+            duplicate_affordance_count: result.duplicate_affordance_count(),
+            duplicate_hypothesis_count: result.duplicate_hypothesis_count(),
+            frontier_truncated: result.frontier_truncated(),
+        }
+    }
+
+    pub const fn status(
+        &self,
+    ) -> autonomous_cognitive_self_bootstrap::SelfBootstrapStatus {
+        self.status
+    }
+
+    pub const fn objective_kind(
+        &self,
+    ) -> autonomous_cognitive_self_bootstrap::BootstrapObjectiveKind {
+        self.objective_kind
+    }
+
+    pub fn source_state(
+        &self,
+    ) -> &athlesia_mindstone_sparse_cognition::CognitiveStructure {
+        &self.source_state
+    }
+
+    pub fn target_state(
+        &self,
+    ) -> Option<&athlesia_mindstone_sparse_cognition::CognitiveStructure> {
+        self.target_state.as_ref()
+    }
+
+    pub fn selected_action(
+        &self,
+    ) -> Option<&athlesia_mindstone_sparse_cognition::CognitiveStructure> {
+        self.selected_action.as_ref()
+    }
+
+    pub fn predicted_outcome(
+        &self,
+    ) -> Option<&athlesia_mindstone_sparse_cognition::CognitiveStructure> {
+        self.predicted_outcome.as_ref()
+    }
+
+
+pub const fn selected_confidence(
+    &self,
+) -> Option<autonomous_cognitive_self_bootstrap::BootstrapSignal> {
+    self.selected_confidence
+}
+
+pub const fn selected_information_gain(
+    &self,
+) -> Option<autonomous_cognitive_self_bootstrap::BootstrapSignal> {
+    self.selected_information_gain
+}
+
+pub const fn selected_controllability(
+    &self,
+) -> Option<autonomous_cognitive_self_bootstrap::BootstrapSignal> {
+    self.selected_controllability
+}
+
+pub const fn selected_execution_cost(
+    &self,
+) -> Option<autonomous_cognitive_self_bootstrap::BootstrapSignal> {
+    self.selected_execution_cost
+}
+
+    pub const fn candidate_frontier_len(
+        &self,
+    ) -> usize {
+        self.candidate_frontier_len
+    }
+
+    pub const fn rejected_source_state_count(
+        &self,
+    ) -> usize {
+        self.rejected_source_state_count
+    }
+
+    pub const fn rejected_unauthorized_action_count(
+        &self,
+    ) -> usize {
+        self.rejected_unauthorized_action_count
+    }
+
+    pub const fn rejected_threshold_count(
+        &self,
+    ) -> usize {
+        self.rejected_threshold_count
+    }
+
+    pub const fn duplicate_affordance_count(
+        &self,
+    ) -> usize {
+        self.duplicate_affordance_count
+    }
+
+    pub const fn duplicate_hypothesis_count(
+        &self,
+    ) -> usize {
+        self.duplicate_hypothesis_count
+    }
+
+    pub const fn frontier_truncated(
+        &self,
+    ) -> bool {
+        self.frontier_truncated
+    }
+
+    pub const fn has_selected_action(
+        &self,
+    ) -> bool {
+        self.selected_action.is_some()
+    }
+
+    pub const fn requires_model_expansion(
+        &self,
+    ) -> bool {
+        matches!(
+            self.status,
+            autonomous_cognitive_self_bootstrap::SelfBootstrapStatus::ModelExpansionRequired
+        )
+    }
+
+    pub const fn is_complete(
+        &self,
+    ) -> bool {
+        matches!(
+            self.status,
+            autonomous_cognitive_self_bootstrap::SelfBootstrapStatus::Complete
+        )
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct OnlineAutonomousCognitiveSelfBootstrapRuntime;
+
+impl OnlineAutonomousCognitiveSelfBootstrapRuntime {
+    pub fn evaluate(
+        input: &autonomous_cognitive_self_bootstrap::SelfBootstrapInput,
+        policy: autonomous_cognitive_self_bootstrap::SelfBootstrapPolicy,
+    ) -> Result<
+        OnlineAutonomousSelfBootstrapDigest,
+        autonomous_cognitive_self_bootstrap::SelfBootstrapError,
+    > {
+        let result =
+            autonomous_cognitive_self_bootstrap::UniversalAutonomousCognitiveSelfBootstrap::
+                evaluate(input, policy)?;
+
+        Ok(
+            OnlineAutonomousSelfBootstrapDigest::from_result(
+                &result,
+            ),
+        )
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct UniversalOnlineAutonomousCognitiveSelfBootstrap;
+
+impl UniversalOnlineAutonomousCognitiveSelfBootstrap {
+    pub fn evaluate(
+        input: &autonomous_cognitive_self_bootstrap::SelfBootstrapInput,
+        policy: autonomous_cognitive_self_bootstrap::SelfBootstrapPolicy,
+    ) -> Result<
+        OnlineAutonomousSelfBootstrapDigest,
+        autonomous_cognitive_self_bootstrap::SelfBootstrapError,
+    > {
+        OnlineAutonomousCognitiveSelfBootstrapRuntime::evaluate(
+            input,
+            policy,
+        )
+    }
+}
+
+// === ATHLESIA DOMAIN-GENERAL AUTONOMOUS SELF-BOOTSTRAP ONLINE RUNTIME END ===
+
+// === ATHLESIA DOMAIN-GENERAL AUTONOMOUS EXECUTIVE CONTEXT SYNTHESIS BEGIN ===
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum OnlineAutonomousColdStartExplorationError {
+    BootstrapDecisionNotSelected,
+    MissingBootstrapEvidence,
+    ColdStartExplorationRejected,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct OnlineAutonomousColdStartExplorationPolicy {
+    goal_priority: athlesia_mindstone_sparse_cognition::CognitiveSignal,
+    cold_start: athlesia_executive_agency::ColdStartExplorationPolicy,
+}
+
+impl OnlineAutonomousColdStartExplorationPolicy {
+    pub fn new(
+        goal_priority: athlesia_mindstone_sparse_cognition::CognitiveSignal,
+        cold_start: athlesia_executive_agency::ColdStartExplorationPolicy,
+    ) -> Self {
+        Self {
+            goal_priority,
+            cold_start,
+        }
+    }
+
+    pub fn goal_priority(
+        self,
+    ) -> athlesia_mindstone_sparse_cognition::CognitiveSignal {
+        self.goal_priority
+    }
+
+    pub fn cold_start(
+        self,
+    ) -> athlesia_executive_agency::ColdStartExplorationPolicy {
+        self.cold_start
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct OnlineAutonomousColdStartExplorationBundle {
+    goal: athlesia_executive_agency::ExecutiveGoal,
+    candidate: athlesia_executive_agency::GroundedExplorationCandidate,
+    result: athlesia_executive_agency::ColdStartExplorationResult,
+}
+
+impl OnlineAutonomousColdStartExplorationBundle {
+    pub fn goal(
+        &self,
+    ) -> &athlesia_executive_agency::ExecutiveGoal {
+        &self.goal
+    }
+
+    pub fn candidate(
+        &self,
+    ) -> &athlesia_executive_agency::GroundedExplorationCandidate {
+        &self.candidate
+    }
+
+    pub fn result(
+        &self,
+    ) -> &athlesia_executive_agency::ColdStartExplorationResult {
+        &self.result
+    }
+
+    pub fn selected_exploration(
+        &self,
+    ) -> &athlesia_executive_agency::RankedExplorationCandidate {
+        self.result
+            .selected_exploration()
+            .expect("successful cold-start bundle retains its grounded selection")
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct OnlineAutonomousColdStartExplorationSynthesis;
+
+impl OnlineAutonomousColdStartExplorationSynthesis {
+    fn cognitive_signal(
+        signal: autonomous_cognitive_self_bootstrap::BootstrapSignal,
+    ) -> athlesia_mindstone_sparse_cognition::CognitiveSignal {
+        athlesia_mindstone_sparse_cognition::CognitiveSignal::new(
+            signal.value(),
+        )
+        .expect("bootstrap signal stays on the cognitive signal scale")
+    }
+
+    pub fn synthesize(
+        digest: &OnlineAutonomousSelfBootstrapDigest,
+        policy: OnlineAutonomousColdStartExplorationPolicy,
+    ) -> Result<
+        OnlineAutonomousColdStartExplorationBundle,
+        OnlineAutonomousColdStartExplorationError,
+    > {
+        if digest.status()
+            != autonomous_cognitive_self_bootstrap::SelfBootstrapStatus::Selected
+        {
+            return Err(
+                OnlineAutonomousColdStartExplorationError::
+                    BootstrapDecisionNotSelected,
+            );
+        }
+
+        let Some(action) =
+            digest.selected_action().cloned()
+        else {
+            return Err(
+                OnlineAutonomousColdStartExplorationError::
+                    MissingBootstrapEvidence,
+            );
+        };
+
+        let Some(predicted_outcome) =
+            digest.predicted_outcome().cloned()
+        else {
+            return Err(
+                OnlineAutonomousColdStartExplorationError::
+                    MissingBootstrapEvidence,
+            );
+        };
+
+        let Some(target_state) =
+            digest.target_state().cloned()
+        else {
+            return Err(
+                OnlineAutonomousColdStartExplorationError::
+                    MissingBootstrapEvidence,
+            );
+        };
+
+        let Some(confidence) =
+            digest.selected_confidence()
+        else {
+            return Err(
+                OnlineAutonomousColdStartExplorationError::
+                    MissingBootstrapEvidence,
+            );
+        };
+
+        let Some(information_gain) =
+            digest.selected_information_gain()
+        else {
+            return Err(
+                OnlineAutonomousColdStartExplorationError::
+                    MissingBootstrapEvidence,
+            );
+        };
+
+        let Some(controllability) =
+            digest.selected_controllability()
+        else {
+            return Err(
+                OnlineAutonomousColdStartExplorationError::
+                    MissingBootstrapEvidence,
+            );
+        };
+
+        let Some(execution_cost) =
+            digest.selected_execution_cost()
+        else {
+            return Err(
+                OnlineAutonomousColdStartExplorationError::
+                    MissingBootstrapEvidence,
+            );
+        };
+
+        let confidence =
+            Self::cognitive_signal(
+                confidence,
+            );
+
+        let information_gain =
+            Self::cognitive_signal(
+                information_gain,
+            );
+
+        let controllability =
+            Self::cognitive_signal(
+                controllability,
+            );
+
+        let execution_cost =
+            Self::cognitive_signal(
+                execution_cost,
+            );
+
+        let goal =
+            athlesia_executive_agency::ExecutiveGoal::new(
+                target_state.clone(),
+                policy.goal_priority(),
+                athlesia_mindstone_sparse_cognition::CognitiveSignal::zero(),
+            );
+
+        let exploration_signals =
+            athlesia_executive_agency::ExplorationSignals::new(
+                information_gain,
+                athlesia_mindstone_sparse_cognition::CognitiveSignal::zero(),
+                controllability,
+                confidence,
+                execution_cost,
+            );
+
+        let candidate =
+            athlesia_executive_agency::GroundedExplorationCandidate::new(
+                target_state,
+                action,
+                predicted_outcome,
+                exploration_signals,
+            );
+
+        let result =
+            athlesia_executive_agency::
+                UniversalColdStartExplorationController::evaluate(
+                    &goal,
+                    std::slice::from_ref(&candidate),
+                    policy.cold_start(),
+                );
+
+        if !result.selected() {
+            return Err(
+                OnlineAutonomousColdStartExplorationError::
+                    ColdStartExplorationRejected,
+            );
+        }
+
+        Ok(
+            OnlineAutonomousColdStartExplorationBundle {
+                goal,
+                candidate,
+                result,
+            },
+        )
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct UniversalOnlineAutonomousColdStartExplorationSynthesis;
+
+impl UniversalOnlineAutonomousColdStartExplorationSynthesis {
+    pub fn evaluate(
+        digest: &OnlineAutonomousSelfBootstrapDigest,
+        policy: OnlineAutonomousColdStartExplorationPolicy,
+    ) -> Result<
+        OnlineAutonomousColdStartExplorationBundle,
+        OnlineAutonomousColdStartExplorationError,
+    > {
+        OnlineAutonomousColdStartExplorationSynthesis::synthesize(
+            digest,
+            policy,
+        )
+    }
+}
+
+// === ATHLESIA DOMAIN-GENERAL AUTONOMOUS EXECUTIVE CONTEXT SYNTHESIS END ===
