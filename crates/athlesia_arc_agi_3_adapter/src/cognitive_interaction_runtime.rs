@@ -1,0 +1,229 @@
+use crate::{
+    interactive_session_runtime::{
+        ArcAgi3CompletedTurn, ArcAgi3InteractiveSession, ArcAgi3InteractiveSessionError,
+        ArcAgi3SessionCommand,
+    },
+    perceptual_ingestion_bridge::{
+        ArcAgi3PerceptualBridgeError, ArcAgi3PerceptualIngestionBridge, ArcAgi3PerceptualProjection,
+    },
+    ArcAgi3Observation,
+};
+use athlesia_integrated_cognitive_agent::{
+    CognitiveCycleStateTransitionRequest, EnvironmentActionDispatch,
+    EnvironmentActionDispatchStatus, EnvironmentInteractionBoundary, IntegratedAgentPolicy,
+    OnlineCognitiveOrchestration, OnlineCognitiveOrchestrationInput,
+    OnlineCognitiveOrchestrationResult,
+};
+use athlesia_mindstone_sparse_cognition::{CognitiveSignal, CognitiveStructure};
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum ArcAgi3CognitiveInteractionError {
+    DispatchRejected(EnvironmentActionDispatchStatus),
+    ReadyDispatchMissing,
+    Session(ArcAgi3InteractiveSessionError),
+    Perception(ArcAgi3PerceptualBridgeError),
+}
+
+impl From<ArcAgi3InteractiveSessionError> for ArcAgi3CognitiveInteractionError {
+    fn from(error: ArcAgi3InteractiveSessionError) -> Self {
+        Self::Session(error)
+    }
+}
+
+impl From<ArcAgi3PerceptualBridgeError> for ArcAgi3CognitiveInteractionError {
+    fn from(error: ArcAgi3PerceptualBridgeError) -> Self {
+        Self::Perception(error)
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ArcAgi3CognitiveInteractionStep {
+    orchestration: OnlineCognitiveOrchestrationResult,
+    dispatch: EnvironmentActionDispatch,
+    command: ArcAgi3SessionCommand,
+}
+
+impl ArcAgi3CognitiveInteractionStep {
+    pub fn orchestration(&self) -> &OnlineCognitiveOrchestrationResult {
+        &self.orchestration
+    }
+
+    pub fn dispatch(&self) -> &EnvironmentActionDispatch {
+        &self.dispatch
+    }
+
+    pub fn command(&self) -> &ArcAgi3SessionCommand {
+        &self.command
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ArcAgi3CognitiveInteractionCompletion {
+    turn: ArcAgi3CompletedTurn,
+    perception: ArcAgi3PerceptualProjection,
+}
+
+impl ArcAgi3CognitiveInteractionCompletion {
+    pub fn turn(&self) -> &ArcAgi3CompletedTurn {
+        &self.turn
+    }
+
+    pub fn perception(&self) -> &ArcAgi3PerceptualProjection {
+        &self.perception
+    }
+
+    pub fn has_cognitive_feedback(&self) -> bool {
+        self.turn.has_cognitive_feedback()
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ArcAgi3CognitiveInteractionRuntime {
+    session: ArcAgi3InteractiveSession,
+    perception: ArcAgi3PerceptualProjection,
+}
+
+impl ArcAgi3CognitiveInteractionRuntime {
+    pub fn new(
+        initial_observation: ArcAgi3Observation,
+        first_perceptual_observation_index: u64,
+    ) -> Result<Self, ArcAgi3CognitiveInteractionError> {
+        let perception = ArcAgi3PerceptualIngestionBridge::project_observation(
+            &initial_observation,
+            first_perceptual_observation_index,
+            None,
+        )?;
+
+        Ok(Self {
+            session: ArcAgi3InteractiveSession::new(initial_observation),
+            perception,
+        })
+    }
+
+    pub fn session(&self) -> &ArcAgi3InteractiveSession {
+        &self.session
+    }
+
+    pub fn perception(&self) -> &ArcAgi3PerceptualProjection {
+        &self.perception
+    }
+
+    pub fn observation(&self) -> &ArcAgi3Observation {
+        self.session.observation()
+    }
+
+    pub fn next_perceptual_observation_index(&self) -> u64 {
+        self.perception.next_observation_index()
+    }
+
+    pub fn begin_reset(
+        &mut self,
+    ) -> Result<ArcAgi3SessionCommand, ArcAgi3CognitiveInteractionError> {
+        self.session.begin_reset().map_err(Into::into)
+    }
+
+    pub fn begin_from_orchestration_result(
+        &mut self,
+        orchestration: OnlineCognitiveOrchestrationResult,
+    ) -> Result<ArcAgi3CognitiveInteractionStep, ArcAgi3CognitiveInteractionError> {
+        let dispatch_result = EnvironmentInteractionBoundary::dispatch(&orchestration);
+
+        if dispatch_result.status() != EnvironmentActionDispatchStatus::Ready {
+            return Err(ArcAgi3CognitiveInteractionError::DispatchRejected(
+                dispatch_result.status(),
+            ));
+        }
+
+        let dispatch = dispatch_result
+            .dispatch()
+            .cloned()
+            .ok_or(ArcAgi3CognitiveInteractionError::ReadyDispatchMissing)?;
+
+        let command = self.session.begin_dispatch(&dispatch)?;
+
+        Ok(ArcAgi3CognitiveInteractionStep {
+            orchestration,
+            dispatch,
+            command,
+        })
+    }
+
+    pub fn run_and_begin(
+        &mut self,
+        anchor_state: &CognitiveStructure,
+        input: OnlineCognitiveOrchestrationInput<'_>,
+        cycle_policy: IntegratedAgentPolicy,
+        transition_request: &CognitiveCycleStateTransitionRequest,
+    ) -> Result<ArcAgi3CognitiveInteractionStep, ArcAgi3CognitiveInteractionError> {
+        if self.session.has_pending_command() {
+            return Err(ArcAgi3InteractiveSessionError::PendingCommandExists.into());
+        }
+
+        let orchestration = OnlineCognitiveOrchestration::run(
+            anchor_state,
+            input,
+            cycle_policy,
+            transition_request,
+        );
+
+        self.begin_from_orchestration_result(orchestration)
+    }
+
+    pub fn complete_environment_turn(
+        &mut self,
+        observation: ArcAgi3Observation,
+        confidence: CognitiveSignal,
+    ) -> Result<ArcAgi3CognitiveInteractionCompletion, ArcAgi3CognitiveInteractionError> {
+        /*
+         * Transactional rule:
+         *
+         * 1. clone session;
+         * 2. validate/bind real environment response on clone;
+         * 3. build exact perceptual projection;
+         * 4. only then commit both session and perceptual state.
+         *
+         * Therefore a failed response or failed projection cannot
+         * partially advance runtime state.
+         */
+        let mut next_session = self.session.clone();
+
+        let completed_turn = next_session.complete_turn(observation.clone(), confidence)?;
+
+        let next_perception = ArcAgi3PerceptualIngestionBridge::project_observation(
+            &observation,
+            self.perception.next_observation_index(),
+            Some(self.perception.latest_frame()),
+        )?;
+
+        self.session = next_session;
+        self.perception = next_perception.clone();
+
+        Ok(ArcAgi3CognitiveInteractionCompletion {
+            turn: completed_turn,
+            perception: next_perception,
+        })
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct UniversalArcAgi3CognitiveInteractionRuntime;
+
+impl UniversalArcAgi3CognitiveInteractionRuntime {
+    pub fn create_runtime(
+        initial_observation: ArcAgi3Observation,
+        first_perceptual_observation_index: u64,
+    ) -> Result<ArcAgi3CognitiveInteractionRuntime, ArcAgi3CognitiveInteractionError> {
+        ArcAgi3CognitiveInteractionRuntime::new(
+            initial_observation,
+            first_perceptual_observation_index,
+        )
+    }
+
+    pub fn complete_environment_turn(
+        runtime: &mut ArcAgi3CognitiveInteractionRuntime,
+        observation: ArcAgi3Observation,
+        confidence: CognitiveSignal,
+    ) -> Result<ArcAgi3CognitiveInteractionCompletion, ArcAgi3CognitiveInteractionError> {
+        runtime.complete_environment_turn(observation, confidence)
+    }
+}

@@ -10,7 +10,9 @@ dependencies = [
  "athlesia_core_knowledge_perceptual_grounding",
  "athlesia_executive_agency",
  "athlesia_integrated_cognitive_agent",
+ "athlesia_meta_learning_skill_memory",
  "athlesia_mindstone_sparse_cognition",
+ "athlesia_universal_domain_learning",
 ]
 
 [[package]]

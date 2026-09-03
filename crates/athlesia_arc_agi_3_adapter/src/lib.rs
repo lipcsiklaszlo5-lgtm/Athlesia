@@ -529,3 +529,5 @@ pub mod interactive_session_runtime;
 pub mod perceptual_ingestion_bridge;
 
 pub mod action_grounding_bridge;
+
+pub mod cognitive_interaction_runtime;

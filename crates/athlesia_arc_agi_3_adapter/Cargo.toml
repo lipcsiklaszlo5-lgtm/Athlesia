@@ -12,3 +12,7 @@ athlesia_mindstone_sparse_cognition = { path = "../athlesia_mindstone_sparse_cog
 athlesia_integrated_cognitive_agent = { path = "../athlesia_integrated_cognitive_agent" }
 
 [workspace]
+
+[dev-dependencies]
+athlesia_meta_learning_skill_memory = { path = "../athlesia_meta_learning_skill_memory" }
+athlesia_universal_domain_learning = { path = "../athlesia_universal_domain_learning" }
