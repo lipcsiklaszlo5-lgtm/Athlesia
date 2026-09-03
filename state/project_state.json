@@ -6,7 +6,7 @@
     "Every integrated Rust component must be complete, compilable and tested.",
     "Existing validated invariants may not be weakened by later modules."
   ],
-  "generated_at_utc": "2026-09-03T16:02:53Z",
+  "generated_at_utc": "2026-09-03T16:56:07Z",
   "implementation_language": "Rust",
   "implementation_sha256": {
     "Cargo.toml": "e852faab0d9dff23b09e1ee2323d0998955f837450c70ea015382ffe5ec52bff",
@@ -362,7 +362,7 @@
     "crates/athlesia_integrated_cognitive_agent/tests/online_recurrent_cognitive_control_loop.rs": "583a08362073fb4219052b64c4836282c66341d08495b53932c0924807e3409b",
     "crates/athlesia_integrated_cognitive_agent/tests/environment_interaction_boundary.rs": "17145a815bd8cc6ca1e815a017639ce1b889cf47bc8ed4fb9a8867dc37b1ca02",
     "crates/athlesia_arc_agi_3_adapter/Cargo.toml": "9078a28fe8861206c15619f9cc1f2e754126bed58aeacafcc2437646318de97a",
-    "crates/athlesia_arc_agi_3_adapter/src/lib.rs": "b43bab666c6bc3ad1db7082ede4ac37ab800f1659a4fe5d9192a28bca0df1d8d",
+    "crates/athlesia_arc_agi_3_adapter/src/lib.rs": "e77ce934839320d071be7c3a6416ad9f9f2f530499e64884ecbbcdfe8708376e",
     "crates/athlesia_arc_agi_3_adapter/tests/arc_agi_3_adapter_foundation.rs": "6dd197bf42a68f70eab19f6f6c00a3717ebab3bfde8d07e38e82ac5f8f44a077",
     "crates/athlesia_arc_agi_3_adapter/Cargo.lock": "48fbaba977ddcdf5d22fda6f873146a8855c4d4f71bbc751cb34fa705f6ced2d",
     "crates/athlesia_arc_agi_3_adapter/src/cognitive_protocol_bridge.rs": "8c39642651fe55ef804500af5d37a583f6b078821e2594ce58bd271e2460b9b9",
@@ -381,7 +381,9 @@
     "crates/athlesia_arc_agi_3_adapter/src/live_environment_runtime.rs": "bdff9f07e40493b7ed19b13efcfa4de193d704c2e9e3b1a4afebfa060da6d20f",
     "crates/athlesia_arc_agi_3_adapter/tests/live_environment_runtime.rs": "29d9b18e796257f7b16be1e3203e7a8408374ed53e5f2f81361d932c54fe12fb",
     "crates/athlesia_arc_agi_3_adapter/src/bounded_episode_runtime.rs": "86dcbd9f391ed1c780fbe7da7feb1b0c118b8718c768ca1805904626760c81cf",
-    "crates/athlesia_arc_agi_3_adapter/tests/bounded_episode_runtime.rs": "b8667e74f175fcdfdff5e8230931eebf5c092d65498f3769daa895be039f074d"
+    "crates/athlesia_arc_agi_3_adapter/tests/bounded_episode_runtime.rs": "b8667e74f175fcdfdff5e8230931eebf5c092d65498f3769daa895be039f074d",
+    "crates/athlesia_arc_agi_3_adapter/src/competition_session_runtime.rs": "f03fd7ccb96589b6f92f808b57e452fc93ab3cfc2d6e538e9d425203829cc589",
+    "crates/athlesia_arc_agi_3_adapter/tests/competition_session_runtime.rs": "638b7f635773961b165734703e0511035a70be540a1cb094529c68b7a576ecaa"
   },
   "project": "Athlesia",
   "research_baseline": {
@@ -662,7 +664,8 @@
       "module_52_arc_agi_3_adapter_cognitive_interaction_runtime",
       "module_52_arc_agi_3_adapter_environment_transport_boundary",
       "module_52_arc_agi_3_adapter_live_environment_runtime",
-      "module_52_arc_agi_3_adapter_bounded_episode_runtime"
+      "module_52_arc_agi_3_adapter_bounded_episode_runtime",
+      "module_52_arc_agi_3_adapter_competition_session_runtime"
     ],
     "module_23_integrity": {
       "status": "pass",
@@ -675,8 +678,8 @@
       "status": "frozen",
       "verifier": "tools/verify_module_23_parity.py"
     },
-    "next_layer": "module_52_arc_agi_3_adapter_competition_session_runtime",
-    "stage": "module_52_arc_agi_3_adapter_bounded_episode_runtime",
+    "next_layer": "module_52_arc_agi_3_adapter_final_integration_validation",
+    "stage": "module_52_arc_agi_3_adapter_competition_session_runtime",
     "status": "validated"
   },
   "validated_invariants": [
@@ -3531,6 +3534,30 @@
     "arc_agi_3_bounded_episode_contains_no_arc_action_semantics",
     "arc_agi_3_bounded_episode_contains_no_direct_http_dependency",
     "arc_agi_3_bounded_episode_preserves_frozen_m51_and_prior_m52_semantics",
-    "arc_agi_3_bounded_episode_full_m52_regression_124_tests_and_clippy_green"
+    "arc_agi_3_bounded_episode_full_m52_regression_124_tests_and_clippy_green",
+    "arc_agi_3_competition_session_forces_competition_mode_true",
+    "arc_agi_3_competition_session_preserves_official_scorecard_metadata",
+    "arc_agi_3_competition_session_enforces_16_kib_opaque_payload_limit",
+    "arc_agi_3_competition_session_uses_official_scorecard_open_endpoint",
+    "arc_agi_3_competition_session_uses_official_scorecard_close_endpoint",
+    "arc_agi_3_competition_session_uses_server_issued_card_identity",
+    "arc_agi_3_competition_session_forwards_exact_server_card_to_environment_reset",
+    "arc_agi_3_competition_session_preserves_server_score_without_local_recalculation",
+    "arc_agi_3_competition_session_preserves_raw_server_summary",
+    "arc_agi_3_competition_session_rejects_malformed_scorecard_summary",
+    "arc_agi_3_competition_session_opens_exactly_one_scorecard",
+    "arc_agi_3_competition_session_reuses_live_environment_runtime",
+    "arc_agi_3_competition_session_reuses_bounded_episode_runtime",
+    "arc_agi_3_competition_session_successful_close_locks_session",
+    "arc_agi_3_competition_session_close_failure_enters_explicit_fault_state",
+    "arc_agi_3_competition_session_indeterminate_close_never_auto_retries",
+    "arc_agi_3_competition_session_close_reconciliation_uses_safe_get",
+    "arc_agi_3_competition_session_server_auto_close_detected_by_poll",
+    "arc_agi_3_competition_session_has_no_mutable_scorecard_transport_escape",
+    "arc_agi_3_competition_session_contains_no_local_score_formula",
+    "arc_agi_3_competition_session_contains_no_arc_action_semantics",
+    "arc_agi_3_competition_session_contains_no_automatic_reset_policy",
+    "arc_agi_3_competition_session_preserves_frozen_m51_and_prior_m52_semantics",
+    "arc_agi_3_competition_session_full_m52_regression_140_tests_and_clippy_green"
   ]
 }
