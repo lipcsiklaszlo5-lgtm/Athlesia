@@ -1,0 +1,9 @@
+[package]
+name = "athlesia_e5_empirical_abstraction_micro_world"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[dependencies]
+athlesia_integrated_cognitive_agent = { path = "../../crates/athlesia_integrated_cognitive_agent" }
+athlesia_mindstone_sparse_cognition = { path = "../../crates/athlesia_mindstone_sparse_cognition" }
