@@ -8941,3 +8941,298 @@ impl UniversalIntegratedDomainModel {
         IntegratedDomainModel::build(domain, local, transferred, policy)
     }
 }
+// ============================================================================
+// K0-A — EXECUTABLE GENERATIVE WORLD MODEL FOUNDATION
+// ============================================================================
+//
+// This is the first executable generative world-model primitive.
+//
+// It executes only semantics already admitted by grounded transition-schema
+// learning:
+//
+//     grounded state + exact transformation + learned schemas
+//         -> partial structural delta
+//
+// It intentionally does not construct a complete successor state.
+//
+// Facts not explicitly predicted as added or removed remain epistemically
+// unknown. GroundedInvariantHypothesis is intentionally not executed as
+// persistence authority here because its current semantics are empirical
+// cross-transformation stability rather than transformation-specific certainty.
+//
+// Exact CognitiveStructure identity is authoritative throughout.
+
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub struct GroundedExecutableWorldModelPolicy {
+    max_schemas: usize,
+}
+
+impl GroundedExecutableWorldModelPolicy {
+    pub fn new(max_schemas: usize) -> Option<Self> {
+        if max_schemas == 0 {
+            return None;
+        }
+
+        Some(Self { max_schemas })
+    }
+
+    pub fn max_schemas(self) -> usize {
+        self.max_schemas
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct GroundedExecutableWorldModel {
+    schemas: Vec<GroundedTransitionSchemaHypothesis>,
+    admitted_before_frontier: usize,
+}
+
+impl GroundedExecutableWorldModel {
+    fn schema_identity_cmp(
+        left: &GroundedTransitionSchemaHypothesis,
+        right: &GroundedTransitionSchemaHypothesis,
+    ) -> std::cmp::Ordering {
+        PredicateDiscovery::compare_structure(left.transformation(), right.transformation())
+            .then_with(|| left.effect_kind().cmp(&right.effect_kind()))
+            .then_with(|| PredicateDiscovery::compare_structure(left.fact(), right.fact()))
+    }
+
+    fn schema_strength_cmp(
+        left: &GroundedTransitionSchemaHypothesis,
+        right: &GroundedTransitionSchemaHypothesis,
+    ) -> std::cmp::Ordering {
+        right
+            .association_lift()
+            .value()
+            .cmp(&left.association_lift().value())
+            .then_with(|| right.precision().value().cmp(&left.precision().value()))
+            .then_with(|| right.support_count().cmp(&left.support_count()))
+            .then_with(|| left.counterexample_count().cmp(&right.counterexample_count()))
+            .then_with(|| Self::schema_identity_cmp(left, right))
+    }
+
+    fn same_schema_identity(
+        left: &GroundedTransitionSchemaHypothesis,
+        right: &GroundedTransitionSchemaHypothesis,
+    ) -> bool {
+        left.transformation() == right.transformation()
+            && left.effect_kind() == right.effect_kind()
+            && left.fact() == right.fact()
+    }
+
+    pub fn build(
+        schemas: &[GroundedTransitionSchemaHypothesis],
+        policy: GroundedExecutableWorldModelPolicy,
+    ) -> Self {
+        let mut canonical = schemas.to_vec();
+
+        canonical.sort_by(Self::schema_strength_cmp);
+
+        canonical.dedup_by(|left, right| Self::same_schema_identity(left, right));
+
+        let admitted_before_frontier = canonical.len();
+
+        canonical.truncate(policy.max_schemas());
+
+        canonical.sort_by(Self::schema_identity_cmp);
+
+        Self {
+            schemas: canonical,
+            admitted_before_frontier,
+        }
+    }
+
+    pub fn schemas(&self) -> &[GroundedTransitionSchemaHypothesis] {
+        &self.schemas
+    }
+
+    pub fn schema_count(&self) -> usize {
+        self.schemas.len()
+    }
+
+    pub fn admitted_before_frontier(&self) -> usize {
+        self.admitted_before_frontier
+    }
+
+    pub fn frontier_truncated(&self) -> bool {
+        self.admitted_before_frontier > self.schemas.len()
+    }
+
+    pub fn predict(
+        &self,
+        state: &GroundedStateSnapshot,
+        transformation: &CognitiveStructure,
+    ) -> GroundedStructuralPrediction {
+        GroundedStructuralPredictionEngine::predict(state, transformation, self)
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub enum GroundedStructuralPredictionStatus {
+    Predicted,
+    NoApplicableEffect,
+    EffectConflict,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct GroundedStructuralPrediction {
+    transformation: CognitiveStructure,
+    status: GroundedStructuralPredictionStatus,
+    additions: Vec<CognitiveStructure>,
+    removals: Vec<CognitiveStructure>,
+    applicable_schema_count: usize,
+}
+
+impl GroundedStructuralPrediction {
+    pub fn transformation(&self) -> &CognitiveStructure {
+        &self.transformation
+    }
+
+    pub fn status(&self) -> GroundedStructuralPredictionStatus {
+        self.status
+    }
+
+    pub fn additions(&self) -> &[CognitiveStructure] {
+        &self.additions
+    }
+
+    pub fn removals(&self) -> &[CognitiveStructure] {
+        &self.removals
+    }
+
+    pub fn applicable_schema_count(&self) -> usize {
+        self.applicable_schema_count
+    }
+
+    pub fn predicted(&self) -> bool {
+        self.status == GroundedStructuralPredictionStatus::Predicted
+    }
+
+    pub fn abstained(&self) -> bool {
+        self.status != GroundedStructuralPredictionStatus::Predicted
+    }
+
+    pub fn predicts_addition(&self, fact: &CognitiveStructure) -> bool {
+        self.additions
+            .binary_search_by(|candidate| PredicateDiscovery::compare_structure(candidate, fact))
+            .is_ok()
+    }
+
+    pub fn predicts_removal(&self, fact: &CognitiveStructure) -> bool {
+        self.removals
+            .binary_search_by(|candidate| PredicateDiscovery::compare_structure(candidate, fact))
+            .is_ok()
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, Hash, PartialEq)]
+pub struct GroundedStructuralPredictionEngine;
+
+impl GroundedStructuralPredictionEngine {
+    pub const fn new() -> Self {
+        Self
+    }
+
+    fn schema_is_applicable(
+        schema: &GroundedTransitionSchemaHypothesis,
+        state: &GroundedStateSnapshot,
+        transformation: &CognitiveStructure,
+    ) -> bool {
+        if schema.transformation() != transformation {
+            return false;
+        }
+
+        match schema.effect_kind() {
+            TransitionEffectKind::Added => !state.contains_fact(schema.fact()),
+            TransitionEffectKind::Removed => state.contains_fact(schema.fact()),
+        }
+    }
+
+    pub fn predict(
+        state: &GroundedStateSnapshot,
+        transformation: &CognitiveStructure,
+        model: &GroundedExecutableWorldModel,
+    ) -> GroundedStructuralPrediction {
+        let applicable = model
+            .schemas()
+            .iter()
+            .filter(|schema| Self::schema_is_applicable(schema, state, transformation))
+            .collect::<Vec<_>>();
+
+        let applicable_schema_count = applicable.len();
+
+        if applicable.is_empty() {
+            return GroundedStructuralPrediction {
+                transformation: transformation.clone(),
+                status: GroundedStructuralPredictionStatus::NoApplicableEffect,
+                additions: Vec::new(),
+                removals: Vec::new(),
+                applicable_schema_count,
+            };
+        }
+
+        let mut additions = applicable
+            .iter()
+            .filter(|schema| schema.effect_kind() == TransitionEffectKind::Added)
+            .map(|schema| schema.fact().clone())
+            .collect::<Vec<_>>();
+
+        let mut removals = applicable
+            .iter()
+            .filter(|schema| schema.effect_kind() == TransitionEffectKind::Removed)
+            .map(|schema| schema.fact().clone())
+            .collect::<Vec<_>>();
+
+        additions.sort_by(PredicateDiscovery::compare_structure);
+        additions.dedup();
+
+        removals.sort_by(PredicateDiscovery::compare_structure);
+        removals.dedup();
+
+        let conflict = additions.iter().any(|fact| {
+            removals
+                .binary_search_by(|candidate| {
+                    PredicateDiscovery::compare_structure(candidate, fact)
+                })
+                .is_ok()
+        });
+
+        if conflict {
+            return GroundedStructuralPrediction {
+                transformation: transformation.clone(),
+                status: GroundedStructuralPredictionStatus::EffectConflict,
+                additions: Vec::new(),
+                removals: Vec::new(),
+                applicable_schema_count,
+            };
+        }
+
+        GroundedStructuralPrediction {
+            transformation: transformation.clone(),
+            status: GroundedStructuralPredictionStatus::Predicted,
+            additions,
+            removals,
+            applicable_schema_count,
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, Hash, PartialEq)]
+pub struct UniversalGroundedExecutableWorldModel;
+
+impl UniversalGroundedExecutableWorldModel {
+    pub fn build(
+        schemas: &[GroundedTransitionSchemaHypothesis],
+        policy: GroundedExecutableWorldModelPolicy,
+    ) -> GroundedExecutableWorldModel {
+        GroundedExecutableWorldModel::build(schemas, policy)
+    }
+
+    pub fn predict(
+        state: &GroundedStateSnapshot,
+        transformation: &CognitiveStructure,
+        model: &GroundedExecutableWorldModel,
+    ) -> GroundedStructuralPrediction {
+        GroundedStructuralPredictionEngine::predict(state, transformation, model)
+    }
+}
