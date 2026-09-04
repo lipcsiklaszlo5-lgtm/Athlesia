@@ -11236,13 +11236,11 @@ impl GroundedRelevanceSpecializationCandidate {
 // L0 — OBSERVATIONAL ALIASING / REPRESENTATION INSUFFICIENCY
 // ============================================================================
 //
-// Identical observed source structure and identical transformation may lead
-// to distinct observed successor structures.
+// The same exact observed source state and the same exact transformation can
+// provide incompatible evidence about one concrete structural effect.
 //
-// This is evidence that the current deterministic representation is
-// insufficient. It is NOT, by itself, proof of a latent state: stochasticity,
-// nonstationarity, exogenous influence, or an omitted observable distinction
-// remain possible explanations.
+// This demonstrates insufficiency of the current deterministic observable
+// representation. It does not identify the missing cause.
 
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub struct GroundedRepresentationInsufficiencyPolicy {
@@ -11272,14 +11270,16 @@ impl GroundedRepresentationInsufficiencyPolicy {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub struct GroundedObservedOutcomeConflict {
+pub struct GroundedObservedEffectConflict {
     source_state: GroundedStateSnapshot,
     transformation: CognitiveStructure,
-    outcomes: Vec<GroundedStateSnapshot>,
-    supporting_episode_count: usize,
+    effect_kind: TransitionEffectKind,
+    effect_fact: CognitiveStructure,
+    occurrence_episode_count: usize,
+    nonoccurrence_episode_count: usize,
 }
 
-impl GroundedObservedOutcomeConflict {
+impl GroundedObservedEffectConflict {
     pub fn source_state(&self) -> &GroundedStateSnapshot {
         &self.source_state
     }
@@ -11288,16 +11288,24 @@ impl GroundedObservedOutcomeConflict {
         &self.transformation
     }
 
-    pub fn outcomes(&self) -> &[GroundedStateSnapshot] {
-        &self.outcomes
+    pub fn effect_kind(&self) -> TransitionEffectKind {
+        self.effect_kind
     }
 
-    pub fn distinct_outcome_count(&self) -> usize {
-        self.outcomes.len()
+    pub fn effect_fact(&self) -> &CognitiveStructure {
+        &self.effect_fact
+    }
+
+    pub fn occurrence_episode_count(&self) -> usize {
+        self.occurrence_episode_count
+    }
+
+    pub fn nonoccurrence_episode_count(&self) -> usize {
+        self.nonoccurrence_episode_count
     }
 
     pub fn supporting_episode_count(&self) -> usize {
-        self.supporting_episode_count
+        self.occurrence_episode_count + self.nonoccurrence_episode_count
     }
 }
 
@@ -11305,7 +11313,7 @@ impl GroundedObservedOutcomeConflict {
 pub struct GroundedRepresentationInsufficiencyResult {
     considered_evidence_count: usize,
     admitted_before_frontier: usize,
-    conflicts: Vec<GroundedObservedOutcomeConflict>,
+    conflicts: Vec<GroundedObservedEffectConflict>,
 }
 
 impl GroundedRepresentationInsufficiencyResult {
@@ -11313,7 +11321,7 @@ impl GroundedRepresentationInsufficiencyResult {
         self.considered_evidence_count
     }
 
-    pub fn conflicts(&self) -> &[GroundedObservedOutcomeConflict] {
+    pub fn conflicts(&self) -> &[GroundedObservedEffectConflict] {
         &self.conflicts
     }
 
@@ -11327,5 +11335,177 @@ impl GroundedRepresentationInsufficiencyResult {
 
     pub fn representation_insufficient(&self) -> bool {
         !self.conflicts.is_empty()
+    }
+}
+
+pub struct GroundedRepresentationInsufficiencyDetection;
+
+fn l0_select_contrast_preserving_evidence(
+    evidence: &[GroundedTransformationEpisode],
+    max_evidence_episodes: usize,
+) -> Vec<GroundedTransformationEpisode> {
+    let mut canonical = evidence.to_vec();
+    canonical.sort_by(r0_compare_episodes);
+
+    if canonical.len() <= max_evidence_episodes {
+        return canonical;
+    }
+
+    let mut selected_indices = Vec::with_capacity(max_evidence_episodes);
+
+    if max_evidence_episodes >= 2 {
+        let mut group_start = 0;
+
+        while group_start < canonical.len()
+            && selected_indices.len().saturating_add(2) <= max_evidence_episodes
+        {
+            let anchor = &canonical[group_start];
+            let mut group_end = group_start + 1;
+
+            while group_end < canonical.len()
+                && canonical[group_end].before == anchor.before
+                && canonical[group_end].transformation == anchor.transformation
+            {
+                group_end += 1;
+            }
+
+            if let Some(contrast_index) =
+                ((group_start + 1)..group_end).find(|index| canonical[*index].after != anchor.after)
+            {
+                selected_indices.push(group_start);
+                selected_indices.push(contrast_index);
+            }
+
+            group_start = group_end;
+        }
+    }
+
+    for index in 0..canonical.len() {
+        if selected_indices.len() >= max_evidence_episodes {
+            break;
+        }
+
+        if !selected_indices.contains(&index) {
+            selected_indices.push(index);
+        }
+    }
+
+    selected_indices.sort_unstable();
+
+    selected_indices
+        .into_iter()
+        .map(|index| canonical[index].clone())
+        .collect()
+}
+
+impl GroundedRepresentationInsufficiencyDetection {
+    pub fn detect(
+        evidence: &[GroundedTransformationEpisode],
+        policy: GroundedRepresentationInsufficiencyPolicy,
+    ) -> GroundedRepresentationInsufficiencyResult {
+        let considered =
+            l0_select_contrast_preserving_evidence(evidence, policy.max_evidence_episodes());
+
+        let mut conflicts = Vec::new();
+
+        for index in 0..considered.len() {
+            let anchor = &considered[index];
+
+            let already_seen = considered[..index].iter().any(|prior| {
+                prior.before == anchor.before && prior.transformation == anchor.transformation
+            });
+
+            if already_seen {
+                continue;
+            }
+
+            let group: Vec<&GroundedTransformationEpisode> = considered
+                .iter()
+                .filter(|episode| {
+                    episode.before == anchor.before
+                        && episode.transformation == anchor.transformation
+                })
+                .collect();
+
+            if group.len() < 2 {
+                continue;
+            }
+
+            let mut candidates: Vec<(TransitionEffectKind, CognitiveStructure)> = Vec::new();
+
+            for episode in &group {
+                for fact in episode.after.facts() {
+                    if !anchor.before.contains_fact(fact) {
+                        candidates.push((TransitionEffectKind::Added, fact.clone()));
+                    }
+                }
+
+                for fact in anchor.before.facts() {
+                    if !episode.after.contains_fact(fact) {
+                        candidates.push((TransitionEffectKind::Removed, fact.clone()));
+                    }
+                }
+            }
+
+            candidates.sort_by(|left, right| {
+                let left_rank = match left.0 {
+                    TransitionEffectKind::Added => 0_u8,
+                    TransitionEffectKind::Removed => 1_u8,
+                };
+                let right_rank = match right.0 {
+                    TransitionEffectKind::Added => 0_u8,
+                    TransitionEffectKind::Removed => 1_u8,
+                };
+
+                left_rank.cmp(&right_rank).then_with(|| {
+                    r0_compare_fact_slices(
+                        std::slice::from_ref(&left.1),
+                        std::slice::from_ref(&right.1),
+                    )
+                })
+            });
+
+            candidates.dedup();
+
+            for (effect_kind, effect_fact) in candidates {
+                let occurrence_episode_count = group
+                    .iter()
+                    .filter(|episode| match effect_kind {
+                        TransitionEffectKind::Added => {
+                            !anchor.before.contains_fact(&effect_fact)
+                                && episode.after.contains_fact(&effect_fact)
+                        }
+                        TransitionEffectKind::Removed => {
+                            anchor.before.contains_fact(&effect_fact)
+                                && !episode.after.contains_fact(&effect_fact)
+                        }
+                    })
+                    .count();
+
+                let nonoccurrence_episode_count = group.len() - occurrence_episode_count;
+
+                if occurrence_episode_count == 0 || nonoccurrence_episode_count == 0 {
+                    continue;
+                }
+
+                conflicts.push(GroundedObservedEffectConflict {
+                    source_state: anchor.before.clone(),
+                    transformation: anchor.transformation.clone(),
+                    effect_kind,
+                    effect_fact,
+                    occurrence_episode_count,
+                    nonoccurrence_episode_count,
+                });
+            }
+        }
+
+        let admitted_before_frontier = conflicts.len();
+        conflicts.truncate(policy.max_conflicts());
+
+        GroundedRepresentationInsufficiencyResult {
+            considered_evidence_count: considered.len(),
+            admitted_before_frontier,
+            conflicts,
+        }
     }
 }
