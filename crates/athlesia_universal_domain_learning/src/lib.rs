@@ -11231,3 +11231,101 @@ impl GroundedRelevanceSpecializationCandidate {
         })
     }
 }
+
+// ============================================================================
+// L0 — OBSERVATIONAL ALIASING / REPRESENTATION INSUFFICIENCY
+// ============================================================================
+//
+// Identical observed source structure and identical transformation may lead
+// to distinct observed successor structures.
+//
+// This is evidence that the current deterministic representation is
+// insufficient. It is NOT, by itself, proof of a latent state: stochasticity,
+// nonstationarity, exogenous influence, or an omitted observable distinction
+// remain possible explanations.
+
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub struct GroundedRepresentationInsufficiencyPolicy {
+    max_evidence_episodes: usize,
+    max_conflicts: usize,
+}
+
+impl GroundedRepresentationInsufficiencyPolicy {
+    pub fn new(max_evidence_episodes: usize, max_conflicts: usize) -> Option<Self> {
+        if max_evidence_episodes == 0 || max_conflicts == 0 {
+            return None;
+        }
+
+        Some(Self {
+            max_evidence_episodes,
+            max_conflicts,
+        })
+    }
+
+    pub fn max_evidence_episodes(self) -> usize {
+        self.max_evidence_episodes
+    }
+
+    pub fn max_conflicts(self) -> usize {
+        self.max_conflicts
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct GroundedObservedOutcomeConflict {
+    source_state: GroundedStateSnapshot,
+    transformation: CognitiveStructure,
+    outcomes: Vec<GroundedStateSnapshot>,
+    supporting_episode_count: usize,
+}
+
+impl GroundedObservedOutcomeConflict {
+    pub fn source_state(&self) -> &GroundedStateSnapshot {
+        &self.source_state
+    }
+
+    pub fn transformation(&self) -> &CognitiveStructure {
+        &self.transformation
+    }
+
+    pub fn outcomes(&self) -> &[GroundedStateSnapshot] {
+        &self.outcomes
+    }
+
+    pub fn distinct_outcome_count(&self) -> usize {
+        self.outcomes.len()
+    }
+
+    pub fn supporting_episode_count(&self) -> usize {
+        self.supporting_episode_count
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct GroundedRepresentationInsufficiencyResult {
+    considered_evidence_count: usize,
+    admitted_before_frontier: usize,
+    conflicts: Vec<GroundedObservedOutcomeConflict>,
+}
+
+impl GroundedRepresentationInsufficiencyResult {
+    pub fn considered_evidence_count(&self) -> usize {
+        self.considered_evidence_count
+    }
+
+    pub fn conflicts(&self) -> &[GroundedObservedOutcomeConflict] {
+        &self.conflicts
+    }
+
+    pub fn conflict_count(&self) -> usize {
+        self.conflicts.len()
+    }
+
+    pub fn frontier_truncated(&self) -> bool {
+        self.admitted_before_frontier > self.conflicts.len()
+    }
+
+    pub fn representation_insufficient(&self) -> bool {
+        !self.conflicts.is_empty()
+    }
+}
