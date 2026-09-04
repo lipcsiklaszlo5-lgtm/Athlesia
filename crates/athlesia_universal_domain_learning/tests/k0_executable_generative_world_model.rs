@@ -1,13 +1,8 @@
 use athlesia_mindstone_sparse_cognition::{CognitiveSignal, CognitiveStructure};
 use athlesia_universal_domain_learning::{
-    GroundedExecutableWorldModel,
-    GroundedExecutableWorldModelPolicy,
-    GroundedStateSnapshot,
-    GroundedStructuralPredictionStatus,
-    GroundedTransformationEpisode,
-    TransitionEffectKind,
-    TransitionSchemaPolicy,
-    UniversalGroundedExecutableWorldModel,
+    GroundedExecutableWorldModel, GroundedExecutableWorldModelPolicy, GroundedStateSnapshot,
+    GroundedStructuralPredictionStatus, GroundedTransformationEpisode, TransitionEffectKind,
+    TransitionSchemaPolicy, UniversalGroundedExecutableWorldModel,
     UniversalTransitionSchemaInduction,
 };
 
@@ -37,32 +32,20 @@ fn added_schema(
     fact: u64,
 ) -> athlesia_universal_domain_learning::GroundedTransitionSchemaHypothesis {
     let episodes = vec![
-        GroundedTransformationEpisode::new(
-            state(&[1]),
-            state(&[1, fact]),
-            atom(transformation),
-        ),
-        GroundedTransformationEpisode::new(
-            state(&[1]),
-            state(&[1]),
-            atom(contrast_transformation),
-        ),
+        GroundedTransformationEpisode::new(state(&[1]), state(&[1, fact]), atom(transformation)),
+        GroundedTransformationEpisode::new(state(&[1]), state(&[1]), atom(contrast_transformation)),
     ];
 
-    UniversalTransitionSchemaInduction::evaluate(
-        &episodes,
-        &[],
-        schema_policy(),
-    )
-    .selected()
-    .iter()
-    .find(|schema| {
-        schema.transformation() == &atom(transformation)
-            && schema.effect_kind() == TransitionEffectKind::Added
-            && schema.fact() == &atom(fact)
-    })
-    .cloned()
-    .expect("target added schema must be induced")
+    UniversalTransitionSchemaInduction::evaluate(&episodes, &[], schema_policy())
+        .selected()
+        .iter()
+        .find(|schema| {
+            schema.transformation() == &atom(transformation)
+                && schema.effect_kind() == TransitionEffectKind::Added
+                && schema.fact() == &atom(fact)
+        })
+        .cloned()
+        .expect("target added schema must be induced")
 }
 
 fn removed_schema(
@@ -71,11 +54,7 @@ fn removed_schema(
     fact: u64,
 ) -> athlesia_universal_domain_learning::GroundedTransitionSchemaHypothesis {
     let episodes = vec![
-        GroundedTransformationEpisode::new(
-            state(&[1, fact]),
-            state(&[1]),
-            atom(transformation),
-        ),
+        GroundedTransformationEpisode::new(state(&[1, fact]), state(&[1]), atom(transformation)),
         GroundedTransformationEpisode::new(
             state(&[1, fact]),
             state(&[1, fact]),
@@ -83,20 +62,16 @@ fn removed_schema(
         ),
     ];
 
-    UniversalTransitionSchemaInduction::evaluate(
-        &episodes,
-        &[],
-        schema_policy(),
-    )
-    .selected()
-    .iter()
-    .find(|schema| {
-        schema.transformation() == &atom(transformation)
-            && schema.effect_kind() == TransitionEffectKind::Removed
-            && schema.fact() == &atom(fact)
-    })
-    .cloned()
-    .expect("target removed schema must be induced")
+    UniversalTransitionSchemaInduction::evaluate(&episodes, &[], schema_policy())
+        .selected()
+        .iter()
+        .find(|schema| {
+            schema.transformation() == &atom(transformation)
+                && schema.effect_kind() == TransitionEffectKind::Removed
+                && schema.fact() == &atom(fact)
+        })
+        .cloned()
+        .expect("target removed schema must be induced")
 }
 
 fn model(
@@ -104,8 +79,7 @@ fn model(
 ) -> GroundedExecutableWorldModel {
     GroundedExecutableWorldModel::build(
         &schemas,
-        GroundedExecutableWorldModelPolicy::new(16)
-            .expect("positive frontier is valid"),
+        GroundedExecutableWorldModelPolicy::new(16).expect("positive frontier is valid"),
     )
 }
 
@@ -230,14 +204,12 @@ fn frontier_is_bounded_and_deterministic() {
 
     let left = GroundedExecutableWorldModel::build(
         &[a.clone(), b.clone()],
-        GroundedExecutableWorldModelPolicy::new(1)
-            .expect("positive frontier is valid"),
+        GroundedExecutableWorldModelPolicy::new(1).expect("positive frontier is valid"),
     );
 
     let right = GroundedExecutableWorldModel::build(
         &[b, a],
-        GroundedExecutableWorldModelPolicy::new(1)
-            .expect("positive frontier is valid"),
+        GroundedExecutableWorldModelPolicy::new(1).expect("positive frontier is valid"),
     );
 
     assert_eq!(left, right);
@@ -250,14 +222,11 @@ fn frontier_is_bounded_and_deterministic() {
 fn universal_facade_matches_direct_execution() {
     let learned = added_schema(10, 11, 2);
 
-    let policy = GroundedExecutableWorldModelPolicy::new(16)
-        .expect("positive frontier is valid");
+    let policy = GroundedExecutableWorldModelPolicy::new(16).expect("positive frontier is valid");
 
-    let direct_model =
-        GroundedExecutableWorldModel::build(std::slice::from_ref(&learned), policy);
+    let direct_model = GroundedExecutableWorldModel::build(std::slice::from_ref(&learned), policy);
 
-    let universal_model =
-        UniversalGroundedExecutableWorldModel::build(&[learned], policy);
+    let universal_model = UniversalGroundedExecutableWorldModel::build(&[learned], policy);
 
     assert_eq!(direct_model, universal_model);
 
@@ -266,10 +235,6 @@ fn universal_facade_matches_direct_execution() {
 
     assert_eq!(
         direct_model.predict(&source, &action),
-        UniversalGroundedExecutableWorldModel::predict(
-            &source,
-            &action,
-            &universal_model,
-        )
+        UniversalGroundedExecutableWorldModel::predict(&source, &action, &universal_model,)
     );
 }

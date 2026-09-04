@@ -9007,7 +9007,10 @@ impl GroundedExecutableWorldModel {
             .cmp(&left.association_lift().value())
             .then_with(|| right.precision().value().cmp(&left.precision().value()))
             .then_with(|| right.support_count().cmp(&left.support_count()))
-            .then_with(|| left.counterexample_count().cmp(&right.counterexample_count()))
+            .then_with(|| {
+                left.counterexample_count()
+                    .cmp(&right.counterexample_count())
+            })
             .then_with(|| Self::schema_identity_cmp(left, right))
     }
 
@@ -9234,5 +9237,377 @@ impl UniversalGroundedExecutableWorldModel {
         model: &GroundedExecutableWorldModel,
     ) -> GroundedStructuralPrediction {
         GroundedStructuralPredictionEngine::predict(state, transformation, model)
+    }
+}
+// ============================================================================
+// K0-B — COMPETING EXECUTABLE MODEL FRONTIER
+// ============================================================================
+//
+// A frontier retains multiple distinct executable world models without
+// collapsing uncertainty into one preferred explanation.
+//
+// Every model is executed against the same exact grounded state and exact
+// transformation. Disagreement is measured from the resulting partial
+// structural predictions.
+//
+// Unknown is preserved as a real epistemic state. A model that predicts an
+// effect and a model that remains silent about that effect therefore disagree.
+//
+// This layer does not select actions and does not claim information gain.
+// It exposes the exact structural disagreement required for those later steps.
+
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub struct GroundedExecutableModelFrontierPolicy {
+    max_models: usize,
+}
+
+impl GroundedExecutableModelFrontierPolicy {
+    pub fn new(max_models: usize) -> Option<Self> {
+        if max_models == 0 {
+            return None;
+        }
+
+        Some(Self { max_models })
+    }
+
+    pub fn max_models(self) -> usize {
+        self.max_models
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct GroundedExecutableModelFrontier {
+    models: Vec<GroundedExecutableWorldModel>,
+    admitted_before_frontier: usize,
+}
+
+impl GroundedExecutableModelFrontier {
+    fn compare_models(
+        left: &GroundedExecutableWorldModel,
+        right: &GroundedExecutableWorldModel,
+    ) -> std::cmp::Ordering {
+        left.schema_count()
+            .cmp(&right.schema_count())
+            .then_with(|| {
+                for (left_schema, right_schema) in left.schemas().iter().zip(right.schemas().iter())
+                {
+                    let ordering = GroundedExecutableWorldModel::schema_identity_cmp(
+                        left_schema,
+                        right_schema,
+                    );
+
+                    if ordering != std::cmp::Ordering::Equal {
+                        return ordering;
+                    }
+                }
+
+                std::cmp::Ordering::Equal
+            })
+    }
+
+    fn same_predictive_model(
+        left: &GroundedExecutableWorldModel,
+        right: &GroundedExecutableWorldModel,
+    ) -> bool {
+        left.schema_count() == right.schema_count()
+            && left.schemas().iter().zip(right.schemas().iter()).all(
+                |(left_schema, right_schema)| {
+                    GroundedExecutableWorldModel::same_schema_identity(left_schema, right_schema)
+                },
+            )
+    }
+
+    pub fn build(
+        models: &[GroundedExecutableWorldModel],
+        policy: GroundedExecutableModelFrontierPolicy,
+    ) -> Self {
+        let mut canonical = models.to_vec();
+
+        canonical.sort_by(Self::compare_models);
+
+        canonical.dedup_by(|left, right| Self::same_predictive_model(left, right));
+
+        let admitted_before_frontier = canonical.len();
+
+        canonical.truncate(policy.max_models());
+
+        Self {
+            models: canonical,
+            admitted_before_frontier,
+        }
+    }
+
+    pub fn models(&self) -> &[GroundedExecutableWorldModel] {
+        &self.models
+    }
+
+    pub fn model_count(&self) -> usize {
+        self.models.len()
+    }
+
+    pub fn admitted_before_frontier(&self) -> usize {
+        self.admitted_before_frontier
+    }
+
+    pub fn frontier_truncated(&self) -> bool {
+        self.admitted_before_frontier > self.models.len()
+    }
+
+    pub fn evaluate(
+        &self,
+        state: &GroundedStateSnapshot,
+        transformation: &CognitiveStructure,
+    ) -> GroundedExecutableModelDisagreement {
+        GroundedExecutableModelDisagreementEngine::evaluate(state, transformation, self)
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct GroundedStructuralDisagreementFact {
+    fact: CognitiveStructure,
+    added_model_count: usize,
+    removed_model_count: usize,
+    unknown_model_count: usize,
+    conflict_model_count: usize,
+}
+
+impl GroundedStructuralDisagreementFact {
+    pub fn fact(&self) -> &CognitiveStructure {
+        &self.fact
+    }
+
+    pub fn added_model_count(&self) -> usize {
+        self.added_model_count
+    }
+
+    pub fn removed_model_count(&self) -> usize {
+        self.removed_model_count
+    }
+
+    pub fn unknown_model_count(&self) -> usize {
+        self.unknown_model_count
+    }
+
+    pub fn conflict_model_count(&self) -> usize {
+        self.conflict_model_count
+    }
+
+    pub fn participating_model_count(&self) -> usize {
+        self.added_model_count
+            .saturating_add(self.removed_model_count)
+            .saturating_add(self.unknown_model_count)
+            .saturating_add(self.conflict_model_count)
+    }
+
+    pub fn disposition_count(&self) -> usize {
+        [
+            self.added_model_count,
+            self.removed_model_count,
+            self.unknown_model_count,
+            self.conflict_model_count,
+        ]
+        .into_iter()
+        .filter(|count| *count > 0)
+        .count()
+    }
+
+    pub fn is_disputed(&self) -> bool {
+        self.disposition_count() > 1
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct GroundedExecutableModelDisagreement {
+    transformation: CognitiveStructure,
+    model_predictions: Vec<GroundedStructuralPrediction>,
+    disputed_facts: Vec<GroundedStructuralDisagreementFact>,
+    predicted_model_count: usize,
+    no_applicable_effect_model_count: usize,
+    conflict_model_count: usize,
+}
+
+impl GroundedExecutableModelDisagreement {
+    pub fn transformation(&self) -> &CognitiveStructure {
+        &self.transformation
+    }
+
+    pub fn model_predictions(&self) -> &[GroundedStructuralPrediction] {
+        &self.model_predictions
+    }
+
+    pub fn model_count(&self) -> usize {
+        self.model_predictions.len()
+    }
+
+    pub fn disputed_facts(&self) -> &[GroundedStructuralDisagreementFact] {
+        &self.disputed_facts
+    }
+
+    pub fn disputed_fact_count(&self) -> usize {
+        self.disputed_facts.len()
+    }
+
+    pub fn predicted_model_count(&self) -> usize {
+        self.predicted_model_count
+    }
+
+    pub fn no_applicable_effect_model_count(&self) -> usize {
+        self.no_applicable_effect_model_count
+    }
+
+    pub fn conflict_model_count(&self) -> usize {
+        self.conflict_model_count
+    }
+
+    pub fn has_disagreement(&self) -> bool {
+        !self.disputed_facts.is_empty()
+    }
+
+    pub fn disagreement_for(
+        &self,
+        fact: &CognitiveStructure,
+    ) -> Option<&GroundedStructuralDisagreementFact> {
+        self.disputed_facts
+            .binary_search_by(|candidate| {
+                PredicateDiscovery::compare_structure(candidate.fact(), fact)
+            })
+            .ok()
+            .map(|index| &self.disputed_facts[index])
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, Hash, PartialEq)]
+pub struct GroundedExecutableModelDisagreementEngine;
+
+impl GroundedExecutableModelDisagreementEngine {
+    pub const fn new() -> Self {
+        Self
+    }
+
+    fn prediction_vocabulary(
+        predictions: &[GroundedStructuralPrediction],
+    ) -> Vec<CognitiveStructure> {
+        let mut facts = predictions
+            .iter()
+            .flat_map(|prediction| {
+                prediction
+                    .additions()
+                    .iter()
+                    .chain(prediction.removals().iter())
+            })
+            .cloned()
+            .collect::<Vec<_>>();
+
+        facts.sort_by(PredicateDiscovery::compare_structure);
+        facts.dedup();
+
+        facts
+    }
+
+    fn summarize_fact(
+        fact: &CognitiveStructure,
+        predictions: &[GroundedStructuralPrediction],
+    ) -> GroundedStructuralDisagreementFact {
+        let mut added_model_count = 0_usize;
+        let mut removed_model_count = 0_usize;
+        let mut unknown_model_count = 0_usize;
+        let mut conflict_model_count = 0_usize;
+
+        for prediction in predictions {
+            if prediction.status() == GroundedStructuralPredictionStatus::EffectConflict {
+                conflict_model_count = conflict_model_count.saturating_add(1);
+                continue;
+            }
+
+            if prediction.predicts_addition(fact) {
+                added_model_count = added_model_count.saturating_add(1);
+            } else if prediction.predicts_removal(fact) {
+                removed_model_count = removed_model_count.saturating_add(1);
+            } else {
+                unknown_model_count = unknown_model_count.saturating_add(1);
+            }
+        }
+
+        GroundedStructuralDisagreementFact {
+            fact: fact.clone(),
+            added_model_count,
+            removed_model_count,
+            unknown_model_count,
+            conflict_model_count,
+        }
+    }
+
+    pub fn evaluate(
+        state: &GroundedStateSnapshot,
+        transformation: &CognitiveStructure,
+        frontier: &GroundedExecutableModelFrontier,
+    ) -> GroundedExecutableModelDisagreement {
+        let model_predictions = frontier
+            .models()
+            .iter()
+            .map(|model| model.predict(state, transformation))
+            .collect::<Vec<_>>();
+
+        let predicted_model_count = model_predictions
+            .iter()
+            .filter(|prediction| {
+                prediction.status() == GroundedStructuralPredictionStatus::Predicted
+            })
+            .count();
+
+        let no_applicable_effect_model_count = model_predictions
+            .iter()
+            .filter(|prediction| {
+                prediction.status() == GroundedStructuralPredictionStatus::NoApplicableEffect
+            })
+            .count();
+
+        let conflict_model_count = model_predictions
+            .iter()
+            .filter(|prediction| {
+                prediction.status() == GroundedStructuralPredictionStatus::EffectConflict
+            })
+            .count();
+
+        let vocabulary = Self::prediction_vocabulary(&model_predictions);
+
+        let mut disputed_facts = vocabulary
+            .iter()
+            .map(|fact| Self::summarize_fact(fact, &model_predictions))
+            .filter(GroundedStructuralDisagreementFact::is_disputed)
+            .collect::<Vec<_>>();
+
+        disputed_facts.sort_by(|left, right| {
+            PredicateDiscovery::compare_structure(left.fact(), right.fact())
+        });
+
+        GroundedExecutableModelDisagreement {
+            transformation: transformation.clone(),
+            model_predictions,
+            disputed_facts,
+            predicted_model_count,
+            no_applicable_effect_model_count,
+            conflict_model_count,
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, Hash, PartialEq)]
+pub struct UniversalGroundedExecutableModelFrontier;
+
+impl UniversalGroundedExecutableModelFrontier {
+    pub fn build(
+        models: &[GroundedExecutableWorldModel],
+        policy: GroundedExecutableModelFrontierPolicy,
+    ) -> GroundedExecutableModelFrontier {
+        GroundedExecutableModelFrontier::build(models, policy)
+    }
+
+    pub fn evaluate(
+        state: &GroundedStateSnapshot,
+        transformation: &CognitiveStructure,
+        frontier: &GroundedExecutableModelFrontier,
+    ) -> GroundedExecutableModelDisagreement {
+        GroundedExecutableModelDisagreementEngine::evaluate(state, transformation, frontier)
     }
 }
