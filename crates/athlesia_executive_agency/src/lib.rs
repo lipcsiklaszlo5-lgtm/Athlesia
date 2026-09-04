@@ -2714,7 +2714,6 @@ impl IntentionExecutionMonitoringPolicy {
     }
 }
 
-
 // === ATHLESIA DOMAIN-GENERAL COLD-START EXPLORATION BEGIN ===
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -2857,9 +2856,7 @@ impl ColdStartExplorationResult {
 pub struct ColdStartExplorationController;
 
 impl ColdStartExplorationController {
-    fn exploration_value(
-        candidate: &GroundedExplorationCandidate,
-    ) -> CognitiveSignal {
+    fn exploration_value(candidate: &GroundedExplorationCandidate) -> CognitiveSignal {
         let signals = candidate.signals();
 
         let grounded_learning_value = [
@@ -2872,8 +2869,7 @@ impl ColdStartExplorationController {
         .expect("cold-start exploration has fixed nonempty evidence axes");
 
         CognitiveSignal::new(
-            grounded_learning_value
-                .saturating_sub(signals.execution_cost().value()),
+            grounded_learning_value.saturating_sub(signals.execution_cost().value()),
         )
         .expect("cold-start exploration value stays on signal scale")
     }
@@ -2909,20 +2905,16 @@ impl ColdStartExplorationController {
             }
         }
 
-        unique.sort_by(
-            ExplorationExploitationController::compare_candidate,
-        );
+        unique.sort_by(ExplorationExploitationController::compare_candidate);
 
         let unique_candidate_count = unique.len();
 
         let duplicate_candidate_count =
             input_candidate_count.saturating_sub(unique_candidate_count);
 
-        let considered_candidate_count =
-            unique_candidate_count.min(policy.max_candidates());
+        let considered_candidate_count = unique_candidate_count.min(policy.max_candidates());
 
-        let candidate_frontier_truncated =
-            unique_candidate_count > considered_candidate_count;
+        let candidate_frontier_truncated = unique_candidate_count > considered_candidate_count;
 
         let mut candidate_evaluation_count = 0usize;
         let mut candidate_evaluation_truncated = false;
@@ -2930,23 +2922,16 @@ impl ColdStartExplorationController {
         let mut rejected_threshold_count = 0usize;
         let mut admitted = Vec::new();
 
-        for candidate in unique
-            .into_iter()
-            .take(considered_candidate_count)
-        {
-            if candidate_evaluation_count
-                >= policy.max_candidate_evaluations()
-            {
+        for candidate in unique.into_iter().take(considered_candidate_count) {
+            if candidate_evaluation_count >= policy.max_candidate_evaluations() {
                 candidate_evaluation_truncated = true;
                 break;
             }
 
-            candidate_evaluation_count =
-                candidate_evaluation_count.saturating_add(1);
+            candidate_evaluation_count = candidate_evaluation_count.saturating_add(1);
 
             if candidate.goal_identity() != goal.identity() {
-                rejected_goal_mismatch_count =
-                    rejected_goal_mismatch_count.saturating_add(1);
+                rejected_goal_mismatch_count = rejected_goal_mismatch_count.saturating_add(1);
 
                 continue;
             }
@@ -2957,33 +2942,25 @@ impl ColdStartExplorationController {
                 < policy.minimum_information_gain().value()
                 || signals.evidence_confidence().value()
                     < policy.minimum_evidence_confidence().value()
-                || signals.controllability().value()
-                    < policy.minimum_controllability().value()
+                || signals.controllability().value() < policy.minimum_controllability().value()
             {
-                rejected_threshold_count =
-                    rejected_threshold_count.saturating_add(1);
+                rejected_threshold_count = rejected_threshold_count.saturating_add(1);
 
                 continue;
             }
 
-            let net_exploration_value =
-                Self::exploration_value(&candidate);
+            let net_exploration_value = Self::exploration_value(&candidate);
 
-            if net_exploration_value.value()
-                < policy.minimum_exploration_value().value()
-            {
-                rejected_threshold_count =
-                    rejected_threshold_count.saturating_add(1);
+            if net_exploration_value.value() < policy.minimum_exploration_value().value() {
+                rejected_threshold_count = rejected_threshold_count.saturating_add(1);
 
                 continue;
             }
 
-            admitted.push(
-                RankedExplorationCandidate {
-                    candidate,
-                    net_exploration_value,
-                },
-            );
+            admitted.push(RankedExplorationCandidate {
+                candidate,
+                net_exploration_value,
+            });
         }
 
         admitted.sort_by(|left, right| {
@@ -2999,15 +2976,13 @@ impl ColdStartExplorationController {
                 })
         });
 
-        let selected_exploration =
-            admitted.first().cloned();
+        let selected_exploration = admitted.first().cloned();
 
-        let status =
-            if selected_exploration.is_some() {
-                ColdStartExplorationStatus::Selected
-            } else {
-                ColdStartExplorationStatus::NoViableCandidate
-            };
+        let status = if selected_exploration.is_some() {
+            ColdStartExplorationStatus::Selected
+        } else {
+            ColdStartExplorationStatus::NoViableCandidate
+        };
 
         ColdStartExplorationResult {
             status,
@@ -3034,11 +3009,7 @@ impl UniversalColdStartExplorationController {
         candidates: &[GroundedExplorationCandidate],
         policy: ColdStartExplorationPolicy,
     ) -> ColdStartExplorationResult {
-        ColdStartExplorationController::evaluate(
-            goal,
-            candidates,
-            policy,
-        )
+        ColdStartExplorationController::evaluate(goal, candidates, policy)
     }
 }
 
@@ -5231,5 +5202,205 @@ impl UniversalIntegratedExecutiveControl {
         policy: IntegratedExecutiveControlPolicy,
     ) -> IntegratedExecutiveControlResult {
         IntegratedExecutiveControl::evaluate(context, policy)
+    }
+}
+
+// ============================================================================
+// ATHLESIA EPISTEMICALLY PARTIAL EXECUTIVE PATH
+// ============================================================================
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct EpistemicExecutableIntentionStep {
+    required_state: CognitiveStructure,
+    action: CognitiveStructure,
+    predicted_outcome: Option<CognitiveStructure>,
+    evidence_confidence: CognitiveSignal,
+}
+
+impl EpistemicExecutableIntentionStep {
+    pub fn new(
+        required_state: CognitiveStructure,
+        action: CognitiveStructure,
+        predicted_outcome: Option<CognitiveStructure>,
+        evidence_confidence: CognitiveSignal,
+    ) -> Option<Self> {
+        if evidence_confidence == CognitiveSignal::zero() {
+            return None;
+        }
+
+        Some(Self {
+            required_state,
+            action,
+            predicted_outcome,
+            evidence_confidence,
+        })
+    }
+
+    pub fn required_state(&self) -> &CognitiveStructure {
+        &self.required_state
+    }
+
+    pub fn action(&self) -> &CognitiveStructure {
+        &self.action
+    }
+
+    pub fn predicted_outcome(&self) -> Option<&CognitiveStructure> {
+        self.predicted_outcome.as_ref()
+    }
+
+    pub fn evidence_confidence(&self) -> CognitiveSignal {
+        self.evidence_confidence
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub struct EpistemicExecutiveControlPolicy {
+    minimum_evidence_confidence: CognitiveSignal,
+}
+
+impl EpistemicExecutiveControlPolicy {
+    pub fn new(minimum_evidence_confidence: CognitiveSignal) -> Option<Self> {
+        if minimum_evidence_confidence == CognitiveSignal::zero() {
+            return None;
+        }
+
+        Some(Self {
+            minimum_evidence_confidence,
+        })
+    }
+
+    pub fn minimum_evidence_confidence(self) -> CognitiveSignal {
+        self.minimum_evidence_confidence
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub enum EpistemicExecutiveSelectionSource {
+    GroundedPartialIntention,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct EpistemicExecutiveSelection {
+    source: EpistemicExecutiveSelectionSource,
+    goal_identity: CognitiveStructure,
+    step: EpistemicExecutableIntentionStep,
+    control_value: CognitiveSignal,
+}
+
+impl EpistemicExecutiveSelection {
+    pub fn source(&self) -> EpistemicExecutiveSelectionSource {
+        self.source
+    }
+
+    pub fn goal_identity(&self) -> &CognitiveStructure {
+        &self.goal_identity
+    }
+
+    pub fn required_state(&self) -> &CognitiveStructure {
+        self.step.required_state()
+    }
+
+    pub fn action(&self) -> &CognitiveStructure {
+        self.step.action()
+    }
+
+    pub fn predicted_outcome(&self) -> Option<&CognitiveStructure> {
+        self.step.predicted_outcome()
+    }
+
+    pub fn evidence_confidence(&self) -> CognitiveSignal {
+        self.step.evidence_confidence()
+    }
+
+    pub fn control_value(&self) -> CognitiveSignal {
+        self.control_value
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub enum EpistemicExecutiveAuthorizationStatus {
+    Authorized,
+    RequiredStateMismatch,
+    EvidenceInsufficient,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct EpistemicExecutiveAuthorizationResult {
+    status: EpistemicExecutiveAuthorizationStatus,
+    selection: Option<EpistemicExecutiveSelection>,
+}
+
+impl EpistemicExecutiveAuthorizationResult {
+    fn rejection(status: EpistemicExecutiveAuthorizationStatus) -> Self {
+        Self {
+            status,
+            selection: None,
+        }
+    }
+
+    pub fn status(&self) -> EpistemicExecutiveAuthorizationStatus {
+        self.status
+    }
+
+    pub fn selection(&self) -> Option<&EpistemicExecutiveSelection> {
+        self.selection.as_ref()
+    }
+
+    pub fn authorized(&self) -> bool {
+        self.status == EpistemicExecutiveAuthorizationStatus::Authorized
+    }
+
+    pub fn rejected(&self) -> bool {
+        !self.authorized()
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, Hash, PartialEq)]
+pub struct EpistemicExecutiveControl;
+
+impl EpistemicExecutiveControl {
+    pub fn authorize(
+        goal_identity: &CognitiveStructure,
+        current_state: &CognitiveStructure,
+        step: EpistemicExecutableIntentionStep,
+        policy: EpistemicExecutiveControlPolicy,
+    ) -> EpistemicExecutiveAuthorizationResult {
+        if step.required_state() != current_state {
+            return EpistemicExecutiveAuthorizationResult::rejection(
+                EpistemicExecutiveAuthorizationStatus::RequiredStateMismatch,
+            );
+        }
+
+        if step.evidence_confidence().value() < policy.minimum_evidence_confidence().value() {
+            return EpistemicExecutiveAuthorizationResult::rejection(
+                EpistemicExecutiveAuthorizationStatus::EvidenceInsufficient,
+            );
+        }
+
+        let control_value = step.evidence_confidence();
+
+        EpistemicExecutiveAuthorizationResult {
+            status: EpistemicExecutiveAuthorizationStatus::Authorized,
+            selection: Some(EpistemicExecutiveSelection {
+                source: EpistemicExecutiveSelectionSource::GroundedPartialIntention,
+                goal_identity: goal_identity.clone(),
+                step,
+                control_value,
+            }),
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, Hash, PartialEq)]
+pub struct UniversalEpistemicExecutiveControl;
+
+impl UniversalEpistemicExecutiveControl {
+    pub fn evaluate(
+        goal_identity: &CognitiveStructure,
+        current_state: &CognitiveStructure,
+        step: EpistemicExecutableIntentionStep,
+        policy: EpistemicExecutiveControlPolicy,
+    ) -> EpistemicExecutiveAuthorizationResult {
+        EpistemicExecutiveControl::authorize(goal_identity, current_state, step, policy)
     }
 }

@@ -9850,3 +9850,357 @@ mod endogenous_transition_schema_learning_tests {
         assert_eq!(result.hypothesis_count(), 0);
     }
 }
+
+// ============================================================================
+// ATHLESIA ONLINE GROUNDED EPISODIC TRANSFER BRIDGE
+// ============================================================================
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct OnlineGroundedEpisodicTransferMemory {
+    target_initial_state: CognitiveStructure,
+    target_goal_identity: CognitiveStructure,
+    source_episode: Option<athlesia_meta_learning_skill_memory::GroundedSkillEpisode>,
+    observations: Vec<athlesia_meta_learning_skill_memory::SkillExecutionObservation>,
+}
+
+impl OnlineGroundedEpisodicTransferMemory {
+    pub fn new(
+        target_initial_state: CognitiveStructure,
+        target_goal_identity: CognitiveStructure,
+    ) -> Self {
+        Self {
+            target_initial_state,
+            target_goal_identity,
+            source_episode: None,
+            observations: Vec::new(),
+        }
+    }
+
+    pub fn target_initial_state(&self) -> &CognitiveStructure {
+        &self.target_initial_state
+    }
+
+    pub fn target_goal_identity(&self) -> &CognitiveStructure {
+        &self.target_goal_identity
+    }
+
+    pub fn source_episode(
+        &self,
+    ) -> Option<&athlesia_meta_learning_skill_memory::GroundedSkillEpisode> {
+        self.source_episode.as_ref()
+    }
+
+    pub fn observations(
+        &self,
+    ) -> &[athlesia_meta_learning_skill_memory::SkillExecutionObservation] {
+        &self.observations
+    }
+
+    pub fn observation_count(&self) -> usize {
+        self.observations.len()
+    }
+
+    pub fn remember_source_episode(
+        &mut self,
+        episode: athlesia_meta_learning_skill_memory::GroundedSkillEpisode,
+    ) -> bool {
+        if self.source_episode.is_some() {
+            return false;
+        }
+
+        self.source_episode = Some(episode);
+        true
+    }
+
+    pub fn record_environment_evidence(
+        &mut self,
+        evidence: &EnvironmentInteractionEvidence,
+    ) -> bool {
+        let execution = evidence.execution_observation();
+
+        let Some(observation) = athlesia_meta_learning_skill_memory::SkillExecutionObservation::new(
+            execution.observed_state().clone(),
+            execution.observed_action().clone(),
+            execution.observed_outcome().clone(),
+            execution.observation_confidence(),
+        ) else {
+            return false;
+        };
+
+        self.observations.push(observation);
+        true
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct OnlineGroundedEpisodicTransferPolicy {
+    analogy: athlesia_meta_learning_skill_memory::GroundedEpisodicAnalogyPolicy,
+    executive: athlesia_executive_agency::EpistemicExecutiveControlPolicy,
+}
+
+impl OnlineGroundedEpisodicTransferPolicy {
+    pub fn new(
+        analogy: athlesia_meta_learning_skill_memory::GroundedEpisodicAnalogyPolicy,
+        executive: athlesia_executive_agency::EpistemicExecutiveControlPolicy,
+    ) -> Self {
+        Self { analogy, executive }
+    }
+
+    pub fn analogy(self) -> athlesia_meta_learning_skill_memory::GroundedEpisodicAnalogyPolicy {
+        self.analogy
+    }
+
+    pub fn executive(self) -> athlesia_executive_agency::EpistemicExecutiveControlPolicy {
+        self.executive
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum OnlineGroundedEpisodicTransferStatus {
+    NoSourceEpisode,
+    AnalogyAbstained,
+    ExecutiveRejected,
+    Authorized,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct OnlineGroundedEpisodicTransferResult {
+    status: OnlineGroundedEpisodicTransferStatus,
+    analogy: Option<athlesia_meta_learning_skill_memory::GroundedEpisodicAnalogyResult>,
+    authorization: Option<athlesia_executive_agency::EpistemicExecutiveAuthorizationResult>,
+}
+
+impl OnlineGroundedEpisodicTransferResult {
+    pub fn status(&self) -> OnlineGroundedEpisodicTransferStatus {
+        self.status
+    }
+
+    pub fn analogy(
+        &self,
+    ) -> Option<&athlesia_meta_learning_skill_memory::GroundedEpisodicAnalogyResult> {
+        self.analogy.as_ref()
+    }
+
+    pub fn authorization(
+        &self,
+    ) -> Option<&athlesia_executive_agency::EpistemicExecutiveAuthorizationResult> {
+        self.authorization.as_ref()
+    }
+
+    pub fn selection(&self) -> Option<&athlesia_executive_agency::EpistemicExecutiveSelection> {
+        self.authorization
+            .as_ref()
+            .and_then(|authorization| authorization.selection())
+    }
+
+    pub fn authorized(&self) -> bool {
+        self.status == OnlineGroundedEpisodicTransferStatus::Authorized
+    }
+
+    pub fn abstained(&self) -> bool {
+        matches!(
+            self.status,
+            OnlineGroundedEpisodicTransferStatus::NoSourceEpisode
+                | OnlineGroundedEpisodicTransferStatus::AnalogyAbstained
+        )
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct OnlineGroundedEpisodicTransferRuntime;
+
+impl OnlineGroundedEpisodicTransferRuntime {
+    pub fn evaluate(
+        memory: &OnlineGroundedEpisodicTransferMemory,
+        current_state: &CognitiveStructure,
+        policy: OnlineGroundedEpisodicTransferPolicy,
+    ) -> OnlineGroundedEpisodicTransferResult {
+        let Some(source_episode) = memory.source_episode() else {
+            return OnlineGroundedEpisodicTransferResult {
+                status: OnlineGroundedEpisodicTransferStatus::NoSourceEpisode,
+                analogy: None,
+                authorization: None,
+            };
+        };
+
+        let analogy =
+            athlesia_meta_learning_skill_memory::GroundedEpisodicAnalogyTransfer::infer_next(
+                source_episode,
+                memory.target_initial_state(),
+                memory.target_goal_identity(),
+                memory.observations(),
+                policy.analogy(),
+            );
+
+        if analogy.candidate_count() != 1 {
+            return OnlineGroundedEpisodicTransferResult {
+                status: OnlineGroundedEpisodicTransferStatus::AnalogyAbstained,
+                analogy: Some(analogy),
+                authorization: None,
+            };
+        }
+
+        let candidate = &analogy.candidates()[0];
+
+        let step = athlesia_executive_agency::EpistemicExecutableIntentionStep::new(
+            candidate.required_state().clone(),
+            candidate.action().clone(),
+            candidate.predicted_outcome().cloned(),
+            candidate.evidence_confidence_floor(),
+        )
+        .expect("grounded analogy candidate retains positive evidence confidence");
+
+        let authorization = athlesia_executive_agency::EpistemicExecutiveControl::authorize(
+            memory.target_goal_identity(),
+            current_state,
+            step,
+            policy.executive(),
+        );
+
+        let status = if authorization.authorized() {
+            OnlineGroundedEpisodicTransferStatus::Authorized
+        } else {
+            OnlineGroundedEpisodicTransferStatus::ExecutiveRejected
+        };
+
+        OnlineGroundedEpisodicTransferResult {
+            status,
+            analogy: Some(analogy),
+            authorization: Some(authorization),
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct UniversalOnlineGroundedEpisodicTransferRuntime;
+
+impl UniversalOnlineGroundedEpisodicTransferRuntime {
+    pub fn evaluate(
+        memory: &OnlineGroundedEpisodicTransferMemory,
+        current_state: &CognitiveStructure,
+        policy: OnlineGroundedEpisodicTransferPolicy,
+    ) -> OnlineGroundedEpisodicTransferResult {
+        OnlineGroundedEpisodicTransferRuntime::evaluate(memory, current_state, policy)
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum EpistemicEnvironmentActionDispatchStatus {
+    Ready,
+    ExecutiveNotAuthorized,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct EpistemicEnvironmentActionDispatch {
+    source_anchor_state: CognitiveStructure,
+    selection: athlesia_executive_agency::EpistemicExecutiveSelection,
+}
+
+impl EpistemicEnvironmentActionDispatch {
+    pub fn source_anchor_state(&self) -> &CognitiveStructure {
+        &self.source_anchor_state
+    }
+
+    pub fn selection(&self) -> &athlesia_executive_agency::EpistemicExecutiveSelection {
+        &self.selection
+    }
+
+    pub fn action(&self) -> &CognitiveStructure {
+        self.selection.action()
+    }
+
+    pub fn predicted_outcome(&self) -> Option<&CognitiveStructure> {
+        self.selection.predicted_outcome()
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct EpistemicEnvironmentActionDispatchResult {
+    status: EpistemicEnvironmentActionDispatchStatus,
+    dispatch: Option<EpistemicEnvironmentActionDispatch>,
+}
+
+impl EpistemicEnvironmentActionDispatchResult {
+    pub fn status(&self) -> EpistemicEnvironmentActionDispatchStatus {
+        self.status
+    }
+
+    pub fn dispatch(&self) -> Option<&EpistemicEnvironmentActionDispatch> {
+        self.dispatch.as_ref()
+    }
+
+    pub fn ready(&self) -> bool {
+        self.status == EpistemicEnvironmentActionDispatchStatus::Ready
+    }
+}
+
+impl EnvironmentInteractionBoundary {
+    pub fn dispatch_epistemic(
+        source_anchor_state: &CognitiveStructure,
+        authorization: &athlesia_executive_agency::EpistemicExecutiveAuthorizationResult,
+    ) -> EpistemicEnvironmentActionDispatchResult {
+        let Some(selection) = authorization.selection() else {
+            return EpistemicEnvironmentActionDispatchResult {
+                status: EpistemicEnvironmentActionDispatchStatus::ExecutiveNotAuthorized,
+                dispatch: None,
+            };
+        };
+
+        EpistemicEnvironmentActionDispatchResult {
+            status: EpistemicEnvironmentActionDispatchStatus::Ready,
+            dispatch: Some(EpistemicEnvironmentActionDispatch {
+                source_anchor_state: source_anchor_state.clone(),
+                selection: selection.clone(),
+            }),
+        }
+    }
+
+    pub fn bind_epistemic_observation(
+        dispatch: &EpistemicEnvironmentActionDispatch,
+        observation: &EnvironmentInteractionObservation,
+    ) -> Option<EnvironmentInteractionEvidence> {
+        let action_observation =
+            athlesia_core_knowledge_perceptual_grounding::ActionObservation::new(
+                observation.event_index(),
+                athlesia_core_knowledge_perceptual_grounding::ActionSource::SelfGenerated,
+                dispatch.action().clone(),
+            );
+
+        let execution_observation = athlesia_executive_agency::GroundedExecutionObservation::new(
+            dispatch.source_anchor_state().clone(),
+            dispatch.action().clone(),
+            observation.observed_outcome().clone(),
+            observation.confidence(),
+        );
+
+        let experiment_observation =
+            athlesia_autonomous_active_experimentation::ExperimentOutcomeObservation::new(
+                dispatch.source_anchor_state().clone(),
+                dispatch.action().clone(),
+                observation.observed_outcome().clone(),
+                observation.confidence(),
+            )?;
+
+        Some(EnvironmentInteractionEvidence {
+            action_observation,
+            execution_observation,
+            experiment_observation,
+        })
+    }
+}
+
+impl UniversalEnvironmentInteractionBoundary {
+    pub fn dispatch_epistemic(
+        source_anchor_state: &CognitiveStructure,
+        authorization: &athlesia_executive_agency::EpistemicExecutiveAuthorizationResult,
+    ) -> EpistemicEnvironmentActionDispatchResult {
+        EnvironmentInteractionBoundary::dispatch_epistemic(source_anchor_state, authorization)
+    }
+
+    pub fn bind_epistemic_observation(
+        dispatch: &EpistemicEnvironmentActionDispatch,
+        observation: &EnvironmentInteractionObservation,
+    ) -> Option<EnvironmentInteractionEvidence> {
+        EnvironmentInteractionBoundary::bind_epistemic_observation(dispatch, observation)
+    }
+}
