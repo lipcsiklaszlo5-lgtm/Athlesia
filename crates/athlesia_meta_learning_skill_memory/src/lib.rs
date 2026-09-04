@@ -6960,3 +6960,455 @@ impl UniversalGroundedPartialSkillTransfer {
         GroundedPartialSkillTransfer::retrieve_next(records, request, current_state, policy)
     }
 }
+
+// ============================================================================
+// T1-A — ONE-SHOT GROUNDED EPISODIC ANALOGY
+// ============================================================================
+//
+// This primitive transfers only relations grounded by one successful source
+// episode and observed target evidence. It does not relax repeated-skill
+// induction thresholds and it never fabricates an unobserved target outcome.
+
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub struct GroundedEpisodicAnalogyPolicy {
+    max_observations: usize,
+    minimum_observation_confidence: CognitiveSignal,
+}
+
+impl GroundedEpisodicAnalogyPolicy {
+    pub fn new(
+        max_observations: usize,
+        minimum_observation_confidence: CognitiveSignal,
+    ) -> Option<Self> {
+        if max_observations == 0 || minimum_observation_confidence == CognitiveSignal::zero() {
+            return None;
+        }
+
+        Some(Self {
+            max_observations,
+            minimum_observation_confidence,
+        })
+    }
+
+    pub fn max_observations(self) -> usize {
+        self.max_observations
+    }
+
+    pub fn minimum_observation_confidence(self) -> CognitiveSignal {
+        self.minimum_observation_confidence
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct GroundedEpisodicAnalogyCandidate {
+    source_step_index: usize,
+    required_state: CognitiveStructure,
+    action: CognitiveStructure,
+    predicted_outcome: Option<CognitiveStructure>,
+    evidence_confidence_floor: CognitiveSignal,
+}
+
+impl GroundedEpisodicAnalogyCandidate {
+    pub fn source_step_index(&self) -> usize {
+        self.source_step_index
+    }
+
+    pub fn required_state(&self) -> &CognitiveStructure {
+        &self.required_state
+    }
+
+    pub fn action(&self) -> &CognitiveStructure {
+        &self.action
+    }
+
+    pub fn predicted_outcome(&self) -> Option<&CognitiveStructure> {
+        self.predicted_outcome.as_ref()
+    }
+
+    pub fn evidence_confidence_floor(&self) -> CognitiveSignal {
+        self.evidence_confidence_floor
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct GroundedEpisodicAnalogyResult {
+    input_observation_count: usize,
+    considered_observation_count: usize,
+    rejected_low_confidence_count: usize,
+    observation_frontier_exceeded: bool,
+    conflicting_evidence: bool,
+    source_evidence_below_threshold: bool,
+    correspondence_conflict: bool,
+    candidates: Vec<GroundedEpisodicAnalogyCandidate>,
+}
+
+impl GroundedEpisodicAnalogyResult {
+    pub fn input_observation_count(&self) -> usize {
+        self.input_observation_count
+    }
+
+    pub fn considered_observation_count(&self) -> usize {
+        self.considered_observation_count
+    }
+
+    pub fn rejected_low_confidence_count(&self) -> usize {
+        self.rejected_low_confidence_count
+    }
+
+    pub fn observation_frontier_exceeded(&self) -> bool {
+        self.observation_frontier_exceeded
+    }
+
+    pub fn conflicting_evidence(&self) -> bool {
+        self.conflicting_evidence
+    }
+
+    pub fn source_evidence_below_threshold(&self) -> bool {
+        self.source_evidence_below_threshold
+    }
+
+    pub fn correspondence_conflict(&self) -> bool {
+        self.correspondence_conflict
+    }
+
+    pub fn candidates(&self) -> &[GroundedEpisodicAnalogyCandidate] {
+        &self.candidates
+    }
+
+    pub fn candidate_count(&self) -> usize {
+        self.candidates.len()
+    }
+
+    pub fn abstained(&self) -> bool {
+        self.candidates.is_empty()
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct GroundedEpisodicAnalogyTransfer;
+
+impl GroundedEpisodicAnalogyTransfer {
+    fn floor(left: CognitiveSignal, right: CognitiveSignal) -> CognitiveSignal {
+        if left.value() <= right.value() {
+            left
+        } else {
+            right
+        }
+    }
+
+    fn bind(
+        correspondences: &mut Vec<(CognitiveStructure, CognitiveStructure)>,
+        source: &CognitiveStructure,
+        target: &CognitiveStructure,
+    ) -> bool {
+        if let Some((_, existing_target)) = correspondences
+            .iter()
+            .find(|(known_source, _)| known_source == source)
+        {
+            return existing_target == target;
+        }
+
+        if correspondences
+            .iter()
+            .any(|(known_source, known_target)| known_source != source && known_target == target)
+        {
+            return false;
+        }
+
+        correspondences.push((source.clone(), target.clone()));
+        true
+    }
+
+    fn resolve(
+        correspondences: &[(CognitiveStructure, CognitiveStructure)],
+        source: &CognitiveStructure,
+    ) -> Option<CognitiveStructure> {
+        correspondences
+            .iter()
+            .find(|(known_source, _)| known_source == source)
+            .map(|(_, target)| target.clone())
+    }
+
+    fn empty(
+        input_observation_count: usize,
+        considered_observation_count: usize,
+        rejected_low_confidence_count: usize,
+        observation_frontier_exceeded: bool,
+        conflicting_evidence: bool,
+        source_evidence_below_threshold: bool,
+        correspondence_conflict: bool,
+    ) -> GroundedEpisodicAnalogyResult {
+        GroundedEpisodicAnalogyResult {
+            input_observation_count,
+            considered_observation_count,
+            rejected_low_confidence_count,
+            observation_frontier_exceeded,
+            conflicting_evidence,
+            source_evidence_below_threshold,
+            correspondence_conflict,
+            candidates: Vec::new(),
+        }
+    }
+
+    pub fn infer_next(
+        source_episode: &GroundedSkillEpisode,
+        target_initial_state: &CognitiveStructure,
+        target_goal_identity: &CognitiveStructure,
+        observations: &[SkillExecutionObservation],
+        policy: GroundedEpisodicAnalogyPolicy,
+    ) -> GroundedEpisodicAnalogyResult {
+        let input_observation_count = observations.len();
+
+        if input_observation_count > policy.max_observations() {
+            return Self::empty(input_observation_count, 0, 0, true, false, false, false);
+        }
+
+        #[derive(Clone, Debug, Eq, PartialEq)]
+        struct PrefixCluster {
+            action: CognitiveStructure,
+            outcome: CognitiveStructure,
+            support_count: usize,
+            confidence_floor: CognitiveSignal,
+        }
+
+        let mut rejected_low_confidence_count = 0usize;
+        let mut clusters: Vec<PrefixCluster> = Vec::new();
+
+        for observation in observations {
+            if observation.evidence_confidence().value()
+                < policy.minimum_observation_confidence().value()
+            {
+                rejected_low_confidence_count = rejected_low_confidence_count.saturating_add(1);
+                continue;
+            }
+
+            if observation.required_state() != target_initial_state {
+                continue;
+            }
+
+            if let Some(existing) = clusters.iter_mut().find(|cluster| {
+                cluster.action == *observation.action()
+                    && cluster.outcome == *observation.observed_outcome()
+            }) {
+                existing.support_count = existing.support_count.saturating_add(1);
+                existing.confidence_floor =
+                    Self::floor(existing.confidence_floor, observation.evidence_confidence());
+            } else {
+                clusters.push(PrefixCluster {
+                    action: observation.action().clone(),
+                    outcome: observation.observed_outcome().clone(),
+                    support_count: 1,
+                    confidence_floor: observation.evidence_confidence(),
+                });
+            }
+        }
+
+        let considered_observation_count = clusters
+            .iter()
+            .map(|cluster| cluster.support_count)
+            .sum::<usize>();
+
+        if clusters.is_empty() {
+            return Self::empty(
+                input_observation_count,
+                considered_observation_count,
+                rejected_low_confidence_count,
+                false,
+                false,
+                false,
+                false,
+            );
+        }
+
+        clusters.sort_by(|left, right| {
+            right
+                .support_count
+                .cmp(&left.support_count)
+                .then_with(|| left.action.cmp(&right.action))
+                .then_with(|| left.outcome.cmp(&right.outcome))
+        });
+
+        let conflicting_evidence = clusters
+            .get(1)
+            .is_some_and(|runner_up| runner_up.support_count == clusters[0].support_count);
+
+        if conflicting_evidence {
+            return Self::empty(
+                input_observation_count,
+                considered_observation_count,
+                rejected_low_confidence_count,
+                false,
+                true,
+                false,
+                false,
+            );
+        }
+
+        let source_steps = source_episode.steps();
+
+        let Some(prefix_index) = source_steps
+            .iter()
+            .position(|step| step.required_state() == source_episode.initial_state())
+        else {
+            return Self::empty(
+                input_observation_count,
+                considered_observation_count,
+                rejected_low_confidence_count,
+                false,
+                false,
+                false,
+                true,
+            );
+        };
+
+        let Some(next_step) = source_steps.get(prefix_index.saturating_add(1)) else {
+            return Self::empty(
+                input_observation_count,
+                considered_observation_count,
+                rejected_low_confidence_count,
+                false,
+                false,
+                false,
+                false,
+            );
+        };
+
+        let prefix_step = &source_steps[prefix_index];
+
+        if prefix_step.evidence_confidence().value()
+            < policy.minimum_observation_confidence().value()
+            || next_step.evidence_confidence().value()
+                < policy.minimum_observation_confidence().value()
+        {
+            return Self::empty(
+                input_observation_count,
+                considered_observation_count,
+                rejected_low_confidence_count,
+                false,
+                false,
+                true,
+                false,
+            );
+        }
+
+        let selected = &clusters[0];
+        let mut correspondences = Vec::new();
+
+        let consistent =
+            Self::bind(
+                &mut correspondences,
+                source_episode.initial_state(),
+                target_initial_state,
+            ) && Self::bind(
+                &mut correspondences,
+                source_episode.goal_identity(),
+                target_goal_identity,
+            ) && Self::bind(
+                &mut correspondences,
+                prefix_step.required_state(),
+                target_initial_state,
+            ) && Self::bind(&mut correspondences, prefix_step.action(), &selected.action)
+                && Self::bind(
+                    &mut correspondences,
+                    prefix_step.observed_outcome(),
+                    &selected.outcome,
+                );
+
+        if !consistent {
+            return Self::empty(
+                input_observation_count,
+                considered_observation_count,
+                rejected_low_confidence_count,
+                false,
+                false,
+                false,
+                true,
+            );
+        }
+
+        let Some(required_state) = Self::resolve(&correspondences, next_step.required_state())
+        else {
+            return Self::empty(
+                input_observation_count,
+                considered_observation_count,
+                rejected_low_confidence_count,
+                false,
+                false,
+                false,
+                false,
+            );
+        };
+
+        if required_state != selected.outcome {
+            return Self::empty(
+                input_observation_count,
+                considered_observation_count,
+                rejected_low_confidence_count,
+                false,
+                false,
+                false,
+                true,
+            );
+        }
+
+        let Some(action) = Self::resolve(&correspondences, next_step.action()) else {
+            return Self::empty(
+                input_observation_count,
+                considered_observation_count,
+                rejected_low_confidence_count,
+                false,
+                false,
+                false,
+                false,
+            );
+        };
+
+        let predicted_outcome = Self::resolve(&correspondences, next_step.observed_outcome());
+
+        let confidence = Self::floor(
+            selected.confidence_floor,
+            Self::floor(
+                prefix_step.evidence_confidence(),
+                next_step.evidence_confidence(),
+            ),
+        );
+
+        GroundedEpisodicAnalogyResult {
+            input_observation_count,
+            considered_observation_count,
+            rejected_low_confidence_count,
+            observation_frontier_exceeded: false,
+            conflicting_evidence: false,
+            source_evidence_below_threshold: false,
+            correspondence_conflict: false,
+            candidates: vec![GroundedEpisodicAnalogyCandidate {
+                source_step_index: prefix_index.saturating_add(1),
+                required_state,
+                action,
+                predicted_outcome,
+                evidence_confidence_floor: confidence,
+            }],
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct UniversalGroundedEpisodicAnalogyTransfer;
+
+impl UniversalGroundedEpisodicAnalogyTransfer {
+    pub fn infer_next(
+        source_episode: &GroundedSkillEpisode,
+        target_initial_state: &CognitiveStructure,
+        target_goal_identity: &CognitiveStructure,
+        observations: &[SkillExecutionObservation],
+        policy: GroundedEpisodicAnalogyPolicy,
+    ) -> GroundedEpisodicAnalogyResult {
+        GroundedEpisodicAnalogyTransfer::infer_next(
+            source_episode,
+            target_initial_state,
+            target_goal_identity,
+            observations,
+            policy,
+        )
+    }
+}
