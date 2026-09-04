@@ -6127,3 +6127,438 @@ mod integrated_skill_learning_cycle_tests {
         assert_eq!(input, before);
     }
 }
+
+// ============================================================================
+// T0-A — GROUNDED AUTONOMOUS SKILL CORRESPONDENCE
+// ============================================================================
+//
+// A compressed skill may contain structural and contextual slots whose values
+// are unknown in a novel grounded situation. Correspondence inference binds
+// those slots only from observed execution evidence and explicit state/goal
+// anchors. Conflicting evidence causes abstention rather than arbitrary
+// correspondence selection.
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct GroundedSkillCorrespondencePolicy {
+    max_records: usize,
+    max_observations: usize,
+    max_bindings: usize,
+    minimum_observation_confidence: CognitiveSignal,
+}
+
+impl GroundedSkillCorrespondencePolicy {
+    pub fn new(
+        max_records: usize,
+        max_observations: usize,
+        max_bindings: usize,
+        minimum_observation_confidence: CognitiveSignal,
+    ) -> Option<Self> {
+        if max_records == 0
+            || max_observations == 0
+            || max_bindings == 0
+            || minimum_observation_confidence == CognitiveSignal::zero()
+        {
+            return None;
+        }
+
+        Some(Self {
+            max_records,
+            max_observations,
+            max_bindings,
+            minimum_observation_confidence,
+        })
+    }
+
+    pub fn max_records(self) -> usize {
+        self.max_records
+    }
+
+    pub fn max_observations(self) -> usize {
+        self.max_observations
+    }
+
+    pub fn max_bindings(self) -> usize {
+        self.max_bindings
+    }
+
+    pub fn minimum_observation_confidence(self) -> CognitiveSignal {
+        self.minimum_observation_confidence
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct GroundedSkillCorrespondenceResult {
+    input_record_count: usize,
+    considered_record_count: usize,
+    record_frontier_exceeded: bool,
+    input_observation_count: usize,
+    considered_observation_count: usize,
+    rejected_low_confidence_count: usize,
+    conflicting_evidence: bool,
+    requests: Vec<GroundedSkillReuseRequest>,
+}
+
+impl GroundedSkillCorrespondenceResult {
+    pub fn input_record_count(&self) -> usize {
+        self.input_record_count
+    }
+
+    pub fn considered_record_count(&self) -> usize {
+        self.considered_record_count
+    }
+
+    pub fn record_frontier_exceeded(&self) -> bool {
+        self.record_frontier_exceeded
+    }
+
+    pub fn input_observation_count(&self) -> usize {
+        self.input_observation_count
+    }
+
+    pub fn considered_observation_count(&self) -> usize {
+        self.considered_observation_count
+    }
+
+    pub fn rejected_low_confidence_count(&self) -> usize {
+        self.rejected_low_confidence_count
+    }
+
+    pub fn conflicting_evidence(&self) -> bool {
+        self.conflicting_evidence
+    }
+
+    pub fn requests(&self) -> &[GroundedSkillReuseRequest] {
+        &self.requests
+    }
+
+    pub fn request_count(&self) -> usize {
+        self.requests.len()
+    }
+
+    pub fn abstained(&self) -> bool {
+        self.requests.is_empty()
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+struct GroundedCorrespondenceBinding {
+    kind: SkillReuseSlotKind,
+    id: usize,
+    value: CognitiveStructure,
+    confidence: CognitiveSignal,
+}
+
+pub struct GroundedSkillCorrespondenceInference;
+
+impl GroundedSkillCorrespondenceInference {
+    fn floor(left: CognitiveSignal, right: CognitiveSignal) -> CognitiveSignal {
+        if left.value() <= right.value() {
+            left
+        } else {
+            right
+        }
+    }
+
+    fn bind_term(
+        bindings: &mut Vec<GroundedCorrespondenceBinding>,
+        term: &CompressedSkillTerm,
+        value: &CognitiveStructure,
+        confidence: CognitiveSignal,
+        max_bindings: usize,
+    ) -> bool {
+        let (kind, id) = match term {
+            CompressedSkillTerm::StructuralSlot(id) => (SkillReuseSlotKind::Structural, *id),
+            CompressedSkillTerm::ContextSlot(id) => (SkillReuseSlotKind::Context, *id),
+            CompressedSkillTerm::InvariantRef(_) => return true,
+        };
+
+        if let Some(existing) = bindings
+            .iter_mut()
+            .find(|binding| binding.kind == kind && binding.id == id)
+        {
+            if existing.value != *value {
+                return false;
+            }
+
+            existing.confidence = Self::floor(existing.confidence, confidence);
+            return true;
+        }
+
+        if bindings.len() >= max_bindings {
+            return false;
+        }
+
+        bindings.push(GroundedCorrespondenceBinding {
+            kind,
+            id,
+            value: value.clone(),
+            confidence,
+        });
+
+        true
+    }
+
+    fn binding_order(
+        left: &GroundedCorrespondenceBinding,
+        right: &GroundedCorrespondenceBinding,
+    ) -> std::cmp::Ordering {
+        let left_kind = match left.kind {
+            SkillReuseSlotKind::Structural => 0usize,
+            SkillReuseSlotKind::Context => 1usize,
+        };
+
+        let right_kind = match right.kind {
+            SkillReuseSlotKind::Structural => 0usize,
+            SkillReuseSlotKind::Context => 1usize,
+        };
+
+        left_kind
+            .cmp(&right_kind)
+            .then_with(|| left.id.cmp(&right.id))
+            .then_with(|| format!("{:?}", left.value).cmp(&format!("{:?}", right.value)))
+    }
+
+    pub fn infer(
+        records: &[CompressedSkillRecord],
+        current_state: &CognitiveStructure,
+        goal_identity: &CognitiveStructure,
+        observations: &[SkillExecutionObservation],
+        policy: GroundedSkillCorrespondencePolicy,
+    ) -> GroundedSkillCorrespondenceResult {
+        let input_record_count = records.len();
+        let input_observation_count = observations.len();
+
+        let mut canonical_records: Vec<_> = records.iter().collect();
+
+        canonical_records
+            .sort_by(|left, right| LossControlledSkillCompression::record_order(left, right));
+
+        let record_frontier_exceeded = canonical_records.len() > policy.max_records();
+
+        canonical_records.truncate(policy.max_records());
+
+        let considered_records = canonical_records;
+        let considered_record_count = considered_records.len();
+
+        struct GroundedPrefixCorrespondenceCluster {
+            action: CognitiveStructure,
+            outcome: CognitiveStructure,
+            support_count: usize,
+            confidence_floor: CognitiveSignal,
+        }
+
+        let mut rejected_low_confidence_count = 0usize;
+        let mut clusters: Vec<GroundedPrefixCorrespondenceCluster> = Vec::new();
+        let mut cluster_frontier_exceeded = false;
+
+        for observation in observations {
+            if observation.evidence_confidence().value()
+                < policy.minimum_observation_confidence().value()
+            {
+                rejected_low_confidence_count = rejected_low_confidence_count.saturating_add(1);
+                continue;
+            }
+
+            if observation.required_state() != current_state {
+                continue;
+            }
+
+            if let Some(existing) = clusters.iter_mut().find(|cluster| {
+                cluster.action == *observation.action()
+                    && cluster.outcome == *observation.observed_outcome()
+            }) {
+                existing.support_count = existing.support_count.saturating_add(1);
+                existing.confidence_floor =
+                    Self::floor(existing.confidence_floor, observation.evidence_confidence());
+                continue;
+            }
+
+            if clusters.len() >= policy.max_observations() {
+                cluster_frontier_exceeded = true;
+                continue;
+            }
+
+            clusters.push(GroundedPrefixCorrespondenceCluster {
+                action: observation.action().clone(),
+                outcome: observation.observed_outcome().clone(),
+                support_count: 1,
+                confidence_floor: observation.evidence_confidence(),
+            });
+        }
+
+        // Canonical structural order is established before representative
+        // allocation so input presentation order cannot influence tie-breaking.
+        clusters.sort_by(|left, right| {
+            left.action
+                .cmp(&right.action)
+                .then_with(|| left.outcome.cmp(&right.outcome))
+        });
+
+        let total_qualified_support = clusters
+            .iter()
+            .map(|cluster| cluster.support_count)
+            .sum::<usize>();
+
+        let representative_budget = policy.max_observations().min(total_qualified_support);
+
+        if !cluster_frontier_exceeded
+            && !clusters.is_empty()
+            && representative_budget >= clusters.len()
+        {
+            // Every observed alternative receives one representative first.
+            // Remaining capacity is apportioned according to reproducible
+            // support, preserving contrasts instead of taking an input prefix.
+            let mandatory_support = clusters.len();
+            let extra_budget = representative_budget.saturating_sub(mandatory_support);
+            let total_extra_support = total_qualified_support.saturating_sub(mandatory_support);
+
+            let mut retained_support = vec![1usize; clusters.len()];
+
+            if extra_budget > 0 && total_extra_support > 0 {
+                let mut allocated_extra = 0usize;
+                let mut remainders = Vec::with_capacity(clusters.len());
+
+                for (index, cluster) in clusters.iter().enumerate() {
+                    let extra_support = cluster.support_count.saturating_sub(1);
+                    let numerator = extra_support.saturating_mul(extra_budget);
+
+                    let allocated = numerator / total_extra_support;
+                    let remainder = numerator % total_extra_support;
+
+                    retained_support[index] = retained_support[index].saturating_add(allocated);
+
+                    allocated_extra = allocated_extra.saturating_add(allocated);
+
+                    remainders.push((index, remainder));
+                }
+
+                let leftover = extra_budget.saturating_sub(allocated_extra);
+
+                remainders
+                    .sort_by(|left, right| right.1.cmp(&left.1).then_with(|| left.0.cmp(&right.0)));
+
+                for (index, _) in remainders.into_iter().take(leftover) {
+                    retained_support[index] = retained_support[index].saturating_add(1);
+                }
+            }
+
+            for (cluster, retained) in clusters.iter_mut().zip(retained_support) {
+                cluster.support_count = retained;
+            }
+        }
+
+        let considered_observation_count = if cluster_frontier_exceeded {
+            policy.max_observations()
+        } else {
+            clusters
+                .iter()
+                .map(|cluster| cluster.support_count)
+                .sum::<usize>()
+        };
+
+        clusters.sort_by(|left, right| {
+            right
+                .support_count
+                .cmp(&left.support_count)
+                .then_with(|| left.action.cmp(&right.action))
+                .then_with(|| left.outcome.cmp(&right.outcome))
+        });
+
+        let conflicting_evidence = cluster_frontier_exceeded
+            || clusters
+                .get(1)
+                .is_some_and(|runner_up| runner_up.support_count == clusters[0].support_count);
+
+        let selected_cluster = if conflicting_evidence {
+            None
+        } else {
+            clusters.first()
+        };
+
+        let mut requests = Vec::new();
+
+        if !record_frontier_exceeded {
+            if let Some(cluster) = selected_cluster {
+                for record in considered_records {
+                    let Some(first_step) = record.steps().first() else {
+                        continue;
+                    };
+
+                    let confidence = cluster.confidence_floor;
+                    let mut bindings = Vec::new();
+
+                    let consistent = Self::bind_term(
+                        &mut bindings,
+                        record.initial_state(),
+                        current_state,
+                        confidence,
+                        policy.max_bindings(),
+                    ) && Self::bind_term(
+                        &mut bindings,
+                        record.goal_identity(),
+                        goal_identity,
+                        confidence,
+                        policy.max_bindings(),
+                    ) && Self::bind_term(
+                        &mut bindings,
+                        first_step.required_state(),
+                        current_state,
+                        confidence,
+                        policy.max_bindings(),
+                    ) && Self::bind_term(
+                        &mut bindings,
+                        first_step.action(),
+                        &cluster.action,
+                        confidence,
+                        policy.max_bindings(),
+                    ) && Self::bind_term(
+                        &mut bindings,
+                        first_step.observed_outcome(),
+                        &cluster.outcome,
+                        confidence,
+                        policy.max_bindings(),
+                    );
+
+                    if !consistent || bindings.is_empty() {
+                        continue;
+                    }
+
+                    bindings.sort_by(Self::binding_order);
+
+                    let grounded: Vec<_> = bindings
+                        .into_iter()
+                        .filter_map(|binding| {
+                            GroundedSkillSlotBinding::new(
+                                binding.kind,
+                                binding.id,
+                                binding.value,
+                                binding.confidence,
+                            )
+                        })
+                        .collect();
+
+                    if grounded.is_empty() {
+                        continue;
+                    }
+
+                    requests.push(GroundedSkillReuseRequest::new(
+                        current_state.clone(),
+                        goal_identity.clone(),
+                        grounded,
+                    ));
+                }
+            }
+        }
+
+        GroundedSkillCorrespondenceResult {
+            input_record_count,
+            considered_record_count,
+            record_frontier_exceeded,
+            input_observation_count,
+            considered_observation_count,
+            rejected_low_confidence_count,
+            conflicting_evidence,
+            requests,
+        }
+    }
+}
