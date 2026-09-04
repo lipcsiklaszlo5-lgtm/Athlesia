@@ -9611,3 +9611,223 @@ impl UniversalGroundedExecutableModelFrontier {
         GroundedExecutableModelDisagreementEngine::evaluate(state, transformation, frontier)
     }
 }
+
+// ============================================================================
+// K0-C — ACTION-CONDITIONED EPISTEMIC DISCRIMINATION
+// ============================================================================
+//
+// This layer asks a bounded epistemic question:
+//
+//     which currently available transformation most strongly separates
+//     the competing executable world models?
+//
+// It does not assign utility, cost, goals, or expected information gain.
+//
+// Discrimination is measured exactly by pairwise model separation.
+//
+// For one disputed structural fact:
+//
+//     separation = C(n, 2)
+//                  - C(n_added, 2)
+//                  - C(n_removed, 2)
+//                  - C(n_unknown, 2)
+//                  - C(n_conflict, 2)
+//
+// This rewards balanced predictive splits without floating-point entropy,
+// invented probabilities, or confidence inflation.
+//
+// Candidate transformations remain exact CognitiveStructure identities.
+
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub struct GroundedActionDiscriminationPolicy {
+    max_actions: usize,
+}
+
+impl GroundedActionDiscriminationPolicy {
+    pub fn new(max_actions: usize) -> Option<Self> {
+        if max_actions == 0 {
+            return None;
+        }
+
+        Some(Self { max_actions })
+    }
+
+    pub fn max_actions(self) -> usize {
+        self.max_actions
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct GroundedActionDiscrimination {
+    transformation: CognitiveStructure,
+    disagreement: GroundedExecutableModelDisagreement,
+    pairwise_separation_score: u64,
+}
+
+impl GroundedActionDiscrimination {
+    pub fn transformation(&self) -> &CognitiveStructure {
+        &self.transformation
+    }
+
+    pub fn disagreement(&self) -> &GroundedExecutableModelDisagreement {
+        &self.disagreement
+    }
+
+    pub fn pairwise_separation_score(&self) -> u64 {
+        self.pairwise_separation_score
+    }
+
+    pub fn disputed_fact_count(&self) -> usize {
+        self.disagreement.disputed_fact_count()
+    }
+
+    pub fn is_informative(&self) -> bool {
+        self.pairwise_separation_score > 0
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct GroundedActionDiscriminationFrontier {
+    evaluations: Vec<GroundedActionDiscrimination>,
+    admitted_action_count: usize,
+    evaluated_action_count: usize,
+}
+
+impl GroundedActionDiscriminationFrontier {
+    pub fn evaluations(&self) -> &[GroundedActionDiscrimination] {
+        &self.evaluations
+    }
+
+    pub fn admitted_action_count(&self) -> usize {
+        self.admitted_action_count
+    }
+
+    pub fn evaluated_action_count(&self) -> usize {
+        self.evaluated_action_count
+    }
+
+    pub fn action_evaluation_truncated(&self) -> bool {
+        self.admitted_action_count > self.evaluated_action_count
+    }
+
+    pub fn best_informative_action(&self) -> Option<&GroundedActionDiscrimination> {
+        self.evaluations
+            .first()
+            .filter(|evaluation| evaluation.is_informative())
+    }
+
+    pub fn evaluation_for(
+        &self,
+        transformation: &CognitiveStructure,
+    ) -> Option<&GroundedActionDiscrimination> {
+        self.evaluations
+            .iter()
+            .find(|evaluation| evaluation.transformation() == transformation)
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, Hash, PartialEq)]
+pub struct GroundedActionDiscriminationEngine;
+
+impl GroundedActionDiscriminationEngine {
+    pub const fn new() -> Self {
+        Self
+    }
+
+    fn choose_two(count: usize) -> u64 {
+        let count = count as u64;
+
+        count.saturating_mul(count.saturating_sub(1)) / 2
+    }
+
+    fn fact_pairwise_separation(disagreement: &GroundedStructuralDisagreementFact) -> u64 {
+        let total = disagreement.participating_model_count();
+
+        Self::choose_two(total)
+            .saturating_sub(Self::choose_two(disagreement.added_model_count()))
+            .saturating_sub(Self::choose_two(disagreement.removed_model_count()))
+            .saturating_sub(Self::choose_two(disagreement.unknown_model_count()))
+            .saturating_sub(Self::choose_two(disagreement.conflict_model_count()))
+    }
+
+    fn disagreement_score(disagreement: &GroundedExecutableModelDisagreement) -> u64 {
+        disagreement
+            .disputed_facts()
+            .iter()
+            .map(Self::fact_pairwise_separation)
+            .fold(0_u64, u64::saturating_add)
+    }
+
+    fn compare_evaluations(
+        left: &GroundedActionDiscrimination,
+        right: &GroundedActionDiscrimination,
+    ) -> std::cmp::Ordering {
+        right
+            .pairwise_separation_score()
+            .cmp(&left.pairwise_separation_score())
+            .then_with(|| right.disputed_fact_count().cmp(&left.disputed_fact_count()))
+            .then_with(|| {
+                PredicateDiscovery::compare_structure(left.transformation(), right.transformation())
+            })
+    }
+
+    pub fn evaluate(
+        state: &GroundedStateSnapshot,
+        candidate_transformations: &[CognitiveStructure],
+        model_frontier: &GroundedExecutableModelFrontier,
+        policy: GroundedActionDiscriminationPolicy,
+    ) -> GroundedActionDiscriminationFrontier {
+        let mut canonical_actions = candidate_transformations.to_vec();
+
+        canonical_actions.sort_by(PredicateDiscovery::compare_structure);
+        canonical_actions.dedup();
+
+        let admitted_action_count = canonical_actions.len();
+
+        canonical_actions.truncate(policy.max_actions());
+
+        let evaluated_action_count = canonical_actions.len();
+
+        let mut evaluations = canonical_actions
+            .into_iter()
+            .map(|transformation| {
+                let disagreement = model_frontier.evaluate(state, &transformation);
+
+                let pairwise_separation_score = Self::disagreement_score(&disagreement);
+
+                GroundedActionDiscrimination {
+                    transformation,
+                    disagreement,
+                    pairwise_separation_score,
+                }
+            })
+            .collect::<Vec<_>>();
+
+        evaluations.sort_by(Self::compare_evaluations);
+
+        GroundedActionDiscriminationFrontier {
+            evaluations,
+            admitted_action_count,
+            evaluated_action_count,
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, Hash, PartialEq)]
+pub struct UniversalGroundedActionDiscrimination;
+
+impl UniversalGroundedActionDiscrimination {
+    pub fn evaluate(
+        state: &GroundedStateSnapshot,
+        candidate_transformations: &[CognitiveStructure],
+        model_frontier: &GroundedExecutableModelFrontier,
+        policy: GroundedActionDiscriminationPolicy,
+    ) -> GroundedActionDiscriminationFrontier {
+        GroundedActionDiscriminationEngine::evaluate(
+            state,
+            candidate_transformations,
+            model_frontier,
+            policy,
+        )
+    }
+}
