@@ -7163,6 +7163,12 @@ impl GroundedEpisodicAnalogyTransfer {
             return Self::empty(input_observation_count, 0, 0, true, false, false, false);
         }
 
+        let source_prefix_changes_state = source_episode
+            .steps()
+            .iter()
+            .find(|step| step.required_state() == source_episode.initial_state())
+            .map(|step| step.required_state() != step.observed_outcome());
+
         #[derive(Clone, Debug, Eq, PartialEq)]
         struct PrefixCluster {
             action: CognitiveStructure,
@@ -7183,6 +7189,15 @@ impl GroundedEpisodicAnalogyTransfer {
             }
 
             if observation.required_state() != target_initial_state {
+                continue;
+            }
+
+            let target_changes_state =
+                observation.required_state() != observation.observed_outcome();
+
+            if source_prefix_changes_state
+                .is_some_and(|source_changes_state| source_changes_state != target_changes_state)
+            {
                 continue;
             }
 
