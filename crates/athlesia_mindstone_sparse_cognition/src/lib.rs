@@ -5873,3 +5873,291 @@ impl MindstoneSparseMindstoneFinal {
         SparseMindstoneFinalOrchestrator::evaluate(state, event_index, input, context)
     }
 }
+
+// ============================================================================
+// F0-A — MODEL-FREE EPISTEMIC EXPLORATION
+// ============================================================================
+//
+// Functional purpose:
+//
+//     unknown context
+//         -> available exact interventions
+//         -> bounded model-free exploration
+//         -> observed consequence
+//         -> experience
+//
+// This primitive exists specifically for epistemic states in which no
+// predictive world model is yet available.
+//
+// It does NOT require or fabricate:
+// - predicted outcomes,
+// - hypotheses,
+// - expected information gain,
+// - utility,
+// - domain semantics,
+// - benchmark semantics.
+//
+// Availability of an action is the only execution affordance assumed by this
+// layer. Experience is context-sensitive: trying an action in one exact
+// CognitiveStructure context does not make that action known in another.
+//
+// Selection rule:
+//
+// 1. consider a bounded canonical frontier of exact available actions,
+// 2. prefer the least-attempted action in the exact current context,
+// 3. break ties by exact CognitiveStructure ordering.
+//
+// This is deterministic epistemic motor exploration, not random search.
+
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub struct ModelFreeExplorationPolicy {
+    max_candidates: usize,
+}
+
+impl ModelFreeExplorationPolicy {
+    pub fn new(max_candidates: usize) -> Option<Self> {
+        if max_candidates == 0 {
+            return None;
+        }
+
+        Some(Self { max_candidates })
+    }
+
+    pub fn max_candidates(self) -> usize {
+        self.max_candidates
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub struct ModelFreeExplorationMemoryPolicy {
+    max_records: usize,
+}
+
+impl ModelFreeExplorationMemoryPolicy {
+    pub fn new(max_records: usize) -> Option<Self> {
+        if max_records == 0 {
+            return None;
+        }
+
+        Some(Self { max_records })
+    }
+
+    pub fn max_records(self) -> usize {
+        self.max_records
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ModelFreeExplorationRecord {
+    context: CognitiveStructure,
+    action: CognitiveStructure,
+    attempt_count: u64,
+}
+
+impl ModelFreeExplorationRecord {
+    pub fn context(&self) -> &CognitiveStructure {
+        &self.context
+    }
+
+    pub fn action(&self) -> &CognitiveStructure {
+        &self.action
+    }
+
+    pub fn attempt_count(&self) -> u64 {
+        self.attempt_count
+    }
+}
+
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
+pub struct ModelFreeExplorationMemory {
+    records: Vec<ModelFreeExplorationRecord>,
+}
+
+impl ModelFreeExplorationMemory {
+    pub fn empty() -> Self {
+        Self {
+            records: Vec::new(),
+        }
+    }
+
+    fn compare_record_key(
+        left_context: &CognitiveStructure,
+        left_action: &CognitiveStructure,
+        right_context: &CognitiveStructure,
+        right_action: &CognitiveStructure,
+    ) -> std::cmp::Ordering {
+        left_context
+            .cmp(right_context)
+            .then_with(|| left_action.cmp(right_action))
+    }
+
+    pub fn records(&self) -> &[ModelFreeExplorationRecord] {
+        &self.records
+    }
+
+    pub fn record_count(&self) -> usize {
+        self.records.len()
+    }
+
+    pub fn attempt_count(&self, context: &CognitiveStructure, action: &CognitiveStructure) -> u64 {
+        self.records
+            .binary_search_by(|record| {
+                Self::compare_record_key(record.context(), record.action(), context, action)
+            })
+            .ok()
+            .map_or(0, |index| self.records[index].attempt_count())
+    }
+
+    pub fn record_attempt(
+        &self,
+        context: CognitiveStructure,
+        action: CognitiveStructure,
+        policy: ModelFreeExplorationMemoryPolicy,
+    ) -> Option<Self> {
+        let mut records = self.records.clone();
+
+        match records.binary_search_by(|record| {
+            Self::compare_record_key(record.context(), record.action(), &context, &action)
+        }) {
+            Ok(index) => {
+                records[index].attempt_count = records[index].attempt_count.saturating_add(1);
+
+                Some(Self { records })
+            }
+
+            Err(index) => {
+                if records.len() >= policy.max_records() {
+                    return None;
+                }
+
+                records.insert(
+                    index,
+                    ModelFreeExplorationRecord {
+                        context,
+                        action,
+                        attempt_count: 1,
+                    },
+                );
+
+                Some(Self { records })
+            }
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub enum ModelFreeExplorationStatus {
+    Selected,
+    NoAvailableAction,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ModelFreeExplorationDecision {
+    status: ModelFreeExplorationStatus,
+    selected_action: Option<CognitiveStructure>,
+    prior_attempt_count: Option<u64>,
+    admitted_action_count: usize,
+    evaluated_action_count: usize,
+}
+
+impl ModelFreeExplorationDecision {
+    pub fn status(&self) -> ModelFreeExplorationStatus {
+        self.status
+    }
+
+    pub fn selected_action(&self) -> Option<&CognitiveStructure> {
+        self.selected_action.as_ref()
+    }
+
+    pub fn prior_attempt_count(&self) -> Option<u64> {
+        self.prior_attempt_count
+    }
+
+    pub fn admitted_action_count(&self) -> usize {
+        self.admitted_action_count
+    }
+
+    pub fn evaluated_action_count(&self) -> usize {
+        self.evaluated_action_count
+    }
+
+    pub fn candidate_frontier_truncated(&self) -> bool {
+        self.admitted_action_count > self.evaluated_action_count
+    }
+
+    pub fn selected(&self) -> bool {
+        self.status == ModelFreeExplorationStatus::Selected
+    }
+
+    pub fn selected_is_novel_in_context(&self) -> bool {
+        self.prior_attempt_count == Some(0)
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, Hash, PartialEq)]
+pub struct ModelFreeEpistemicExploration;
+
+impl ModelFreeEpistemicExploration {
+    pub const fn new() -> Self {
+        Self
+    }
+
+    pub fn select(
+        context: &CognitiveStructure,
+        available_actions: &[CognitiveStructure],
+        memory: &ModelFreeExplorationMemory,
+        policy: ModelFreeExplorationPolicy,
+    ) -> ModelFreeExplorationDecision {
+        let mut canonical_actions = available_actions.to_vec();
+
+        canonical_actions.sort();
+        canonical_actions.dedup();
+
+        let admitted_action_count = canonical_actions.len();
+
+        canonical_actions.truncate(policy.max_candidates());
+
+        let evaluated_action_count = canonical_actions.len();
+
+        let selected = canonical_actions
+            .into_iter()
+            .map(|action| {
+                let attempt_count = memory.attempt_count(context, &action);
+
+                (action, attempt_count)
+            })
+            .min_by(|left, right| left.1.cmp(&right.1).then_with(|| left.0.cmp(&right.0)));
+
+        match selected {
+            Some((action, attempt_count)) => ModelFreeExplorationDecision {
+                status: ModelFreeExplorationStatus::Selected,
+                selected_action: Some(action),
+                prior_attempt_count: Some(attempt_count),
+                admitted_action_count,
+                evaluated_action_count,
+            },
+
+            None => ModelFreeExplorationDecision {
+                status: ModelFreeExplorationStatus::NoAvailableAction,
+                selected_action: None,
+                prior_attempt_count: None,
+                admitted_action_count,
+                evaluated_action_count,
+            },
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, Hash, PartialEq)]
+pub struct UniversalModelFreeEpistemicExploration;
+
+impl UniversalModelFreeEpistemicExploration {
+    pub fn select(
+        context: &CognitiveStructure,
+        available_actions: &[CognitiveStructure],
+        memory: &ModelFreeExplorationMemory,
+        policy: ModelFreeExplorationPolicy,
+    ) -> ModelFreeExplorationDecision {
+        ModelFreeEpistemicExploration::select(context, available_actions, memory, policy)
+    }
+}
