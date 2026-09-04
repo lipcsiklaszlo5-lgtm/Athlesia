@@ -10121,3 +10121,712 @@ impl UniversalGroundedPredictionOutcomeEvidence {
         GroundedPredictionOutcomeEvidenceEngine::evaluate(before, after, transformation, frontier)
     }
 }
+
+// ============================================================================
+// F0-B1 — EXPLANATORY VERSION SPACE
+// ============================================================================
+
+#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+pub enum GroundedExplanatoryEpisodeAssessment {
+    IrrelevantTransformation,
+    NotApplicable,
+    NoEffectOpportunity,
+    Supported,
+    Counterexample,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct GroundedExplanatoryHypothesis {
+    transformation: CognitiveStructure,
+    context: Option<ContextPremiseSet>,
+    effect_kind: TransitionEffectKind,
+    effect_fact: CognitiveStructure,
+    support_count: u64,
+    opportunity_count: u64,
+    counterexample_count: u64,
+}
+
+impl GroundedExplanatoryHypothesis {
+    pub fn transformation(&self) -> &CognitiveStructure {
+        &self.transformation
+    }
+
+    pub fn context(&self) -> Option<&ContextPremiseSet> {
+        self.context.as_ref()
+    }
+
+    pub fn effect_kind(&self) -> TransitionEffectKind {
+        self.effect_kind
+    }
+
+    pub fn effect_fact(&self) -> &CognitiveStructure {
+        &self.effect_fact
+    }
+
+    pub fn support_count(&self) -> u64 {
+        self.support_count
+    }
+
+    pub fn opportunity_count(&self) -> u64 {
+        self.opportunity_count
+    }
+
+    pub fn counterexample_count(&self) -> u64 {
+        self.counterexample_count
+    }
+
+    pub fn premise_count(&self) -> usize {
+        self.context
+            .as_ref()
+            .map_or(0, ContextPremiseSet::premise_count)
+    }
+
+    pub fn active(&self) -> bool {
+        self.support_count > 0 && self.counterexample_count == 0
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub struct GroundedExplanatoryVersionSpacePolicy {
+    max_context_premises: usize,
+    max_candidate_contexts: usize,
+    max_hypothesis_evaluations: usize,
+    max_active_hypotheses: usize,
+}
+
+impl GroundedExplanatoryVersionSpacePolicy {
+    pub fn new(
+        max_context_premises: usize,
+        max_candidate_contexts: usize,
+        max_hypothesis_evaluations: usize,
+        max_active_hypotheses: usize,
+    ) -> Option<Self> {
+        if !(1..=MAX_CONTEXT_PREMISES).contains(&max_context_premises)
+            || max_candidate_contexts == 0
+            || max_hypothesis_evaluations == 0
+            || max_active_hypotheses == 0
+        {
+            return None;
+        }
+
+        Some(Self {
+            max_context_premises,
+            max_candidate_contexts,
+            max_hypothesis_evaluations,
+            max_active_hypotheses,
+        })
+    }
+}
+
+impl GroundedExplanatoryHypothesis {
+    pub fn assess(
+        &self,
+        episode: &GroundedTransformationEpisode,
+    ) -> GroundedExplanatoryEpisodeAssessment {
+        if episode.transformation() != &self.transformation {
+            return GroundedExplanatoryEpisodeAssessment::IrrelevantTransformation;
+        }
+
+        if self
+            .context
+            .as_ref()
+            .is_some_and(|context| !context.is_satisfied_by(episode.before()))
+        {
+            return GroundedExplanatoryEpisodeAssessment::NotApplicable;
+        }
+
+        if !episode.effect_opportunity(self.effect_kind, &self.effect_fact) {
+            return GroundedExplanatoryEpisodeAssessment::NoEffectOpportunity;
+        }
+
+        if episode.effect_occurs(self.effect_kind, &self.effect_fact) {
+            GroundedExplanatoryEpisodeAssessment::Supported
+        } else {
+            GroundedExplanatoryEpisodeAssessment::Counterexample
+        }
+    }
+}
+
+impl GroundedExplanatoryVersionSpacePolicy {
+    pub fn max_context_premises(self) -> usize {
+        self.max_context_premises
+    }
+
+    pub fn max_candidate_contexts(self) -> usize {
+        self.max_candidate_contexts
+    }
+
+    pub fn max_hypothesis_evaluations(self) -> usize {
+        self.max_hypothesis_evaluations
+    }
+
+    pub fn max_active_hypotheses(self) -> usize {
+        self.max_active_hypotheses
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct GroundedExplanatoryVersionSpace {
+    possible_context_count: usize,
+    generated_context_count: usize,
+    effect_target_count: usize,
+    possible_hypothesis_evaluation_count: usize,
+    evaluated_hypothesis_count: usize,
+    admitted_before_frontier: usize,
+    active: Vec<GroundedExplanatoryHypothesis>,
+}
+
+impl GroundedExplanatoryVersionSpace {
+    pub fn possible_context_count(&self) -> usize {
+        self.possible_context_count
+    }
+
+    pub fn generated_context_count(&self) -> usize {
+        self.generated_context_count
+    }
+
+    pub fn effect_target_count(&self) -> usize {
+        self.effect_target_count
+    }
+
+    pub fn possible_hypothesis_evaluation_count(&self) -> usize {
+        self.possible_hypothesis_evaluation_count
+    }
+
+    pub fn evaluated_hypothesis_count(&self) -> usize {
+        self.evaluated_hypothesis_count
+    }
+
+    pub fn evaluation_truncated(&self) -> bool {
+        self.possible_hypothesis_evaluation_count > self.evaluated_hypothesis_count
+    }
+
+    pub fn admitted_before_frontier(&self) -> usize {
+        self.admitted_before_frontier
+    }
+
+    pub fn active(&self) -> &[GroundedExplanatoryHypothesis] {
+        &self.active
+    }
+
+    pub fn active_count(&self) -> usize {
+        self.active.len()
+    }
+
+    pub fn frontier_truncated(&self) -> bool {
+        self.admitted_before_frontier > self.active.len()
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, Hash, PartialEq)]
+pub struct GroundedExplanatoryVersionSpaceSynthesis;
+
+impl GroundedExplanatoryVersionSpaceSynthesis {
+    fn measure(
+        episodes: &[GroundedTransformationEpisode],
+        transformation: &CognitiveStructure,
+        context: Option<&ContextPremiseSet>,
+        effect_kind: TransitionEffectKind,
+        effect_fact: &CognitiveStructure,
+    ) -> Option<GroundedExplanatoryHypothesis> {
+        let mut support_count = 0_u64;
+        let mut opportunity_count = 0_u64;
+
+        for episode in episodes {
+            if episode.transformation() != transformation {
+                continue;
+            }
+
+            if context.is_some_and(|premises| !premises.is_satisfied_by(episode.before())) {
+                continue;
+            }
+
+            if !episode.effect_opportunity(effect_kind, effect_fact) {
+                continue;
+            }
+
+            opportunity_count = opportunity_count.saturating_add(1);
+
+            if episode.effect_occurs(effect_kind, effect_fact) {
+                support_count = support_count.saturating_add(1);
+            }
+        }
+
+        if support_count == 0 || opportunity_count == 0 {
+            return None;
+        }
+
+        let counterexample_count = opportunity_count.saturating_sub(support_count);
+
+        Some(GroundedExplanatoryHypothesis {
+            transformation: transformation.clone(),
+            context: context.cloned(),
+            effect_kind,
+            effect_fact: effect_fact.clone(),
+            support_count,
+            opportunity_count,
+            counterexample_count,
+        })
+    }
+
+    fn observed_effects(
+        episodes: &[GroundedTransformationEpisode],
+    ) -> Vec<(CognitiveStructure, TransitionEffectKind, CognitiveStructure)> {
+        let mut effects = Vec::new();
+
+        for episode in episodes {
+            for fact in episode.after().facts() {
+                if episode.effect_occurs(TransitionEffectKind::Added, fact) {
+                    effects.push((
+                        episode.transformation().clone(),
+                        TransitionEffectKind::Added,
+                        fact.clone(),
+                    ));
+                }
+            }
+
+            for fact in episode.before().facts() {
+                if episode.effect_occurs(TransitionEffectKind::Removed, fact) {
+                    effects.push((
+                        episode.transformation().clone(),
+                        TransitionEffectKind::Removed,
+                        fact.clone(),
+                    ));
+                }
+            }
+        }
+
+        effects.sort_by(|left, right| {
+            PredicateDiscovery::compare_structure(&left.0, &right.0)
+                .then_with(|| left.1.cmp(&right.1))
+                .then_with(|| PredicateDiscovery::compare_structure(&left.2, &right.2))
+        });
+
+        effects.dedup();
+
+        effects
+    }
+}
+
+impl GroundedExplanatoryVersionSpaceSynthesis {
+    fn context_vocabulary(episodes: &[GroundedTransformationEpisode]) -> Vec<CognitiveStructure> {
+        let mut facts = episodes
+            .iter()
+            .flat_map(|episode| episode.before().facts().iter().cloned())
+            .collect::<Vec<_>>();
+
+        facts.sort_by(PredicateDiscovery::compare_structure);
+        facts.dedup();
+        facts
+    }
+
+    pub fn synthesize(
+        episodes: &[GroundedTransformationEpisode],
+        policy: GroundedExplanatoryVersionSpacePolicy,
+    ) -> GroundedExplanatoryVersionSpace {
+        if episodes.is_empty() {
+            return GroundedExplanatoryVersionSpace {
+                possible_context_count: 0,
+                generated_context_count: 0,
+                effect_target_count: 0,
+                possible_hypothesis_evaluation_count: 0,
+                evaluated_hypothesis_count: 0,
+                admitted_before_frontier: 0,
+                active: Vec::new(),
+            };
+        }
+
+        let vocabulary = Self::context_vocabulary(episodes);
+
+        let mut contexts = vocabulary
+            .iter()
+            .take(policy.max_candidate_contexts())
+            .filter_map(|fact| ContextPremiseSet::new(vec![fact.clone()]))
+            .collect::<Vec<_>>();
+
+        contexts.truncate(policy.max_candidate_contexts());
+
+        let effects = Self::observed_effects(episodes);
+
+        let possible_context_count = vocabulary.len();
+        let generated_context_count = contexts.len();
+        let effect_target_count = effects.len();
+
+        let variants_per_effect = contexts.len().saturating_add(1);
+
+        let possible_hypothesis_evaluation_count =
+            effects.len().saturating_mul(variants_per_effect);
+
+        let mut evaluated_hypothesis_count = 0_usize;
+        let mut active = Vec::new();
+
+        'effects: for (transformation, effect_kind, effect_fact) in &effects {
+            if evaluated_hypothesis_count >= policy.max_hypothesis_evaluations() {
+                break;
+            }
+
+            evaluated_hypothesis_count = evaluated_hypothesis_count.saturating_add(1);
+
+            if let Some(hypothesis) =
+                Self::measure(episodes, transformation, None, *effect_kind, effect_fact)
+            {
+                if hypothesis.active() {
+                    active.push(hypothesis);
+                }
+            }
+
+            for context in &contexts {
+                if evaluated_hypothesis_count >= policy.max_hypothesis_evaluations() {
+                    break 'effects;
+                }
+
+                evaluated_hypothesis_count = evaluated_hypothesis_count.saturating_add(1);
+
+                if let Some(hypothesis) = Self::measure(
+                    episodes,
+                    transformation,
+                    Some(context),
+                    *effect_kind,
+                    effect_fact,
+                ) {
+                    if hypothesis.active() {
+                        active.push(hypothesis);
+                    }
+                }
+            }
+        }
+
+        active.sort_by(|left, right| {
+            left.premise_count()
+                .cmp(&right.premise_count())
+                .then_with(|| right.support_count().cmp(&left.support_count()))
+                .then_with(|| {
+                    PredicateDiscovery::compare_structure(
+                        left.transformation(),
+                        right.transformation(),
+                    )
+                })
+                .then_with(|| left.effect_kind().cmp(&right.effect_kind()))
+                .then_with(|| {
+                    PredicateDiscovery::compare_structure(left.effect_fact(), right.effect_fact())
+                })
+        });
+
+        let admitted_before_frontier = active.len();
+
+        active.truncate(policy.max_active_hypotheses());
+
+        GroundedExplanatoryVersionSpace {
+            possible_context_count,
+            generated_context_count,
+            effect_target_count,
+            possible_hypothesis_evaluation_count,
+            evaluated_hypothesis_count,
+            admitted_before_frontier,
+            active,
+        }
+    }
+}
+
+// ============================================================================
+// F0-B2 — EXECUTABLE EXPLANATORY HYPOTHESIS
+// ============================================================================
+
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub enum GroundedExplanatoryPredictionStatus {
+    Predicted,
+    IrrelevantTransformation,
+    ContextNotSatisfied,
+    NoEffectOpportunity,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct GroundedExplanatoryPrediction {
+    transformation: CognitiveStructure,
+    status: GroundedExplanatoryPredictionStatus,
+    effect_kind: TransitionEffectKind,
+    effect_fact: CognitiveStructure,
+}
+
+impl GroundedExplanatoryPrediction {
+    pub fn transformation(&self) -> &CognitiveStructure {
+        &self.transformation
+    }
+
+    pub fn status(&self) -> GroundedExplanatoryPredictionStatus {
+        self.status
+    }
+
+    pub fn effect_kind(&self) -> TransitionEffectKind {
+        self.effect_kind
+    }
+
+    pub fn effect_fact(&self) -> &CognitiveStructure {
+        &self.effect_fact
+    }
+
+    pub fn predicted(&self) -> bool {
+        self.status == GroundedExplanatoryPredictionStatus::Predicted
+    }
+
+    pub fn predicts_addition(&self, fact: &CognitiveStructure) -> bool {
+        self.predicted()
+            && self.effect_kind == TransitionEffectKind::Added
+            && &self.effect_fact == fact
+    }
+
+    pub fn predicts_removal(&self, fact: &CognitiveStructure) -> bool {
+        self.predicted()
+            && self.effect_kind == TransitionEffectKind::Removed
+            && &self.effect_fact == fact
+    }
+}
+
+impl GroundedExplanatoryHypothesis {
+    pub fn predict(
+        &self,
+        state: &GroundedStateSnapshot,
+        transformation: &CognitiveStructure,
+    ) -> GroundedExplanatoryPrediction {
+        let status = if transformation != &self.transformation {
+            GroundedExplanatoryPredictionStatus::IrrelevantTransformation
+        } else if self
+            .context
+            .as_ref()
+            .is_some_and(|context| !context.is_satisfied_by(state))
+        {
+            GroundedExplanatoryPredictionStatus::ContextNotSatisfied
+        } else {
+            let opportunity = match self.effect_kind {
+                TransitionEffectKind::Added => !state.contains_fact(&self.effect_fact),
+                TransitionEffectKind::Removed => state.contains_fact(&self.effect_fact),
+            };
+
+            if opportunity {
+                GroundedExplanatoryPredictionStatus::Predicted
+            } else {
+                GroundedExplanatoryPredictionStatus::NoEffectOpportunity
+            }
+        };
+
+        GroundedExplanatoryPrediction {
+            transformation: transformation.clone(),
+            status,
+            effect_kind: self.effect_kind,
+            effect_fact: self.effect_fact.clone(),
+        }
+    }
+}
+
+// ============================================================================
+// F0-B3 — FACTORIZED EPISTEMIC DISAGREEMENT
+// ============================================================================
+
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub struct GroundedFactorizedDiscriminationPolicy {
+    max_actions: usize,
+}
+
+impl GroundedFactorizedDiscriminationPolicy {
+    pub fn new(max_actions: usize) -> Option<Self> {
+        if max_actions == 0 {
+            return None;
+        }
+
+        Some(Self { max_actions })
+    }
+
+    pub fn max_actions(self) -> usize {
+        self.max_actions
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct GroundedFactorizedEffectDisagreement {
+    effect_kind: TransitionEffectKind,
+    effect_fact: CognitiveStructure,
+    predicted_count: usize,
+    context_abstention_count: usize,
+    no_opportunity_count: usize,
+}
+
+impl GroundedFactorizedEffectDisagreement {
+    pub fn effect_kind(&self) -> TransitionEffectKind {
+        self.effect_kind
+    }
+
+    pub fn effect_fact(&self) -> &CognitiveStructure {
+        &self.effect_fact
+    }
+
+    pub fn predicted_count(&self) -> usize {
+        self.predicted_count
+    }
+
+    pub fn context_abstention_count(&self) -> usize {
+        self.context_abstention_count
+    }
+
+    pub fn no_opportunity_count(&self) -> usize {
+        self.no_opportunity_count
+    }
+
+    pub fn pairwise_separation_score(&self) -> usize {
+        self.predicted_count
+            .saturating_mul(self.context_abstention_count)
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct GroundedFactorizedActionDiscrimination {
+    transformation: CognitiveStructure,
+    disagreements: Vec<GroundedFactorizedEffectDisagreement>,
+    pairwise_separation_score: usize,
+}
+
+impl GroundedFactorizedActionDiscrimination {
+    pub fn transformation(&self) -> &CognitiveStructure {
+        &self.transformation
+    }
+
+    pub fn disagreements(&self) -> &[GroundedFactorizedEffectDisagreement] {
+        &self.disagreements
+    }
+
+    pub fn disputed_effect_count(&self) -> usize {
+        self.disagreements.len()
+    }
+
+    pub fn pairwise_separation_score(&self) -> usize {
+        self.pairwise_separation_score
+    }
+
+    pub fn informative(&self) -> bool {
+        self.pairwise_separation_score > 0
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct GroundedFactorizedActionDiscriminationFrontier {
+    ranked: Vec<GroundedFactorizedActionDiscrimination>,
+}
+
+impl GroundedFactorizedActionDiscriminationFrontier {
+    pub fn ranked(&self) -> &[GroundedFactorizedActionDiscrimination] {
+        &self.ranked
+    }
+
+    pub fn best_informative(&self) -> Option<&GroundedFactorizedActionDiscrimination> {
+        self.ranked.iter().find(|candidate| candidate.informative())
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, Hash, PartialEq)]
+pub struct GroundedFactorizedActionDiscriminationEngine;
+
+impl GroundedFactorizedActionDiscriminationEngine {
+    pub fn evaluate(
+        state: &GroundedStateSnapshot,
+        actions: &[CognitiveStructure],
+        version_space: &GroundedExplanatoryVersionSpace,
+        policy: GroundedFactorizedDiscriminationPolicy,
+    ) -> GroundedFactorizedActionDiscriminationFrontier {
+        let mut canonical_actions = actions.to_vec();
+
+        canonical_actions.sort_by(PredicateDiscovery::compare_structure);
+        canonical_actions.dedup();
+        canonical_actions.truncate(policy.max_actions());
+
+        let mut ranked = canonical_actions
+            .into_iter()
+            .map(|transformation| {
+                let relevant = version_space
+                    .active()
+                    .iter()
+                    .filter(|hypothesis| hypothesis.transformation() == &transformation)
+                    .collect::<Vec<_>>();
+
+                let mut targets = relevant
+                    .iter()
+                    .map(|hypothesis| (hypothesis.effect_kind(), hypothesis.effect_fact().clone()))
+                    .collect::<Vec<_>>();
+
+                targets.sort_by(|left, right| {
+                    left.0
+                        .cmp(&right.0)
+                        .then_with(|| PredicateDiscovery::compare_structure(&left.1, &right.1))
+                });
+                targets.dedup();
+
+                let mut disagreements = Vec::new();
+
+                for (effect_kind, effect_fact) in targets {
+                    let mut predicted_count = 0_usize;
+                    let mut context_abstention_count = 0_usize;
+                    let mut no_opportunity_count = 0_usize;
+
+                    for hypothesis in relevant.iter().copied().filter(|hypothesis| {
+                        hypothesis.effect_kind() == effect_kind
+                            && hypothesis.effect_fact() == &effect_fact
+                    }) {
+                        match hypothesis.predict(state, &transformation).status() {
+                            GroundedExplanatoryPredictionStatus::Predicted => {
+                                predicted_count = predicted_count.saturating_add(1);
+                            }
+                            GroundedExplanatoryPredictionStatus::ContextNotSatisfied => {
+                                context_abstention_count =
+                                    context_abstention_count.saturating_add(1);
+                            }
+                            GroundedExplanatoryPredictionStatus::NoEffectOpportunity => {
+                                no_opportunity_count = no_opportunity_count.saturating_add(1);
+                            }
+                            GroundedExplanatoryPredictionStatus::IrrelevantTransformation => {}
+                        }
+                    }
+
+                    let disagreement = GroundedFactorizedEffectDisagreement {
+                        effect_kind,
+                        effect_fact,
+                        predicted_count,
+                        context_abstention_count,
+                        no_opportunity_count,
+                    };
+
+                    if disagreement.pairwise_separation_score() > 0 {
+                        disagreements.push(disagreement);
+                    }
+                }
+
+                let pairwise_separation_score = disagreements
+                    .iter()
+                    .map(GroundedFactorizedEffectDisagreement::pairwise_separation_score)
+                    .fold(0_usize, usize::saturating_add);
+
+                GroundedFactorizedActionDiscrimination {
+                    transformation,
+                    disagreements,
+                    pairwise_separation_score,
+                }
+            })
+            .collect::<Vec<_>>();
+
+        ranked.sort_by(|left, right| {
+            right
+                .pairwise_separation_score()
+                .cmp(&left.pairwise_separation_score())
+                .then_with(|| {
+                    right
+                        .disputed_effect_count()
+                        .cmp(&left.disputed_effect_count())
+                })
+                .then_with(|| {
+                    PredicateDiscovery::compare_structure(
+                        left.transformation(),
+                        right.transformation(),
+                    )
+                })
+        });
+
+        GroundedFactorizedActionDiscriminationFrontier { ranked }
+    }
+}
