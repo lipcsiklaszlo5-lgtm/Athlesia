@@ -10830,3 +10830,404 @@ impl GroundedFactorizedActionDiscriminationEngine {
         GroundedFactorizedActionDiscriminationFrontier { ranked }
     }
 }
+
+// ============================================================================
+// R0 — RELEVANCE-DRIVEN PROGRESSIVE SPECIALIZATION
+// ============================================================================
+//
+// Prediction failure must not trigger combinatorial context search.
+// A failing explanatory hypothesis may acquire exactly one new grounded
+// premise at a time. Later evidence may trigger another specialization.
+//
+// Candidate premises must come from observed source-state structure.
+// No latent facts, synthetic tags, or benchmark-specific features are created.
+
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub struct GroundedRelevanceSpecializationPolicy {
+    max_evidence_episodes: usize,
+    max_candidate_facts: usize,
+    max_specializations: usize,
+}
+
+impl GroundedRelevanceSpecializationPolicy {
+    pub fn new(
+        max_evidence_episodes: usize,
+        max_candidate_facts: usize,
+        max_specializations: usize,
+    ) -> Option<Self> {
+        if max_evidence_episodes == 0 || max_candidate_facts == 0 || max_specializations == 0 {
+            return None;
+        }
+
+        Some(Self {
+            max_evidence_episodes,
+            max_candidate_facts,
+            max_specializations,
+        })
+    }
+
+    pub fn max_evidence_episodes(self) -> usize {
+        self.max_evidence_episodes
+    }
+
+    pub fn max_candidate_facts(self) -> usize {
+        self.max_candidate_facts
+    }
+
+    pub fn max_specializations(self) -> usize {
+        self.max_specializations
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct GroundedRelevanceSpecializationCandidate {
+    source_transformation: CognitiveStructure,
+    source_context: Option<ContextPremiseSet>,
+    source_effect_kind: TransitionEffectKind,
+    source_effect_fact: CognitiveStructure,
+    added_premise: CognitiveStructure,
+    specialized_context: ContextPremiseSet,
+    retained_support_count: u64,
+    excluded_counterexample_count: u64,
+    retained_counterexample_count: u64,
+}
+
+impl GroundedRelevanceSpecializationCandidate {
+    pub fn added_premise(&self) -> &CognitiveStructure {
+        &self.added_premise
+    }
+
+    pub fn specialized_context(&self) -> &ContextPremiseSet {
+        &self.specialized_context
+    }
+
+    pub fn retained_support_count(&self) -> u64 {
+        self.retained_support_count
+    }
+
+    pub fn excluded_counterexample_count(&self) -> u64 {
+        self.excluded_counterexample_count
+    }
+
+    pub fn retained_counterexample_count(&self) -> u64 {
+        self.retained_counterexample_count
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct GroundedRelevanceSpecializationResult {
+    considered_evidence_count: usize,
+    candidate_fact_count: usize,
+    evaluated_candidate_fact_count: usize,
+    admitted_before_frontier: usize,
+    selected: Vec<GroundedRelevanceSpecializationCandidate>,
+}
+
+impl GroundedRelevanceSpecializationResult {
+    pub fn considered_evidence_count(&self) -> usize {
+        self.considered_evidence_count
+    }
+
+    pub fn candidate_fact_count(&self) -> usize {
+        self.candidate_fact_count
+    }
+
+    pub fn evaluated_candidate_fact_count(&self) -> usize {
+        self.evaluated_candidate_fact_count
+    }
+
+    pub fn candidate_generation_truncated(&self) -> bool {
+        self.candidate_fact_count > self.evaluated_candidate_fact_count
+    }
+
+    pub fn admitted_before_frontier(&self) -> usize {
+        self.admitted_before_frontier
+    }
+
+    pub fn selected(&self) -> &[GroundedRelevanceSpecializationCandidate] {
+        &self.selected
+    }
+
+    pub fn selected_count(&self) -> usize {
+        self.selected.len()
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, Hash, PartialEq)]
+pub struct GroundedRelevanceSpecialization;
+
+impl GroundedRelevanceSpecialization {
+    pub fn discover(
+        hypothesis: &GroundedExplanatoryHypothesis,
+        evidence: &[GroundedTransformationEpisode],
+        policy: GroundedRelevanceSpecializationPolicy,
+    ) -> GroundedRelevanceSpecializationResult {
+        let mut supported_pool = evidence
+            .iter()
+            .filter(|episode| {
+                hypothesis.assess(episode) == GroundedExplanatoryEpisodeAssessment::Supported
+            })
+            .collect::<Vec<_>>();
+
+        let mut counterexample_pool = evidence
+            .iter()
+            .filter(|episode| {
+                hypothesis.assess(episode) == GroundedExplanatoryEpisodeAssessment::Counterexample
+            })
+            .collect::<Vec<_>>();
+
+        supported_pool.sort_by(|left, right| r0_compare_episodes(left, right));
+
+        counterexample_pool.sort_by(|left, right| r0_compare_episodes(left, right));
+
+        let mut considered = Vec::new();
+        let mut support_index = 0_usize;
+        let mut counterexample_index = 0_usize;
+
+        while considered.len() < policy.max_evidence_episodes()
+            && (support_index < supported_pool.len()
+                || counterexample_index < counterexample_pool.len())
+        {
+            if support_index < supported_pool.len() {
+                considered.push(supported_pool[support_index]);
+                support_index = support_index.saturating_add(1);
+
+                if considered.len() >= policy.max_evidence_episodes() {
+                    break;
+                }
+            }
+
+            if counterexample_index < counterexample_pool.len() {
+                considered.push(counterexample_pool[counterexample_index]);
+                counterexample_index = counterexample_index.saturating_add(1);
+            }
+        }
+
+        let supported = considered
+            .iter()
+            .copied()
+            .filter(|episode| {
+                hypothesis.assess(episode) == GroundedExplanatoryEpisodeAssessment::Supported
+            })
+            .collect::<Vec<_>>();
+
+        let counterexamples = considered
+            .iter()
+            .copied()
+            .filter(|episode| {
+                hypothesis.assess(episode) == GroundedExplanatoryEpisodeAssessment::Counterexample
+            })
+            .collect::<Vec<_>>();
+
+        if supported.is_empty() || counterexamples.is_empty() {
+            return GroundedRelevanceSpecializationResult {
+                considered_evidence_count: considered.len(),
+                candidate_fact_count: 0,
+                evaluated_candidate_fact_count: 0,
+                admitted_before_frontier: 0,
+                selected: Vec::new(),
+            };
+        }
+
+        let existing_context = hypothesis
+            .context()
+            .map_or(&[][..], ContextPremiseSet::premises);
+
+        let mut candidate_facts = supported
+            .iter()
+            .flat_map(|episode| episode.before().facts().iter().cloned())
+            .filter(|fact| !existing_context.iter().any(|existing| existing == fact))
+            .collect::<Vec<_>>();
+
+        candidate_facts.sort_by(PredicateDiscovery::compare_structure);
+        candidate_facts.dedup();
+
+        let candidate_fact_count = candidate_facts.len();
+
+        candidate_facts.sort_by(|left, right| {
+            let left_support = supported
+                .iter()
+                .filter(|episode| episode.before().contains_fact(left))
+                .count();
+
+            let right_support = supported
+                .iter()
+                .filter(|episode| episode.before().contains_fact(right))
+                .count();
+
+            let left_excluded = counterexamples
+                .iter()
+                .filter(|episode| !episode.before().contains_fact(left))
+                .count();
+
+            let right_excluded = counterexamples
+                .iter()
+                .filter(|episode| !episode.before().contains_fact(right))
+                .count();
+
+            right_excluded
+                .cmp(&left_excluded)
+                .then_with(|| right_support.cmp(&left_support))
+                .then_with(|| PredicateDiscovery::compare_structure(left, right))
+        });
+
+        candidate_facts.truncate(policy.max_candidate_facts());
+
+        let evaluated_candidate_fact_count = candidate_facts.len();
+        let mut admitted = Vec::new();
+
+        for fact in candidate_facts {
+            let retained_support_count = supported
+                .iter()
+                .filter(|episode| episode.before().contains_fact(&fact))
+                .count() as u64;
+
+            let retained_counterexample_count = counterexamples
+                .iter()
+                .filter(|episode| episode.before().contains_fact(&fact))
+                .count() as u64;
+
+            let excluded_counterexample_count =
+                (counterexamples.len() as u64).saturating_sub(retained_counterexample_count);
+
+            if retained_support_count == 0 || excluded_counterexample_count == 0 {
+                continue;
+            }
+
+            let mut premises = existing_context.to_vec();
+            premises.push(fact.clone());
+
+            let Some(specialized_context) = ContextPremiseSet::new(premises) else {
+                continue;
+            };
+
+            admitted.push(GroundedRelevanceSpecializationCandidate {
+                source_transformation: hypothesis.transformation().clone(),
+                source_context: hypothesis.context().cloned(),
+                source_effect_kind: hypothesis.effect_kind(),
+                source_effect_fact: hypothesis.effect_fact().clone(),
+                added_premise: fact,
+                specialized_context,
+                retained_support_count,
+                excluded_counterexample_count,
+                retained_counterexample_count,
+            });
+        }
+
+        admitted.sort_by(|left, right| {
+            right
+                .excluded_counterexample_count()
+                .cmp(&left.excluded_counterexample_count())
+                .then_with(|| {
+                    left.retained_counterexample_count()
+                        .cmp(&right.retained_counterexample_count())
+                })
+                .then_with(|| {
+                    right
+                        .retained_support_count()
+                        .cmp(&left.retained_support_count())
+                })
+                .then_with(|| {
+                    PredicateDiscovery::compare_structure(
+                        left.added_premise(),
+                        right.added_premise(),
+                    )
+                })
+        });
+
+        let admitted_before_frontier = admitted.len();
+        admitted.truncate(policy.max_specializations());
+
+        GroundedRelevanceSpecializationResult {
+            considered_evidence_count: considered.len(),
+            candidate_fact_count,
+            evaluated_candidate_fact_count,
+            admitted_before_frontier,
+            selected: admitted,
+        }
+    }
+}
+
+fn r0_compare_fact_slices(
+    left: &[CognitiveStructure],
+    right: &[CognitiveStructure],
+) -> std::cmp::Ordering {
+    for (left_fact, right_fact) in left.iter().zip(right.iter()) {
+        let ordering = PredicateDiscovery::compare_structure(left_fact, right_fact);
+
+        if ordering != std::cmp::Ordering::Equal {
+            return ordering;
+        }
+    }
+
+    left.len().cmp(&right.len())
+}
+
+fn r0_compare_episodes(
+    left: &GroundedTransformationEpisode,
+    right: &GroundedTransformationEpisode,
+) -> std::cmp::Ordering {
+    PredicateDiscovery::compare_structure(left.transformation(), right.transformation())
+        .then_with(|| r0_compare_fact_slices(left.before().facts(), right.before().facts()))
+        .then_with(|| r0_compare_fact_slices(left.after().facts(), right.after().facts()))
+}
+
+impl GroundedRelevanceSpecializationCandidate {
+    pub fn resolved(&self) -> bool {
+        self.retained_support_count > 0 && self.retained_counterexample_count == 0
+    }
+
+    pub fn matches_source(&self, source: &GroundedExplanatoryHypothesis) -> bool {
+        &self.source_transformation == source.transformation()
+            && self.source_context.as_ref() == source.context()
+            && self.source_effect_kind == source.effect_kind()
+            && &self.source_effect_fact == source.effect_fact()
+    }
+
+    pub fn materialize_resolved(
+        &self,
+        source: &GroundedExplanatoryHypothesis,
+    ) -> Option<GroundedExplanatoryHypothesis> {
+        if !self.resolved() || !self.matches_source(source) {
+            return None;
+        }
+
+        Some(GroundedExplanatoryHypothesis {
+            transformation: self.source_transformation.clone(),
+            context: Some(self.specialized_context.clone()),
+            effect_kind: self.source_effect_kind,
+            effect_fact: self.source_effect_fact.clone(),
+            support_count: self.retained_support_count,
+            opportunity_count: self
+                .retained_support_count
+                .saturating_add(self.retained_counterexample_count),
+            counterexample_count: self.retained_counterexample_count,
+        })
+    }
+}
+
+impl GroundedRelevanceSpecializationCandidate {
+    pub fn materialize_refinement_seed(
+        &self,
+        source: &GroundedExplanatoryHypothesis,
+    ) -> Option<GroundedExplanatoryHypothesis> {
+        if !self.matches_source(source)
+            || self.retained_support_count == 0
+            || self.excluded_counterexample_count == 0
+        {
+            return None;
+        }
+
+        Some(GroundedExplanatoryHypothesis {
+            transformation: self.source_transformation.clone(),
+            context: Some(self.specialized_context.clone()),
+            effect_kind: self.source_effect_kind,
+            effect_fact: self.source_effect_fact.clone(),
+            support_count: self.retained_support_count,
+            opportunity_count: self
+                .retained_support_count
+                .saturating_add(self.retained_counterexample_count),
+            counterexample_count: self.retained_counterexample_count,
+        })
+    }
+}
