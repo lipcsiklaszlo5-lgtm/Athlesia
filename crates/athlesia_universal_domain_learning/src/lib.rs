@@ -9831,3 +9831,293 @@ impl UniversalGroundedActionDiscrimination {
         )
     }
 }
+
+// ============================================================================
+// K0-D — PREDICTION OUTCOME EVIDENCE
+// ============================================================================
+//
+// This layer closes one empirical step:
+//
+//     executable prediction -> grounded observation -> model evidence
+//
+// The structural world model and evidence about that model remain separate.
+//
+// Existing M47 transition semantics are authoritative:
+//
+// Added(X):
+//     opportunity when X is absent before
+//     supported when X is present after
+//     counterevidenced when X remains absent after
+//
+// Removed(X):
+//     opportunity when X is present before
+//     supported when X is absent after
+//     counterevidenced when X remains present after
+//
+// Only explicitly predicted effects are judged.
+//
+// Predictive silence remains unresolved and contributes neither support nor
+// counterevidence.
+//
+// One observation does not mutate, eliminate, revise, or rewrite a model.
+
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub enum GroundedExecutableModelEvidenceStatus {
+    Unresolved,
+    Supported,
+    Counterevidenced,
+    MixedEvidence,
+    PredictionConflict,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct GroundedExecutableModelEvidence {
+    model: GroundedExecutableWorldModel,
+    prediction: GroundedStructuralPrediction,
+    supported_effect_count: usize,
+    counterexample_effect_count: usize,
+    status: GroundedExecutableModelEvidenceStatus,
+}
+
+impl GroundedExecutableModelEvidence {
+    pub fn model(&self) -> &GroundedExecutableWorldModel {
+        &self.model
+    }
+
+    pub fn prediction(&self) -> &GroundedStructuralPrediction {
+        &self.prediction
+    }
+
+    pub fn supported_effect_count(&self) -> usize {
+        self.supported_effect_count
+    }
+
+    pub fn counterexample_effect_count(&self) -> usize {
+        self.counterexample_effect_count
+    }
+
+    pub fn judged_effect_count(&self) -> usize {
+        self.supported_effect_count
+            .saturating_add(self.counterexample_effect_count)
+    }
+
+    pub fn status(&self) -> GroundedExecutableModelEvidenceStatus {
+        self.status
+    }
+
+    pub fn has_support(&self) -> bool {
+        self.supported_effect_count > 0
+    }
+
+    pub fn has_counterevidence(&self) -> bool {
+        self.counterexample_effect_count > 0
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct GroundedExecutableFrontierEvidence {
+    transformation: CognitiveStructure,
+    assessments: Vec<GroundedExecutableModelEvidence>,
+    supported_model_count: usize,
+    counterevidenced_model_count: usize,
+    mixed_model_count: usize,
+    unresolved_model_count: usize,
+    conflict_model_count: usize,
+}
+
+impl GroundedExecutableFrontierEvidence {
+    pub fn transformation(&self) -> &CognitiveStructure {
+        &self.transformation
+    }
+
+    pub fn assessments(&self) -> &[GroundedExecutableModelEvidence] {
+        &self.assessments
+    }
+
+    pub fn model_count(&self) -> usize {
+        self.assessments.len()
+    }
+
+    pub fn supported_model_count(&self) -> usize {
+        self.supported_model_count
+    }
+
+    pub fn counterevidenced_model_count(&self) -> usize {
+        self.counterevidenced_model_count
+    }
+
+    pub fn mixed_model_count(&self) -> usize {
+        self.mixed_model_count
+    }
+
+    pub fn unresolved_model_count(&self) -> usize {
+        self.unresolved_model_count
+    }
+
+    pub fn conflict_model_count(&self) -> usize {
+        self.conflict_model_count
+    }
+
+    pub fn assessment_at(&self, index: usize) -> Option<&GroundedExecutableModelEvidence> {
+        self.assessments.get(index)
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, Hash, PartialEq)]
+pub struct GroundedPredictionOutcomeEvidenceEngine;
+
+impl GroundedPredictionOutcomeEvidenceEngine {
+    pub const fn new() -> Self {
+        Self
+    }
+
+    fn evidence_status(
+        prediction_status: GroundedStructuralPredictionStatus,
+        supported_effect_count: usize,
+        counterexample_effect_count: usize,
+    ) -> GroundedExecutableModelEvidenceStatus {
+        if prediction_status == GroundedStructuralPredictionStatus::EffectConflict {
+            return GroundedExecutableModelEvidenceStatus::PredictionConflict;
+        }
+
+        if supported_effect_count > 0 && counterexample_effect_count > 0 {
+            return GroundedExecutableModelEvidenceStatus::MixedEvidence;
+        }
+
+        if counterexample_effect_count > 0 {
+            return GroundedExecutableModelEvidenceStatus::Counterevidenced;
+        }
+
+        if supported_effect_count > 0 {
+            return GroundedExecutableModelEvidenceStatus::Supported;
+        }
+
+        GroundedExecutableModelEvidenceStatus::Unresolved
+    }
+
+    fn assess_model(
+        before: &GroundedStateSnapshot,
+        after: &GroundedStateSnapshot,
+        transformation: &CognitiveStructure,
+        model: &GroundedExecutableWorldModel,
+    ) -> GroundedExecutableModelEvidence {
+        let prediction = model.predict(before, transformation);
+
+        if prediction.status() != GroundedStructuralPredictionStatus::Predicted {
+            let status = Self::evidence_status(prediction.status(), 0, 0);
+
+            return GroundedExecutableModelEvidence {
+                model: model.clone(),
+                prediction,
+                supported_effect_count: 0,
+                counterexample_effect_count: 0,
+                status,
+            };
+        }
+
+        let mut supported_effect_count = 0_usize;
+        let mut counterexample_effect_count = 0_usize;
+
+        for fact in prediction.additions() {
+            if after.contains_fact(fact) {
+                supported_effect_count = supported_effect_count.saturating_add(1);
+            } else {
+                counterexample_effect_count = counterexample_effect_count.saturating_add(1);
+            }
+        }
+
+        for fact in prediction.removals() {
+            if after.contains_fact(fact) {
+                counterexample_effect_count = counterexample_effect_count.saturating_add(1);
+            } else {
+                supported_effect_count = supported_effect_count.saturating_add(1);
+            }
+        }
+
+        let status = Self::evidence_status(
+            prediction.status(),
+            supported_effect_count,
+            counterexample_effect_count,
+        );
+
+        GroundedExecutableModelEvidence {
+            model: model.clone(),
+            prediction,
+            supported_effect_count,
+            counterexample_effect_count,
+            status,
+        }
+    }
+
+    pub fn evaluate(
+        before: &GroundedStateSnapshot,
+        after: &GroundedStateSnapshot,
+        transformation: &CognitiveStructure,
+        frontier: &GroundedExecutableModelFrontier,
+    ) -> GroundedExecutableFrontierEvidence {
+        let assessments = frontier
+            .models()
+            .iter()
+            .map(|model| Self::assess_model(before, after, transformation, model))
+            .collect::<Vec<_>>();
+
+        let supported_model_count = assessments
+            .iter()
+            .filter(|assessment| {
+                assessment.status() == GroundedExecutableModelEvidenceStatus::Supported
+            })
+            .count();
+
+        let counterevidenced_model_count = assessments
+            .iter()
+            .filter(|assessment| {
+                assessment.status() == GroundedExecutableModelEvidenceStatus::Counterevidenced
+            })
+            .count();
+
+        let mixed_model_count = assessments
+            .iter()
+            .filter(|assessment| {
+                assessment.status() == GroundedExecutableModelEvidenceStatus::MixedEvidence
+            })
+            .count();
+
+        let unresolved_model_count = assessments
+            .iter()
+            .filter(|assessment| {
+                assessment.status() == GroundedExecutableModelEvidenceStatus::Unresolved
+            })
+            .count();
+
+        let conflict_model_count = assessments
+            .iter()
+            .filter(|assessment| {
+                assessment.status() == GroundedExecutableModelEvidenceStatus::PredictionConflict
+            })
+            .count();
+
+        GroundedExecutableFrontierEvidence {
+            transformation: transformation.clone(),
+            assessments,
+            supported_model_count,
+            counterevidenced_model_count,
+            mixed_model_count,
+            unresolved_model_count,
+            conflict_model_count,
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, Hash, PartialEq)]
+pub struct UniversalGroundedPredictionOutcomeEvidence;
+
+impl UniversalGroundedPredictionOutcomeEvidence {
+    pub fn evaluate(
+        before: &GroundedStateSnapshot,
+        after: &GroundedStateSnapshot,
+        transformation: &CognitiveStructure,
+        frontier: &GroundedExecutableModelFrontier,
+    ) -> GroundedExecutableFrontierEvidence {
+        GroundedPredictionOutcomeEvidenceEngine::evaluate(before, after, transformation, frontier)
+    }
+}
