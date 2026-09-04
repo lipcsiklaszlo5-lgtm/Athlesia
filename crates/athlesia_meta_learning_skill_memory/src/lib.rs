@@ -6562,3 +6562,401 @@ impl GroundedSkillCorrespondenceInference {
         }
     }
 }
+
+// ============================================================================
+// T0-B — GROUNDED PARTIAL SKILL TRANSFER
+// ============================================================================
+//
+// Full skill retrieval remains conservative: every term of every planned step
+// must resolve before a complete reusable plan is emitted.
+//
+// Partial transfer serves a narrower epistemic purpose. Once a novel situation
+// has grounded enough structural correspondence, a learned skill may already
+// justify the next required state and action even when that action's future
+// outcome is still unknown. Unknown outcomes remain explicit None values.
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct GroundedPartialSkillTransferCandidate {
+    source_record: CompressedSkillRecord,
+    step_index: usize,
+    required_state: CognitiveStructure,
+    action: CognitiveStructure,
+    predicted_outcome: Option<CognitiveStructure>,
+    effective_confidence_floor: CognitiveSignal,
+}
+
+impl GroundedPartialSkillTransferCandidate {
+    pub fn source_record(&self) -> &CompressedSkillRecord {
+        &self.source_record
+    }
+
+    pub fn step_index(&self) -> usize {
+        self.step_index
+    }
+
+    pub fn required_state(&self) -> &CognitiveStructure {
+        &self.required_state
+    }
+
+    pub fn action(&self) -> &CognitiveStructure {
+        &self.action
+    }
+
+    pub fn predicted_outcome(&self) -> Option<&CognitiveStructure> {
+        self.predicted_outcome.as_ref()
+    }
+
+    pub fn effective_confidence_floor(&self) -> CognitiveSignal {
+        self.effective_confidence_floor
+    }
+
+    pub fn outcome_known(&self) -> bool {
+        self.predicted_outcome.is_some()
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct GroundedPartialSkillTransferResult {
+    input_record_count: usize,
+    unique_record_count: usize,
+    considered_record_count: usize,
+    record_frontier_truncated: bool,
+    evaluation_count: usize,
+    evaluation_frontier_truncated: bool,
+    binding_frontier_exceeded: bool,
+    binding_conflict: bool,
+    binding_threshold_failed: bool,
+    rejected_support_count: usize,
+    rejected_step_bound_count: usize,
+    rejected_evidence_count: usize,
+    rejected_anchor_mismatch_count: usize,
+    rejected_unresolved_required_or_action_count: usize,
+    candidates_before_frontier: usize,
+    candidate_frontier_truncated: bool,
+    candidates: Vec<GroundedPartialSkillTransferCandidate>,
+}
+
+impl GroundedPartialSkillTransferResult {
+    pub fn input_record_count(&self) -> usize {
+        self.input_record_count
+    }
+
+    pub fn unique_record_count(&self) -> usize {
+        self.unique_record_count
+    }
+
+    pub fn considered_record_count(&self) -> usize {
+        self.considered_record_count
+    }
+
+    pub fn record_frontier_truncated(&self) -> bool {
+        self.record_frontier_truncated
+    }
+
+    pub fn evaluation_count(&self) -> usize {
+        self.evaluation_count
+    }
+
+    pub fn evaluation_frontier_truncated(&self) -> bool {
+        self.evaluation_frontier_truncated
+    }
+
+    pub fn binding_frontier_exceeded(&self) -> bool {
+        self.binding_frontier_exceeded
+    }
+
+    pub fn binding_conflict(&self) -> bool {
+        self.binding_conflict
+    }
+
+    pub fn binding_threshold_failed(&self) -> bool {
+        self.binding_threshold_failed
+    }
+
+    pub fn rejected_support_count(&self) -> usize {
+        self.rejected_support_count
+    }
+
+    pub fn rejected_step_bound_count(&self) -> usize {
+        self.rejected_step_bound_count
+    }
+
+    pub fn rejected_evidence_count(&self) -> usize {
+        self.rejected_evidence_count
+    }
+
+    pub fn rejected_anchor_mismatch_count(&self) -> usize {
+        self.rejected_anchor_mismatch_count
+    }
+
+    pub fn rejected_unresolved_required_or_action_count(&self) -> usize {
+        self.rejected_unresolved_required_or_action_count
+    }
+
+    pub fn candidates_before_frontier(&self) -> usize {
+        self.candidates_before_frontier
+    }
+
+    pub fn candidate_frontier_truncated(&self) -> bool {
+        self.candidate_frontier_truncated
+    }
+
+    pub fn candidates(&self) -> &[GroundedPartialSkillTransferCandidate] {
+        &self.candidates
+    }
+
+    pub fn candidate_count(&self) -> usize {
+        self.candidates.len()
+    }
+
+    pub fn abstained(&self) -> bool {
+        self.candidates.is_empty()
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct GroundedPartialSkillTransfer;
+
+impl GroundedPartialSkillTransfer {
+    fn empty(
+        input_record_count: usize,
+        binding_frontier_exceeded: bool,
+        binding_conflict: bool,
+        binding_threshold_failed: bool,
+    ) -> GroundedPartialSkillTransferResult {
+        GroundedPartialSkillTransferResult {
+            input_record_count,
+            unique_record_count: 0,
+            considered_record_count: 0,
+            record_frontier_truncated: false,
+            evaluation_count: 0,
+            evaluation_frontier_truncated: false,
+            binding_frontier_exceeded,
+            binding_conflict,
+            binding_threshold_failed,
+            rejected_support_count: 0,
+            rejected_step_bound_count: 0,
+            rejected_evidence_count: 0,
+            rejected_anchor_mismatch_count: 0,
+            rejected_unresolved_required_or_action_count: 0,
+            candidates_before_frontier: 0,
+            candidate_frontier_truncated: false,
+            candidates: Vec::new(),
+        }
+    }
+
+    fn candidate_order(
+        left: &GroundedPartialSkillTransferCandidate,
+        right: &GroundedPartialSkillTransferCandidate,
+    ) -> std::cmp::Ordering {
+        SkillRetrievalAndReuse::record_order(left.source_record(), right.source_record())
+            .then_with(|| left.step_index.cmp(&right.step_index))
+            .then_with(|| format!("{left:?}").cmp(&format!("{right:?}")))
+    }
+
+    pub fn retrieve_next(
+        records: &[CompressedSkillRecord],
+        request: &GroundedSkillReuseRequest,
+        current_state: &CognitiveStructure,
+        policy: SkillReusePolicy,
+    ) -> GroundedPartialSkillTransferResult {
+        let bounds = policy.bounds();
+        let thresholds = policy.thresholds();
+        let input_record_count = records.len();
+
+        if request.bindings().len() > bounds.max_bindings() {
+            return Self::empty(input_record_count, true, false, false);
+        }
+
+        let mut structural = Vec::new();
+        let mut context = Vec::new();
+        let mut binding_floor: Option<CognitiveSignal> = None;
+
+        for binding in request.bindings() {
+            if binding.evidence_confidence().value()
+                < thresholds.minimum_binding_confidence().value()
+            {
+                return Self::empty(input_record_count, false, false, true);
+            }
+
+            binding_floor = Some(match binding_floor {
+                Some(current) => {
+                    SkillRetrievalAndReuse::floor(current, binding.evidence_confidence())
+                }
+                None => binding.evidence_confidence(),
+            });
+
+            let target = match binding.kind() {
+                SkillReuseSlotKind::Structural => &mut structural,
+                SkillReuseSlotKind::Context => &mut context,
+            };
+
+            if !SkillRetrievalAndReuse::insert_binding(target, binding.slot_id(), binding.value()) {
+                return Self::empty(input_record_count, false, true, false);
+            }
+        }
+
+        let mut ranked = records.to_vec();
+        ranked.sort_by(SkillRetrievalAndReuse::record_order);
+        ranked.dedup_by(|left, right| SkillRetrievalAndReuse::same_semantics(left, right));
+
+        let unique_record_count = ranked.len();
+
+        ranked.truncate(bounds.max_input_records());
+
+        let considered_record_count = ranked.len();
+        let record_frontier_truncated = unique_record_count > considered_record_count;
+
+        let mut evaluation_count = 0usize;
+        let mut evaluation_frontier_truncated = false;
+        let mut rejected_support_count = 0usize;
+        let mut rejected_step_bound_count = 0usize;
+        let mut rejected_evidence_count = 0usize;
+        let mut rejected_anchor_mismatch_count = 0usize;
+        let mut rejected_unresolved_required_or_action_count = 0usize;
+        let mut candidates = Vec::new();
+
+        for record in ranked {
+            if evaluation_count >= bounds.max_record_evaluations() {
+                evaluation_frontier_truncated = true;
+                break;
+            }
+
+            evaluation_count = evaluation_count.saturating_add(1);
+
+            if record.source_generalization_count()
+                < thresholds.minimum_source_generalization_count()
+                || record.source_support_sum() < thresholds.minimum_source_support_sum()
+            {
+                rejected_support_count = rejected_support_count.saturating_add(1);
+                continue;
+            }
+
+            if record.step_count() > bounds.max_steps() {
+                rejected_step_bound_count = rejected_step_bound_count.saturating_add(1);
+                continue;
+            }
+
+            if record.success_confidence_floor().value()
+                < thresholds.minimum_success_confidence().value()
+                || record.step_confidence_floor().value()
+                    < thresholds.minimum_step_confidence().value()
+            {
+                rejected_evidence_count = rejected_evidence_count.saturating_add(1);
+                continue;
+            }
+
+            let mut local_structural = structural.clone();
+            let mut local_context = context.clone();
+
+            if !SkillRetrievalAndReuse::bind_anchor(
+                &record,
+                record.initial_state(),
+                request.current_state(),
+                &mut local_structural,
+                &mut local_context,
+            ) || !SkillRetrievalAndReuse::bind_anchor(
+                &record,
+                record.goal_identity(),
+                request.goal_identity(),
+                &mut local_structural,
+                &mut local_context,
+            ) {
+                rejected_anchor_mismatch_count = rejected_anchor_mismatch_count.saturating_add(1);
+                continue;
+            }
+
+            let mut confidence = SkillRetrievalAndReuse::floor(
+                record.success_confidence_floor(),
+                record.step_confidence_floor(),
+            );
+
+            if let Some(binding_confidence) = binding_floor {
+                confidence = SkillRetrievalAndReuse::floor(confidence, binding_confidence);
+            }
+
+            for (step_index, step) in record.steps().iter().enumerate() {
+                let Some(required_state) = SkillRetrievalAndReuse::resolve(
+                    &record,
+                    step.required_state(),
+                    &local_structural,
+                    &local_context,
+                ) else {
+                    rejected_unresolved_required_or_action_count =
+                        rejected_unresolved_required_or_action_count.saturating_add(1);
+                    continue;
+                };
+
+                if required_state != *current_state {
+                    continue;
+                }
+
+                let Some(action) = SkillRetrievalAndReuse::resolve(
+                    &record,
+                    step.action(),
+                    &local_structural,
+                    &local_context,
+                ) else {
+                    rejected_unresolved_required_or_action_count =
+                        rejected_unresolved_required_or_action_count.saturating_add(1);
+                    continue;
+                };
+
+                let predicted_outcome = SkillRetrievalAndReuse::resolve(
+                    &record,
+                    step.observed_outcome(),
+                    &local_structural,
+                    &local_context,
+                );
+
+                candidates.push(GroundedPartialSkillTransferCandidate {
+                    source_record: record.clone(),
+                    step_index,
+                    required_state,
+                    action,
+                    predicted_outcome,
+                    effective_confidence_floor: confidence,
+                });
+            }
+        }
+
+        candidates.sort_by(Self::candidate_order);
+
+        let candidates_before_frontier = candidates.len();
+        candidates.truncate(bounds.max_selected_plans());
+
+        GroundedPartialSkillTransferResult {
+            input_record_count,
+            unique_record_count,
+            considered_record_count,
+            record_frontier_truncated,
+            evaluation_count,
+            evaluation_frontier_truncated,
+            binding_frontier_exceeded: false,
+            binding_conflict: false,
+            binding_threshold_failed: false,
+            rejected_support_count,
+            rejected_step_bound_count,
+            rejected_evidence_count,
+            rejected_anchor_mismatch_count,
+            rejected_unresolved_required_or_action_count,
+            candidates_before_frontier,
+            candidate_frontier_truncated: candidates_before_frontier > candidates.len(),
+            candidates,
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct UniversalGroundedPartialSkillTransfer;
+
+impl UniversalGroundedPartialSkillTransfer {
+    pub fn evaluate(
+        records: &[CompressedSkillRecord],
+        request: &GroundedSkillReuseRequest,
+        current_state: &CognitiveStructure,
+        policy: SkillReusePolicy,
+    ) -> GroundedPartialSkillTransferResult {
+        GroundedPartialSkillTransfer::retrieve_next(records, request, current_state, policy)
+    }
+}
