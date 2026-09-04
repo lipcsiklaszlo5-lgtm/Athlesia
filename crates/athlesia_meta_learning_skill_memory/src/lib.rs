@@ -7163,11 +7163,13 @@ impl GroundedEpisodicAnalogyTransfer {
             return Self::empty(input_observation_count, 0, 0, true, false, false, false);
         }
 
-        let source_prefix_changes_state = source_episode
-            .steps()
+        let rejected_low_confidence_count = observations
             .iter()
-            .find(|step| step.required_state() == source_episode.initial_state())
-            .map(|step| step.required_state() != step.observed_outcome());
+            .filter(|observation| {
+                observation.evidence_confidence().value()
+                    < policy.minimum_observation_confidence().value()
+            })
+            .count();
 
         #[derive(Clone, Debug, Eq, PartialEq)]
         struct PrefixCluster {
@@ -7177,97 +7179,15 @@ impl GroundedEpisodicAnalogyTransfer {
             confidence_floor: CognitiveSignal,
         }
 
-        let mut rejected_low_confidence_count = 0usize;
-        let mut clusters: Vec<PrefixCluster> = Vec::new();
-
-        for observation in observations {
-            if observation.evidence_confidence().value()
-                < policy.minimum_observation_confidence().value()
-            {
-                rejected_low_confidence_count = rejected_low_confidence_count.saturating_add(1);
-                continue;
-            }
-
-            if observation.required_state() != target_initial_state {
-                continue;
-            }
-
-            let target_changes_state =
-                observation.required_state() != observation.observed_outcome();
-
-            if source_prefix_changes_state
-                .is_some_and(|source_changes_state| source_changes_state != target_changes_state)
-            {
-                continue;
-            }
-
-            if let Some(existing) = clusters.iter_mut().find(|cluster| {
-                cluster.action == *observation.action()
-                    && cluster.outcome == *observation.observed_outcome()
-            }) {
-                existing.support_count = existing.support_count.saturating_add(1);
-                existing.confidence_floor =
-                    Self::floor(existing.confidence_floor, observation.evidence_confidence());
-            } else {
-                clusters.push(PrefixCluster {
-                    action: observation.action().clone(),
-                    outcome: observation.observed_outcome().clone(),
-                    support_count: 1,
-                    confidence_floor: observation.evidence_confidence(),
-                });
-            }
-        }
-
-        let considered_observation_count = clusters
-            .iter()
-            .map(|cluster| cluster.support_count)
-            .sum::<usize>();
-
-        if clusters.is_empty() {
-            return Self::empty(
-                input_observation_count,
-                considered_observation_count,
-                rejected_low_confidence_count,
-                false,
-                false,
-                false,
-                false,
-            );
-        }
-
-        clusters.sort_by(|left, right| {
-            right
-                .support_count
-                .cmp(&left.support_count)
-                .then_with(|| left.action.cmp(&right.action))
-                .then_with(|| left.outcome.cmp(&right.outcome))
-        });
-
-        let conflicting_evidence = clusters
-            .get(1)
-            .is_some_and(|runner_up| runner_up.support_count == clusters[0].support_count);
-
-        if conflicting_evidence {
-            return Self::empty(
-                input_observation_count,
-                considered_observation_count,
-                rejected_low_confidence_count,
-                false,
-                true,
-                false,
-                false,
-            );
-        }
-
         let source_steps = source_episode.steps();
 
-        let Some(prefix_index) = source_steps
+        let Some(mut source_index) = source_steps
             .iter()
             .position(|step| step.required_state() == source_episode.initial_state())
         else {
             return Self::empty(
                 input_observation_count,
-                considered_observation_count,
+                0,
                 rejected_low_confidence_count,
                 false,
                 false,
@@ -7276,133 +7196,388 @@ impl GroundedEpisodicAnalogyTransfer {
             );
         };
 
-        let Some(next_step) = source_steps.get(prefix_index.saturating_add(1)) else {
-            return Self::empty(
-                input_observation_count,
-                considered_observation_count,
-                rejected_low_confidence_count,
-                false,
-                false,
-                false,
-                false,
-            );
-        };
-
-        let prefix_step = &source_steps[prefix_index];
-
-        if prefix_step.evidence_confidence().value()
-            < policy.minimum_observation_confidence().value()
-            || next_step.evidence_confidence().value()
-                < policy.minimum_observation_confidence().value()
-        {
-            return Self::empty(
-                input_observation_count,
-                considered_observation_count,
-                rejected_low_confidence_count,
-                false,
-                false,
-                true,
-                false,
-            );
-        }
-
-        let selected = &clusters[0];
         let mut correspondences = Vec::new();
+        let mut current_target_state = target_initial_state.clone();
+        let mut considered_observation_count = 0usize;
+        let mut matched_step_count = 0usize;
+        let mut path_confidence_floor: Option<CognitiveSignal> = None;
+        let mut anchors_bound = false;
 
-        let consistent =
-            Self::bind(
-                &mut correspondences,
-                source_episode.initial_state(),
-                target_initial_state,
-            ) && Self::bind(
-                &mut correspondences,
-                source_episode.goal_identity(),
-                target_goal_identity,
-            ) && Self::bind(
-                &mut correspondences,
-                prefix_step.required_state(),
-                target_initial_state,
-            ) && Self::bind(&mut correspondences, prefix_step.action(), &selected.action)
-                && Self::bind(
-                    &mut correspondences,
-                    prefix_step.observed_outcome(),
-                    &selected.outcome,
+        loop {
+            let Some(source_step) = source_steps.get(source_index) else {
+                return Self::empty(
+                    input_observation_count,
+                    considered_observation_count,
+                    rejected_low_confidence_count,
+                    false,
+                    false,
+                    false,
+                    false,
+                );
+            };
+
+            let source_changes_state =
+                source_step.required_state() != source_step.observed_outcome();
+
+            let mut clusters: Vec<PrefixCluster> = Vec::new();
+
+            for observation in observations {
+                if observation.evidence_confidence().value()
+                    < policy.minimum_observation_confidence().value()
+                {
+                    continue;
+                }
+
+                if observation.required_state() != &current_target_state {
+                    continue;
+                }
+
+                let target_changes_state =
+                    observation.required_state() != observation.observed_outcome();
+
+                if source_changes_state != target_changes_state {
+                    continue;
+                }
+
+                if let Some(existing) = clusters.iter_mut().find(|cluster| {
+                    cluster.action == *observation.action()
+                        && cluster.outcome == *observation.observed_outcome()
+                }) {
+                    existing.support_count = existing.support_count.saturating_add(1);
+                    existing.confidence_floor =
+                        Self::floor(existing.confidence_floor, observation.evidence_confidence());
+                } else {
+                    clusters.push(PrefixCluster {
+                        action: observation.action().clone(),
+                        outcome: observation.observed_outcome().clone(),
+                        support_count: 1,
+                        confidence_floor: observation.evidence_confidence(),
+                    });
+                }
+            }
+
+            let depth_considered = clusters
+                .iter()
+                .map(|cluster| cluster.support_count)
+                .sum::<usize>();
+
+            considered_observation_count =
+                considered_observation_count.saturating_add(depth_considered);
+
+            if clusters.is_empty() {
+                if matched_step_count == 0 {
+                    return Self::empty(
+                        input_observation_count,
+                        considered_observation_count,
+                        rejected_low_confidence_count,
+                        false,
+                        false,
+                        false,
+                        false,
+                    );
+                }
+
+                if source_step.evidence_confidence().value()
+                    < policy.minimum_observation_confidence().value()
+                {
+                    return Self::empty(
+                        input_observation_count,
+                        considered_observation_count,
+                        rejected_low_confidence_count,
+                        false,
+                        false,
+                        true,
+                        false,
+                    );
+                }
+
+                let Some(required_state) =
+                    Self::resolve(&correspondences, source_step.required_state())
+                else {
+                    return Self::empty(
+                        input_observation_count,
+                        considered_observation_count,
+                        rejected_low_confidence_count,
+                        false,
+                        false,
+                        false,
+                        false,
+                    );
+                };
+
+                if required_state != current_target_state {
+                    return Self::empty(
+                        input_observation_count,
+                        considered_observation_count,
+                        rejected_low_confidence_count,
+                        false,
+                        false,
+                        false,
+                        true,
+                    );
+                }
+
+                let Some(action) = Self::resolve(&correspondences, source_step.action()) else {
+                    return Self::empty(
+                        input_observation_count,
+                        considered_observation_count,
+                        rejected_low_confidence_count,
+                        false,
+                        false,
+                        false,
+                        false,
+                    );
+                };
+
+                let predicted_outcome =
+                    Self::resolve(&correspondences, source_step.observed_outcome());
+
+                let confidence = path_confidence_floor.map_or(
+                    source_step.evidence_confidence(),
+                    |path_confidence| {
+                        Self::floor(path_confidence, source_step.evidence_confidence())
+                    },
                 );
 
-        if !consistent {
-            return Self::empty(
-                input_observation_count,
-                considered_observation_count,
-                rejected_low_confidence_count,
-                false,
-                false,
-                false,
-                true,
+                return GroundedEpisodicAnalogyResult {
+                    input_observation_count,
+                    considered_observation_count,
+                    rejected_low_confidence_count,
+                    observation_frontier_exceeded: false,
+                    conflicting_evidence: false,
+                    source_evidence_below_threshold: false,
+                    correspondence_conflict: false,
+                    candidates: vec![GroundedEpisodicAnalogyCandidate {
+                        source_step_index: source_index,
+                        required_state,
+                        action,
+                        predicted_outcome,
+                        evidence_confidence_floor: confidence,
+                    }],
+                };
+            }
+
+            clusters.sort_by(|left, right| {
+                right
+                    .support_count
+                    .cmp(&left.support_count)
+                    .then_with(|| left.action.cmp(&right.action))
+                    .then_with(|| left.outcome.cmp(&right.outcome))
+            });
+
+            let conflicting_evidence = clusters
+                .get(1)
+                .is_some_and(|runner_up| runner_up.support_count == clusters[0].support_count);
+
+            if conflicting_evidence {
+                return Self::empty(
+                    input_observation_count,
+                    considered_observation_count,
+                    rejected_low_confidence_count,
+                    false,
+                    true,
+                    false,
+                    false,
+                );
+            }
+
+            if source_step.evidence_confidence().value()
+                < policy.minimum_observation_confidence().value()
+            {
+                return Self::empty(
+                    input_observation_count,
+                    considered_observation_count,
+                    rejected_low_confidence_count,
+                    false,
+                    false,
+                    true,
+                    false,
+                );
+            }
+
+            let selected = &clusters[0];
+
+            if !anchors_bound {
+                let anchors_consistent = Self::bind(
+                    &mut correspondences,
+                    source_episode.initial_state(),
+                    target_initial_state,
+                ) && Self::bind(
+                    &mut correspondences,
+                    source_episode.goal_identity(),
+                    target_goal_identity,
+                );
+
+                if !anchors_consistent {
+                    return Self::empty(
+                        input_observation_count,
+                        considered_observation_count,
+                        rejected_low_confidence_count,
+                        false,
+                        false,
+                        false,
+                        true,
+                    );
+                }
+
+                anchors_bound = true;
+            }
+
+            if Self::resolve(&correspondences, source_step.required_state())
+                .is_some_and(|known_target| known_target != current_target_state)
+            {
+                return Self::empty(
+                    input_observation_count,
+                    considered_observation_count,
+                    rejected_low_confidence_count,
+                    false,
+                    false,
+                    false,
+                    true,
+                );
+            }
+
+            let consistent =
+                Self::bind(
+                    &mut correspondences,
+                    source_step.required_state(),
+                    &current_target_state,
+                ) && Self::bind(&mut correspondences, source_step.action(), &selected.action)
+                    && Self::bind(
+                        &mut correspondences,
+                        source_step.observed_outcome(),
+                        &selected.outcome,
+                    );
+
+            if !consistent {
+                return Self::empty(
+                    input_observation_count,
+                    considered_observation_count,
+                    rejected_low_confidence_count,
+                    false,
+                    false,
+                    false,
+                    true,
+                );
+            }
+
+            let matched_confidence =
+                Self::floor(selected.confidence_floor, source_step.evidence_confidence());
+
+            path_confidence_floor = Some(
+                path_confidence_floor.map_or(matched_confidence, |path_confidence| {
+                    Self::floor(path_confidence, matched_confidence)
+                }),
             );
-        }
 
-        let Some(required_state) = Self::resolve(&correspondences, next_step.required_state())
-        else {
-            return Self::empty(
-                input_observation_count,
-                considered_observation_count,
-                rejected_low_confidence_count,
-                false,
-                false,
-                false,
-                false,
-            );
-        };
+            matched_step_count = matched_step_count.saturating_add(1);
 
-        if required_state != selected.outcome {
-            return Self::empty(
-                input_observation_count,
-                considered_observation_count,
-                rejected_low_confidence_count,
-                false,
-                false,
-                false,
-                true,
-            );
-        }
+            let target_changes_state = selected.outcome != current_target_state;
+            current_target_state = selected.outcome.clone();
+            source_index = source_index.saturating_add(1);
 
-        let Some(action) = Self::resolve(&correspondences, next_step.action()) else {
-            return Self::empty(
-                input_observation_count,
-                considered_observation_count,
-                rejected_low_confidence_count,
-                false,
-                false,
-                false,
-                false,
-            );
-        };
+            if !target_changes_state {
+                let Some(next_step) = source_steps.get(source_index) else {
+                    return Self::empty(
+                        input_observation_count,
+                        considered_observation_count,
+                        rejected_low_confidence_count,
+                        false,
+                        false,
+                        false,
+                        false,
+                    );
+                };
 
-        let predicted_outcome = Self::resolve(&correspondences, next_step.observed_outcome());
+                if next_step.evidence_confidence().value()
+                    < policy.minimum_observation_confidence().value()
+                {
+                    return Self::empty(
+                        input_observation_count,
+                        considered_observation_count,
+                        rejected_low_confidence_count,
+                        false,
+                        false,
+                        true,
+                        false,
+                    );
+                }
 
-        let confidence = Self::floor(
-            selected.confidence_floor,
-            Self::floor(
-                prefix_step.evidence_confidence(),
-                next_step.evidence_confidence(),
-            ),
-        );
+                let Some(required_state) =
+                    Self::resolve(&correspondences, next_step.required_state())
+                else {
+                    return Self::empty(
+                        input_observation_count,
+                        considered_observation_count,
+                        rejected_low_confidence_count,
+                        false,
+                        false,
+                        false,
+                        false,
+                    );
+                };
 
-        GroundedEpisodicAnalogyResult {
-            input_observation_count,
-            considered_observation_count,
-            rejected_low_confidence_count,
-            observation_frontier_exceeded: false,
-            conflicting_evidence: false,
-            source_evidence_below_threshold: false,
-            correspondence_conflict: false,
-            candidates: vec![GroundedEpisodicAnalogyCandidate {
-                source_step_index: prefix_index.saturating_add(1),
-                required_state,
-                action,
-                predicted_outcome,
-                evidence_confidence_floor: confidence,
-            }],
+                if required_state != current_target_state {
+                    return Self::empty(
+                        input_observation_count,
+                        considered_observation_count,
+                        rejected_low_confidence_count,
+                        false,
+                        false,
+                        false,
+                        true,
+                    );
+                }
+
+                let Some(action) = Self::resolve(&correspondences, next_step.action()) else {
+                    return Self::empty(
+                        input_observation_count,
+                        considered_observation_count,
+                        rejected_low_confidence_count,
+                        false,
+                        false,
+                        false,
+                        false,
+                    );
+                };
+
+                let predicted_outcome =
+                    Self::resolve(&correspondences, next_step.observed_outcome());
+
+                let confidence = path_confidence_floor
+                    .map_or(next_step.evidence_confidence(), |path_confidence| {
+                        Self::floor(path_confidence, next_step.evidence_confidence())
+                    });
+
+                return GroundedEpisodicAnalogyResult {
+                    input_observation_count,
+                    considered_observation_count,
+                    rejected_low_confidence_count,
+                    observation_frontier_exceeded: false,
+                    conflicting_evidence: false,
+                    source_evidence_below_threshold: false,
+                    correspondence_conflict: false,
+                    candidates: vec![GroundedEpisodicAnalogyCandidate {
+                        source_step_index: source_index,
+                        required_state,
+                        action,
+                        predicted_outcome,
+                        evidence_confidence_floor: confidence,
+                    }],
+                };
+            }
+
+            if source_index >= source_steps.len() {
+                return Self::empty(
+                    input_observation_count,
+                    considered_observation_count,
+                    rejected_low_confidence_count,
+                    false,
+                    false,
+                    false,
+                    false,
+                );
+            }
         }
     }
 }
