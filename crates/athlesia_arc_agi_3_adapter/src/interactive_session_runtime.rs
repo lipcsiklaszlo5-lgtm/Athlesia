@@ -1,9 +1,9 @@
 use crate::{
+    ArcAgi3Action, ArcAgi3ActionAuthorizationStatus, ArcAgi3ActionId, ArcAgi3GameState,
+    ArcAgi3Observation, ArcAgi3Protocol,
     cognitive_protocol_bridge::{
         ArcAgi3CognitiveBridgeError, ArcAgi3CognitiveCodecError, ArcAgi3CognitiveProtocolBridge,
     },
-    ArcAgi3Action, ArcAgi3ActionAuthorizationStatus, ArcAgi3ActionId, ArcAgi3GameState,
-    ArcAgi3Observation, ArcAgi3Protocol,
 };
 use athlesia_integrated_cognitive_agent::{
     EnvironmentActionDispatch, EnvironmentInteractionEvidence,
@@ -33,6 +33,7 @@ pub enum ArcAgi3InteractiveSessionError {
     ResetCounterOverflow,
     ActionCodec(ArcAgi3CognitiveCodecError),
     FeedbackBridge(ArcAgi3CognitiveBridgeError),
+    SelfGeneratedFeedbackUnavailable,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -62,6 +63,10 @@ impl ArcAgi3SessionCommand {
 enum PendingCommandOrigin {
     Protocol,
     Executive(EnvironmentActionDispatch),
+    UnifiedExecutive {
+        source_state: athlesia_mindstone_sparse_cognition::CognitiveStructure,
+        action: athlesia_mindstone_sparse_cognition::CognitiveStructure,
+    },
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -212,6 +217,35 @@ impl ArcAgi3InteractiveSession {
         self.begin_with_origin(action, PendingCommandOrigin::Protocol)
     }
 
+    pub fn begin_unified_executive_action(
+        &mut self,
+        source_state: &athlesia_mindstone_sparse_cognition::CognitiveStructure,
+        action_structure: &athlesia_mindstone_sparse_cognition::CognitiveStructure,
+    ) -> Result<ArcAgi3SessionCommand, ArcAgi3InteractiveSessionError> {
+        self.ensure_no_pending()?;
+
+        let action = ArcAgi3CognitiveProtocolBridge::decode_action(action_structure)
+            .map_err(ArcAgi3InteractiveSessionError::ActionCodec)?;
+
+        if action.id() == ArcAgi3ActionId::Reset {
+            return Err(ArcAgi3InteractiveSessionError::ExecutiveDispatchCannotReset);
+        }
+
+        self.authorize_action(action)?;
+
+        let command = ArcAgi3SessionCommand::new(action);
+
+        self.pending = Some(PendingCommand {
+            command: command.clone(),
+            origin: PendingCommandOrigin::UnifiedExecutive {
+                source_state: source_state.clone(),
+                action: action_structure.clone(),
+            },
+        });
+
+        Ok(command)
+    }
+
     pub fn begin_dispatch(
         &mut self,
         dispatch: &EnvironmentActionDispatch,
@@ -292,6 +326,28 @@ impl ArcAgi3InteractiveSession {
 
         let evidence = match &pending.origin {
             PendingCommandOrigin::Protocol => None,
+            PendingCommandOrigin::UnifiedExecutive {
+                source_state,
+                action,
+            } => {
+                let environment_observation =
+                    athlesia_integrated_cognitive_agent::EnvironmentInteractionObservation::new(
+                        event_index,
+                        ArcAgi3CognitiveProtocolBridge::encode_observation(&observation),
+                        confidence,
+                    )
+                    .ok_or(ArcAgi3InteractiveSessionError::SelfGeneratedFeedbackUnavailable)?;
+
+                Some(
+                    EnvironmentInteractionEvidence::self_generated(
+                        source_state,
+                        action,
+                        &environment_observation,
+                    )
+                    .ok_or(ArcAgi3InteractiveSessionError::SelfGeneratedFeedbackUnavailable)?,
+                )
+            }
+
             PendingCommandOrigin::Executive(dispatch) => Some(
                 ArcAgi3CognitiveProtocolBridge::bind_feedback(
                     dispatch,

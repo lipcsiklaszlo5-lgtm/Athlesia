@@ -8374,6 +8374,40 @@ impl EnvironmentInteractionEvidence {
     ) -> &athlesia_autonomous_active_experimentation::ExperimentOutcomeObservation {
         &self.experiment_observation
     }
+
+    pub fn self_generated(
+        source_state: &CognitiveStructure,
+        action: &CognitiveStructure,
+        observation: &EnvironmentInteractionObservation,
+    ) -> Option<Self> {
+        let action_observation =
+            athlesia_core_knowledge_perceptual_grounding::ActionObservation::new(
+                observation.event_index(),
+                athlesia_core_knowledge_perceptual_grounding::ActionSource::SelfGenerated,
+                action.clone(),
+            );
+
+        let execution_observation = athlesia_executive_agency::GroundedExecutionObservation::new(
+            source_state.clone(),
+            action.clone(),
+            observation.observed_outcome().clone(),
+            observation.confidence(),
+        );
+
+        let experiment_observation =
+            athlesia_autonomous_active_experimentation::ExperimentOutcomeObservation::new(
+                source_state.clone(),
+                action.clone(),
+                observation.observed_outcome().clone(),
+                observation.confidence(),
+            )?;
+
+        Some(Self {
+            action_observation,
+            execution_observation,
+            experiment_observation,
+        })
+    }
 }
 
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]

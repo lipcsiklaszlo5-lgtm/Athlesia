@@ -1,13 +1,14 @@
 use crate::cognitive_interaction_runtime::{
     ArcAgi3CognitiveInteractionCompletion, ArcAgi3CognitiveInteractionError,
     ArcAgi3CognitiveInteractionRuntime, ArcAgi3CognitiveInteractionStep,
+    ArcAgi3ExperimentDispatchAuthority, ArcAgi3UnifiedExecutiveAuthority,
 };
 use crate::environment_transport_boundary::{
     ArcAgi3EnvironmentTransport, ArcAgi3EnvironmentTransportBoundary, ArcAgi3TransportError,
     ArcAgi3TransportFailureDisposition,
 };
-use crate::interactive_session_runtime::ArcAgi3InteractiveSessionError;
-use crate::{ArcAgi3GameId, ArcAgi3GameState};
+use crate::interactive_session_runtime::{ArcAgi3InteractiveSessionError, ArcAgi3SessionCommand};
+use crate::{ArcAgi3Action, ArcAgi3GameId, ArcAgi3GameState};
 use athlesia_integrated_cognitive_agent::{
     CognitiveCycleStateTransitionRequest, IntegratedAgentPolicy, OnlineCognitiveOrchestrationInput,
 };
@@ -55,6 +56,105 @@ pub struct ArcAgi3LiveCognitiveStep {
 impl ArcAgi3LiveCognitiveStep {
     pub fn cognitive_step(&self) -> &ArcAgi3CognitiveInteractionStep {
         &self.cognitive_step
+    }
+
+    pub fn completion(&self) -> &ArcAgi3CognitiveInteractionCompletion {
+        &self.completion
+    }
+
+    pub fn completed_cognitive_step_count(&self) -> u64 {
+        self.completed_cognitive_step_count
+    }
+}
+
+#[derive(Clone, Copy, Debug)]
+pub struct ArcAgi3LiveUnifiedActionRequest<'a> {
+    exploitation_actions: &'a [ArcAgi3Action],
+    goal: &'a athlesia_executive_agency::ExecutiveGoal,
+    goal_alignment: CognitiveSignal,
+    exploitation_execution_cost: CognitiveSignal,
+    experiment_authority: Option<ArcAgi3ExperimentDispatchAuthority<'a>>,
+    policy: athlesia_executive_agency::ExecutiveAgencyPolicy,
+    confidence: CognitiveSignal,
+}
+
+impl<'a> ArcAgi3LiveUnifiedActionRequest<'a> {
+    pub fn new(
+        exploitation_actions: &'a [ArcAgi3Action],
+        goal: &'a athlesia_executive_agency::ExecutiveGoal,
+        goal_alignment: CognitiveSignal,
+        exploitation_execution_cost: CognitiveSignal,
+        experiment_authority: Option<ArcAgi3ExperimentDispatchAuthority<'a>>,
+        policy: athlesia_executive_agency::ExecutiveAgencyPolicy,
+        confidence: CognitiveSignal,
+    ) -> Self {
+        Self {
+            exploitation_actions,
+            goal,
+            goal_alignment,
+            exploitation_execution_cost,
+            experiment_authority,
+            policy,
+            confidence,
+        }
+    }
+
+    pub fn exploitation_actions(self) -> &'a [ArcAgi3Action] {
+        self.exploitation_actions
+    }
+
+    pub fn goal(self) -> &'a athlesia_executive_agency::ExecutiveGoal {
+        self.goal
+    }
+
+    pub fn goal_alignment(self) -> CognitiveSignal {
+        self.goal_alignment
+    }
+
+    pub fn exploitation_execution_cost(self) -> CognitiveSignal {
+        self.exploitation_execution_cost
+    }
+
+    pub fn experiment_authority(self) -> Option<ArcAgi3ExperimentDispatchAuthority<'a>> {
+        self.experiment_authority
+    }
+
+    pub fn policy(self) -> athlesia_executive_agency::ExecutiveAgencyPolicy {
+        self.policy
+    }
+
+    pub fn confidence(self) -> CognitiveSignal {
+        self.confidence
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ArcAgi3LiveUnifiedStep {
+    authority: ArcAgi3UnifiedExecutiveAuthority,
+    command: ArcAgi3SessionCommand,
+    completion: ArcAgi3CognitiveInteractionCompletion,
+    completed_cognitive_step_count: u64,
+}
+
+impl ArcAgi3LiveUnifiedStep {
+    pub fn authority(&self) -> &ArcAgi3UnifiedExecutiveAuthority {
+        &self.authority
+    }
+
+    pub fn action(&self) -> ArcAgi3Action {
+        self.authority.action()
+    }
+
+    pub fn source_state(&self) -> &CognitiveStructure {
+        self.authority.source_state()
+    }
+
+    pub fn cognitive_action(&self) -> &CognitiveStructure {
+        self.authority.cognitive_action()
+    }
+
+    pub fn command(&self) -> &ArcAgi3SessionCommand {
+        &self.command
     }
 
     pub fn completion(&self) -> &ArcAgi3CognitiveInteractionCompletion {
@@ -259,6 +359,68 @@ where
         })
     }
 
+    pub fn execute_unified(
+        &mut self,
+        request: ArcAgi3LiveUnifiedActionRequest<'_>,
+    ) -> Result<Option<ArcAgi3LiveUnifiedStep>, ArcAgi3LiveEnvironmentError> {
+        self.ensure_active()?;
+
+        let Some(authority) = self.cognitive_runtime.current_unified_executive_authority(
+            request.exploitation_actions(),
+            request.goal(),
+            request.goal_alignment(),
+            request.exploitation_execution_cost(),
+            request.experiment_authority(),
+            request.policy(),
+        ) else {
+            /*
+             * Epistemic abstention is not a command.
+             *
+             * No pending state and no transport side effect.
+             */
+            return Ok(None);
+        };
+
+        let next_completed_step_count = self
+            .completed_cognitive_step_count
+            .checked_add(1)
+            .ok_or(ArcAgi3LiveEnvironmentError::CognitiveStepCounterOverflow)?;
+
+        /*
+         * C1/M48 already chose the authority.
+         * This layer performs no local action ranking.
+         */
+        let command = self
+            .cognitive_runtime
+            .begin_unified_executive_authority(&authority)?;
+
+        let completion = ArcAgi3EnvironmentTransportBoundary::complete_pending(
+            &mut self.transport,
+            &mut self.cognitive_runtime,
+            &command,
+            request.confidence(),
+        );
+
+        let completion = match completion {
+            Ok(completion) => completion,
+
+            Err(error) => {
+                self.mark_transport_failure(&error);
+
+                return Err(ArcAgi3LiveEnvironmentError::Transport(error));
+            }
+        };
+
+        self.completed_cognitive_step_count = next_completed_step_count;
+
+        Ok(Some(ArcAgi3LiveUnifiedStep {
+            authority,
+            command,
+            completion,
+            completed_cognitive_step_count: next_completed_step_count,
+        }))
+    }
+
     pub fn reset(
         &mut self,
         confidence: CognitiveSignal,
@@ -314,6 +476,16 @@ impl UniversalArcAgi3LiveEnvironmentRuntime {
             card_id,
             first_perceptual_observation_index,
         )
+    }
+
+    pub fn execute_unified<T>(
+        runtime: &mut ArcAgi3LiveEnvironmentRuntime<T>,
+        request: ArcAgi3LiveUnifiedActionRequest<'_>,
+    ) -> Result<Option<ArcAgi3LiveUnifiedStep>, ArcAgi3LiveEnvironmentError>
+    where
+        T: ArcAgi3EnvironmentTransport,
+    {
+        runtime.execute_unified(request)
     }
 
     pub fn reset<T>(

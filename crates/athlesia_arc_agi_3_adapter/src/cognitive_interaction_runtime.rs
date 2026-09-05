@@ -112,6 +112,44 @@ impl<'a> ArcAgi3ExperimentDispatchAuthority<'a> {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ArcAgi3UnifiedExecutiveAuthority {
+    source_state: CognitiveStructure,
+    selected: crate::action_grounding_bridge::ArcAgi3AuthorizedExecutiveCandidate,
+}
+
+impl ArcAgi3UnifiedExecutiveAuthority {
+    fn new(
+        source_state: CognitiveStructure,
+        selected: crate::action_grounding_bridge::ArcAgi3AuthorizedExecutiveCandidate,
+    ) -> Self {
+        Self {
+            source_state,
+            selected,
+        }
+    }
+
+    pub fn action(&self) -> crate::ArcAgi3Action {
+        self.selected.action()
+    }
+
+    pub fn cognitive_action(&self) -> &CognitiveStructure {
+        self.selected.candidate().action()
+    }
+
+    pub fn predicted_outcome(&self) -> &CognitiveStructure {
+        self.selected.candidate().predicted_outcome()
+    }
+
+    pub fn source_state(&self) -> &CognitiveStructure {
+        &self.source_state
+    }
+
+    pub fn candidate(&self) -> &athlesia_executive_agency::GroundedExecutiveActionCandidate {
+        self.selected.candidate()
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ArcAgi3CognitiveInteractionRuntime {
     session: ArcAgi3InteractiveSession,
     perception: ArcAgi3PerceptualProjection,
@@ -894,11 +932,11 @@ impl ArcAgi3CognitiveInteractionRuntime {
         authorized
     }
 
-    fn select_authorized_executive_candidate(
+    fn selected_authorized_executive_candidate(
         authorized: &[crate::action_grounding_bridge::ArcAgi3AuthorizedExecutiveCandidate],
         goal: &athlesia_executive_agency::ExecutiveGoal,
         policy: athlesia_executive_agency::ExecutiveAgencyPolicy,
-    ) -> Option<crate::ArcAgi3Action> {
+    ) -> Option<crate::action_grounding_bridge::ArcAgi3AuthorizedExecutiveCandidate> {
         if authorized.is_empty() {
             return None;
         }
@@ -928,6 +966,15 @@ impl ArcAgi3CognitiveInteractionRuntime {
                 grounded.candidate().action() == selected.action()
                     && grounded.candidate().predicted_outcome() == selected.predicted_outcome()
             })
+            .cloned()
+    }
+
+    fn select_authorized_executive_candidate(
+        authorized: &[crate::action_grounding_bridge::ArcAgi3AuthorizedExecutiveCandidate],
+        goal: &athlesia_executive_agency::ExecutiveGoal,
+        policy: athlesia_executive_agency::ExecutiveAgencyPolicy,
+    ) -> Option<crate::ArcAgi3Action> {
+        Self::selected_authorized_executive_candidate(authorized, goal, policy)
             .map(|grounded| grounded.action())
     }
 
@@ -949,15 +996,15 @@ impl ArcAgi3CognitiveInteractionRuntime {
         Self::select_authorized_executive_candidate(&authorized, goal, policy)
     }
 
-    pub fn current_unified_executive_action_selection(
+    pub fn current_unified_executive_authority(
         &self,
         exploitation_actions: &[crate::ArcAgi3Action],
         goal: &athlesia_executive_agency::ExecutiveGoal,
-        goal_alignment: athlesia_mindstone_sparse_cognition::CognitiveSignal,
-        exploitation_execution_cost: athlesia_mindstone_sparse_cognition::CognitiveSignal,
+        goal_alignment: CognitiveSignal,
+        exploitation_execution_cost: CognitiveSignal,
         experiment_authority: Option<ArcAgi3ExperimentDispatchAuthority<'_>>,
         policy: athlesia_executive_agency::ExecutiveAgencyPolicy,
-    ) -> Option<crate::ArcAgi3Action> {
+    ) -> Option<ArcAgi3UnifiedExecutiveAuthority> {
         let mut authorized = self.current_model_grounded_authorized_candidates(
             exploitation_actions,
             goal,
@@ -965,13 +1012,36 @@ impl ArcAgi3CognitiveInteractionRuntime {
             exploitation_execution_cost,
         );
 
+        let mut provenance = Vec::<(
+            crate::action_grounding_bridge::ArcAgi3AuthorizedExecutiveCandidate,
+            CognitiveStructure,
+        )>::new();
+
         /*
-         * M50 is an experiment authority, not a dispatch authority.
+         * Exploitation provenance comes from the retained grounded
+         * state itself. No caller supplies a cognitive source state.
+         */
+        if !authorized.is_empty() {
+            let grounded_state = self.current_grounded_world_state()?;
+
+            let source_state = CognitiveStructure::unordered(grounded_state.facts().to_vec())
+                .expect("retained grounded world state contains facts");
+
+            provenance.extend(
+                authorized
+                    .iter()
+                    .cloned()
+                    .map(|candidate| (candidate, source_state.clone())),
+            );
+        }
+
+        /*
+         * M50 remains experiment authority only.
          *
-         * Only an explicit ContinueExperimentation result with an actual
-         * next experiment is eligible to enter the common M48 frontier.
-         *
-         * Stop / abstain / malformed continuation fail closed.
+         * A continuing real experiment contributes its grounded
+         * candidate to the SAME M48 frontier. Its exact source state
+         * is retained separately so live feedback cannot reinterpret
+         * M50 provenance after selection.
          */
         if let Some(experiment_authority) =
             experiment_authority.filter(|authority| authority.result().continuing())
@@ -979,16 +1049,8 @@ impl ArcAgi3CognitiveInteractionRuntime {
             let experimentation = experiment_authority.result();
 
             let expected_experiment_source_state = experiment_authority.expected_source_state();
+
             if let Some(proposal) = experimentation.next_experiment() {
-                /*
-                 * Existing adapter bridge preserves:
-                 * - exact M50 source state,
-                 * - exact M50 evidence,
-                 * - exact ARC action identity,
-                 * - ARC availability authority.
-                 *
-                 * No experiment score is rewritten here.
-                 */
                 if let Ok(candidate) =
                     crate::action_grounding_bridge::
                         ArcAgi3ActionGroundingBridge::
@@ -1014,7 +1076,15 @@ impl ArcAgi3CognitiveInteractionRuntime {
                                     == grounded.candidate()
                             },
                         ) {
-                            authorized.push(grounded);
+                            provenance.push((
+                                grounded.clone(),
+                                expected_experiment_source_state
+                                    .clone(),
+                            ));
+
+                            authorized.push(
+                                grounded,
+                            );
                         }
                     }
                 }
@@ -1022,12 +1092,41 @@ impl ArcAgi3CognitiveInteractionRuntime {
         }
 
         /*
-         * ONE M48 evaluation over BOTH sources.
+         * Frozen C1 authority:
          *
-         * M50 cannot bypass this call.
-         * M47 exploitation cannot bypass this call.
+         * ONE M48 evaluation over exploitation + experimentation.
+         * No live-layer ranking and no protocol-defined utility.
          */
-        Self::select_authorized_executive_candidate(&authorized, goal, policy)
+        let selected = Self::selected_authorized_executive_candidate(&authorized, goal, policy)?;
+
+        let source_state = provenance.iter().find_map(|(candidate, source_state)| {
+            (candidate == &selected).then(|| source_state.clone())
+        })?;
+
+        Some(ArcAgi3UnifiedExecutiveAuthority::new(
+            source_state,
+            selected,
+        ))
+    }
+
+    pub fn current_unified_executive_action_selection(
+        &self,
+        exploitation_actions: &[crate::ArcAgi3Action],
+        goal: &athlesia_executive_agency::ExecutiveGoal,
+        goal_alignment: CognitiveSignal,
+        exploitation_execution_cost: CognitiveSignal,
+        experiment_authority: Option<ArcAgi3ExperimentDispatchAuthority<'_>>,
+        policy: athlesia_executive_agency::ExecutiveAgencyPolicy,
+    ) -> Option<crate::ArcAgi3Action> {
+        self.current_unified_executive_authority(
+            exploitation_actions,
+            goal,
+            goal_alignment,
+            exploitation_execution_cost,
+            experiment_authority,
+            policy,
+        )
+        .map(|authority| authority.action())
     }
 
     pub fn observation(&self) -> &ArcAgi3Observation {
@@ -1042,6 +1141,20 @@ impl ArcAgi3CognitiveInteractionRuntime {
         &mut self,
     ) -> Result<ArcAgi3SessionCommand, ArcAgi3CognitiveInteractionError> {
         self.session.begin_reset().map_err(Into::into)
+    }
+
+    pub fn begin_unified_executive_authority(
+        &mut self,
+        authority: &ArcAgi3UnifiedExecutiveAuthority,
+    ) -> Result<ArcAgi3SessionCommand, ArcAgi3CognitiveInteractionError> {
+        let command = self.session.begin_unified_executive_action(
+            authority.source_state(),
+            authority.cognitive_action(),
+        )?;
+
+        debug_assert_eq!(command.action(), authority.action(),);
+
+        Ok(command)
     }
 
     pub fn begin_from_orchestration_result(
