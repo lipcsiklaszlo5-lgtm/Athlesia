@@ -77,6 +77,40 @@ impl ArcAgi3CognitiveInteractionCompletion {
     }
 }
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct ArcAgi3ExperimentDispatchAuthority<'a> {
+    result:
+        &'a athlesia_autonomous_active_experimentation::IntegratedAutonomousExperimentationResult,
+    expected_source_state: &'a athlesia_mindstone_sparse_cognition::CognitiveStructure,
+}
+
+impl<'a> ArcAgi3ExperimentDispatchAuthority<'a> {
+    pub fn new(
+        result:
+            &'a athlesia_autonomous_active_experimentation::
+                IntegratedAutonomousExperimentationResult,
+        expected_source_state: &'a athlesia_mindstone_sparse_cognition::CognitiveStructure,
+    ) -> Self {
+        Self {
+            result,
+            expected_source_state,
+        }
+    }
+
+    pub fn result(
+        self,
+    ) -> &'a athlesia_autonomous_active_experimentation::IntegratedAutonomousExperimentationResult
+    {
+        self.result
+    }
+
+    pub fn expected_source_state(
+        self,
+    ) -> &'a athlesia_mindstone_sparse_cognition::CognitiveStructure {
+        self.expected_source_state
+    }
+}
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ArcAgi3CognitiveInteractionRuntime {
     session: ArcAgi3InteractiveSession,
@@ -806,23 +840,20 @@ impl ArcAgi3CognitiveInteractionRuntime {
         )
     }
 
-    pub fn current_model_grounded_action_selection(
+    fn current_model_grounded_authorized_candidates(
         &self,
         candidate_actions: &[crate::ArcAgi3Action],
         goal: &athlesia_executive_agency::ExecutiveGoal,
         goal_alignment: athlesia_mindstone_sparse_cognition::CognitiveSignal,
         execution_cost: athlesia_mindstone_sparse_cognition::CognitiveSignal,
-        policy: athlesia_executive_agency::ExecutiveAgencyPolicy,
-    ) -> Option<crate::ArcAgi3Action> {
-        /*
-         * Caller supplies only the finite action opportunity frontier and
-         * explicit executive authorities.
-         *
-         * Learned causal evidence comes exclusively from the retained owner.
-         */
-        let state = self.current_grounded_world_state()?;
+    ) -> Vec<crate::action_grounding_bridge::ArcAgi3AuthorizedExecutiveCandidate> {
+        let Some(state) = self.current_grounded_world_state() else {
+            return Vec::new();
+        };
 
-        let model = self.current_executable_world_model()?;
+        let Some(model) = self.current_executable_world_model() else {
+            return Vec::new();
+        };
 
         let mut authorized = Vec::new();
 
@@ -838,10 +869,6 @@ impl ArcAgi3CognitiveInteractionRuntime {
                 continue;
             };
 
-            /*
-             * ARC protocol availability remains an independent authority.
-             * An unavailable or RESET action is rejected, never rewritten.
-             */
             let Ok(grounded) =
                 crate::action_grounding_bridge::
                     ArcAgi3ActionGroundingBridge::
@@ -853,10 +880,6 @@ impl ArcAgi3CognitiveInteractionRuntime {
                 continue;
             };
 
-            /*
-             * Duplicate opportunities cannot manufacture additional
-             * executive evidence.
-             */
             if authorized.iter().any(
                 |existing: &crate::action_grounding_bridge::ArcAgi3AuthorizedExecutiveCandidate| {
                     existing.candidate() == grounded.candidate()
@@ -868,6 +891,14 @@ impl ArcAgi3CognitiveInteractionRuntime {
             authorized.push(grounded);
         }
 
+        authorized
+    }
+
+    fn select_authorized_executive_candidate(
+        authorized: &[crate::action_grounding_bridge::ArcAgi3AuthorizedExecutiveCandidate],
+        goal: &athlesia_executive_agency::ExecutiveGoal,
+        policy: athlesia_executive_agency::ExecutiveAgencyPolicy,
+    ) -> Option<crate::ArcAgi3Action> {
         if authorized.is_empty() {
             return None;
         }
@@ -878,9 +909,10 @@ impl ArcAgi3CognitiveInteractionRuntime {
             .collect::<Vec<_>>();
 
         /*
-         * REAL M48 authority.
+         * Single final action/value authority.
          *
-         * There is no local "best predicted action" ranking here.
+         * Neither the learned world-model path nor M50 performs a local
+         * dispatch ranking here. Both merely contribute grounded candidates.
          */
         let executive = athlesia_executive_agency::UniversalExecutiveAgency::evaluate(
             std::slice::from_ref(goal),
@@ -897,6 +929,105 @@ impl ArcAgi3CognitiveInteractionRuntime {
                     && grounded.candidate().predicted_outcome() == selected.predicted_outcome()
             })
             .map(|grounded| grounded.action())
+    }
+
+    pub fn current_model_grounded_action_selection(
+        &self,
+        candidate_actions: &[crate::ArcAgi3Action],
+        goal: &athlesia_executive_agency::ExecutiveGoal,
+        goal_alignment: athlesia_mindstone_sparse_cognition::CognitiveSignal,
+        execution_cost: athlesia_mindstone_sparse_cognition::CognitiveSignal,
+        policy: athlesia_executive_agency::ExecutiveAgencyPolicy,
+    ) -> Option<crate::ArcAgi3Action> {
+        let authorized = self.current_model_grounded_authorized_candidates(
+            candidate_actions,
+            goal,
+            goal_alignment,
+            execution_cost,
+        );
+
+        Self::select_authorized_executive_candidate(&authorized, goal, policy)
+    }
+
+    pub fn current_unified_executive_action_selection(
+        &self,
+        exploitation_actions: &[crate::ArcAgi3Action],
+        goal: &athlesia_executive_agency::ExecutiveGoal,
+        goal_alignment: athlesia_mindstone_sparse_cognition::CognitiveSignal,
+        exploitation_execution_cost: athlesia_mindstone_sparse_cognition::CognitiveSignal,
+        experiment_authority: Option<ArcAgi3ExperimentDispatchAuthority<'_>>,
+        policy: athlesia_executive_agency::ExecutiveAgencyPolicy,
+    ) -> Option<crate::ArcAgi3Action> {
+        let mut authorized = self.current_model_grounded_authorized_candidates(
+            exploitation_actions,
+            goal,
+            goal_alignment,
+            exploitation_execution_cost,
+        );
+
+        /*
+         * M50 is an experiment authority, not a dispatch authority.
+         *
+         * Only an explicit ContinueExperimentation result with an actual
+         * next experiment is eligible to enter the common M48 frontier.
+         *
+         * Stop / abstain / malformed continuation fail closed.
+         */
+        if let Some(experiment_authority) =
+            experiment_authority.filter(|authority| authority.result().continuing())
+        {
+            let experimentation = experiment_authority.result();
+
+            let expected_experiment_source_state = experiment_authority.expected_source_state();
+            if let Some(proposal) = experimentation.next_experiment() {
+                /*
+                 * Existing adapter bridge preserves:
+                 * - exact M50 source state,
+                 * - exact M50 evidence,
+                 * - exact ARC action identity,
+                 * - ARC availability authority.
+                 *
+                 * No experiment score is rewritten here.
+                 */
+                if let Ok(candidate) =
+                    crate::action_grounding_bridge::
+                        ArcAgi3ActionGroundingBridge::
+                        ground_experiment_for_goal(
+                            self.observation(),
+                            expected_experiment_source_state,
+                            goal,
+                            goal_alignment,
+                            proposal,
+                        )
+                {
+                    if let Ok(grounded) =
+                        crate::action_grounding_bridge::
+                            ArcAgi3ActionGroundingBridge::
+                            authorize_executive_candidate(
+                                self.observation(),
+                                &candidate,
+                            )
+                    {
+                        if !authorized.iter().any(
+                            |existing| {
+                                existing.candidate()
+                                    == grounded.candidate()
+                            },
+                        ) {
+                            authorized.push(grounded);
+                        }
+                    }
+                }
+            }
+        }
+
+        /*
+         * ONE M48 evaluation over BOTH sources.
+         *
+         * M50 cannot bypass this call.
+         * M47 exploitation cannot bypass this call.
+         */
+        Self::select_authorized_executive_candidate(&authorized, goal, policy)
     }
 
     pub fn observation(&self) -> &ArcAgi3Observation {
