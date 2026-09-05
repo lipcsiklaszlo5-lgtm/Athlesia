@@ -1,4 +1,5 @@
 use crate::{
+    ArcAgi3Observation,
     interactive_session_runtime::{
         ArcAgi3CompletedTurn, ArcAgi3InteractiveSession, ArcAgi3InteractiveSessionError,
         ArcAgi3SessionCommand,
@@ -6,7 +7,6 @@ use crate::{
     perceptual_ingestion_bridge::{
         ArcAgi3PerceptualBridgeError, ArcAgi3PerceptualIngestionBridge, ArcAgi3PerceptualProjection,
     },
-    ArcAgi3Observation,
 };
 use athlesia_integrated_cognitive_agent::{
     CognitiveCycleStateTransitionRequest, EnvironmentActionDispatch,
@@ -81,6 +81,7 @@ impl ArcAgi3CognitiveInteractionCompletion {
 pub struct ArcAgi3CognitiveInteractionRuntime {
     session: ArcAgi3InteractiveSession,
     perception: ArcAgi3PerceptualProjection,
+    cognition: athlesia_integrated_cognitive_agent::OnlinePersistentCognitiveState,
 }
 
 impl ArcAgi3CognitiveInteractionRuntime {
@@ -97,6 +98,7 @@ impl ArcAgi3CognitiveInteractionRuntime {
         Ok(Self {
             session: ArcAgi3InteractiveSession::new(initial_observation),
             perception,
+            cognition: athlesia_integrated_cognitive_agent::OnlinePersistentCognitiveState::new(),
         })
     }
 
@@ -106,6 +108,27 @@ impl ArcAgi3CognitiveInteractionRuntime {
 
     pub fn perception(&self) -> &ArcAgi3PerceptualProjection {
         &self.perception
+    }
+
+    pub fn cognition(
+        &self,
+    ) -> &athlesia_integrated_cognitive_agent::OnlinePersistentCognitiveState {
+        &self.cognition
+    }
+
+    pub fn current_perceptual_grouping_frontier(
+        &self,
+        temporal_policy:
+            athlesia_core_knowledge_perceptual_grounding::PerceptualProposalTemporalEvidencePolicy,
+        grouping_policy:
+            athlesia_core_knowledge_perceptual_grounding::PerceptualGroupingGenerationPolicy,
+    ) -> athlesia_core_knowledge_perceptual_grounding::PerceptualGroupingGenerationResult {
+        ArcAgi3PerceptualIngestionBridge::temporally_supported_grid_grouping_candidates(
+            self.cognition.perceptual_temporal_evidence(),
+            self.perception.latest_frame(),
+            temporal_policy,
+            grouping_policy,
+        )
     }
 
     pub fn observation(&self) -> &ArcAgi3Observation {
@@ -178,12 +201,19 @@ impl ArcAgi3CognitiveInteractionRuntime {
          * Transactional rule:
          *
          * 1. clone session;
-         * 2. validate/bind real environment response on clone;
-         * 3. build exact perceptual projection;
-         * 4. only then commit both session and perceptual state.
+         * 2. validate/bind the real environment response on the clone;
+         * 3. project the exact perceptual response;
+         * 4. clone retained cognition;
+         * 5. bind executive feedback only to the explicit causal
+         *    previous-frame -> first-response-frame transition;
+         * 6. update retained perceptual evidence on the cognitive clone;
+         * 7. only then commit session + perception + cognition together.
          *
-         * Therefore a failed response or failed projection cannot
-         * partially advance runtime state.
+         * Protocol RESET turns carry no executive cognitive feedback and
+         * therefore do not contaminate retained causal perceptual evidence.
+         *
+         * A failed environment response or failed perceptual projection
+         * cannot partially advance any retained runtime state.
          */
         let mut next_session = self.session.clone();
 
@@ -195,8 +225,30 @@ impl ArcAgi3CognitiveInteractionRuntime {
             Some(self.perception.latest_frame()),
         )?;
 
+        let mut next_cognition = self.cognition.clone();
+
+        if completed_turn.has_cognitive_feedback() {
+            if let Some(causal_transition) = next_perception.causal_environment_transition() {
+                let max_proposals_per_frame = causal_transition
+                    .previous_frame()
+                    .element_count()
+                    .max(causal_transition.current_frame().element_count());
+
+                if let Some(observation_result) =
+                    ArcAgi3PerceptualIngestionBridge::atomic_transition_evidence(
+                        causal_transition.previous_frame(),
+                        causal_transition.current_frame(),
+                        max_proposals_per_frame,
+                    )
+                {
+                    next_cognition.retain_perceptual_observation_result(&observation_result);
+                }
+            }
+        }
+
         self.session = next_session;
         self.perception = next_perception.clone();
+        self.cognition = next_cognition;
 
         Ok(ArcAgi3CognitiveInteractionCompletion {
             turn: completed_turn,

@@ -1503,11 +1503,13 @@ mod perceptual_grounding_ingestion_tests {
 
         assert!(integrated.integrated());
 
-        assert!(integrated
-            .frame()
-            .unwrap()
-            .contribution(IntegratedCognitiveLayer::PerceptualGrounding)
-            .is_some());
+        assert!(
+            integrated
+                .frame()
+                .unwrap()
+                .contribution(IntegratedCognitiveLayer::PerceptualGrounding)
+                .is_some()
+        );
     }
 
     #[test]
@@ -2164,13 +2166,17 @@ mod universal_domain_learning_ingestion_tests {
 
         let frame = integrated.frame().unwrap();
 
-        assert!(frame
-            .contribution(IntegratedCognitiveLayer::PerceptualGrounding)
-            .is_some());
+        assert!(
+            frame
+                .contribution(IntegratedCognitiveLayer::PerceptualGrounding)
+                .is_some()
+        );
 
-        assert!(frame
-            .contribution(IntegratedCognitiveLayer::UniversalDomainLearning)
-            .is_some());
+        assert!(
+            frame
+                .contribution(IntegratedCognitiveLayer::UniversalDomainLearning)
+                .is_some()
+        );
     }
 
     #[test]
@@ -2852,17 +2858,23 @@ mod executive_agency_ingestion_tests {
 
         let frame = integrated.frame().unwrap();
 
-        assert!(frame
-            .contribution(IntegratedCognitiveLayer::PerceptualGrounding)
-            .is_some());
+        assert!(
+            frame
+                .contribution(IntegratedCognitiveLayer::PerceptualGrounding)
+                .is_some()
+        );
 
-        assert!(frame
-            .contribution(IntegratedCognitiveLayer::UniversalDomainLearning)
-            .is_some());
+        assert!(
+            frame
+                .contribution(IntegratedCognitiveLayer::UniversalDomainLearning)
+                .is_some()
+        );
 
-        assert!(frame
-            .contribution(IntegratedCognitiveLayer::ExecutiveAgency)
-            .is_some());
+        assert!(
+            frame
+                .contribution(IntegratedCognitiveLayer::ExecutiveAgency)
+                .is_some()
+        );
     }
 
     #[test]
@@ -3645,9 +3657,11 @@ mod meta_learning_skill_memory_ingestion_tests {
 
         let frame = integrated.frame().unwrap();
 
-        assert!(frame
-            .contribution(IntegratedCognitiveLayer::MetaLearningSkillMemory)
-            .is_some());
+        assert!(
+            frame
+                .contribution(IntegratedCognitiveLayer::MetaLearningSkillMemory)
+                .is_some()
+        );
     }
 
     #[test]
@@ -5446,28 +5460,34 @@ mod cognitive_cycle_state_transition_tests {
 
     #[test]
     fn transition_request_requires_authority_specific_provenance_contract() {
-        assert!(CognitiveCycleStateTransitionRequest::new(
-            a(1000),
-            CognitiveCycleTransitionAuthority::PreserveAnchor,
-            None,
-        )
-        .is_some());
+        assert!(
+            CognitiveCycleStateTransitionRequest::new(
+                a(1000),
+                CognitiveCycleTransitionAuthority::PreserveAnchor,
+                None,
+            )
+            .is_some()
+        );
 
-        assert!(CognitiveCycleStateTransitionRequest::new(
-            a(1000),
-            CognitiveCycleTransitionAuthority::PreserveAnchor,
-            Some(a(9000)),
-        )
-        .is_none());
+        assert!(
+            CognitiveCycleStateTransitionRequest::new(
+                a(1000),
+                CognitiveCycleTransitionAuthority::PreserveAnchor,
+                Some(a(9000)),
+            )
+            .is_none()
+        );
 
-        assert!(CognitiveCycleStateTransitionRequest::new(
-            a(1000),
-            CognitiveCycleTransitionAuthority::AdoptLayer(
-                IntegratedCognitiveLayer::ExecutiveAgency,
-            ),
-            None,
-        )
-        .is_none());
+        assert!(
+            CognitiveCycleStateTransitionRequest::new(
+                a(1000),
+                CognitiveCycleTransitionAuthority::AdoptLayer(
+                    IntegratedCognitiveLayer::ExecutiveAgency,
+                ),
+                None,
+            )
+            .is_none()
+        );
     }
 
     #[test]
@@ -8970,18 +8990,16 @@ impl PerceptualDomainLearningEvidenceBridge {
             );
         }
 
-        let start_index = input.previous_frame().observation_index();
-        let end_index = input.current_frame().observation_index();
-        let event_index = action_observation.event_index();
-
-        if event_index < start_index || event_index >= end_index {
-            return PerceptualDomainLearningEvidenceBridgeResult::rejected(
-                PerceptualDomainLearningEvidenceBridgeStatus::ActionOutsidePerceptualWindow,
-                projection_status,
-                Some(projection),
-            );
-        }
-
+        /*
+         * Causal binding authority belongs to the environment/perception
+         * boundary that selected this perceptual transition.
+         *
+         * action_observation.event_index() identifies the interaction event.
+         * PerceptualFrame::observation_index() identifies a perceptual frame.
+         *
+         * They are intentionally independent clocks and therefore must never
+         * be numerically compared here.
+         */
         let execution = environment_evidence.execution_observation();
         let experiment = environment_evidence.experiment_observation();
 
@@ -9082,15 +9100,17 @@ mod perceptual_domain_learning_evidence_bridge_tests {
 
     fn scene(handles: &[u64]) -> SceneInterpretation {
         SceneInterpretation::new(
-            vec![ObjectHypothesis::new(
-                handles
-                    .iter()
-                    .copied()
-                    .map(PerceptualElementHandle::new)
-                    .collect(),
-                objecthood(),
-            )
-            .expect("test object is valid")],
+            vec![
+                ObjectHypothesis::new(
+                    handles
+                        .iter()
+                        .copied()
+                        .map(PerceptualElementHandle::new)
+                        .collect(),
+                    objecthood(),
+                )
+                .expect("test object is valid"),
+            ],
             s(900),
         )
         .expect("test scene is valid")
@@ -9218,19 +9238,43 @@ mod perceptual_domain_learning_evidence_bridge_tests {
     }
 
     #[test]
-    fn action_must_occur_inside_exact_perceptual_transition_window() {
+    fn interaction_event_identity_is_independent_of_perceptual_frame_identity() {
         let input = perceptual_input();
 
-        let evidence = environment_evidence(3, ActionSource::SelfGenerated, 500, 500, 600);
+        /*
+         * Event identity belongs to the environment interaction clock.
+         * It is deliberately far outside the perceptual frame indices used
+         * by perceptual_input(), proving that no cross-clock comparison
+         * participates in semantic validation.
+         */
+        let evidence = environment_evidence(90_000, ActionSource::SelfGenerated, 500, 500, 600);
 
         let result = PerceptualDomainLearningEvidenceBridge::derive(&input, context(), &evidence);
 
         assert_eq!(
             result.status(),
-            PerceptualDomainLearningEvidenceBridgeStatus::ActionOutsidePerceptualWindow
+            PerceptualDomainLearningEvidenceBridgeStatus::Bridged
         );
 
-        assert!(result.controlled_evidence().is_none());
+        assert!(
+            result.controlled_evidence().is_some(),
+            "caller-authoritative causal transition must not be rejected by unrelated frame indices"
+        );
+
+        assert_eq!(
+            result
+                .controlled_evidence()
+                .expect("bridged evidence exists")
+                .episode()
+                .transformation(),
+            &a(500),
+        );
+
+        assert_eq!(
+            evidence.action_observation().event_index(),
+            90_000,
+            "interaction identity remains exact provenance"
+        );
     }
 
     #[test]
@@ -9519,6 +9563,80 @@ impl UniversalEndogenousTransitionSchemaLearningCycle {
     }
 }
 
+// -----------------------------------------------------------------------------
+// Persistent online cognitive learning state
+// -----------------------------------------------------------------------------
+//
+// This is the first retained state owner in the modern M51 online cognition
+// path.
+//
+// The underlying learning semantics remain owned by M47 and by the existing
+// EndogenousTransitionSchemaLearningCycle. M51 only owns lifecycle continuity:
+// accepted environment evidence from one interaction must remain available to
+// later inference instead of being discarded with the orchestration result.
+//
+// Additional cognitive state families can be integrated here only after their
+// existing update/authority contracts are preserved and behaviorally verified.
+
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
+pub struct OnlinePersistentCognitiveState {
+    transition_schema_learning: EndogenousTransitionSchemaLearningState,
+    perceptual_temporal_evidence:
+        athlesia_core_knowledge_perceptual_grounding::PerceptualProposalTemporalEvidenceState,
+}
+
+impl OnlinePersistentCognitiveState {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    pub fn transition_schema_learning(&self) -> &EndogenousTransitionSchemaLearningState {
+        &self.transition_schema_learning
+    }
+
+    pub fn transition_episode_count(&self) -> usize {
+        self.transition_schema_learning.episode_count()
+    }
+
+    pub fn perceptual_temporal_evidence(
+        &self,
+    ) -> &athlesia_core_knowledge_perceptual_grounding::PerceptualProposalTemporalEvidenceState
+    {
+        &self.perceptual_temporal_evidence
+    }
+
+    pub fn perceptual_temporal_record_count(&self) -> usize {
+        self.perceptual_temporal_evidence.record_count()
+    }
+
+    pub fn retain_perceptual_observation_result(
+        &mut self,
+        result: &athlesia_core_knowledge_perceptual_grounding::PerceptualProposalObservationResult,
+    ) {
+        self.perceptual_temporal_evidence.observe(result);
+    }
+
+    pub fn observe_environment_transition(
+        &mut self,
+        input: &athlesia_core_knowledge_perceptual_grounding::IntegratedPerceptualWorldInput,
+        context: athlesia_core_knowledge_perceptual_grounding::IntegratedPerceptualWorldContext,
+        environment_evidence: &EnvironmentInteractionEvidence,
+        policy: EndogenousTransitionSchemaLearningPolicy,
+    ) -> EndogenousTransitionSchemaLearningResult {
+        let result = EndogenousTransitionSchemaLearningCycle::observe(
+            &self.transition_schema_learning,
+            input,
+            context,
+            environment_evidence,
+            policy,
+        );
+
+        self.transition_schema_learning = result.state().clone();
+
+        result
+    }
+}
+
 #[cfg(test)]
 mod endogenous_transition_schema_learning_tests {
     use super::*;
@@ -9559,15 +9677,17 @@ mod endogenous_transition_schema_learning_tests {
 
     fn scene(handles: &[u64]) -> SceneInterpretation {
         SceneInterpretation::new(
-            vec![ObjectHypothesis::new(
-                handles
-                    .iter()
-                    .copied()
-                    .map(PerceptualElementHandle::new)
-                    .collect(),
-                objecthood(),
-            )
-            .expect("test object hypothesis is valid")],
+            vec![
+                ObjectHypothesis::new(
+                    handles
+                        .iter()
+                        .copied()
+                        .map(PerceptualElementHandle::new)
+                        .collect(),
+                    objecthood(),
+                )
+                .expect("test object hypothesis is valid"),
+            ],
             s(900),
         )
         .expect("test scene is valid")
@@ -9848,6 +9968,88 @@ mod endogenous_transition_schema_learning_tests {
         assert_eq!(result.state().episode_count(), 0);
         assert!(result.induction().is_none());
         assert_eq!(result.hypothesis_count(), 0);
+    }
+
+    #[test]
+    fn persistent_cognitive_state_carries_environment_learning_into_later_inference() {
+        let mut cognitive_state = OnlinePersistentCognitiveState::new();
+
+        assert_eq!(cognitive_state.transition_episode_count(), 0);
+
+        let action_a_input = perceptual_input(1, 3, true);
+        let action_a_evidence = environment_evidence(2, ActionSource::SelfGenerated, 500, 600);
+
+        let first = cognitive_state.observe_environment_transition(
+            &action_a_input,
+            context(),
+            &action_a_evidence,
+            policy(8),
+        );
+
+        assert_eq!(
+            first.status(),
+            EndogenousTransitionSchemaLearningStatus::AccumulatingContrast
+        );
+        assert_eq!(first.state().episode_count(), 1);
+        assert_eq!(first.hypothesis_count(), 0);
+
+        assert_eq!(
+            cognitive_state.transition_episode_count(),
+            1,
+            "accepted environment experience must survive the first cognitive update"
+        );
+        assert_eq!(
+            cognitive_state.transition_schema_learning(),
+            first.state(),
+            "M51 persistent state must retain the exact M47 learning state"
+        );
+
+        let action_b_input = perceptual_input(4, 6, false);
+        let action_b_evidence = environment_evidence(5, ActionSource::SelfGenerated, 501, 601);
+
+        let second = cognitive_state.observe_environment_transition(
+            &action_b_input,
+            context(),
+            &action_b_evidence,
+            policy(8),
+        );
+
+        assert_eq!(
+            second.status(),
+            EndogenousTransitionSchemaLearningStatus::HypothesisInduced,
+            "later inference must consume evidence retained from the earlier interaction"
+        );
+        assert_eq!(second.state().episode_count(), 2);
+        assert_eq!(cognitive_state.transition_episode_count(), 2);
+
+        let learned = second
+            .selected_hypotheses()
+            .iter()
+            .find(|hypothesis| {
+                hypothesis.transformation() == &a(500)
+                    && hypothesis.effect_kind()
+                        == athlesia_universal_domain_learning::TransitionEffectKind::Added
+                    && hypothesis.fact() == &a(20)
+            })
+            .expect(
+                "retained first experience plus contrasting second experience \
+                 must induce the previously established predictive schema",
+            );
+
+        assert_eq!(learned.support_count(), 1);
+        assert_eq!(learned.transformation_opportunity_count(), 1);
+        assert_eq!(learned.counterexample_count(), 0);
+        assert_eq!(learned.global_support_count(), 1);
+        assert_eq!(learned.global_opportunity_count(), 2);
+        assert_eq!(learned.precision(), s(1000));
+        assert_eq!(learned.baseline_rate(), s(500));
+        assert_eq!(learned.association_lift(), s(500));
+
+        assert_eq!(
+            cognitive_state.transition_schema_learning(),
+            second.state(),
+            "the newly induced state must itself become the retained state for future cycles"
+        );
     }
 }
 

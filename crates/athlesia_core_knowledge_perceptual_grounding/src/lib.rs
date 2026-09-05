@@ -86,6 +86,1255 @@ impl PerceptualFrame {
     }
 }
 
+// -----------------------------------------------------------------------------
+// Evidence-neutral perceptual object proposal frontier
+// -----------------------------------------------------------------------------
+//
+// A proposal is not an ObjectHypothesis.
+//
+// Perceptual proposal generation answers only:
+//
+//     "which grounded perceptual elements may be worth considering together?"
+//
+// It does not claim cohesion, persistence, common change, boundary,
+// containment, topology, or objecthood.
+//
+// Promotion into ObjectHypothesis remains downstream and requires explicit
+// ObjecthoodEvidence. This separation prevents raw candidate generation from
+// fabricating semantic evidence merely to enter the M46 competition.
+
+#[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+pub struct PerceptualObjectProposal {
+    members: Vec<PerceptualElementHandle>,
+}
+
+impl PerceptualObjectProposal {
+    pub fn new(mut members: Vec<PerceptualElementHandle>) -> Option<Self> {
+        if members.is_empty() {
+            return None;
+        }
+
+        members.sort_unstable();
+        members.dedup();
+
+        Some(Self { members })
+    }
+
+    pub fn members(&self) -> &[PerceptualElementHandle] {
+        &self.members
+    }
+
+    pub fn member_count(&self) -> usize {
+        self.members.len()
+    }
+
+    pub fn contains(&self, handle: PerceptualElementHandle) -> bool {
+        self.members.binary_search(&handle).is_ok()
+    }
+
+    pub fn is_grounded_in(&self, frame: &PerceptualFrame) -> bool {
+        self.members
+            .iter()
+            .copied()
+            .all(|handle| frame.contains_handle(handle))
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+pub struct AtomicPerceptualProposalPolicy {
+    max_proposals: usize,
+}
+
+impl AtomicPerceptualProposalPolicy {
+    pub fn new(max_proposals: usize) -> Option<Self> {
+        if max_proposals == 0 {
+            return None;
+        }
+
+        Some(Self { max_proposals })
+    }
+
+    pub fn max_proposals(self) -> usize {
+        self.max_proposals
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct AtomicPerceptualProposalResult {
+    input_element_count: usize,
+    excluded_element_count: usize,
+    eligible_element_count: usize,
+    dropped_by_bound_count: usize,
+    proposals: Vec<PerceptualObjectProposal>,
+}
+
+impl AtomicPerceptualProposalResult {
+    pub fn input_element_count(&self) -> usize {
+        self.input_element_count
+    }
+
+    pub fn excluded_element_count(&self) -> usize {
+        self.excluded_element_count
+    }
+
+    pub fn eligible_element_count(&self) -> usize {
+        self.eligible_element_count
+    }
+
+    pub fn dropped_by_bound_count(&self) -> usize {
+        self.dropped_by_bound_count
+    }
+
+    pub fn proposals(&self) -> &[PerceptualObjectProposal] {
+        &self.proposals
+    }
+
+    pub fn proposal_count(&self) -> usize {
+        self.proposals.len()
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, Hash, Ord, PartialEq, PartialOrd)]
+pub struct AtomicPerceptualProposalGeneration;
+
+impl AtomicPerceptualProposalGeneration {
+    pub fn generate(
+        frame: &PerceptualFrame,
+        excluded_handles: &[PerceptualElementHandle],
+        policy: AtomicPerceptualProposalPolicy,
+    ) -> AtomicPerceptualProposalResult {
+        let mut excluded = excluded_handles.to_vec();
+        excluded.sort_unstable();
+        excluded.dedup();
+
+        let input_element_count = frame.element_count();
+
+        let mut excluded_element_count = 0_usize;
+        let mut eligible_handles = Vec::new();
+
+        for element in frame.elements() {
+            if excluded.binary_search(&element.handle()).is_ok() {
+                excluded_element_count = excluded_element_count.saturating_add(1);
+                continue;
+            }
+
+            eligible_handles.push(element.handle());
+        }
+
+        let eligible_element_count = eligible_handles.len();
+
+        let proposals = eligible_handles
+            .iter()
+            .copied()
+            .take(policy.max_proposals())
+            .map(|handle| {
+                PerceptualObjectProposal::new(vec![handle])
+                    .expect("atomic proposal has exactly one grounded member")
+            })
+            .collect::<Vec<_>>();
+
+        let dropped_by_bound_count = eligible_element_count.saturating_sub(proposals.len());
+
+        AtomicPerceptualProposalResult {
+            input_element_count,
+            excluded_element_count,
+            eligible_element_count,
+            dropped_by_bound_count,
+            proposals,
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, Hash, Ord, PartialEq, PartialOrd)]
+pub struct UniversalAtomicPerceptualProposalGeneration;
+
+impl UniversalAtomicPerceptualProposalGeneration {
+    pub fn evaluate(
+        frame: &PerceptualFrame,
+        excluded_handles: &[PerceptualElementHandle],
+        policy: AtomicPerceptualProposalPolicy,
+    ) -> AtomicPerceptualProposalResult {
+        AtomicPerceptualProposalGeneration::generate(frame, excluded_handles, policy)
+    }
+}
+
+// -----------------------------------------------------------------------------
+// Exact cross-frame observational evidence for perceptual proposals
+// -----------------------------------------------------------------------------
+//
+// This layer records only what two grounded PerceptualFrames establish
+// directly about a proposal's member identities.
+//
+// It intentionally does NOT:
+// - infer objecthood;
+// - fabricate ObjecthoodEvidence;
+// - assign confidence;
+// - infer motion from coordinate handles;
+// - infer causality;
+// - merge members into larger groups.
+//
+// Promotion into ObjectHypothesis remains a separate evidentiary decision.
+
+#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+pub enum PerceptualProposalObservationStatus {
+    Stable,
+    Changed,
+    Appeared,
+    Disappeared,
+    Mixed,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct PerceptualProposalObservationEvidence {
+    proposal: PerceptualObjectProposal,
+    status: PerceptualProposalObservationStatus,
+    previous_present_count: usize,
+    current_present_count: usize,
+    stable_member_count: usize,
+    changed_member_count: usize,
+    appeared_member_count: usize,
+    disappeared_member_count: usize,
+}
+
+impl PerceptualProposalObservationEvidence {
+    pub fn proposal(&self) -> &PerceptualObjectProposal {
+        &self.proposal
+    }
+
+    pub fn status(&self) -> PerceptualProposalObservationStatus {
+        self.status
+    }
+
+    pub fn previous_present_count(&self) -> usize {
+        self.previous_present_count
+    }
+
+    pub fn current_present_count(&self) -> usize {
+        self.current_present_count
+    }
+
+    pub fn stable_member_count(&self) -> usize {
+        self.stable_member_count
+    }
+
+    pub fn changed_member_count(&self) -> usize {
+        self.changed_member_count
+    }
+
+    pub fn appeared_member_count(&self) -> usize {
+        self.appeared_member_count
+    }
+
+    pub fn disappeared_member_count(&self) -> usize {
+        self.disappeared_member_count
+    }
+
+    pub fn member_count(&self) -> usize {
+        self.proposal.member_count()
+    }
+
+    pub fn has_direct_temporal_evidence(&self) -> bool {
+        self.previous_present_count > 0 || self.current_present_count > 0
+    }
+
+    pub fn is_exactly_stable(&self) -> bool {
+        self.status == PerceptualProposalObservationStatus::Stable
+    }
+
+    pub fn is_exactly_changed(&self) -> bool {
+        self.status == PerceptualProposalObservationStatus::Changed
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct PerceptualProposalObservationResult {
+    evidence: Vec<PerceptualProposalObservationEvidence>,
+}
+
+impl PerceptualProposalObservationResult {
+    pub fn evidence(&self) -> &[PerceptualProposalObservationEvidence] {
+        &self.evidence
+    }
+
+    pub fn evidence_count(&self) -> usize {
+        self.evidence.len()
+    }
+
+    pub fn stable_count(&self) -> usize {
+        self.evidence
+            .iter()
+            .filter(|item| item.status() == PerceptualProposalObservationStatus::Stable)
+            .count()
+    }
+
+    pub fn changed_count(&self) -> usize {
+        self.evidence
+            .iter()
+            .filter(|item| item.status() == PerceptualProposalObservationStatus::Changed)
+            .count()
+    }
+
+    pub fn appeared_count(&self) -> usize {
+        self.evidence
+            .iter()
+            .filter(|item| item.status() == PerceptualProposalObservationStatus::Appeared)
+            .count()
+    }
+
+    pub fn disappeared_count(&self) -> usize {
+        self.evidence
+            .iter()
+            .filter(|item| item.status() == PerceptualProposalObservationStatus::Disappeared)
+            .count()
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, Hash, Ord, PartialEq, PartialOrd)]
+pub struct PerceptualProposalObservation;
+
+impl PerceptualProposalObservation {
+    fn classify(
+        previous_present_count: usize,
+        current_present_count: usize,
+        stable_member_count: usize,
+        changed_member_count: usize,
+        appeared_member_count: usize,
+        disappeared_member_count: usize,
+        member_count: usize,
+    ) -> PerceptualProposalObservationStatus {
+        if stable_member_count == member_count {
+            return PerceptualProposalObservationStatus::Stable;
+        }
+
+        if changed_member_count == member_count {
+            return PerceptualProposalObservationStatus::Changed;
+        }
+
+        if appeared_member_count == member_count {
+            return PerceptualProposalObservationStatus::Appeared;
+        }
+
+        if disappeared_member_count == member_count {
+            return PerceptualProposalObservationStatus::Disappeared;
+        }
+
+        let classified = stable_member_count
+            .saturating_add(changed_member_count)
+            .saturating_add(appeared_member_count)
+            .saturating_add(disappeared_member_count);
+
+        assert_eq!(
+            classified, member_count,
+            "every proposal member must receive one exact cross-frame classification"
+        );
+
+        assert!(
+            previous_present_count <= member_count && current_present_count <= member_count,
+            "presence counts are bounded by proposal membership"
+        );
+
+        PerceptualProposalObservationStatus::Mixed
+    }
+
+    pub fn observe(
+        previous_frame: &PerceptualFrame,
+        current_frame: &PerceptualFrame,
+        proposals: &[PerceptualObjectProposal],
+    ) -> PerceptualProposalObservationResult {
+        let mut evidence = Vec::with_capacity(proposals.len());
+
+        for proposal in proposals {
+            let mut previous_present_count = 0_usize;
+            let mut current_present_count = 0_usize;
+            let mut stable_member_count = 0_usize;
+            let mut changed_member_count = 0_usize;
+            let mut appeared_member_count = 0_usize;
+            let mut disappeared_member_count = 0_usize;
+
+            for handle in proposal.members() {
+                let previous = previous_frame.element(*handle);
+                let current = current_frame.element(*handle);
+
+                match (previous, current) {
+                    (Some(previous), Some(current)) => {
+                        previous_present_count = previous_present_count.saturating_add(1);
+
+                        current_present_count = current_present_count.saturating_add(1);
+
+                        if previous.signature() == current.signature() {
+                            stable_member_count = stable_member_count.saturating_add(1);
+                        } else {
+                            changed_member_count = changed_member_count.saturating_add(1);
+                        }
+                    }
+                    (None, Some(_)) => {
+                        current_present_count = current_present_count.saturating_add(1);
+
+                        appeared_member_count = appeared_member_count.saturating_add(1);
+                    }
+                    (Some(_), None) => {
+                        previous_present_count = previous_present_count.saturating_add(1);
+
+                        disappeared_member_count = disappeared_member_count.saturating_add(1);
+                    }
+                    (None, None) => {
+                        /*
+                         * Proposals are allowed to originate from either side
+                         * of a transition, but a member absent from both frames
+                         * carries no grounded temporal evidence and therefore
+                         * must not silently receive a semantic classification.
+                         */
+                    }
+                }
+            }
+
+            let classified = stable_member_count
+                .saturating_add(changed_member_count)
+                .saturating_add(appeared_member_count)
+                .saturating_add(disappeared_member_count);
+
+            if classified != proposal.member_count() {
+                continue;
+            }
+
+            let status = Self::classify(
+                previous_present_count,
+                current_present_count,
+                stable_member_count,
+                changed_member_count,
+                appeared_member_count,
+                disappeared_member_count,
+                proposal.member_count(),
+            );
+
+            evidence.push(PerceptualProposalObservationEvidence {
+                proposal: proposal.clone(),
+                status,
+                previous_present_count,
+                current_present_count,
+                stable_member_count,
+                changed_member_count,
+                appeared_member_count,
+                disappeared_member_count,
+            });
+        }
+
+        PerceptualProposalObservationResult { evidence }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, Hash, Ord, PartialEq, PartialOrd)]
+pub struct UniversalPerceptualProposalObservation;
+
+impl UniversalPerceptualProposalObservation {
+    pub fn evaluate(
+        previous_frame: &PerceptualFrame,
+        current_frame: &PerceptualFrame,
+        proposals: &[PerceptualObjectProposal],
+    ) -> PerceptualProposalObservationResult {
+        PerceptualProposalObservation::observe(previous_frame, current_frame, proposals)
+    }
+}
+
+// -----------------------------------------------------------------------------
+// Retained temporal evidence for perceptual proposals
+// -----------------------------------------------------------------------------
+//
+// This state accumulates exact cross-frame observational evidence without
+// promoting a proposal into ObjectHypothesis.
+//
+// Continued presence means only that the proposal's exact member handles were
+// grounded on both sides of successive transitions. A changed signature does
+// not destroy that temporal identity observation. Appearance, disappearance,
+// or mixed membership interrupts the consecutive support chain but does not
+// erase prior evidence.
+//
+// Objecthood remains a later, stronger semantic judgement.
+
+#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+pub enum PerceptualProposalTemporalSupportStatus {
+    Unknown,
+    InsufficientHistory,
+    Supported,
+    BoundaryInterrupted,
+    MixedEvidence,
+}
+
+#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+pub struct PerceptualProposalTemporalEvidencePolicy {
+    minimum_consecutive_cross_frame_presence: usize,
+}
+
+impl PerceptualProposalTemporalEvidencePolicy {
+    pub fn new(minimum_consecutive_cross_frame_presence: usize) -> Option<Self> {
+        if minimum_consecutive_cross_frame_presence == 0 {
+            return None;
+        }
+
+        Some(Self {
+            minimum_consecutive_cross_frame_presence,
+        })
+    }
+
+    pub fn minimum_consecutive_cross_frame_presence(self) -> usize {
+        self.minimum_consecutive_cross_frame_presence
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct PerceptualProposalTemporalEvidenceRecord {
+    proposal: PerceptualObjectProposal,
+    observation_count: usize,
+    stable_count: usize,
+    changed_count: usize,
+    appeared_count: usize,
+    disappeared_count: usize,
+    mixed_count: usize,
+    consecutive_cross_frame_presence: usize,
+    max_consecutive_cross_frame_presence: usize,
+    last_status: PerceptualProposalObservationStatus,
+}
+
+impl PerceptualProposalTemporalEvidenceRecord {
+    fn new(
+        proposal: PerceptualObjectProposal,
+        status: PerceptualProposalObservationStatus,
+    ) -> Self {
+        let mut record = Self {
+            proposal,
+            observation_count: 0,
+            stable_count: 0,
+            changed_count: 0,
+            appeared_count: 0,
+            disappeared_count: 0,
+            mixed_count: 0,
+            consecutive_cross_frame_presence: 0,
+            max_consecutive_cross_frame_presence: 0,
+            last_status: status,
+        };
+
+        record.observe(status);
+
+        record
+    }
+
+    fn observe(&mut self, status: PerceptualProposalObservationStatus) {
+        self.observation_count = self.observation_count.saturating_add(1);
+
+        match status {
+            PerceptualProposalObservationStatus::Stable => {
+                self.stable_count = self.stable_count.saturating_add(1);
+
+                self.consecutive_cross_frame_presence =
+                    self.consecutive_cross_frame_presence.saturating_add(1);
+            }
+            PerceptualProposalObservationStatus::Changed => {
+                self.changed_count = self.changed_count.saturating_add(1);
+
+                self.consecutive_cross_frame_presence =
+                    self.consecutive_cross_frame_presence.saturating_add(1);
+            }
+            PerceptualProposalObservationStatus::Appeared => {
+                self.appeared_count = self.appeared_count.saturating_add(1);
+                self.consecutive_cross_frame_presence = 0;
+            }
+            PerceptualProposalObservationStatus::Disappeared => {
+                self.disappeared_count = self.disappeared_count.saturating_add(1);
+                self.consecutive_cross_frame_presence = 0;
+            }
+            PerceptualProposalObservationStatus::Mixed => {
+                self.mixed_count = self.mixed_count.saturating_add(1);
+                self.consecutive_cross_frame_presence = 0;
+            }
+        }
+
+        self.max_consecutive_cross_frame_presence = self
+            .max_consecutive_cross_frame_presence
+            .max(self.consecutive_cross_frame_presence);
+
+        self.last_status = status;
+    }
+
+    pub fn proposal(&self) -> &PerceptualObjectProposal {
+        &self.proposal
+    }
+
+    pub fn observation_count(&self) -> usize {
+        self.observation_count
+    }
+
+    pub fn stable_count(&self) -> usize {
+        self.stable_count
+    }
+
+    pub fn changed_count(&self) -> usize {
+        self.changed_count
+    }
+
+    pub fn appeared_count(&self) -> usize {
+        self.appeared_count
+    }
+
+    pub fn disappeared_count(&self) -> usize {
+        self.disappeared_count
+    }
+
+    pub fn mixed_count(&self) -> usize {
+        self.mixed_count
+    }
+
+    pub fn cross_frame_presence_count(&self) -> usize {
+        self.stable_count.saturating_add(self.changed_count)
+    }
+
+    pub fn consecutive_cross_frame_presence(&self) -> usize {
+        self.consecutive_cross_frame_presence
+    }
+
+    pub fn max_consecutive_cross_frame_presence(&self) -> usize {
+        self.max_consecutive_cross_frame_presence
+    }
+
+    pub fn last_status(&self) -> PerceptualProposalObservationStatus {
+        self.last_status
+    }
+}
+
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
+pub struct PerceptualProposalTemporalEvidenceState {
+    records: Vec<PerceptualProposalTemporalEvidenceRecord>,
+}
+
+impl PerceptualProposalTemporalEvidenceState {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    pub fn records(&self) -> &[PerceptualProposalTemporalEvidenceRecord] {
+        &self.records
+    }
+
+    pub fn record_count(&self) -> usize {
+        self.records.len()
+    }
+
+    pub fn record(
+        &self,
+        proposal: &PerceptualObjectProposal,
+    ) -> Option<&PerceptualProposalTemporalEvidenceRecord> {
+        self.records
+            .binary_search_by(|record| record.proposal().cmp(proposal))
+            .ok()
+            .map(|index| &self.records[index])
+    }
+
+    pub fn observe(&mut self, result: &PerceptualProposalObservationResult) {
+        for evidence in result.evidence() {
+            match self
+                .records
+                .binary_search_by(|record| record.proposal().cmp(evidence.proposal()))
+            {
+                Ok(index) => {
+                    self.records[index].observe(evidence.status());
+                }
+                Err(index) => {
+                    self.records.insert(
+                        index,
+                        PerceptualProposalTemporalEvidenceRecord::new(
+                            evidence.proposal().clone(),
+                            evidence.status(),
+                        ),
+                    );
+                }
+            }
+        }
+    }
+
+    pub fn support_status(
+        &self,
+        proposal: &PerceptualObjectProposal,
+        policy: PerceptualProposalTemporalEvidencePolicy,
+    ) -> PerceptualProposalTemporalSupportStatus {
+        let Some(record) = self.record(proposal) else {
+            return PerceptualProposalTemporalSupportStatus::Unknown;
+        };
+
+        match record.last_status() {
+            PerceptualProposalObservationStatus::Appeared
+            | PerceptualProposalObservationStatus::Disappeared => {
+                PerceptualProposalTemporalSupportStatus::BoundaryInterrupted
+            }
+            PerceptualProposalObservationStatus::Mixed => {
+                PerceptualProposalTemporalSupportStatus::MixedEvidence
+            }
+            PerceptualProposalObservationStatus::Stable
+            | PerceptualProposalObservationStatus::Changed => {
+                if record.consecutive_cross_frame_presence()
+                    >= policy.minimum_consecutive_cross_frame_presence()
+                {
+                    PerceptualProposalTemporalSupportStatus::Supported
+                } else {
+                    PerceptualProposalTemporalSupportStatus::InsufficientHistory
+                }
+            }
+        }
+    }
+
+    pub fn supported_records(
+        &self,
+        policy: PerceptualProposalTemporalEvidencePolicy,
+    ) -> Vec<&PerceptualProposalTemporalEvidenceRecord> {
+        self.records
+            .iter()
+            .filter(|record| {
+                self.support_status(record.proposal(), policy)
+                    == PerceptualProposalTemporalSupportStatus::Supported
+            })
+            .collect()
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, Hash, Ord, PartialEq, PartialOrd)]
+pub struct UniversalPerceptualProposalTemporalEvidence;
+
+impl UniversalPerceptualProposalTemporalEvidence {
+    pub fn observe(
+        state: &mut PerceptualProposalTemporalEvidenceState,
+        result: &PerceptualProposalObservationResult,
+    ) {
+        state.observe(result);
+    }
+
+    pub fn support_status(
+        state: &PerceptualProposalTemporalEvidenceState,
+        proposal: &PerceptualObjectProposal,
+        policy: PerceptualProposalTemporalEvidencePolicy,
+    ) -> PerceptualProposalTemporalSupportStatus {
+        state.support_status(proposal, policy)
+    }
+}
+
+#[cfg(test)]
+mod perceptual_proposal_temporal_evidence_tests {
+    use super::*;
+
+    fn atom(value: u64) -> CognitiveStructure {
+        CognitiveStructure::atom(value)
+    }
+
+    fn frame(observation_index: u64, elements: &[(u64, u64)]) -> PerceptualFrame {
+        PerceptualFrame::new(
+            observation_index,
+            elements
+                .iter()
+                .map(|(handle, signature)| {
+                    PerceptualElement::new(PerceptualElementHandle::new(*handle), atom(*signature))
+                })
+                .collect(),
+        )
+        .expect("test frame is valid")
+    }
+
+    fn proposal(handle: u64) -> PerceptualObjectProposal {
+        PerceptualObjectProposal::new(vec![PerceptualElementHandle::new(handle)])
+            .expect("test proposal is valid")
+    }
+
+    fn observe(
+        previous: &PerceptualFrame,
+        current: &PerceptualFrame,
+        proposal: &PerceptualObjectProposal,
+    ) -> PerceptualProposalObservationResult {
+        PerceptualProposalObservation::observe(previous, current, &[proposal.clone()])
+    }
+
+    #[test]
+    fn repeated_cross_frame_presence_becomes_temporally_supported() {
+        let p = proposal(1);
+        let policy = PerceptualProposalTemporalEvidencePolicy::new(2).unwrap();
+
+        let f1 = frame(1, &[(1, 10)]);
+        let f2 = frame(2, &[(1, 10)]);
+        let f3 = frame(3, &[(1, 20)]);
+
+        let mut state = PerceptualProposalTemporalEvidenceState::new();
+
+        state.observe(&observe(&f1, &f2, &p));
+
+        assert_eq!(
+            state.support_status(&p, policy),
+            PerceptualProposalTemporalSupportStatus::InsufficientHistory
+        );
+
+        state.observe(&observe(&f2, &f3, &p));
+
+        assert_eq!(
+            state.support_status(&p, policy),
+            PerceptualProposalTemporalSupportStatus::Supported
+        );
+
+        let record = state.record(&p).expect("record must exist");
+
+        assert_eq!(record.observation_count(), 2);
+        assert_eq!(record.stable_count(), 1);
+        assert_eq!(record.changed_count(), 1);
+        assert_eq!(record.cross_frame_presence_count(), 2);
+        assert_eq!(record.consecutive_cross_frame_presence(), 2);
+        assert_eq!(record.max_consecutive_cross_frame_presence(), 2);
+
+        assert_eq!(state.supported_records(policy).len(), 1);
+    }
+
+    #[test]
+    fn boundary_interrupts_current_support_without_destroying_history_and_support_can_recover() {
+        let p = proposal(1);
+        let policy = PerceptualProposalTemporalEvidencePolicy::new(2).unwrap();
+
+        let f1 = frame(1, &[(1, 10), (2, 90)]);
+        let f2 = frame(2, &[(1, 10), (2, 90)]);
+        let f3 = frame(3, &[(1, 20), (2, 90)]);
+        let f4 = frame(4, &[(2, 90)]);
+        let f5 = frame(5, &[(1, 30), (2, 90)]);
+        let f6 = frame(6, &[(1, 30), (2, 90)]);
+        let f7 = frame(7, &[(1, 40), (2, 90)]);
+
+        let mut state = PerceptualProposalTemporalEvidenceState::new();
+
+        state.observe(&observe(&f1, &f2, &p));
+        state.observe(&observe(&f2, &f3, &p));
+
+        assert_eq!(
+            state.support_status(&p, policy),
+            PerceptualProposalTemporalSupportStatus::Supported
+        );
+
+        state.observe(&observe(&f3, &f4, &p));
+
+        assert_eq!(
+            state.support_status(&p, policy),
+            PerceptualProposalTemporalSupportStatus::BoundaryInterrupted
+        );
+
+        let interrupted = state.record(&p).unwrap();
+
+        assert_eq!(interrupted.max_consecutive_cross_frame_presence(), 2);
+        assert_eq!(interrupted.consecutive_cross_frame_presence(), 0);
+        assert_eq!(interrupted.disappeared_count(), 1);
+
+        state.observe(&observe(&f4, &f5, &p));
+
+        assert_eq!(
+            state.support_status(&p, policy),
+            PerceptualProposalTemporalSupportStatus::BoundaryInterrupted
+        );
+
+        state.observe(&observe(&f5, &f6, &p));
+
+        assert_eq!(
+            state.support_status(&p, policy),
+            PerceptualProposalTemporalSupportStatus::InsufficientHistory
+        );
+
+        state.observe(&observe(&f6, &f7, &p));
+
+        assert_eq!(
+            state.support_status(&p, policy),
+            PerceptualProposalTemporalSupportStatus::Supported
+        );
+
+        let recovered = state.record(&p).unwrap();
+
+        assert_eq!(recovered.max_consecutive_cross_frame_presence(), 2);
+        assert_eq!(recovered.consecutive_cross_frame_presence(), 2);
+        assert_eq!(recovered.appeared_count(), 1);
+        assert_eq!(recovered.disappeared_count(), 1);
+    }
+
+    #[test]
+    fn unseen_proposal_remains_unknown() {
+        let state = PerceptualProposalTemporalEvidenceState::new();
+
+        let policy = PerceptualProposalTemporalEvidencePolicy::new(2).unwrap();
+
+        assert_eq!(
+            state.support_status(&proposal(999), policy),
+            PerceptualProposalTemporalSupportStatus::Unknown
+        );
+    }
+}
+
+// -----------------------------------------------------------------------------
+// Competing structural grouping proposal frontier
+// -----------------------------------------------------------------------------
+//
+// A grouping candidate is not an object hypothesis.
+//
+// This layer combines two independently grounded facts:
+//
+//   1. atomic perceptual identities have retained temporal support;
+//   2. the caller supplies an explicit structural relation between identities.
+//
+// The output is a bounded competing grouping frontier. It makes no claim about
+// cohesion, objecthood, containment, common change, causality, or semantic
+// identity. Promotion into ObjectHypothesis remains downstream and requires
+// explicit ObjecthoodEvidence.
+
+#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+pub struct PerceptualGroupingRelation {
+    left: PerceptualElementHandle,
+    right: PerceptualElementHandle,
+}
+
+impl PerceptualGroupingRelation {
+    pub fn new(left: PerceptualElementHandle, right: PerceptualElementHandle) -> Option<Self> {
+        if left == right {
+            return None;
+        }
+
+        let (left, right) = if left < right {
+            (left, right)
+        } else {
+            (right, left)
+        };
+
+        Some(Self { left, right })
+    }
+
+    pub fn left(self) -> PerceptualElementHandle {
+        self.left
+    }
+
+    pub fn right(self) -> PerceptualElementHandle {
+        self.right
+    }
+
+    pub fn is_grounded_in(self, frame: &PerceptualFrame) -> bool {
+        frame.contains_handle(self.left) && frame.contains_handle(self.right)
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+pub enum PerceptualGroupingCandidateKind {
+    PairwiseRelation,
+    ConnectedComponent,
+}
+
+#[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+pub struct PerceptualGroupingCandidate {
+    members: Vec<PerceptualElementHandle>,
+    kind: PerceptualGroupingCandidateKind,
+}
+
+impl PerceptualGroupingCandidate {
+    pub fn new(
+        mut members: Vec<PerceptualElementHandle>,
+        kind: PerceptualGroupingCandidateKind,
+    ) -> Option<Self> {
+        members.sort_unstable();
+        members.dedup();
+
+        if members.len() < 2 {
+            return None;
+        }
+
+        Some(Self { members, kind })
+    }
+
+    pub fn members(&self) -> &[PerceptualElementHandle] {
+        &self.members
+    }
+
+    pub fn member_count(&self) -> usize {
+        self.members.len()
+    }
+
+    pub fn kind(&self) -> PerceptualGroupingCandidateKind {
+        self.kind
+    }
+
+    pub fn contains(&self, handle: PerceptualElementHandle) -> bool {
+        self.members.binary_search(&handle).is_ok()
+    }
+
+    pub fn is_grounded_in(&self, frame: &PerceptualFrame) -> bool {
+        self.members
+            .iter()
+            .copied()
+            .all(|handle| frame.contains_handle(handle))
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+pub struct PerceptualGroupingGenerationPolicy {
+    max_relations: usize,
+    max_candidates: usize,
+}
+
+impl PerceptualGroupingGenerationPolicy {
+    pub fn new(max_relations: usize, max_candidates: usize) -> Option<Self> {
+        if max_relations == 0 || max_candidates == 0 {
+            return None;
+        }
+
+        Some(Self {
+            max_relations,
+            max_candidates,
+        })
+    }
+
+    pub fn max_relations(self) -> usize {
+        self.max_relations
+    }
+
+    pub fn max_candidates(self) -> usize {
+        self.max_candidates
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct PerceptualGroupingGenerationResult {
+    input_relation_count: usize,
+    considered_relation_count: usize,
+    relation_frontier_truncated: bool,
+    rejected_ungrounded_relation_count: usize,
+    rejected_temporal_support_count: usize,
+    admitted_relation_count: usize,
+    pairwise_candidate_count: usize,
+    component_candidate_count: usize,
+    candidate_count_before_frontier: usize,
+    candidate_frontier_truncated: bool,
+    candidates: Vec<PerceptualGroupingCandidate>,
+}
+
+impl PerceptualGroupingGenerationResult {
+    pub fn input_relation_count(&self) -> usize {
+        self.input_relation_count
+    }
+
+    pub fn considered_relation_count(&self) -> usize {
+        self.considered_relation_count
+    }
+
+    pub fn relation_frontier_truncated(&self) -> bool {
+        self.relation_frontier_truncated
+    }
+
+    pub fn rejected_ungrounded_relation_count(&self) -> usize {
+        self.rejected_ungrounded_relation_count
+    }
+
+    pub fn rejected_temporal_support_count(&self) -> usize {
+        self.rejected_temporal_support_count
+    }
+
+    pub fn admitted_relation_count(&self) -> usize {
+        self.admitted_relation_count
+    }
+
+    pub fn pairwise_candidate_count(&self) -> usize {
+        self.pairwise_candidate_count
+    }
+
+    pub fn component_candidate_count(&self) -> usize {
+        self.component_candidate_count
+    }
+
+    pub fn candidate_count_before_frontier(&self) -> usize {
+        self.candidate_count_before_frontier
+    }
+
+    pub fn candidate_frontier_truncated(&self) -> bool {
+        self.candidate_frontier_truncated
+    }
+
+    pub fn candidates(&self) -> &[PerceptualGroupingCandidate] {
+        &self.candidates
+    }
+
+    pub fn candidate_count(&self) -> usize {
+        self.candidates.len()
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, Hash, Ord, PartialEq, PartialOrd)]
+pub struct PerceptualGroupingFrontierGeneration;
+
+impl PerceptualGroupingFrontierGeneration {
+    pub fn generate(
+        frame: &PerceptualFrame,
+        temporal_state: &PerceptualProposalTemporalEvidenceState,
+        temporal_policy: PerceptualProposalTemporalEvidencePolicy,
+        relations: &[PerceptualGroupingRelation],
+        policy: PerceptualGroupingGenerationPolicy,
+    ) -> PerceptualGroupingGenerationResult {
+        let input_relation_count = relations.len();
+
+        let mut canonical_relations = relations.to_vec();
+        canonical_relations.sort_unstable();
+        canonical_relations.dedup();
+
+        let unique_relation_count = canonical_relations.len();
+
+        canonical_relations.truncate(policy.max_relations());
+
+        let considered_relation_count = canonical_relations.len();
+        let relation_frontier_truncated = unique_relation_count > considered_relation_count;
+
+        let mut rejected_ungrounded_relation_count = 0_usize;
+        let mut rejected_temporal_support_count = 0_usize;
+        let mut admitted_relations = Vec::new();
+
+        for relation in canonical_relations {
+            if !relation.is_grounded_in(frame) {
+                rejected_ungrounded_relation_count =
+                    rejected_ungrounded_relation_count.saturating_add(1);
+                continue;
+            }
+
+            let left_proposal = PerceptualObjectProposal::new(vec![relation.left()])
+                .expect("single relation endpoint forms a valid atomic proposal");
+
+            let right_proposal = PerceptualObjectProposal::new(vec![relation.right()])
+                .expect("single relation endpoint forms a valid atomic proposal");
+
+            let left_supported = temporal_state.support_status(&left_proposal, temporal_policy)
+                == PerceptualProposalTemporalSupportStatus::Supported;
+
+            let right_supported = temporal_state.support_status(&right_proposal, temporal_policy)
+                == PerceptualProposalTemporalSupportStatus::Supported;
+
+            if !left_supported || !right_supported {
+                rejected_temporal_support_count = rejected_temporal_support_count.saturating_add(1);
+                continue;
+            }
+
+            admitted_relations.push(relation);
+        }
+
+        let admitted_relation_count = admitted_relations.len();
+
+        let mut candidates = admitted_relations
+            .iter()
+            .copied()
+            .map(|relation| {
+                PerceptualGroupingCandidate::new(
+                    vec![relation.left(), relation.right()],
+                    PerceptualGroupingCandidateKind::PairwiseRelation,
+                )
+                .expect("admitted pairwise relation has two distinct members")
+            })
+            .collect::<Vec<_>>();
+
+        let pairwise_candidate_count = candidates.len();
+
+        /*
+         * Connected components are an alternative structural explanation
+         * over the same admitted relation graph.
+         *
+         * They compete with pairwise groupings rather than replacing them.
+         * A component is emitted only when it contains at least three members;
+         * a two-member component would duplicate its pairwise candidate.
+         */
+        let mut remaining = admitted_relations
+            .iter()
+            .flat_map(|relation| [relation.left(), relation.right()])
+            .collect::<Vec<_>>();
+
+        remaining.sort_unstable();
+        remaining.dedup();
+
+        let mut component_candidate_count = 0_usize;
+
+        while let Some(seed) = remaining.first().copied() {
+            remaining.remove(0);
+
+            let mut component = vec![seed];
+            let mut frontier = vec![seed];
+
+            while let Some(current) = frontier.pop() {
+                for relation in &admitted_relations {
+                    let neighbor = if relation.left() == current {
+                        Some(relation.right())
+                    } else if relation.right() == current {
+                        Some(relation.left())
+                    } else {
+                        None
+                    };
+
+                    let Some(neighbor) = neighbor else {
+                        continue;
+                    };
+
+                    if let Ok(index) = remaining.binary_search(&neighbor) {
+                        remaining.remove(index);
+                        component.push(neighbor);
+                        frontier.push(neighbor);
+                    }
+                }
+            }
+
+            component.sort_unstable();
+            component.dedup();
+
+            if component.len() >= 3 {
+                candidates.push(
+                    PerceptualGroupingCandidate::new(
+                        component,
+                        PerceptualGroupingCandidateKind::ConnectedComponent,
+                    )
+                    .expect("component candidate has at least three members"),
+                );
+
+                component_candidate_count = component_candidate_count.saturating_add(1);
+            }
+        }
+
+        candidates.sort();
+        candidates.dedup();
+
+        let candidate_count_before_frontier = candidates.len();
+
+        candidates.truncate(policy.max_candidates());
+
+        let candidate_frontier_truncated = candidate_count_before_frontier > candidates.len();
+
+        PerceptualGroupingGenerationResult {
+            input_relation_count,
+            considered_relation_count,
+            relation_frontier_truncated,
+            rejected_ungrounded_relation_count,
+            rejected_temporal_support_count,
+            admitted_relation_count,
+            pairwise_candidate_count,
+            component_candidate_count,
+            candidate_count_before_frontier,
+            candidate_frontier_truncated,
+            candidates,
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, Hash, Ord, PartialEq, PartialOrd)]
+pub struct UniversalPerceptualGroupingFrontierGeneration;
+
+impl UniversalPerceptualGroupingFrontierGeneration {
+    pub fn evaluate(
+        frame: &PerceptualFrame,
+        temporal_state: &PerceptualProposalTemporalEvidenceState,
+        temporal_policy: PerceptualProposalTemporalEvidencePolicy,
+        relations: &[PerceptualGroupingRelation],
+        policy: PerceptualGroupingGenerationPolicy,
+    ) -> PerceptualGroupingGenerationResult {
+        PerceptualGroupingFrontierGeneration::generate(
+            frame,
+            temporal_state,
+            temporal_policy,
+            relations,
+            policy,
+        )
+    }
+}
+
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub struct ObjecthoodEvidence {
     cohesion: CognitiveSignal,

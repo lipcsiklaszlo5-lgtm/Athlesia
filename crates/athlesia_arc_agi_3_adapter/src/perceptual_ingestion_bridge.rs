@@ -1,6 +1,6 @@
 use crate::{
-    cognitive_protocol_bridge::{ArcAgi3CognitiveCodecError, ArcAgi3CognitiveProtocolBridge},
     ArcAgi3Grid, ArcAgi3Observation,
+    cognitive_protocol_bridge::{ArcAgi3CognitiveCodecError, ArcAgi3CognitiveProtocolBridge},
 };
 use athlesia_core_knowledge_perceptual_grounding::{
     IntegratedPerceptualWorldCandidates, IntegratedPerceptualWorldContext,
@@ -47,6 +47,7 @@ impl From<ArcAgi3CognitiveCodecError> for ArcAgi3PerceptualBridgeError {
 pub struct ArcAgi3PerceptualProjection {
     frames: Vec<PerceptualFrame>,
     transitions: Vec<IntegratedPerceptualWorldInput>,
+    causal_environment_transition: Option<IntegratedPerceptualWorldInput>,
     next_observation_index: u64,
 }
 
@@ -65,6 +66,10 @@ impl ArcAgi3PerceptualProjection {
 
     pub fn transition_count(&self) -> usize {
         self.transitions.len()
+    }
+
+    pub fn causal_environment_transition(&self) -> Option<&IntegratedPerceptualWorldInput> {
+        self.causal_environment_transition.as_ref()
     }
 
     pub fn latest_frame(&self) -> &PerceptualFrame {
@@ -225,6 +230,131 @@ impl ArcAgi3PerceptualIngestionBridge {
             .ok_or(ArcAgi3PerceptualBridgeError::InvalidPerceptualFrame)
     }
 
+    pub fn atomic_object_proposals(
+        frame: &PerceptualFrame,
+        max_proposals: usize,
+    ) -> Option<athlesia_core_knowledge_perceptual_grounding::AtomicPerceptualProposalResult> {
+        let policy =
+            athlesia_core_knowledge_perceptual_grounding::AtomicPerceptualProposalPolicy::new(
+                max_proposals,
+            )?;
+
+        Some(
+            athlesia_core_knowledge_perceptual_grounding::AtomicPerceptualProposalGeneration::generate(
+                frame,
+                &[Self::geometry_handle()],
+                policy,
+            ),
+        )
+    }
+
+    pub fn atomic_transition_evidence(
+        previous_frame: &PerceptualFrame,
+        current_frame: &PerceptualFrame,
+        max_proposals_per_frame: usize,
+    ) -> Option<athlesia_core_knowledge_perceptual_grounding::PerceptualProposalObservationResult>
+    {
+        let previous = Self::atomic_object_proposals(previous_frame, max_proposals_per_frame)?;
+
+        let current = Self::atomic_object_proposals(current_frame, max_proposals_per_frame)?;
+
+        let mut proposals = previous.proposals().to_vec();
+
+        for proposal in current.proposals() {
+            if proposals.binary_search(proposal).is_err() {
+                proposals.push(proposal.clone());
+                proposals.sort();
+            }
+        }
+
+        Some(
+            athlesia_core_knowledge_perceptual_grounding::PerceptualProposalObservation::observe(
+                previous_frame,
+                current_frame,
+                &proposals,
+            ),
+        )
+    }
+
+    pub fn accumulate_atomic_transition_evidence(
+        state: &mut athlesia_core_knowledge_perceptual_grounding::PerceptualProposalTemporalEvidenceState,
+        previous_frame: &PerceptualFrame,
+        current_frame: &PerceptualFrame,
+        max_proposals_per_frame: usize,
+    ) -> Option<athlesia_core_knowledge_perceptual_grounding::PerceptualProposalObservationResult>
+    {
+        let result = Self::atomic_transition_evidence(
+            previous_frame,
+            current_frame,
+            max_proposals_per_frame,
+        )?;
+
+        state.observe(&result);
+
+        Some(result)
+    }
+
+    pub fn temporally_supported_grid_grouping_candidates(
+        temporal_state: &athlesia_core_knowledge_perceptual_grounding::PerceptualProposalTemporalEvidenceState,
+        frame: &PerceptualFrame,
+        temporal_policy: athlesia_core_knowledge_perceptual_grounding::PerceptualProposalTemporalEvidencePolicy,
+        grouping_policy: athlesia_core_knowledge_perceptual_grounding::PerceptualGroupingGenerationPolicy,
+    ) -> athlesia_core_knowledge_perceptual_grounding::PerceptualGroupingGenerationResult {
+        let mut supported_cells = temporal_state
+            .supported_records(temporal_policy)
+            .into_iter()
+            .filter_map(|record| {
+                if record.proposal().member_count() != 1 {
+                    return None;
+                }
+
+                let handle = record.proposal().members()[0];
+
+                if handle == Self::geometry_handle() || !frame.contains_handle(handle) {
+                    return None;
+                }
+
+                let (x, y) = Self::decode_handle_coordinate(handle)?;
+
+                Some((handle, x, y))
+            })
+            .collect::<Vec<_>>();
+
+        supported_cells.sort_by_key(|(handle, _, _)| *handle);
+        supported_cells.dedup_by_key(|(handle, _, _)| *handle);
+
+        let mut relations = Vec::new();
+
+        for left_index in 0..supported_cells.len() {
+            let (left_handle, left_x, left_y) = supported_cells[left_index];
+
+            for &(right_handle, right_x, right_y) in &supported_cells[(left_index + 1)..] {
+                let distance = u16::from(left_x.abs_diff(right_x))
+                    .saturating_add(u16::from(left_y.abs_diff(right_y)));
+
+                if distance != 1 {
+                    continue;
+                }
+
+                relations.push(
+                    athlesia_core_knowledge_perceptual_grounding::PerceptualGroupingRelation::new(
+                        left_handle,
+                        right_handle,
+                    )
+                    .expect("distinct grid cells form a valid structural relation"),
+                );
+            }
+        }
+
+        athlesia_core_knowledge_perceptual_grounding::PerceptualGroupingFrontierGeneration::generate(
+            frame,
+            temporal_state,
+            temporal_policy,
+            &relations,
+            grouping_policy,
+        )
+    }
+
     pub fn empty_world_candidates() -> IntegratedPerceptualWorldCandidates {
         IntegratedPerceptualWorldCandidates::new(
             Vec::new(),
@@ -274,9 +404,16 @@ impl ArcAgi3PerceptualIngestionBridge {
 
         let mut transitions = Vec::with_capacity(transition_capacity);
 
-        if let Some(previous) = previous_frame {
-            transitions.push(Self::transition(previous.clone(), frames[0].clone())?);
-        }
+        let causal_environment_transition = match previous_frame {
+            Some(previous) => {
+                let transition = Self::transition(previous.clone(), frames[0].clone())?;
+
+                transitions.push(transition.clone());
+
+                Some(transition)
+            }
+            None => None,
+        };
 
         for pair in frames.windows(2) {
             transitions.push(Self::transition(pair[0].clone(), pair[1].clone())?);
@@ -285,6 +422,7 @@ impl ArcAgi3PerceptualIngestionBridge {
         Ok(ArcAgi3PerceptualProjection {
             frames,
             transitions,
+            causal_environment_transition,
             next_observation_index,
         })
     }
