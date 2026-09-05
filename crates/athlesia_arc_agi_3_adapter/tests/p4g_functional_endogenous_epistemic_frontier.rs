@@ -2249,3 +2249,390 @@ fn live_c3h_role_preserving_schema_recovers_d6_target_substitution() {
         cross_world_binding_signature.is_some(),
     );
 }
+
+fn c3hb_live_historical_and_current_identity(
+    game: &str,
+    first_index: u64,
+    route_action:
+        ArcAgi3ActionId,
+    candidate_value: u8,
+) -> (
+    ArcAgi3LiveEnvironmentRuntime<
+        RecordingTransport,
+    >,
+    athlesia_autonomous_active_experimentation::
+        EmpiricalEpistemicTransferIdentity,
+    athlesia_autonomous_active_experimentation::
+        EmpiricalEpistemicTransferIdentity,
+) {
+    let mut runtime =
+        live_runtime(
+            game,
+            first_index,
+        );
+
+    mature_runtime(
+        &mut runtime,
+        game,
+    );
+
+    real_training_turn(
+        &mut runtime,
+        game,
+        action(
+            ArcAgi3ActionId::Action2,
+        ),
+        7_u8,
+    );
+
+    /*
+     * Real Action1 consequence creates the genuine historical C3D
+     * transfer event retained by C3G-B.
+     */
+    real_training_turn(
+        &mut runtime,
+        game,
+        action(
+            ArcAgi3ActionId::Action1,
+        ),
+        6_u8,
+    );
+
+    let historical =
+        runtime
+            .cognitive_runtime()
+            .cognition()
+            .epistemic_transfer_progress_history()
+            .last()
+            .expect(
+                "real historical C3D transfer event must exist",
+            )
+            .transfer_identity()
+            .clone();
+
+    real_training_turn(
+        &mut runtime,
+        game,
+        action(route_action),
+        candidate_value,
+    );
+
+    let current_state =
+        runtime
+            .cognitive_runtime()
+            .current_grounded_world_state()
+            .expect(
+                "candidate must be a genuinely reached grounded state",
+            )
+            .clone();
+
+    let action_one =
+        ArcAgi3CognitiveProtocolBridge::
+            encode_action(
+                action(
+                    ArcAgi3ActionId::Action1,
+                ),
+            );
+
+    let current_possibility =
+        runtime
+            .cognitive_runtime()
+            .cognition()
+            .current_m50_epistemic_possibility(
+                &current_state,
+                &action_one,
+                athlesia_universal_domain_learning::
+                    GroundedExplanatoryVersionSpacePolicy::
+                        new(
+                            1,
+                            64,
+                            512,
+                            256,
+                        )
+                        .unwrap(),
+            )
+            .expect(
+                "current live state must expose Action1 possibility",
+            );
+
+    let discrimination =
+        athlesia_autonomous_active_experimentation::
+            AutonomousEpistemicForecastDiscrimination::
+                evaluate(
+                    &current_possibility,
+                    athlesia_autonomous_active_experimentation::
+                        EpistemicForecastDiscriminationPolicy::
+                            new(
+                                512,
+                                512,
+                            )
+                            .unwrap(),
+                );
+
+    assert!(
+        discrimination.informative(),
+        "C3H-B live comparison remains restricted to a genuinely unresolved current epistemic problem",
+    );
+
+    let current =
+        athlesia_autonomous_active_experimentation::
+            AutonomousEmpiricalEpistemicTransferIdentity::
+                derive(
+                    &current_possibility,
+                    athlesia_autonomous_active_experimentation::
+                        EmpiricalEpistemicTransferIdentityPolicy::
+                            new(
+                                512,
+                            )
+                            .unwrap(),
+                )
+                .identity()
+                .expect(
+                    "bounded current possibility must derive exact C3G identity",
+                )
+                .clone();
+
+    (
+        runtime,
+        historical,
+        current,
+    )
+}
+
+
+fn c3hb_policy(
+) -> athlesia_autonomous_active_experimentation::
+    SchemaLevelTargetTransferIdentityPolicy {
+    athlesia_autonomous_active_experimentation::
+        SchemaLevelTargetTransferIdentityPolicy::
+            new(
+                64,
+                64,
+                4096,
+                athlesia_autonomous_active_experimentation::
+                    RolePreservingTargetSchemaPolicy::
+                        new(
+                            512,
+                            32,
+                        )
+                        .unwrap(),
+            )
+            .unwrap()
+}
+
+
+#[test]
+fn live_c3hb_schema_level_identity_recovers_role_substitution_across_holdouts() {
+    let mut shared_identity:
+        Option<
+            athlesia_autonomous_active_experimentation::
+                SchemaLevelTargetTransferIdentity,
+        > =
+        None;
+
+    for (
+        world_index,
+        candidate_value,
+    ) in [
+        2_u8,
+        14_u8,
+    ]
+    .into_iter()
+    .enumerate()
+    {
+        let game = format!(
+            "p4gc3hb-role-holdout-{candidate_value}"
+        );
+
+        let (
+            runtime,
+            historical,
+            current,
+        ) =
+            c3hb_live_historical_and_current_identity(
+                &game,
+                760_000
+                    + world_index as u64
+                        * 10_000,
+                ArcAgi3ActionId::Action1,
+                candidate_value,
+            );
+
+        let transport_before =
+            runtime.transport().execute_count();
+
+        let exact_history_before =
+            runtime
+                .cognitive_runtime()
+                .cognition()
+                .epistemic_progress_event_count();
+
+        let transfer_history_before =
+            runtime
+                .cognitive_runtime()
+                .cognition()
+                .epistemic_transfer_progress_event_count();
+
+        let relation =
+            athlesia_autonomous_active_experimentation::
+                AutonomousSchemaLevelTargetTransferIdentity::
+                    derive(
+                        &historical,
+                        &current,
+                        c3hb_policy(),
+                    );
+
+        assert!(
+            relation.derived(),
+            "D6-proven live role substitutions must form one bounded schema-level historical-to-current relation",
+        );
+
+        assert_eq!(
+            relation.historical_target_count(),
+            16,
+        );
+
+        assert_eq!(
+            relation.current_target_count(),
+            16,
+        );
+
+        assert_eq!(
+            relation.exact_match_count(),
+            12,
+        );
+
+        assert_eq!(
+            relation.role_preserving_match_count(),
+            4,
+        );
+
+        assert_eq!(
+            relation.ignored_current_target_count(),
+            0,
+        );
+
+        assert_eq!(
+            relation.global_binding_count(),
+            2,
+            "four replaced live targets must share the same two concrete changed-atom bindings",
+        );
+
+        let identity =
+            relation
+                .identity()
+                .unwrap()
+                .clone();
+
+        if let Some(expected) =
+            &shared_identity
+        {
+            assert_eq!(
+                &identity,
+                expected,
+                "separated real holdout worlds must recover the same abstract target-transfer identity",
+            );
+        } else {
+            shared_identity =
+                Some(identity);
+        }
+
+        assert_eq!(
+            runtime.transport().execute_count(),
+            transport_before,
+            "C3H-B derivation has zero transport authority",
+        );
+
+        assert_eq!(
+            runtime
+                .cognitive_runtime()
+                .cognition()
+                .epistemic_progress_event_count(),
+            exact_history_before,
+            "C3H-B cannot mutate frozen exact progress history",
+        );
+
+        assert_eq!(
+            runtime
+                .cognitive_runtime()
+                .cognition()
+                .epistemic_transfer_progress_event_count(),
+            transfer_history_before,
+            "C3H-B cannot mutate retained transfer history",
+        );
+    }
+
+    assert!(
+        shared_identity.is_some(),
+    );
+}
+
+
+#[test]
+fn live_c3hb_current_only_target_refinement_preserves_all_historical_targets_exactly() {
+    let (
+        runtime,
+        historical,
+        current,
+    ) =
+        c3hb_live_historical_and_current_identity(
+            "p4gc3hb-exact-refinement-control",
+            790_000,
+            ArcAgi3ActionId::Action2,
+            2_u8,
+        );
+
+    let transport_before =
+        runtime.transport().execute_count();
+
+    let relation =
+        athlesia_autonomous_active_experimentation::
+            UniversalAutonomousSchemaLevelTargetTransferIdentity::
+                derive(
+                    &historical,
+                    &current,
+                    c3hb_policy(),
+                );
+
+    assert!(
+        relation.derived(),
+    );
+
+    assert_eq!(
+        relation.historical_target_count(),
+        16,
+    );
+
+    assert_eq!(
+        relation.current_target_count(),
+        20,
+    );
+
+    assert_eq!(
+        relation.exact_match_count(),
+        16,
+        "D5/D6 Action2 control preserves every historical target exactly",
+    );
+
+    assert_eq!(
+        relation.role_preserving_match_count(),
+        0,
+        "current-only refinement must not manufacture role substitution",
+    );
+
+    assert_eq!(
+        relation.ignored_current_target_count(),
+        4,
+        "four genuinely new current targets are explicit refinement rather than historical mismatch",
+    );
+
+    assert_eq!(
+        relation.global_binding_count(),
+        0,
+    );
+
+    assert_eq!(
+        runtime.transport().execute_count(),
+        transport_before,
+    );
+}

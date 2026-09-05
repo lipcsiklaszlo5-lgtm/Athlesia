@@ -4078,6 +4078,984 @@ impl UniversalAutonomousRolePreservingTargetSchema {
     }
 }
 
+// ============================================================================
+// P4G-C3H-B — SCHEMA-LEVEL TARGET TRANSFER IDENTITY
+// ============================================================================
+//
+// C3H-A proves a local role-preserving structural relation between two
+// concrete effect targets.
+//
+// C3H-B lifts that relation to an ACTION-CONDITIONED TARGET FRONTIER.
+//
+// Direction:
+//
+//     historical target frontier
+//                 -> current target frontier
+//
+// Every historical distinct target MUST be represented by exactly one
+// current target:
+//
+//     1. exact structural target equality, preferred and reserved first;
+//     2. otherwise one unambiguous C3H-A role-preserving correspondence.
+//
+// The current frontier may contain additional targets. Those are explicit
+// refinement, not evidence that the historical target disappeared.
+//
+// Non-exact correspondences must also share one globally consistent set of
+// concrete changed-atom bindings. This prevents independently convenient
+// per-target substitutions from being combined into fake transfer.
+//
+// The ABSTRACT IDENTITY contains:
+//
+//     exact action identity
+//     canonical matched target structural schemas
+//
+// Concrete role bindings and concrete target pairs remain in result
+// provenance and do NOT enter abstract identity equality.
+//
+// This is intentionally only TARGET-LEVEL identity.
+// Forecast status, predicted outcome, empirical evidence, expected progress,
+// priority and execution authority are NOT transferred by C3H-B.
+
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub enum SchemaLevelTargetMatchKind {
+    Exact,
+    RolePreserving,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct SchemaLevelTargetCorrespondence {
+    historical_target: CognitiveStructure,
+    current_target: CognitiveStructure,
+    match_kind: SchemaLevelTargetMatchKind,
+    schema: RolePreservingTargetStructuralSchema,
+    bindings: Vec<RolePreservingTargetAtomBinding>,
+}
+
+impl SchemaLevelTargetCorrespondence {
+    fn new(
+        historical_target: CognitiveStructure,
+        current_target: CognitiveStructure,
+        match_kind: SchemaLevelTargetMatchKind,
+        schema: RolePreservingTargetStructuralSchema,
+        bindings: Vec<RolePreservingTargetAtomBinding>,
+    ) -> Self {
+        Self {
+            historical_target,
+            current_target,
+            match_kind,
+            schema,
+            bindings,
+        }
+    }
+
+    pub fn historical_target(
+        &self,
+    ) -> &CognitiveStructure {
+        &self.historical_target
+    }
+
+    pub fn current_target(
+        &self,
+    ) -> &CognitiveStructure {
+        &self.current_target
+    }
+
+    pub fn match_kind(
+        &self,
+    ) -> SchemaLevelTargetMatchKind {
+        self.match_kind
+    }
+
+    pub fn schema(
+        &self,
+    ) -> &RolePreservingTargetStructuralSchema {
+        &self.schema
+    }
+
+    pub fn bindings(
+        &self,
+    ) -> &[RolePreservingTargetAtomBinding] {
+        &self.bindings
+    }
+}
+
+#[derive(Clone, Debug, Eq, Hash, PartialEq)]
+pub struct SchemaLevelTransferAtomBinding {
+    historical_atom: u64,
+    current_atom: u64,
+}
+
+impl SchemaLevelTransferAtomBinding {
+    fn new(
+        historical_atom: u64,
+        current_atom: u64,
+    ) -> Self {
+        Self {
+            historical_atom,
+            current_atom,
+        }
+    }
+
+    pub fn historical_atom(
+        &self,
+    ) -> u64 {
+        self.historical_atom
+    }
+
+    pub fn current_atom(
+        &self,
+    ) -> u64 {
+        self.current_atom
+    }
+}
+
+#[derive(Clone, Debug, Eq, Hash, PartialEq)]
+pub struct SchemaLevelTargetTransferIdentity {
+    action: CognitiveStructure,
+    target_schemas: Vec<RolePreservingTargetStructuralSchema>,
+}
+
+impl SchemaLevelTargetTransferIdentity {
+    fn new(
+        action: CognitiveStructure,
+        target_schemas: Vec<RolePreservingTargetStructuralSchema>,
+    ) -> Self {
+        Self {
+            action,
+            target_schemas,
+        }
+    }
+
+    pub fn action(
+        &self,
+    ) -> &CognitiveStructure {
+        &self.action
+    }
+
+    pub fn target_schemas(
+        &self,
+    ) -> &[RolePreservingTargetStructuralSchema] {
+        &self.target_schemas
+    }
+
+    pub fn target_schema_count(
+        &self,
+    ) -> usize {
+        self.target_schemas.len()
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub struct SchemaLevelTargetTransferIdentityPolicy {
+    max_historical_targets: usize,
+    max_current_targets: usize,
+    max_pair_evaluations: usize,
+    target_schema_policy: RolePreservingTargetSchemaPolicy,
+}
+
+impl SchemaLevelTargetTransferIdentityPolicy {
+    pub fn new(
+        max_historical_targets: usize,
+        max_current_targets: usize,
+        max_pair_evaluations: usize,
+        target_schema_policy: RolePreservingTargetSchemaPolicy,
+    ) -> Option<Self> {
+        if max_historical_targets == 0
+            || max_current_targets == 0
+            || max_pair_evaluations == 0
+        {
+            return None;
+        }
+
+        Some(Self {
+            max_historical_targets,
+            max_current_targets,
+            max_pair_evaluations,
+            target_schema_policy,
+        })
+    }
+
+    pub fn max_historical_targets(
+        self,
+    ) -> usize {
+        self.max_historical_targets
+    }
+
+    pub fn max_current_targets(
+        self,
+    ) -> usize {
+        self.max_current_targets
+    }
+
+    pub fn max_pair_evaluations(
+        self,
+    ) -> usize {
+        self.max_pair_evaluations
+    }
+
+    pub fn target_schema_policy(
+        self,
+    ) -> RolePreservingTargetSchemaPolicy {
+        self.target_schema_policy
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub enum SchemaLevelTargetTransferIdentityStatus {
+    Derived,
+    ActionMismatch,
+    EmptyHistoricalTargetFrontier,
+    EmptyCurrentTargetFrontier,
+    HistoricalTargetFrontierExceeded,
+    CurrentTargetFrontierExceeded,
+    PairEvaluationFrontierExceeded,
+    TargetSchemaFrontierExceeded,
+    TargetSchemaEvaluationRejected,
+    UnmatchedHistoricalTarget,
+    AmbiguousTargetMatch,
+    GlobalBindingConflict,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct SchemaLevelTargetTransferIdentityResult {
+    status: SchemaLevelTargetTransferIdentityStatus,
+    historical_target_count: usize,
+    current_target_count: usize,
+    pair_evaluation_count: usize,
+    exact_match_count: usize,
+    role_preserving_match_count: usize,
+    ignored_current_target_count: usize,
+    identity: Option<SchemaLevelTargetTransferIdentity>,
+    correspondences: Vec<SchemaLevelTargetCorrespondence>,
+    global_bindings: Vec<SchemaLevelTransferAtomBinding>,
+}
+
+impl SchemaLevelTargetTransferIdentityResult {
+    fn rejected(
+        status: SchemaLevelTargetTransferIdentityStatus,
+        historical_target_count: usize,
+        current_target_count: usize,
+        pair_evaluation_count: usize,
+    ) -> Self {
+        Self {
+            status,
+            historical_target_count,
+            current_target_count,
+            pair_evaluation_count,
+            exact_match_count: 0,
+            role_preserving_match_count: 0,
+            ignored_current_target_count: 0,
+            identity: None,
+            correspondences: Vec::new(),
+            global_bindings: Vec::new(),
+        }
+    }
+
+    pub fn status(
+        &self,
+    ) -> SchemaLevelTargetTransferIdentityStatus {
+        self.status
+    }
+
+    pub fn derived(
+        &self,
+    ) -> bool {
+        self.status
+            == SchemaLevelTargetTransferIdentityStatus::Derived
+    }
+
+    pub fn historical_target_count(
+        &self,
+    ) -> usize {
+        self.historical_target_count
+    }
+
+    pub fn current_target_count(
+        &self,
+    ) -> usize {
+        self.current_target_count
+    }
+
+    pub fn pair_evaluation_count(
+        &self,
+    ) -> usize {
+        self.pair_evaluation_count
+    }
+
+    pub fn exact_match_count(
+        &self,
+    ) -> usize {
+        self.exact_match_count
+    }
+
+    pub fn role_preserving_match_count(
+        &self,
+    ) -> usize {
+        self.role_preserving_match_count
+    }
+
+    pub fn ignored_current_target_count(
+        &self,
+    ) -> usize {
+        self.ignored_current_target_count
+    }
+
+    pub fn identity(
+        &self,
+    ) -> Option<&SchemaLevelTargetTransferIdentity> {
+        self.identity.as_ref()
+    }
+
+    pub fn correspondences(
+        &self,
+    ) -> &[SchemaLevelTargetCorrespondence] {
+        &self.correspondences
+    }
+
+    pub fn global_bindings(
+        &self,
+    ) -> &[SchemaLevelTransferAtomBinding] {
+        &self.global_bindings
+    }
+
+    pub fn global_binding_count(
+        &self,
+    ) -> usize {
+        self.global_bindings.len()
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct AutonomousSchemaLevelTargetTransferIdentity;
+
+impl AutonomousSchemaLevelTargetTransferIdentity {
+    fn canonical_distinct_targets(
+        targets: impl IntoIterator<Item = CognitiveStructure>,
+    ) -> Vec<CognitiveStructure> {
+        let mut unique =
+            Vec::<CognitiveStructure>::new();
+
+        for target in targets {
+            if !unique.contains(&target) {
+                unique.push(target);
+            }
+        }
+
+        unique.sort_by_key(
+            |target| format!("{target:?}")
+        );
+
+        unique
+    }
+
+    fn bindings_compatible(
+        existing: &[SchemaLevelTransferAtomBinding],
+        candidate: &[RolePreservingTargetAtomBinding],
+    ) -> bool {
+        candidate.iter().all(|binding| {
+            let historical =
+                binding.historical_atom();
+
+            let current =
+                binding.current_atom();
+
+            let historical_ok =
+                existing.iter().all(|existing_binding| {
+                    existing_binding.historical_atom()
+                        != historical
+                        || existing_binding.current_atom()
+                            == current
+                });
+
+            let current_ok =
+                existing.iter().all(|existing_binding| {
+                    existing_binding.current_atom()
+                        != current
+                        || existing_binding.historical_atom()
+                            == historical
+                });
+
+            historical_ok && current_ok
+        })
+    }
+
+    fn merge_bindings(
+        existing: &mut Vec<SchemaLevelTransferAtomBinding>,
+        candidate: &[RolePreservingTargetAtomBinding],
+    ) {
+        for binding in candidate {
+            let historical =
+                binding.historical_atom();
+
+            let current =
+                binding.current_atom();
+
+            if !existing.iter().any(|existing_binding| {
+                existing_binding.historical_atom()
+                    == historical
+                    && existing_binding.current_atom()
+                        == current
+            }) {
+                existing.push(
+                    SchemaLevelTransferAtomBinding::new(
+                        historical,
+                        current,
+                    ),
+                );
+            }
+        }
+
+        existing.sort_by_key(|binding| {
+            (
+                binding.historical_atom(),
+                binding.current_atom(),
+            )
+        });
+    }
+
+    fn derive_targets(
+        historical_action: &CognitiveStructure,
+        current_action: &CognitiveStructure,
+        historical_targets: Vec<CognitiveStructure>,
+        current_targets: Vec<CognitiveStructure>,
+        policy: SchemaLevelTargetTransferIdentityPolicy,
+    ) -> SchemaLevelTargetTransferIdentityResult {
+        if historical_action != current_action {
+            return SchemaLevelTargetTransferIdentityResult::rejected(
+                SchemaLevelTargetTransferIdentityStatus::ActionMismatch,
+                historical_targets.len(),
+                current_targets.len(),
+                0,
+            );
+        }
+
+        let historical_targets =
+            Self::canonical_distinct_targets(
+                historical_targets,
+            );
+
+        let current_targets =
+            Self::canonical_distinct_targets(
+                current_targets,
+            );
+
+        let historical_count =
+            historical_targets.len();
+
+        let current_count =
+            current_targets.len();
+
+        if historical_count == 0 {
+            return SchemaLevelTargetTransferIdentityResult::rejected(
+                SchemaLevelTargetTransferIdentityStatus::
+                    EmptyHistoricalTargetFrontier,
+                historical_count,
+                current_count,
+                0,
+            );
+        }
+
+        if current_count == 0 {
+            return SchemaLevelTargetTransferIdentityResult::rejected(
+                SchemaLevelTargetTransferIdentityStatus::
+                    EmptyCurrentTargetFrontier,
+                historical_count,
+                current_count,
+                0,
+            );
+        }
+
+        if historical_count
+            > policy.max_historical_targets()
+        {
+            return SchemaLevelTargetTransferIdentityResult::rejected(
+                SchemaLevelTargetTransferIdentityStatus::
+                    HistoricalTargetFrontierExceeded,
+                historical_count,
+                current_count,
+                0,
+            );
+        }
+
+        if current_count
+            > policy.max_current_targets()
+        {
+            return SchemaLevelTargetTransferIdentityResult::rejected(
+                SchemaLevelTargetTransferIdentityStatus::
+                    CurrentTargetFrontierExceeded,
+                historical_count,
+                current_count,
+                0,
+            );
+        }
+
+        let mut used_current =
+            vec![false; current_count];
+
+        let mut correspondence_slots:
+            Vec<Option<SchemaLevelTargetCorrespondence>> =
+            vec![None; historical_count];
+
+        let mut exact_match_count =
+            0_usize;
+
+        /*
+         * Exact matches are reserved globally before any schema match.
+         *
+         * A looser role match is never allowed to steal a current target
+         * that is the exact structural continuation of another historical
+         * target.
+         */
+        for (
+            historical_index,
+            historical_target,
+        ) in historical_targets.iter().enumerate()
+        {
+            let exact_index =
+                current_targets
+                    .iter()
+                    .enumerate()
+                    .find_map(
+                        |(current_index, current_target)| {
+                            if !used_current[current_index]
+                                && current_target
+                                    == historical_target
+                            {
+                                Some(current_index)
+                            } else {
+                                None
+                            }
+                        },
+                    );
+
+            let Some(current_index) =
+                exact_index
+            else {
+                continue;
+            };
+
+            let exact_schema =
+                AutonomousRolePreservingTargetSchema::
+                    derive(
+                        historical_target,
+                        &current_targets[current_index],
+                        policy.target_schema_policy(),
+                    );
+
+            if !exact_schema.derived()
+                || exact_schema.role_count() != 0
+            {
+                return SchemaLevelTargetTransferIdentityResult::
+                    rejected(
+                        SchemaLevelTargetTransferIdentityStatus::
+                            TargetSchemaEvaluationRejected,
+                        historical_count,
+                        current_count,
+                        0,
+                    );
+            }
+
+            used_current[current_index] =
+                true;
+
+            exact_match_count += 1;
+
+            correspondence_slots[historical_index] =
+                Some(
+                    SchemaLevelTargetCorrespondence::new(
+                        historical_target.clone(),
+                        current_targets[current_index].clone(),
+                        SchemaLevelTargetMatchKind::Exact,
+                        exact_schema.schema().unwrap().clone(),
+                        Vec::new(),
+                    ),
+                );
+        }
+
+        let mut pair_evaluation_count =
+            0_usize;
+
+        let mut global_bindings =
+            Vec::<SchemaLevelTransferAtomBinding>::new();
+
+        let mut role_preserving_match_count =
+            0_usize;
+
+        for (
+            historical_index,
+            historical_target,
+        ) in historical_targets.iter().enumerate()
+        {
+            if correspondence_slots[historical_index]
+                .is_some()
+            {
+                continue;
+            }
+
+            struct Candidate {
+                current_index: usize,
+                schema_result:
+                    RolePreservingTargetSchemaResult,
+                score: (usize, usize),
+            }
+
+            let mut candidates =
+                Vec::<Candidate>::new();
+
+            let mut saw_global_binding_conflict =
+                false;
+
+            for (
+                current_index,
+                current_target,
+            ) in current_targets.iter().enumerate()
+            {
+                if used_current[current_index] {
+                    continue;
+                }
+
+                pair_evaluation_count =
+                    match pair_evaluation_count
+                        .checked_add(1)
+                    {
+                        Some(value) => value,
+
+                        None => {
+                            return SchemaLevelTargetTransferIdentityResult::
+                                rejected(
+                                    SchemaLevelTargetTransferIdentityStatus::
+                                        PairEvaluationFrontierExceeded,
+                                    historical_count,
+                                    current_count,
+                                    usize::MAX,
+                                );
+                        }
+                    };
+
+                if pair_evaluation_count
+                    > policy.max_pair_evaluations()
+                {
+                    return SchemaLevelTargetTransferIdentityResult::
+                        rejected(
+                            SchemaLevelTargetTransferIdentityStatus::
+                                PairEvaluationFrontierExceeded,
+                            historical_count,
+                            current_count,
+                            pair_evaluation_count,
+                        );
+                }
+
+                let schema_result =
+                    AutonomousRolePreservingTargetSchema::
+                        derive(
+                            historical_target,
+                            current_target,
+                            policy.target_schema_policy(),
+                        );
+
+                match schema_result.status() {
+                    RolePreservingTargetSchemaStatus::Derived => {
+                        if schema_result.role_count() == 0 {
+                            /*
+                             * Exact equality was already reserved in the
+                             * first pass. A zero-role candidate here would
+                             * violate that deterministic partition.
+                             */
+                            return
+                                SchemaLevelTargetTransferIdentityResult::
+                                    rejected(
+                                        SchemaLevelTargetTransferIdentityStatus::
+                                            TargetSchemaEvaluationRejected,
+                                        historical_count,
+                                        current_count,
+                                        pair_evaluation_count,
+                                    );
+                        }
+
+                        if !Self::bindings_compatible(
+                            &global_bindings,
+                            schema_result.bindings(),
+                        ) {
+                            saw_global_binding_conflict =
+                                true;
+
+                            continue;
+                        }
+
+                        candidates.push(
+                            Candidate {
+                                current_index,
+                                score: (
+                                    schema_result.role_count(),
+                                    schema_result
+                                        .substitution_occurrence_count(),
+                                ),
+                                schema_result,
+                            },
+                        );
+                    }
+
+                    RolePreservingTargetSchemaStatus::
+                        NodeFrontierExceeded
+                    | RolePreservingTargetSchemaStatus::
+                        RoleFrontierExceeded =>
+                    {
+                        return
+                            SchemaLevelTargetTransferIdentityResult::
+                                rejected(
+                                    SchemaLevelTargetTransferIdentityStatus::
+                                        TargetSchemaFrontierExceeded,
+                                    historical_count,
+                                    current_count,
+                                    pair_evaluation_count,
+                                );
+                    }
+
+                    RolePreservingTargetSchemaStatus::
+                        OccurrenceOverflow =>
+                    {
+                        return
+                            SchemaLevelTargetTransferIdentityResult::
+                                rejected(
+                                    SchemaLevelTargetTransferIdentityStatus::
+                                        TargetSchemaEvaluationRejected,
+                                    historical_count,
+                                    current_count,
+                                    pair_evaluation_count,
+                                );
+                    }
+
+                    RolePreservingTargetSchemaStatus::
+                        StructuralMismatch
+                    | RolePreservingTargetSchemaStatus::
+                        ConflictingHistoricalBinding
+                    | RolePreservingTargetSchemaStatus::
+                        ConflictingCurrentBinding =>
+                    {
+                    }
+                }
+            }
+
+            if candidates.is_empty() {
+                let status =
+                    if saw_global_binding_conflict {
+                        SchemaLevelTargetTransferIdentityStatus::
+                            GlobalBindingConflict
+                    } else {
+                        SchemaLevelTargetTransferIdentityStatus::
+                            UnmatchedHistoricalTarget
+                    };
+
+                return
+                    SchemaLevelTargetTransferIdentityResult::
+                        rejected(
+                            status,
+                            historical_count,
+                            current_count,
+                            pair_evaluation_count,
+                        );
+            }
+
+            candidates.sort_by_key(
+                |candidate| candidate.score
+            );
+
+            let best_score =
+                candidates[0].score;
+
+            let equally_best =
+                candidates.iter()
+                    .filter(|candidate| {
+                        candidate.score
+                            == best_score
+                    })
+                    .count();
+
+            if equally_best != 1 {
+                return
+                    SchemaLevelTargetTransferIdentityResult::
+                        rejected(
+                            SchemaLevelTargetTransferIdentityStatus::
+                                AmbiguousTargetMatch,
+                            historical_count,
+                            current_count,
+                            pair_evaluation_count,
+                        );
+            }
+
+            let selected =
+                candidates.remove(0);
+
+            let selected_current =
+                current_targets[
+                    selected.current_index
+                ]
+                .clone();
+
+            Self::merge_bindings(
+                &mut global_bindings,
+                selected.schema_result.bindings(),
+            );
+
+            used_current[
+                selected.current_index
+            ] = true;
+
+            role_preserving_match_count +=
+                1;
+
+            correspondence_slots[
+                historical_index
+            ] =
+                Some(
+                    SchemaLevelTargetCorrespondence::new(
+                        historical_target.clone(),
+                        selected_current,
+                        SchemaLevelTargetMatchKind::
+                            RolePreserving,
+                        selected
+                            .schema_result
+                            .schema()
+                            .unwrap()
+                            .clone(),
+                        selected
+                            .schema_result
+                            .bindings()
+                            .to_vec(),
+                    ),
+                );
+        }
+
+        let mut correspondences =
+            correspondence_slots
+                .into_iter()
+                .map(|entry| {
+                    entry.expect(
+                        "all historical targets are matched before derivation succeeds",
+                    )
+                })
+                .collect::<Vec<_>>();
+
+        correspondences.sort_by_key(
+            |correspondence| {
+                format!(
+                    "{:?}",
+                    correspondence
+                        .historical_target()
+                )
+            },
+        );
+
+        let mut target_schemas =
+            correspondences
+                .iter()
+                .map(|correspondence| {
+                    correspondence
+                        .schema()
+                        .clone()
+                })
+                .collect::<Vec<_>>();
+
+        target_schemas.sort_by_key(
+            |schema| format!("{schema:?}")
+        );
+
+        let ignored_current_target_count =
+            current_count
+                .saturating_sub(
+                    correspondences.len(),
+                );
+
+        SchemaLevelTargetTransferIdentityResult {
+            status:
+                SchemaLevelTargetTransferIdentityStatus::
+                    Derived,
+
+            historical_target_count:
+                historical_count,
+
+            current_target_count:
+                current_count,
+
+            pair_evaluation_count,
+
+            exact_match_count,
+
+            role_preserving_match_count,
+
+            ignored_current_target_count,
+
+            identity: Some(
+                SchemaLevelTargetTransferIdentity::new(
+                    historical_action.clone(),
+                    target_schemas,
+                ),
+            ),
+
+            correspondences,
+
+            global_bindings,
+        }
+    }
+
+    pub fn derive(
+        historical:
+            &EmpiricalEpistemicTransferIdentity,
+        current:
+            &EmpiricalEpistemicTransferIdentity,
+        policy:
+            SchemaLevelTargetTransferIdentityPolicy,
+    ) -> SchemaLevelTargetTransferIdentityResult {
+        let historical_targets =
+            historical
+                .forecasts()
+                .iter()
+                .map(|forecast| {
+                    forecast.target().clone()
+                })
+                .collect::<Vec<_>>();
+
+        let current_targets =
+            current
+                .forecasts()
+                .iter()
+                .map(|forecast| {
+                    forecast.target().clone()
+                })
+                .collect::<Vec<_>>();
+
+        Self::derive_targets(
+            historical.action(),
+            current.action(),
+            historical_targets,
+            current_targets,
+            policy,
+        )
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct UniversalAutonomousSchemaLevelTargetTransferIdentity;
+
+impl UniversalAutonomousSchemaLevelTargetTransferIdentity {
+    pub fn derive(
+        historical:
+            &EmpiricalEpistemicTransferIdentity,
+        current:
+            &EmpiricalEpistemicTransferIdentity,
+        policy:
+            SchemaLevelTargetTransferIdentityPolicy,
+    ) -> SchemaLevelTargetTransferIdentityResult {
+        AutonomousSchemaLevelTargetTransferIdentity::
+            derive(
+                historical,
+                current,
+                policy,
+            )
+    }
+}
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct HypothesisDiscriminationCandidate {
     experiment: AutonomousExperimentProposal,
@@ -15279,6 +16257,676 @@ mod p4g_c3h_role_preserving_target_schema_tests {
         assert_eq!(
             current,
             current_before,
+        );
+    }
+}
+
+#[cfg(test)]
+mod p4g_c3h_schema_level_target_transfer_identity_tests {
+    use super::*;
+
+    fn a(
+        value: u64,
+    ) -> CognitiveStructure {
+        CognitiveStructure::Atom(
+            value,
+        )
+    }
+
+    fn ordered(
+        children:
+            Vec<CognitiveStructure>,
+    ) -> CognitiveStructure {
+        CognitiveStructure::Ordered(
+            children,
+        )
+    }
+
+    fn unordered(
+        children:
+            Vec<CognitiveStructure>,
+    ) -> CognitiveStructure {
+        CognitiveStructure::Unordered(
+            children,
+        )
+    }
+
+    fn policy(
+    ) -> SchemaLevelTargetTransferIdentityPolicy {
+        SchemaLevelTargetTransferIdentityPolicy::
+            new(
+                64,
+                64,
+                4096,
+                RolePreservingTargetSchemaPolicy::
+                    new(
+                        256,
+                        32,
+                    )
+                    .unwrap(),
+            )
+            .unwrap()
+    }
+
+    fn derive(
+        historical:
+            Vec<CognitiveStructure>,
+        current:
+            Vec<CognitiveStructure>,
+    ) -> SchemaLevelTargetTransferIdentityResult {
+        AutonomousSchemaLevelTargetTransferIdentity::
+            derive_targets(
+                &a(900),
+                &a(900),
+                historical,
+                current,
+                policy(),
+            )
+    }
+
+    #[test]
+    fn exact_historical_targets_are_reserved_before_looser_schema_matches() {
+        let historical =
+            vec![
+                ordered(
+                    vec![
+                        a(100),
+                        a(1),
+                    ],
+                ),
+            ];
+
+        let exact =
+            ordered(
+                vec![
+                    a(100),
+                    a(1),
+                ],
+            );
+
+        let role_candidate =
+            ordered(
+                vec![
+                    a(100),
+                    a(2),
+                ],
+            );
+
+        let result =
+            derive(
+                historical,
+                vec![
+                    role_candidate,
+                    exact.clone(),
+                ],
+            );
+
+        assert!(result.derived());
+
+        assert_eq!(
+            result.exact_match_count(),
+            1,
+        );
+
+        assert_eq!(
+            result.role_preserving_match_count(),
+            0,
+        );
+
+        assert_eq!(
+            result.ignored_current_target_count(),
+            1,
+        );
+
+        assert_eq!(
+            result.correspondences()[0]
+                .current_target(),
+            &exact,
+        );
+    }
+
+    #[test]
+    fn consistent_multi_target_role_substitution_derives_one_global_relation() {
+        let historical =
+            vec![
+                ordered(
+                    vec![
+                        a(100),
+                        a(1),
+                        a(5),
+                    ],
+                ),
+                ordered(
+                    vec![
+                        a(200),
+                        a(1),
+                        a(5),
+                        a(5),
+                    ],
+                ),
+            ];
+
+        let current =
+            vec![
+                ordered(
+                    vec![
+                        a(100),
+                        a(2),
+                        a(7),
+                    ],
+                ),
+                ordered(
+                    vec![
+                        a(200),
+                        a(2),
+                        a(7),
+                        a(7),
+                    ],
+                ),
+            ];
+
+        let result =
+            derive(
+                historical,
+                current,
+            );
+
+        assert!(result.derived());
+
+        assert_eq!(
+            result.exact_match_count(),
+            0,
+        );
+
+        assert_eq!(
+            result.role_preserving_match_count(),
+            2,
+        );
+
+        assert_eq!(
+            result.global_binding_count(),
+            2,
+        );
+
+        assert_eq!(
+            result.global_bindings()
+                .iter()
+                .map(|binding| {
+                    (
+                        binding.historical_atom(),
+                        binding.current_atom(),
+                    )
+                })
+                .collect::<Vec<_>>(),
+            vec![
+                (1, 2),
+                (5, 7),
+            ],
+        );
+    }
+
+    #[test]
+    fn different_concrete_bindings_can_share_the_same_schema_level_identity() {
+        let first =
+            derive(
+                vec![
+                    ordered(
+                        vec![
+                            a(100),
+                            a(1),
+                            a(5),
+                            a(5),
+                        ],
+                    ),
+                ],
+                vec![
+                    ordered(
+                        vec![
+                            a(100),
+                            a(2),
+                            a(7),
+                            a(7),
+                        ],
+                    ),
+                ],
+            );
+
+        let second =
+            AutonomousSchemaLevelTargetTransferIdentity::
+                derive_targets(
+                    &a(900),
+                    &a(900),
+                    vec![
+                        ordered(
+                            vec![
+                                a(100),
+                                a(11),
+                                a(50),
+                                a(50),
+                            ],
+                        ),
+                    ],
+                    vec![
+                        ordered(
+                            vec![
+                                a(100),
+                                a(12),
+                                a(70),
+                                a(70),
+                            ],
+                        ),
+                    ],
+                    policy(),
+                );
+
+        assert!(first.derived());
+        assert!(second.derived());
+
+        assert_eq!(
+            first.identity(),
+            second.identity(),
+        );
+
+        assert_ne!(
+            first.global_bindings(),
+            second.global_bindings(),
+            "abstract identity must stay separate from concrete provenance",
+        );
+    }
+
+    #[test]
+    fn current_only_refinement_targets_do_not_change_historical_schema_identity() {
+        let historical_target =
+            ordered(
+                vec![
+                    a(100),
+                    a(1),
+                ],
+            );
+
+        let base =
+            derive(
+                vec![
+                    historical_target.clone(),
+                ],
+                vec![
+                    historical_target.clone(),
+                ],
+            );
+
+        let refined =
+            derive(
+                vec![
+                    historical_target.clone(),
+                ],
+                vec![
+                    historical_target,
+                    unordered(
+                        vec![
+                            a(700),
+                            a(701),
+                        ],
+                    ),
+                ],
+            );
+
+        assert!(base.derived());
+        assert!(refined.derived());
+
+        assert_eq!(
+            base.identity(),
+            refined.identity(),
+        );
+
+        assert_eq!(
+            base.ignored_current_target_count(),
+            0,
+        );
+
+        assert_eq!(
+            refined.ignored_current_target_count(),
+            1,
+        );
+    }
+
+    #[test]
+    fn inconsistent_changed_atom_binding_across_targets_fails_closed() {
+        let result =
+            derive(
+                vec![
+                    ordered(
+                        vec![
+                            a(100),
+                            a(1),
+                        ],
+                    ),
+                    ordered(
+                        vec![
+                            a(200),
+                            a(1),
+                            a(9),
+                        ],
+                    ),
+                ],
+                vec![
+                    ordered(
+                        vec![
+                            a(100),
+                            a(2),
+                        ],
+                    ),
+                    ordered(
+                        vec![
+                            a(200),
+                            a(3),
+                            a(9),
+                        ],
+                    ),
+                ],
+            );
+
+        assert_eq!(
+            result.status(),
+            SchemaLevelTargetTransferIdentityStatus::
+                GlobalBindingConflict,
+        );
+
+        assert!(
+            result.identity().is_none(),
+        );
+    }
+
+    #[test]
+    fn equally_good_role_targets_are_ambiguous_not_arbitrarily_selected() {
+        let result =
+            derive(
+                vec![
+                    ordered(
+                        vec![
+                            a(100),
+                            a(1),
+                        ],
+                    ),
+                ],
+                vec![
+                    ordered(
+                        vec![
+                            a(100),
+                            a(2),
+                        ],
+                    ),
+                    ordered(
+                        vec![
+                            a(100),
+                            a(3),
+                        ],
+                    ),
+                ],
+            );
+
+        assert_eq!(
+            result.status(),
+            SchemaLevelTargetTransferIdentityStatus::
+                AmbiguousTargetMatch,
+        );
+
+        assert!(
+            result.identity().is_none(),
+        );
+    }
+
+    #[test]
+    fn structurally_unmatched_historical_target_cannot_disappear_into_refinement() {
+        let result =
+            derive(
+                vec![
+                    ordered(
+                        vec![
+                            a(1),
+                            a(2),
+                        ],
+                    ),
+                ],
+                vec![
+                    unordered(
+                        vec![
+                            a(3),
+                            a(4),
+                        ],
+                    ),
+                ],
+            );
+
+        assert_eq!(
+            result.status(),
+            SchemaLevelTargetTransferIdentityStatus::
+                UnmatchedHistoricalTarget,
+        );
+
+        assert!(
+            result.identity().is_none(),
+        );
+    }
+
+    #[test]
+    fn action_identity_remains_exact_schema_level_authority() {
+        let result =
+            AutonomousSchemaLevelTargetTransferIdentity::
+                derive_targets(
+                    &a(900),
+                    &a(901),
+                    vec![a(1)],
+                    vec![a(1)],
+                    policy(),
+                );
+
+        assert_eq!(
+            result.status(),
+            SchemaLevelTargetTransferIdentityStatus::
+                ActionMismatch,
+        );
+    }
+
+    #[test]
+    fn hard_target_and_pair_evaluation_frontiers_fail_closed() {
+        let historical_overflow =
+            AutonomousSchemaLevelTargetTransferIdentity::
+                derive_targets(
+                    &a(900),
+                    &a(900),
+                    vec![
+                        a(1),
+                        a(2),
+                    ],
+                    vec![
+                        a(1),
+                        a(2),
+                    ],
+                    SchemaLevelTargetTransferIdentityPolicy::
+                        new(
+                            1,
+                            8,
+                            64,
+                            RolePreservingTargetSchemaPolicy::
+                                new(
+                                    64,
+                                    8,
+                                )
+                                .unwrap(),
+                        )
+                        .unwrap(),
+                );
+
+        assert_eq!(
+            historical_overflow.status(),
+            SchemaLevelTargetTransferIdentityStatus::
+                HistoricalTargetFrontierExceeded,
+        );
+
+        let current_overflow =
+            AutonomousSchemaLevelTargetTransferIdentity::
+                derive_targets(
+                    &a(900),
+                    &a(900),
+                    vec![
+                        ordered(
+                            vec![
+                                a(100),
+                                a(1),
+                            ],
+                        ),
+                    ],
+                    vec![
+                        ordered(
+                            vec![
+                                a(100),
+                                a(2),
+                            ],
+                        ),
+                        ordered(
+                            vec![
+                                a(100),
+                                a(3),
+                            ],
+                        ),
+                    ],
+                    SchemaLevelTargetTransferIdentityPolicy::
+                        new(
+                            8,
+                            1,
+                            64,
+                            RolePreservingTargetSchemaPolicy::
+                                new(
+                                    64,
+                                    8,
+                                )
+                                .unwrap(),
+                        )
+                        .unwrap(),
+                );
+
+        assert_eq!(
+            current_overflow.status(),
+            SchemaLevelTargetTransferIdentityStatus::
+                CurrentTargetFrontierExceeded,
+        );
+
+        let pair_overflow =
+            AutonomousSchemaLevelTargetTransferIdentity::
+                derive_targets(
+                    &a(900),
+                    &a(900),
+                    vec![
+                        ordered(
+                            vec![
+                                a(100),
+                                a(1),
+                            ],
+                        ),
+                    ],
+                    vec![
+                        ordered(
+                            vec![
+                                a(100),
+                                a(2),
+                            ],
+                        ),
+                        ordered(
+                            vec![
+                                a(100),
+                                a(3),
+                            ],
+                        ),
+                    ],
+                    SchemaLevelTargetTransferIdentityPolicy::
+                        new(
+                            8,
+                            8,
+                            1,
+                            RolePreservingTargetSchemaPolicy::
+                                new(
+                                    64,
+                                    8,
+                                )
+                                .unwrap(),
+                        )
+                        .unwrap(),
+                );
+
+        assert_eq!(
+            pair_overflow.status(),
+            SchemaLevelTargetTransferIdentityStatus::
+                PairEvaluationFrontierExceeded,
+        );
+    }
+
+    #[test]
+    fn target_order_cannot_change_schema_identity_or_correspondence() {
+        let h1 =
+            ordered(
+                vec![
+                    a(100),
+                    a(1),
+                    a(5),
+                ],
+            );
+
+        let h2 =
+            ordered(
+                vec![
+                    a(200),
+                    a(1),
+                    a(5),
+                    a(5),
+                ],
+            );
+
+        let c1 =
+            ordered(
+                vec![
+                    a(100),
+                    a(2),
+                    a(7),
+                ],
+            );
+
+        let c2 =
+            ordered(
+                vec![
+                    a(200),
+                    a(2),
+                    a(7),
+                    a(7),
+                ],
+            );
+
+        let first =
+            derive(
+                vec![
+                    h1.clone(),
+                    h2.clone(),
+                ],
+                vec![
+                    c1.clone(),
+                    c2.clone(),
+                ],
+            );
+
+        let second =
+            derive(
+                vec![
+                    h2,
+                    h1,
+                ],
+                vec![
+                    c2,
+                    c1,
+                ],
+            );
+
+        assert_eq!(
+            first,
+            second,
         );
     }
 }
