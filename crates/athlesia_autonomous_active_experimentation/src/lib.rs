@@ -1659,6 +1659,534 @@ impl UniversalAutonomousEpistemicResolutionProgress {
     }
 }
 
+// ============================================================================
+// P4G-C3E-A — EMPIRICAL EXPECTED EPISTEMIC PROGRESS
+// ============================================================================
+//
+// This is deliberately NOT Shannon expected information gain.
+//
+// C3D supplies realized epistemic-progress samples produced by:
+//     real intervention -> real consequence -> retained learning
+//
+// C3E-A estimates future epistemic progress ONLY from repeated prior C3D
+// samples with the exact same:
+//
+//   * source-state identity,
+//   * action identity,
+//   * pre-learning separation,
+//   * concrete prediction count,
+//   * contextual-abstention count,
+//   * no-opportunity count.
+//
+// No cross-state generalization is permitted here.  Structural transfer must
+// be established separately rather than smuggled into an expectation.
+//
+// The estimator keeps the empirical expectation as an exact rational:
+//
+//       total realized reduction / qualifying sample count
+//       total realized increase  / qualifying sample count
+//
+// It never converts those ratios into fabricated probability, confidence,
+// likelihood, utility, EIG, or dispatch authority.
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct EpistemicProgressExpectationPattern {
+    source_state: CognitiveStructure,
+    action: CognitiveStructure,
+    separation_before: usize,
+    predicted_count: usize,
+    context_abstention_count: usize,
+    no_opportunity_count: usize,
+}
+
+impl EpistemicProgressExpectationPattern {
+    fn from_progress_sample(sample: &EpistemicResolutionProgressSample) -> Self {
+        Self {
+            source_state: sample.source_state().clone(),
+            action: sample.action().clone(),
+            separation_before: sample.separation_before(),
+            predicted_count: sample.empirically_tested_prediction_count(),
+            context_abstention_count: sample.context_uninformative_count(),
+            no_opportunity_count: sample.no_opportunity_uninformative_count(),
+        }
+    }
+
+    fn from_current_possibility(
+        possibility: &GroundedEpistemicExperimentPossibility,
+        discrimination: &GroundedEpistemicExperimentDiscrimination,
+    ) -> Self {
+        let predicted_count = discrimination
+            .disagreements()
+            .iter()
+            .map(EpistemicTargetDisagreement::predicted_count)
+            .fold(0_usize, usize::saturating_add);
+
+        let context_abstention_count = discrimination
+            .disagreements()
+            .iter()
+            .map(EpistemicTargetDisagreement::context_abstention_count)
+            .fold(0_usize, usize::saturating_add);
+
+        let no_opportunity_count = discrimination
+            .disagreements()
+            .iter()
+            .map(EpistemicTargetDisagreement::no_effect_opportunity_count)
+            .fold(0_usize, usize::saturating_add);
+
+        Self {
+            source_state: possibility.source_state().clone(),
+            action: possibility.action().clone(),
+            separation_before: discrimination.pairwise_separation_score(),
+            predicted_count,
+            context_abstention_count,
+            no_opportunity_count,
+        }
+    }
+
+    pub fn source_state(&self) -> &CognitiveStructure {
+        &self.source_state
+    }
+
+    pub fn action(&self) -> &CognitiveStructure {
+        &self.action
+    }
+
+    pub fn separation_before(&self) -> usize {
+        self.separation_before
+    }
+
+    pub fn predicted_count(&self) -> usize {
+        self.predicted_count
+    }
+
+    pub fn context_abstention_count(&self) -> usize {
+        self.context_abstention_count
+    }
+
+    pub fn no_opportunity_count(&self) -> usize {
+        self.no_opportunity_count
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct GroundedEpistemicProgressEvidence {
+    evidence_identity: CognitiveStructure,
+    sample: EpistemicResolutionProgressSample,
+}
+
+impl GroundedEpistemicProgressEvidence {
+    pub fn new(
+        evidence_identity: CognitiveStructure,
+        sample: EpistemicResolutionProgressSample,
+    ) -> Self {
+        Self {
+            evidence_identity,
+            sample,
+        }
+    }
+
+    pub fn evidence_identity(&self) -> &CognitiveStructure {
+        &self.evidence_identity
+    }
+
+    pub fn sample(&self) -> &EpistemicResolutionProgressSample {
+        &self.sample
+    }
+
+    pub fn pattern(&self) -> EpistemicProgressExpectationPattern {
+        EpistemicProgressExpectationPattern::from_progress_sample(&self.sample)
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub struct EmpiricalExpectedEpistemicProgressPolicy {
+    max_input_evidence: usize,
+    max_matching_evidence: usize,
+    minimum_matching_evidence: usize,
+}
+
+impl EmpiricalExpectedEpistemicProgressPolicy {
+    pub fn new(
+        max_input_evidence: usize,
+        max_matching_evidence: usize,
+        minimum_matching_evidence: usize,
+    ) -> Option<Self> {
+        if max_input_evidence == 0
+            || max_matching_evidence == 0
+            || minimum_matching_evidence == 0
+            || minimum_matching_evidence > max_matching_evidence
+            || max_matching_evidence > max_input_evidence
+        {
+            return None;
+        }
+
+        Some(Self {
+            max_input_evidence,
+            max_matching_evidence,
+            minimum_matching_evidence,
+        })
+    }
+
+    pub fn max_input_evidence(self) -> usize {
+        self.max_input_evidence
+    }
+
+    pub fn max_matching_evidence(self) -> usize {
+        self.max_matching_evidence
+    }
+
+    pub fn minimum_matching_evidence(self) -> usize {
+        self.minimum_matching_evidence
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub enum EmpiricalEpistemicProgressDirection {
+    ReductionDominant,
+    IncreaseDominant,
+    Balanced,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct EmpiricalExpectedEpistemicProgressEstimate {
+    pattern: EpistemicProgressExpectationPattern,
+    qualifying_sample_count: usize,
+    total_realized_reduction: u128,
+    total_realized_increase: u128,
+    reduction_sample_count: usize,
+    increase_sample_count: usize,
+    unchanged_sample_count: usize,
+}
+
+impl EmpiricalExpectedEpistemicProgressEstimate {
+    pub fn pattern(&self) -> &EpistemicProgressExpectationPattern {
+        &self.pattern
+    }
+
+    pub fn qualifying_sample_count(&self) -> usize {
+        self.qualifying_sample_count
+    }
+
+    pub fn expected_reduction_numerator(&self) -> u128 {
+        self.total_realized_reduction
+    }
+
+    pub fn expected_reduction_denominator(&self) -> usize {
+        self.qualifying_sample_count
+    }
+
+    pub fn expected_increase_numerator(&self) -> u128 {
+        self.total_realized_increase
+    }
+
+    pub fn expected_increase_denominator(&self) -> usize {
+        self.qualifying_sample_count
+    }
+
+    pub fn total_realized_reduction(&self) -> u128 {
+        self.total_realized_reduction
+    }
+
+    pub fn total_realized_increase(&self) -> u128 {
+        self.total_realized_increase
+    }
+
+    pub fn reduction_sample_count(&self) -> usize {
+        self.reduction_sample_count
+    }
+
+    pub fn increase_sample_count(&self) -> usize {
+        self.increase_sample_count
+    }
+
+    pub fn unchanged_sample_count(&self) -> usize {
+        self.unchanged_sample_count
+    }
+
+    pub fn direction(&self) -> EmpiricalEpistemicProgressDirection {
+        match self
+            .total_realized_reduction
+            .cmp(&self.total_realized_increase)
+        {
+            std::cmp::Ordering::Greater => EmpiricalEpistemicProgressDirection::ReductionDominant,
+
+            std::cmp::Ordering::Less => EmpiricalEpistemicProgressDirection::IncreaseDominant,
+
+            std::cmp::Ordering::Equal => EmpiricalEpistemicProgressDirection::Balanced,
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub enum EmpiricalExpectedEpistemicProgressStatus {
+    Estimated,
+    CurrentFrontierTruncated,
+    CurrentNotInformative,
+    InputEvidenceFrontierExceeded,
+    ConflictingEvidenceIdentity,
+    NoMatchingEvidence,
+    MatchingEvidenceFrontierExceeded,
+    InsufficientMatchingEvidence,
+    ArithmeticOverflow,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct EmpiricalExpectedEpistemicProgressResult {
+    status: EmpiricalExpectedEpistemicProgressStatus,
+    input_evidence_count: usize,
+    unique_evidence_count: usize,
+    matching_evidence_count: usize,
+    estimate: Option<EmpiricalExpectedEpistemicProgressEstimate>,
+}
+
+impl EmpiricalExpectedEpistemicProgressResult {
+    fn rejected(
+        status: EmpiricalExpectedEpistemicProgressStatus,
+        input_evidence_count: usize,
+        unique_evidence_count: usize,
+        matching_evidence_count: usize,
+    ) -> Self {
+        Self {
+            status,
+            input_evidence_count,
+            unique_evidence_count,
+            matching_evidence_count,
+            estimate: None,
+        }
+    }
+
+    pub fn status(&self) -> EmpiricalExpectedEpistemicProgressStatus {
+        self.status
+    }
+
+    pub fn estimated(&self) -> bool {
+        self.status == EmpiricalExpectedEpistemicProgressStatus::Estimated
+    }
+
+    pub fn input_evidence_count(&self) -> usize {
+        self.input_evidence_count
+    }
+
+    pub fn unique_evidence_count(&self) -> usize {
+        self.unique_evidence_count
+    }
+
+    pub fn matching_evidence_count(&self) -> usize {
+        self.matching_evidence_count
+    }
+
+    pub fn estimate(&self) -> Option<&EmpiricalExpectedEpistemicProgressEstimate> {
+        self.estimate.as_ref()
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct AutonomousEmpiricalExpectedEpistemicProgress;
+
+impl AutonomousEmpiricalExpectedEpistemicProgress {
+    fn evidence_order(
+        left: &GroundedEpistemicProgressEvidence,
+        right: &GroundedEpistemicProgressEvidence,
+    ) -> std::cmp::Ordering {
+        format!("{:?}", left.evidence_identity())
+            .cmp(&format!("{:?}", right.evidence_identity()))
+            .then_with(|| format!("{:?}", left.sample()).cmp(&format!("{:?}", right.sample())))
+    }
+
+    pub fn estimate(
+        current: &GroundedEpistemicExperimentPossibility,
+        history: &[GroundedEpistemicProgressEvidence],
+        discrimination_policy: EpistemicForecastDiscriminationPolicy,
+        policy: EmpiricalExpectedEpistemicProgressPolicy,
+    ) -> EmpiricalExpectedEpistemicProgressResult {
+        let input_evidence_count = history.len();
+
+        if input_evidence_count > policy.max_input_evidence() {
+            return EmpiricalExpectedEpistemicProgressResult::rejected(
+                EmpiricalExpectedEpistemicProgressStatus::InputEvidenceFrontierExceeded,
+                input_evidence_count,
+                0,
+                0,
+            );
+        }
+
+        let current_discrimination =
+            AutonomousEpistemicForecastDiscrimination::evaluate(current, discrimination_policy);
+
+        if current_discrimination.forecast_frontier_truncated()
+            || current_discrimination.target_frontier_truncated()
+        {
+            return EmpiricalExpectedEpistemicProgressResult::rejected(
+                EmpiricalExpectedEpistemicProgressStatus::CurrentFrontierTruncated,
+                input_evidence_count,
+                0,
+                0,
+            );
+        }
+
+        if !current_discrimination.informative() {
+            return EmpiricalExpectedEpistemicProgressResult::rejected(
+                EmpiricalExpectedEpistemicProgressStatus::CurrentNotInformative,
+                input_evidence_count,
+                0,
+                0,
+            );
+        }
+
+        let current_pattern = EpistemicProgressExpectationPattern::from_current_possibility(
+            current,
+            &current_discrimination,
+        );
+
+        let mut evidence = history.to_vec();
+        evidence.sort_by(Self::evidence_order);
+
+        let mut unique: Vec<GroundedEpistemicProgressEvidence> = Vec::new();
+
+        for candidate in evidence {
+            if let Some(existing) = unique
+                .iter()
+                .find(|existing| existing.evidence_identity() == candidate.evidence_identity())
+            {
+                if existing != &candidate {
+                    return EmpiricalExpectedEpistemicProgressResult::rejected(
+                        EmpiricalExpectedEpistemicProgressStatus::ConflictingEvidenceIdentity,
+                        input_evidence_count,
+                        unique.len(),
+                        0,
+                    );
+                }
+
+                continue;
+            }
+
+            unique.push(candidate);
+        }
+
+        let unique_evidence_count = unique.len();
+
+        let matching = unique
+            .iter()
+            .filter(|evidence| evidence.pattern() == current_pattern)
+            .collect::<Vec<_>>();
+
+        let matching_evidence_count = matching.len();
+
+        if matching_evidence_count == 0 {
+            return EmpiricalExpectedEpistemicProgressResult::rejected(
+                EmpiricalExpectedEpistemicProgressStatus::NoMatchingEvidence,
+                input_evidence_count,
+                unique_evidence_count,
+                0,
+            );
+        }
+
+        if matching_evidence_count > policy.max_matching_evidence() {
+            return EmpiricalExpectedEpistemicProgressResult::rejected(
+                EmpiricalExpectedEpistemicProgressStatus::MatchingEvidenceFrontierExceeded,
+                input_evidence_count,
+                unique_evidence_count,
+                matching_evidence_count,
+            );
+        }
+
+        if matching_evidence_count < policy.minimum_matching_evidence() {
+            return EmpiricalExpectedEpistemicProgressResult::rejected(
+                EmpiricalExpectedEpistemicProgressStatus::InsufficientMatchingEvidence,
+                input_evidence_count,
+                unique_evidence_count,
+                matching_evidence_count,
+            );
+        }
+
+        let mut total_realized_reduction = 0_u128;
+        let mut total_realized_increase = 0_u128;
+
+        let mut reduction_sample_count = 0_usize;
+        let mut increase_sample_count = 0_usize;
+        let mut unchanged_sample_count = 0_usize;
+
+        for evidence in matching {
+            let sample = evidence.sample();
+
+            total_realized_reduction = match total_realized_reduction
+                .checked_add(sample.realized_separation_reduction() as u128)
+            {
+                Some(value) => value,
+
+                None => {
+                    return EmpiricalExpectedEpistemicProgressResult::rejected(
+                        EmpiricalExpectedEpistemicProgressStatus::ArithmeticOverflow,
+                        input_evidence_count,
+                        unique_evidence_count,
+                        matching_evidence_count,
+                    );
+                }
+            };
+
+            total_realized_increase = match total_realized_increase
+                .checked_add(sample.realized_separation_increase() as u128)
+            {
+                Some(value) => value,
+
+                None => {
+                    return EmpiricalExpectedEpistemicProgressResult::rejected(
+                        EmpiricalExpectedEpistemicProgressStatus::ArithmeticOverflow,
+                        input_evidence_count,
+                        unique_evidence_count,
+                        matching_evidence_count,
+                    );
+                }
+            };
+
+            if sample.realized_separation_reduction() > 0 {
+                reduction_sample_count = reduction_sample_count.saturating_add(1);
+            } else if sample.realized_separation_increase() > 0 {
+                increase_sample_count = increase_sample_count.saturating_add(1);
+            } else {
+                unchanged_sample_count = unchanged_sample_count.saturating_add(1);
+            }
+        }
+
+        EmpiricalExpectedEpistemicProgressResult {
+            status: EmpiricalExpectedEpistemicProgressStatus::Estimated,
+
+            input_evidence_count,
+            unique_evidence_count,
+            matching_evidence_count,
+
+            estimate: Some(EmpiricalExpectedEpistemicProgressEstimate {
+                pattern: current_pattern,
+                qualifying_sample_count: matching_evidence_count,
+                total_realized_reduction,
+                total_realized_increase,
+                reduction_sample_count,
+                increase_sample_count,
+                unchanged_sample_count,
+            }),
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct UniversalAutonomousEmpiricalExpectedEpistemicProgress;
+
+impl UniversalAutonomousEmpiricalExpectedEpistemicProgress {
+    pub fn estimate(
+        current: &GroundedEpistemicExperimentPossibility,
+        history: &[GroundedEpistemicProgressEvidence],
+        discrimination_policy: EpistemicForecastDiscriminationPolicy,
+        policy: EmpiricalExpectedEpistemicProgressPolicy,
+    ) -> EmpiricalExpectedEpistemicProgressResult {
+        AutonomousEmpiricalExpectedEpistemicProgress::estimate(
+            current,
+            history,
+            discrimination_policy,
+            policy,
+        )
+    }
+}
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct HypothesisDiscriminationCandidate {
     experiment: AutonomousExperimentProposal,
@@ -10424,5 +10952,439 @@ mod p4g_c3d_realized_epistemic_progress_tests {
         assert_eq!(pre, before_pre);
         assert_eq!(outcome, before_outcome);
         assert_eq!(post, before_post);
+    }
+}
+
+#[cfg(test)]
+mod p4g_c3e_empirical_expected_epistemic_progress_tests {
+    use super::*;
+
+    fn a(value: u64) -> CognitiveStructure {
+        CognitiveStructure::atom(value)
+    }
+
+    fn evidence() -> EpistemicForecastEvidence {
+        EpistemicForecastEvidence::new(2, 2, 0).unwrap()
+    }
+
+    fn predicted(hypothesis: u64, target: u64) -> EpistemicHypothesisForecast {
+        EpistemicHypothesisForecast::predicted(
+            a(hypothesis),
+            a(target),
+            a(target + 10_000),
+            evidence(),
+        )
+        .unwrap()
+    }
+
+    fn abstained(hypothesis: u64, target: u64) -> EpistemicHypothesisForecast {
+        EpistemicHypothesisForecast::context_abstained(a(hypothesis), a(target), evidence())
+            .unwrap()
+    }
+
+    fn possibility(
+        source: u64,
+        action: u64,
+        forecasts: Vec<EpistemicHypothesisForecast>,
+    ) -> GroundedEpistemicExperimentPossibility {
+        GroundedEpistemicExperimentPossibility::new(a(source), a(action), forecasts).unwrap()
+    }
+
+    fn resolution(
+        possibility: &GroundedEpistemicExperimentPossibility,
+        target_id: u64,
+        occurred: bool,
+    ) -> EpistemicOutcomeResolutionResult {
+        let observation = GroundedEpistemicOutcomeObservation::new(
+            possibility.source_state().clone(),
+            possibility.action().clone(),
+            vec![EpistemicTargetObservation::new(a(target_id), occurred)],
+        )
+        .unwrap();
+
+        AutonomousEpistemicOutcomeResolution::evaluate(
+            possibility,
+            &observation,
+            EpistemicOutcomeResolutionPolicy::new(64, 64).unwrap(),
+        )
+    }
+
+    fn progress_sample(
+        pre: &GroundedEpistemicExperimentPossibility,
+        post: &GroundedEpistemicExperimentPossibility,
+        occurred: bool,
+    ) -> EpistemicResolutionProgressSample {
+        let outcome = resolution(pre, 500, occurred);
+
+        AutonomousEpistemicResolutionProgress::measure(pre, &outcome, post, discrimination_policy())
+            .sample()
+            .expect("test progress must measure")
+            .clone()
+    }
+
+    fn discrimination_policy() -> EpistemicForecastDiscriminationPolicy {
+        EpistemicForecastDiscriminationPolicy::new(64, 64).unwrap()
+    }
+
+    fn expectation_policy(minimum: usize) -> EmpiricalExpectedEpistemicProgressPolicy {
+        EmpiricalExpectedEpistemicProgressPolicy::new(64, 32, minimum).unwrap()
+    }
+
+    fn common_pre() -> GroundedEpistemicExperimentPossibility {
+        possibility(1, 10, vec![predicted(100, 500), abstained(101, 500)])
+    }
+
+    #[test]
+    fn repeated_realized_history_produces_exact_rational_empirical_expectation() {
+        let pre = common_pre();
+
+        let reduction_post = possibility(1, 10, vec![predicted(100, 500), predicted(101, 500)]);
+
+        let unchanged_post = pre.clone();
+
+        let increase_post = possibility(
+            1,
+            10,
+            vec![
+                predicted(100, 500),
+                abstained(101, 500),
+                abstained(102, 500),
+            ],
+        );
+
+        let history = vec![
+            GroundedEpistemicProgressEvidence::new(
+                a(1000),
+                progress_sample(&pre, &reduction_post, true),
+            ),
+            GroundedEpistemicProgressEvidence::new(
+                a(1001),
+                progress_sample(&pre, &unchanged_post, true),
+            ),
+            GroundedEpistemicProgressEvidence::new(
+                a(1002),
+                progress_sample(&pre, &increase_post, true),
+            ),
+        ];
+
+        let result = AutonomousEmpiricalExpectedEpistemicProgress::estimate(
+            &pre,
+            &history,
+            discrimination_policy(),
+            expectation_policy(3),
+        );
+
+        assert!(result.estimated());
+
+        let estimate = result.estimate().unwrap();
+
+        assert_eq!(estimate.qualifying_sample_count(), 3,);
+
+        assert_eq!(estimate.expected_reduction_numerator(), 1,);
+
+        assert_eq!(estimate.expected_reduction_denominator(), 3,);
+
+        assert_eq!(estimate.expected_increase_numerator(), 1,);
+
+        assert_eq!(estimate.expected_increase_denominator(), 3,);
+
+        assert_eq!(estimate.reduction_sample_count(), 1,);
+
+        assert_eq!(estimate.increase_sample_count(), 1,);
+
+        assert_eq!(estimate.unchanged_sample_count(), 1,);
+
+        assert_eq!(
+            estimate.direction(),
+            EmpiricalEpistemicProgressDirection::Balanced,
+        );
+    }
+
+    #[test]
+    fn insufficient_history_abstains_instead_of_inventing_expected_progress() {
+        let pre = common_pre();
+
+        let post = possibility(1, 10, vec![predicted(100, 500), predicted(101, 500)]);
+
+        let history = vec![GroundedEpistemicProgressEvidence::new(
+            a(1000),
+            progress_sample(&pre, &post, true),
+        )];
+
+        let result = AutonomousEmpiricalExpectedEpistemicProgress::estimate(
+            &pre,
+            &history,
+            discrimination_policy(),
+            expectation_policy(2),
+        );
+
+        assert_eq!(
+            result.status(),
+            EmpiricalExpectedEpistemicProgressStatus::InsufficientMatchingEvidence,
+        );
+
+        assert!(result.estimate().is_none());
+    }
+
+    #[test]
+    fn different_source_state_cannot_be_used_as_fake_transfer_evidence() {
+        let current = common_pre();
+
+        let other_pre = possibility(999, 10, vec![predicted(100, 500), abstained(101, 500)]);
+
+        let other_post = possibility(999, 10, vec![predicted(100, 500), predicted(101, 500)]);
+
+        let history = vec![GroundedEpistemicProgressEvidence::new(
+            a(1000),
+            progress_sample(&other_pre, &other_post, true),
+        )];
+
+        let result = AutonomousEmpiricalExpectedEpistemicProgress::estimate(
+            &current,
+            &history,
+            discrimination_policy(),
+            expectation_policy(1),
+        );
+
+        assert_eq!(
+            result.status(),
+            EmpiricalExpectedEpistemicProgressStatus::NoMatchingEvidence,
+        );
+
+        assert_eq!(result.matching_evidence_count(), 0,);
+
+        assert!(result.estimate().is_none());
+    }
+
+    #[test]
+    fn different_action_or_epistemic_shape_cannot_contaminate_expectation() {
+        let current = common_pre();
+
+        let wrong_action_pre = possibility(1, 11, vec![predicted(100, 500), abstained(101, 500)]);
+
+        let wrong_action_post = possibility(1, 11, vec![predicted(100, 500), predicted(101, 500)]);
+
+        let wrong_shape_pre = possibility(
+            1,
+            10,
+            vec![
+                predicted(100, 500),
+                abstained(101, 500),
+                abstained(102, 500),
+            ],
+        );
+
+        let wrong_shape_post = possibility(
+            1,
+            10,
+            vec![
+                predicted(100, 500),
+                predicted(101, 500),
+                predicted(102, 500),
+            ],
+        );
+
+        let history = vec![
+            GroundedEpistemicProgressEvidence::new(
+                a(1000),
+                progress_sample(&wrong_action_pre, &wrong_action_post, true),
+            ),
+            GroundedEpistemicProgressEvidence::new(
+                a(1001),
+                progress_sample(&wrong_shape_pre, &wrong_shape_post, true),
+            ),
+        ];
+
+        let result = AutonomousEmpiricalExpectedEpistemicProgress::estimate(
+            &current,
+            &history,
+            discrimination_policy(),
+            expectation_policy(1),
+        );
+
+        assert_eq!(
+            result.status(),
+            EmpiricalExpectedEpistemicProgressStatus::NoMatchingEvidence,
+        );
+    }
+
+    #[test]
+    fn exact_duplicate_evidence_identity_is_deduplicated_but_conflicting_reuse_fails_closed() {
+        let pre = common_pre();
+
+        let reduction_post = possibility(1, 10, vec![predicted(100, 500), predicted(101, 500)]);
+
+        let increase_post = possibility(
+            1,
+            10,
+            vec![
+                predicted(100, 500),
+                abstained(101, 500),
+                abstained(102, 500),
+            ],
+        );
+
+        let reduction = GroundedEpistemicProgressEvidence::new(
+            a(1000),
+            progress_sample(&pre, &reduction_post, true),
+        );
+
+        let duplicate_result = AutonomousEmpiricalExpectedEpistemicProgress::estimate(
+            &pre,
+            &[reduction.clone(), reduction.clone()],
+            discrimination_policy(),
+            expectation_policy(1),
+        );
+
+        assert!(duplicate_result.estimated());
+
+        assert_eq!(duplicate_result.input_evidence_count(), 2,);
+
+        assert_eq!(duplicate_result.unique_evidence_count(), 1,);
+
+        assert_eq!(
+            duplicate_result
+                .estimate()
+                .unwrap()
+                .qualifying_sample_count(),
+            1,
+        );
+
+        let conflicting = GroundedEpistemicProgressEvidence::new(
+            a(1000),
+            progress_sample(&pre, &increase_post, true),
+        );
+
+        let conflict_result = AutonomousEmpiricalExpectedEpistemicProgress::estimate(
+            &pre,
+            &[reduction, conflicting],
+            discrimination_policy(),
+            expectation_policy(1),
+        );
+
+        assert_eq!(
+            conflict_result.status(),
+            EmpiricalExpectedEpistemicProgressStatus::ConflictingEvidenceIdentity,
+        );
+
+        assert!(conflict_result.estimate().is_none());
+    }
+
+    #[test]
+    fn currently_resolved_epistemic_state_cannot_manufacture_experiment_value_from_history() {
+        let resolved = possibility(1, 10, vec![predicted(100, 500), predicted(101, 500)]);
+
+        let result = AutonomousEmpiricalExpectedEpistemicProgress::estimate(
+            &resolved,
+            &[],
+            discrimination_policy(),
+            expectation_policy(1),
+        );
+
+        assert_eq!(
+            result.status(),
+            EmpiricalExpectedEpistemicProgressStatus::CurrentNotInformative,
+        );
+
+        assert!(result.estimate().is_none());
+    }
+
+    #[test]
+    fn hard_evidence_frontiers_fail_closed_without_partial_empirical_expectation() {
+        let pre = common_pre();
+
+        let post = possibility(1, 10, vec![predicted(100, 500), predicted(101, 500)]);
+
+        let first =
+            GroundedEpistemicProgressEvidence::new(a(1000), progress_sample(&pre, &post, true));
+
+        let second =
+            GroundedEpistemicProgressEvidence::new(a(1001), progress_sample(&pre, &post, true));
+
+        let input_bounded = AutonomousEmpiricalExpectedEpistemicProgress::estimate(
+            &pre,
+            &[first.clone(), second.clone()],
+            discrimination_policy(),
+            EmpiricalExpectedEpistemicProgressPolicy::new(1, 1, 1).unwrap(),
+        );
+
+        assert_eq!(
+            input_bounded.status(),
+            EmpiricalExpectedEpistemicProgressStatus::InputEvidenceFrontierExceeded,
+        );
+
+        let matching_bounded = AutonomousEmpiricalExpectedEpistemicProgress::estimate(
+            &pre,
+            &[first, second],
+            discrimination_policy(),
+            EmpiricalExpectedEpistemicProgressPolicy::new(2, 1, 1).unwrap(),
+        );
+
+        assert_eq!(
+            matching_bounded.status(),
+            EmpiricalExpectedEpistemicProgressStatus::MatchingEvidenceFrontierExceeded,
+        );
+
+        assert_eq!(
+            EmpiricalExpectedEpistemicProgressPolicy::new(0, 1, 1,),
+            None,
+        );
+
+        assert_eq!(
+            EmpiricalExpectedEpistemicProgressPolicy::new(2, 1, 2,),
+            None,
+        );
+    }
+
+    #[test]
+    fn empirical_expectation_is_order_invariant_non_mutating_and_facade_equivalent() {
+        let pre = common_pre();
+
+        let reduction_post = possibility(1, 10, vec![predicted(100, 500), predicted(101, 500)]);
+
+        let unchanged_post = pre.clone();
+
+        let first = GroundedEpistemicProgressEvidence::new(
+            a(1000),
+            progress_sample(&pre, &reduction_post, false),
+        );
+
+        let second = GroundedEpistemicProgressEvidence::new(
+            a(1001),
+            progress_sample(&pre, &unchanged_post, true),
+        );
+
+        let direct_history = vec![first.clone(), second.clone()];
+
+        let reversed_history = vec![second, first];
+
+        let before_pre = pre.clone();
+        let before_history = direct_history.clone();
+
+        let direct = AutonomousEmpiricalExpectedEpistemicProgress::estimate(
+            &pre,
+            &direct_history,
+            discrimination_policy(),
+            expectation_policy(2),
+        );
+
+        let reversed = AutonomousEmpiricalExpectedEpistemicProgress::estimate(
+            &pre,
+            &reversed_history,
+            discrimination_policy(),
+            expectation_policy(2),
+        );
+
+        let facade = UniversalAutonomousEmpiricalExpectedEpistemicProgress::estimate(
+            &pre,
+            &direct_history,
+            discrimination_policy(),
+            expectation_policy(2),
+        );
+
+        assert_eq!(direct, reversed);
+        assert_eq!(direct, facade);
+        assert_eq!(pre, before_pre);
+        assert_eq!(direct_history, before_history);
     }
 }

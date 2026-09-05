@@ -1342,6 +1342,46 @@ impl ArcAgi3CognitiveInteractionRuntime {
                                     candidates,
                                 )
                         {
+                            /*
+                             * C3E-B anti-retrocausality:
+                             *
+                             * Capture the epistemic question from the
+                             * PRE-learning retained owner.  Only after that
+                             * may this real transition update M47.
+                             */
+                            let progress_episode =
+                                athlesia_integrated_cognitive_agent::
+                                    PerceptualDomainLearningEvidenceBridge::
+                                        derive(
+                                            &world_input,
+                                            Self::live_perceptual_world_context(),
+                                            environment_evidence,
+                                        )
+                                        .episode()
+                                        .cloned();
+
+                            let pre_learning_possibility =
+                                progress_episode
+                                    .as_ref()
+                                    .and_then(|episode| {
+                                        next_cognition
+                                            .current_m50_epistemic_possibility(
+                                                episode.before(),
+                                                episode.transformation(),
+                                                athlesia_universal_domain_learning::
+                                                    GroundedExplanatoryVersionSpacePolicy::
+                                                        new(
+                                                            1,
+                                                            64,
+                                                            512,
+                                                            256,
+                                                        )
+                                                        .expect(
+                                                            "live epistemic version bounds are positive",
+                                                        ),
+                                            )
+                                    });
+
                             next_cognition
                                 .observe_environment_transition(
                                     &world_input,
@@ -1349,6 +1389,106 @@ impl ArcAgi3CognitiveInteractionRuntime {
                                     environment_evidence,
                                     Self::live_transition_schema_learning_policy(),
                                 );
+
+                            if let (
+                                Some(episode),
+                                Some(pre_learning),
+                            ) = (
+                                progress_episode.as_ref(),
+                                pre_learning_possibility.as_ref(),
+                            ) {
+                                let discrimination_policy =
+                                    athlesia_autonomous_active_experimentation::
+                                        EpistemicForecastDiscriminationPolicy::
+                                            new(
+                                                512,
+                                                512,
+                                            )
+                                            .expect(
+                                                "live epistemic discrimination bounds are positive",
+                                            );
+
+                                let pre_discrimination =
+                                    athlesia_autonomous_active_experimentation::
+                                        AutonomousEpistemicForecastDiscrimination::
+                                            evaluate(
+                                                pre_learning,
+                                                discrimination_policy,
+                                            );
+
+                                /*
+                                 * Only genuinely unresolved pre-action
+                                 * questions are empirical experimentation
+                                 * progress evidence.
+                                 */
+                                if pre_discrimination.informative() {
+                                    if let Some(post_learning) =
+                                        next_cognition
+                                            .current_m50_epistemic_possibility(
+                                                episode.before(),
+                                                episode.transformation(),
+                                                athlesia_universal_domain_learning::
+                                                    GroundedExplanatoryVersionSpacePolicy::
+                                                        new(
+                                                            1,
+                                                            64,
+                                                            512,
+                                                            256,
+                                                        )
+                                                        .expect(
+                                                            "live post-learning version bounds are positive",
+                                                        ),
+                                            )
+                                    {
+                                        if let Some(realized_outcome) =
+                                            next_cognition
+                                                .resolve_m50_epistemic_possibility_against_transition(
+                                                    pre_learning,
+                                                    episode.before(),
+                                                    episode.after(),
+                                                    episode.transformation(),
+                                                    athlesia_autonomous_active_experimentation::
+                                                        EpistemicOutcomeResolutionPolicy::
+                                                            new(
+                                                                512,
+                                                                512,
+                                                            )
+                                                            .expect(
+                                                                "live outcome-resolution bounds are positive",
+                                                            ),
+                                                )
+                                        {
+                                            let progress =
+                                                athlesia_autonomous_active_experimentation::
+                                                    AutonomousEpistemicResolutionProgress::
+                                                        measure(
+                                                            pre_learning,
+                                                            &realized_outcome,
+                                                            &post_learning,
+                                                            discrimination_policy,
+                                                        );
+
+                                            if let Some(sample) =
+                                                progress.sample().cloned()
+                                            {
+                                                next_cognition
+                                                    .retain_epistemic_progress_event(
+                                                        completed_turn.event_index(),
+                                                        sample,
+                                                        athlesia_integrated_cognitive_agent::
+                                                            RetainedEpistemicProgressHistoryPolicy::
+                                                                new(
+                                                                    256,
+                                                                )
+                                                                .expect(
+                                                                    "live retained progress frontier is positive",
+                                                                ),
+                                                    );
+                                            }
+                                        }
+                                    }
+                                }
+                            }
                         }
                     }
                 }

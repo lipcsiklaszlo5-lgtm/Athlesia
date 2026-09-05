@@ -955,3 +955,199 @@ fn live_epistemic_requery_without_new_environment_evidence_cannot_manufacture_pr
         "epistemic re-query must have zero hidden transport effect",
     );
 }
+
+#[test]
+fn live_real_c3d_progress_is_retained_with_exact_turn_event_provenance() {
+    let game = "p4gc3e-live-history";
+
+    let action_one = action(ArcAgi3ActionId::Action1);
+
+    let action_two = action(ArcAgi3ActionId::Action2);
+
+    let mut runtime = live_runtime(game, 380_000);
+
+    mature_runtime(&mut runtime, game);
+
+    real_training_turn(&mut runtime, game, action_two, 7_u8);
+
+    let cognitive_action = ArcAgi3CognitiveProtocolBridge::encode_action(action_one);
+
+    let before_state = runtime
+        .cognitive_runtime()
+        .current_grounded_world_state()
+        .expect("holdout state must be grounded")
+        .clone();
+
+    let pre_learning = runtime
+        .cognitive_runtime()
+        .cognition()
+        .current_m50_epistemic_possibility(
+            &before_state,
+            &cognitive_action,
+            athlesia_universal_domain_learning::GroundedExplanatoryVersionSpacePolicy::new(
+                1, 64, 512, 256,
+            )
+            .unwrap(),
+        )
+        .expect("holdout Action1 must be epistemically grounded");
+
+    let history_before = runtime
+        .cognitive_runtime()
+        .cognition()
+        .epistemic_progress_event_count();
+
+    let transport_before = runtime.transport().execute_count();
+
+    runtime
+        .transport()
+        .push(Ok(normal_observation(game, 6_u8, Some(action_one))));
+
+    let step = runtime
+        .execute_with(signal(900), |cognitive| {
+            m51_fixture::begin_arc(cognitive, cognitive_action.clone())
+        })
+        .expect("real Action1 progress turn must execute");
+
+    let event_index = step.completion().turn().event_index();
+
+    assert_eq!(runtime.transport().execute_count(), transport_before + 1,);
+
+    let cognition = runtime.cognitive_runtime().cognition();
+
+    assert_eq!(
+        cognition.epistemic_progress_event_count(),
+        history_before + 1,
+        "one real C3D progress event must be retained exactly once",
+    );
+
+    let retained = cognition
+        .epistemic_progress_history()
+        .last()
+        .expect("new real progress event must be retained");
+
+    assert_eq!(
+        retained.event_index(),
+        event_index,
+        "retained provenance must use the exact completed session event index",
+    );
+
+    assert_eq!(
+        retained.sample().source_state(),
+        pre_learning.source_state(),
+    );
+
+    assert_eq!(retained.sample().action(), pre_learning.action(),);
+
+    let before_query_transport = runtime.transport().execute_count();
+
+    let estimate = cognition.current_empirical_expected_epistemic_progress(
+        &pre_learning,
+        athlesia_autonomous_active_experimentation::EpistemicForecastDiscriminationPolicy::new(
+            512, 512,
+        )
+        .unwrap(),
+        athlesia_autonomous_active_experimentation::EmpiricalExpectedEpistemicProgressPolicy::new(
+            256, 256, 1,
+        )
+        .unwrap(),
+    );
+
+    assert!(
+        estimate.estimated(),
+        "the retained live event must be consumable by C3E-A without caller-supplied history",
+    );
+
+    assert_eq!(
+        estimate.estimate().unwrap().qualifying_sample_count(),
+        1,
+        "the unseen source-state has exactly one qualifying retained event",
+    );
+
+    assert_eq!(
+        runtime.transport().execute_count(),
+        before_query_transport,
+        "history query must have zero hidden transport effect",
+    );
+}
+
+#[test]
+fn live_empirical_history_queries_never_create_new_progress_events() {
+    let game = "p4gc3e-live-query-only";
+
+    let action_one = action(ArcAgi3ActionId::Action1);
+
+    let action_two = action(ArcAgi3ActionId::Action2);
+
+    let mut runtime = live_runtime(game, 390_000);
+
+    mature_runtime(&mut runtime, game);
+
+    real_training_turn(&mut runtime, game, action_two, 7_u8);
+
+    let cognitive_action = ArcAgi3CognitiveProtocolBridge::encode_action(action_one);
+
+    let state = runtime
+        .cognitive_runtime()
+        .current_grounded_world_state()
+        .unwrap()
+        .clone();
+
+    let possibility = runtime
+        .cognitive_runtime()
+        .cognition()
+        .current_m50_epistemic_possibility(
+            &state,
+            &cognitive_action,
+            athlesia_universal_domain_learning::GroundedExplanatoryVersionSpacePolicy::new(
+                1, 64, 512, 256,
+            )
+            .unwrap(),
+        )
+        .unwrap();
+
+    let history_before = runtime
+        .cognitive_runtime()
+        .cognition()
+        .epistemic_progress_event_count();
+
+    let transport_before = runtime.transport().execute_count();
+
+    for _ in 0..2 {
+        let _ = runtime
+            .cognitive_runtime()
+            .cognition()
+            .current_empirical_expected_epistemic_progress(
+                &possibility,
+                athlesia_autonomous_active_experimentation::
+                    EpistemicForecastDiscriminationPolicy::
+                        new(
+                            512,
+                            512,
+                        )
+                        .unwrap(),
+                athlesia_autonomous_active_experimentation::
+                    EmpiricalExpectedEpistemicProgressPolicy::
+                        new(
+                            256,
+                            256,
+                            1,
+                        )
+                        .unwrap(),
+            );
+    }
+
+    assert_eq!(
+        runtime
+            .cognitive_runtime()
+            .cognition()
+            .epistemic_progress_event_count(),
+        history_before,
+        "pure expectation queries cannot manufacture empirical history",
+    );
+
+    assert_eq!(
+        runtime.transport().execute_count(),
+        transport_before,
+        "pure history queries cannot execute transport",
+    );
+}

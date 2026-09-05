@@ -9612,9 +9612,100 @@ impl UniversalEndogenousTransitionSchemaLearningCycle {
 // Additional cognitive state families can be integrated here only after their
 // existing update/authority contracts are preserved and behaviorally verified.
 
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub enum RetainedEpistemicProgressEventStatus {
+    Retained,
+    ExactDuplicate,
+    ConflictingEventIdentity,
+    FrontierExceeded,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct RetainedEpistemicProgressEvent {
+    event_index: u64,
+    evidence: athlesia_autonomous_active_experimentation::GroundedEpistemicProgressEvidence,
+}
+
+impl RetainedEpistemicProgressEvent {
+    fn new(
+        event_index: u64,
+        sample: athlesia_autonomous_active_experimentation::EpistemicResolutionProgressSample,
+    ) -> Self {
+        let evidence_identity = CognitiveStructure::Ordered(vec![
+            CognitiveStructure::atom(0x5034_4743_3345_4556),
+            CognitiveStructure::atom(event_index),
+        ]);
+
+        Self {
+            event_index,
+            evidence:
+                athlesia_autonomous_active_experimentation::GroundedEpistemicProgressEvidence::new(
+                    evidence_identity,
+                    sample,
+                ),
+        }
+    }
+
+    pub fn event_index(&self) -> u64 {
+        self.event_index
+    }
+
+    pub fn evidence(
+        &self,
+    ) -> &athlesia_autonomous_active_experimentation::GroundedEpistemicProgressEvidence {
+        &self.evidence
+    }
+
+    pub fn sample(
+        &self,
+    ) -> &athlesia_autonomous_active_experimentation::EpistemicResolutionProgressSample {
+        self.evidence.sample()
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub struct RetainedEpistemicProgressHistoryPolicy {
+    max_events: usize,
+}
+
+impl RetainedEpistemicProgressHistoryPolicy {
+    pub fn new(max_events: usize) -> Option<Self> {
+        if max_events == 0 {
+            return None;
+        }
+
+        Some(Self { max_events })
+    }
+
+    pub fn max_events(self) -> usize {
+        self.max_events
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub struct RetainedEpistemicProgressEventResult {
+    status: RetainedEpistemicProgressEventStatus,
+    event_index: u64,
+}
+
+impl RetainedEpistemicProgressEventResult {
+    pub fn status(self) -> RetainedEpistemicProgressEventStatus {
+        self.status
+    }
+
+    pub fn event_index(self) -> u64 {
+        self.event_index
+    }
+
+    pub fn retained(self) -> bool {
+        self.status == RetainedEpistemicProgressEventStatus::Retained
+    }
+}
+
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct OnlinePersistentCognitiveState {
     transition_schema_learning: EndogenousTransitionSchemaLearningState,
+    epistemic_progress_history: Vec<RetainedEpistemicProgressEvent>,
     perceptual_temporal_evidence:
         athlesia_core_knowledge_perceptual_grounding::PerceptualProposalTemporalEvidenceState,
     perceptual_grouping_behavior_evidence:
@@ -9991,6 +10082,82 @@ impl OnlinePersistentCognitiveState {
             PerceptualGroupingAppearanceObservationResult,
     ) {
         self.perceptual_grouping_appearance_evidence.observe(result);
+    }
+
+    pub fn epistemic_progress_history(&self) -> &[RetainedEpistemicProgressEvent] {
+        &self.epistemic_progress_history
+    }
+
+    pub fn epistemic_progress_event_count(&self) -> usize {
+        self.epistemic_progress_history.len()
+    }
+
+    pub fn retain_epistemic_progress_event(
+        &mut self,
+        event_index: u64,
+        sample: athlesia_autonomous_active_experimentation::EpistemicResolutionProgressSample,
+        policy: RetainedEpistemicProgressHistoryPolicy,
+    ) -> RetainedEpistemicProgressEventResult {
+        let candidate = RetainedEpistemicProgressEvent::new(event_index, sample);
+
+        if let Some(existing) = self
+            .epistemic_progress_history
+            .iter()
+            .find(|existing| existing.event_index() == event_index)
+        {
+            let status = if existing == &candidate {
+                RetainedEpistemicProgressEventStatus::ExactDuplicate
+            } else {
+                RetainedEpistemicProgressEventStatus::ConflictingEventIdentity
+            };
+
+            return RetainedEpistemicProgressEventResult {
+                status,
+                event_index,
+            };
+        }
+
+        if self.epistemic_progress_history.len() >= policy.max_events() {
+            return RetainedEpistemicProgressEventResult {
+                status: RetainedEpistemicProgressEventStatus::FrontierExceeded,
+                event_index,
+            };
+        }
+
+        self.epistemic_progress_history.push(candidate);
+
+        RetainedEpistemicProgressEventResult {
+            status: RetainedEpistemicProgressEventStatus::Retained,
+            event_index,
+        }
+    }
+
+    pub fn current_empirical_expected_epistemic_progress(
+        &self,
+        current:
+            &athlesia_autonomous_active_experimentation::
+                GroundedEpistemicExperimentPossibility,
+        discrimination_policy:
+            athlesia_autonomous_active_experimentation::
+                EpistemicForecastDiscriminationPolicy,
+        expectation_policy:
+            athlesia_autonomous_active_experimentation::
+                EmpiricalExpectedEpistemicProgressPolicy,
+    ) -> athlesia_autonomous_active_experimentation::EmpiricalExpectedEpistemicProgressResult {
+        let history = self
+            .epistemic_progress_history
+            .iter()
+            .map(|event| event.evidence().clone())
+            .collect::<Vec<_>>();
+
+        athlesia_autonomous_active_experimentation::
+            AutonomousEmpiricalExpectedEpistemicProgress::
+                estimate(
+                    current,
+                    &history,
+                    discrimination_policy,
+                    expectation_policy,
+                )
     }
 
     pub fn observe_environment_transition(
@@ -11436,5 +11603,165 @@ mod p4g_c3c_live_resolution_bridge_contract_tests {
             None,
             "unknown target encoding must never be guessed or treated as a negative observation",
         );
+    }
+}
+
+#[cfg(test)]
+mod p4g_c3e_retained_epistemic_progress_history_tests {
+    use super::*;
+
+    use athlesia_autonomous_active_experimentation::{
+        AutonomousEpistemicOutcomeResolution, AutonomousEpistemicResolutionProgress,
+        EmpiricalExpectedEpistemicProgressPolicy, EpistemicForecastDiscriminationPolicy,
+        EpistemicForecastEvidence, EpistemicHypothesisForecast, EpistemicOutcomeResolutionPolicy,
+        EpistemicTargetObservation, GroundedEpistemicExperimentPossibility,
+        GroundedEpistemicOutcomeObservation,
+    };
+
+    fn a(value: u64) -> CognitiveStructure {
+        CognitiveStructure::atom(value)
+    }
+
+    fn evidence() -> EpistemicForecastEvidence {
+        EpistemicForecastEvidence::new(1, 1, 0).unwrap()
+    }
+
+    fn pre() -> GroundedEpistemicExperimentPossibility {
+        GroundedEpistemicExperimentPossibility::new(
+            a(1),
+            a(10),
+            vec![
+                EpistemicHypothesisForecast::predicted(a(100), a(500), a(900), evidence()).unwrap(),
+                EpistemicHypothesisForecast::context_abstained(a(101), a(500), evidence()).unwrap(),
+            ],
+        )
+        .unwrap()
+    }
+
+    fn sample(
+        reduction: bool,
+    ) -> athlesia_autonomous_active_experimentation::EpistemicResolutionProgressSample {
+        let pre = pre();
+
+        let observation = GroundedEpistemicOutcomeObservation::new(
+            pre.source_state().clone(),
+            pre.action().clone(),
+            vec![EpistemicTargetObservation::new(a(500), true)],
+        )
+        .unwrap();
+
+        let outcome = AutonomousEpistemicOutcomeResolution::evaluate(
+            &pre,
+            &observation,
+            EpistemicOutcomeResolutionPolicy::new(16, 16).unwrap(),
+        );
+
+        let post = if reduction {
+            GroundedEpistemicExperimentPossibility::new(
+                a(1),
+                a(10),
+                vec![
+                    EpistemicHypothesisForecast::predicted(a(100), a(500), a(900), evidence())
+                        .unwrap(),
+                    EpistemicHypothesisForecast::predicted(a(101), a(500), a(900), evidence())
+                        .unwrap(),
+                ],
+            )
+            .unwrap()
+        } else {
+            pre.clone()
+        };
+
+        AutonomousEpistemicResolutionProgress::measure(
+            &pre,
+            &outcome,
+            &post,
+            EpistemicForecastDiscriminationPolicy::new(16, 16).unwrap(),
+        )
+        .sample()
+        .unwrap()
+        .clone()
+    }
+
+    #[test]
+    fn exact_event_identity_deduplicates_and_conflicting_reuse_fails_closed() {
+        let mut owner = OnlinePersistentCognitiveState::new();
+
+        let policy = RetainedEpistemicProgressHistoryPolicy::new(4).unwrap();
+
+        let first = owner.retain_epistemic_progress_event(7, sample(true), policy);
+
+        assert_eq!(
+            first.status(),
+            RetainedEpistemicProgressEventStatus::Retained,
+        );
+
+        assert_eq!(owner.epistemic_progress_event_count(), 1,);
+
+        let duplicate = owner.retain_epistemic_progress_event(7, sample(true), policy);
+
+        assert_eq!(
+            duplicate.status(),
+            RetainedEpistemicProgressEventStatus::ExactDuplicate,
+        );
+
+        assert_eq!(owner.epistemic_progress_event_count(), 1,);
+
+        let conflicting = owner.retain_epistemic_progress_event(7, sample(false), policy);
+
+        assert_eq!(
+            conflicting.status(),
+            RetainedEpistemicProgressEventStatus::ConflictingEventIdentity,
+        );
+
+        assert_eq!(owner.epistemic_progress_event_count(), 1,);
+    }
+
+    #[test]
+    fn retained_history_is_hard_bounded_and_feeds_exact_empirical_estimator() {
+        let mut owner = OnlinePersistentCognitiveState::new();
+
+        let policy = RetainedEpistemicProgressHistoryPolicy::new(2).unwrap();
+
+        assert!(
+            owner
+                .retain_epistemic_progress_event(10, sample(true), policy,)
+                .retained(),
+        );
+
+        assert!(
+            owner
+                .retain_epistemic_progress_event(11, sample(true), policy,)
+                .retained(),
+        );
+
+        let overflow = owner.retain_epistemic_progress_event(12, sample(true), policy);
+
+        assert_eq!(
+            overflow.status(),
+            RetainedEpistemicProgressEventStatus::FrontierExceeded,
+        );
+
+        assert_eq!(owner.epistemic_progress_event_count(), 2,);
+
+        assert_eq!(owner.epistemic_progress_history()[0].event_index(), 10,);
+
+        assert_eq!(owner.epistemic_progress_history()[1].event_index(), 11,);
+
+        let estimate = owner.current_empirical_expected_epistemic_progress(
+            &pre(),
+            EpistemicForecastDiscriminationPolicy::new(16, 16).unwrap(),
+            EmpiricalExpectedEpistemicProgressPolicy::new(8, 8, 2).unwrap(),
+        );
+
+        assert!(estimate.estimated());
+
+        let estimate = estimate.estimate().unwrap();
+
+        assert_eq!(estimate.qualifying_sample_count(), 2,);
+
+        assert_eq!(estimate.expected_reduction_numerator(), 2,);
+
+        assert_eq!(estimate.expected_reduction_denominator(), 2,);
     }
 }
