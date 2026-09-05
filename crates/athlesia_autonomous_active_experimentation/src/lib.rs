@@ -5056,6 +5056,1286 @@ impl UniversalAutonomousSchemaLevelTargetTransferIdentity {
     }
 }
 
+// ============================================================================
+// P4G-C3H-C8 — TARGET-ANCHORED NON-BIJECTIVE CONTEXT TRANSFORMATION
+// ============================================================================
+//
+// Frozen authority:
+//   C3H-A remains the strict BIJECTIVE relation used for effect targets.
+//   C3H-B remains the historical-target -> current-target correspondence.
+//
+// C3H-C8 is deliberately a DIFFERENT relation for context hypotheses.
+//
+// Empirically grounded operation:
+//
+//   - historical/current hypotheses retain exact container topology;
+//   - exactly one C3H-B target role selectively SPLITS:
+//         one occurrence transforms through its target binding,
+//         at least one occurrence retains the historical atom;
+//   - exactly one DIFFERENT C3H-B target role anchors a MERGE:
+//         its target-bound transformation remains present,
+//         one additional non-target historical atom maps into the same
+//         current atom;
+//   - no other changed occurrence is permitted;
+//   - no additional split/merge conflict is permitted;
+//   - the merge anchor's direct-vs-recursive realization must agree with
+//     the topology of that SAME grounded binding in the effect target.
+//
+// Exact paths and concrete atom values are provenance only.
+// They are excluded from abstract identity.
+
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub enum TargetAnchoredContextTopologyClass {
+    Direct,
+    Recursive,
+}
+
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub enum TargetAnchoredContextPathStep {
+    OrderedChild(usize),
+    UnorderedChild(usize),
+}
+
+#[derive(Clone, Debug, Eq, Hash, PartialEq)]
+pub struct TargetAnchoredContextStructuralPath {
+    steps: Vec<TargetAnchoredContextPathStep>,
+}
+
+impl TargetAnchoredContextStructuralPath {
+    fn root() -> Self {
+        Self {
+            steps: Vec::new(),
+        }
+    }
+
+    fn child(
+        &self,
+        step: TargetAnchoredContextPathStep,
+    ) -> Self {
+        let mut steps =
+            self.steps.clone();
+
+        steps.push(step);
+
+        Self { steps }
+    }
+
+    pub fn steps(
+        &self,
+    ) -> &[TargetAnchoredContextPathStep] {
+        &self.steps
+    }
+
+    pub fn topology_class(
+        &self,
+    ) -> TargetAnchoredContextTopologyClass {
+        if self.steps.iter().any(|step| {
+            matches!(
+                step,
+                TargetAnchoredContextPathStep::UnorderedChild(_)
+            )
+        }) {
+            TargetAnchoredContextTopologyClass::Recursive
+        } else {
+            TargetAnchoredContextTopologyClass::Direct
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub struct TargetAnchoredContextTransformationPolicy {
+    max_target_roles: usize,
+    max_nodes: usize,
+    max_occurrences: usize,
+}
+
+impl TargetAnchoredContextTransformationPolicy {
+    pub fn new(
+        max_target_roles: usize,
+        max_nodes: usize,
+        max_occurrences: usize,
+    ) -> Option<Self> {
+        if max_target_roles == 0
+            || max_nodes == 0
+            || max_occurrences == 0
+        {
+            return None;
+        }
+
+        Some(Self {
+            max_target_roles,
+            max_nodes,
+            max_occurrences,
+        })
+    }
+
+    pub fn max_target_roles(
+        self,
+    ) -> usize {
+        self.max_target_roles
+    }
+
+    pub fn max_nodes(
+        self,
+    ) -> usize {
+        self.max_nodes
+    }
+
+    pub fn max_occurrences(
+        self,
+    ) -> usize {
+        self.max_occurrences
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub enum TargetAnchoredContextTransformationStatus {
+    Derived,
+    TargetCorrespondenceNotRolePreserving,
+    TargetRoleFrontierExceeded,
+    HypothesisStructuralMismatch,
+    NodeFrontierExceeded,
+    OccurrenceFrontierExceeded,
+    MissingSelectiveSplitAnchor,
+    MultipleSelectiveSplitAnchors,
+    MissingAnchoredMerge,
+    MultipleAnchoredMerges,
+    AnchorsNotDistinct,
+    SplitRelationNotSelective,
+    MergeRelationNotSingleSource,
+    MergeExtensionUsesTargetRole,
+    AdditionalNonBijectiveConflict,
+    TargetMergeAnchorMissing,
+    TargetMergeTopologyAmbiguous,
+    ContextMergeTopologyAmbiguous,
+    TargetContextTopologyMismatch,
+    UnexplainedChangedOccurrence,
+}
+
+#[derive(Clone, Debug, Eq, Hash, PartialEq)]
+pub struct GroundedTargetAnchoredContextTransformationIdentity {
+    target_role_count: usize,
+    split_anchor_role_index: usize,
+    merge_anchor_role_index: usize,
+}
+
+impl GroundedTargetAnchoredContextTransformationIdentity {
+    fn new(
+        target_role_count: usize,
+        split_anchor_role_index: usize,
+        merge_anchor_role_index: usize,
+    ) -> Self {
+        Self {
+            target_role_count,
+            split_anchor_role_index,
+            merge_anchor_role_index,
+        }
+    }
+
+    pub fn target_role_count(
+        &self,
+    ) -> usize {
+        self.target_role_count
+    }
+
+    pub fn split_anchor_role_index(
+        &self,
+    ) -> usize {
+        self.split_anchor_role_index
+    }
+
+    pub fn merge_anchor_role_index(
+        &self,
+    ) -> usize {
+        self.merge_anchor_role_index
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct GroundedTargetAnchoredContextTransformation {
+    identity:
+        GroundedTargetAnchoredContextTransformationIdentity,
+
+    target_anchor_topology:
+        TargetAnchoredContextTopologyClass,
+
+    context_merge_topology:
+        TargetAnchoredContextTopologyClass,
+
+    split_historical_atom: u64,
+    split_current_atom: u64,
+
+    merge_historical_atom: u64,
+    merge_current_atom: u64,
+
+    merge_extension_historical_atom: u64,
+
+    split_transformed_paths:
+        Vec<TargetAnchoredContextStructuralPath>,
+
+    split_retained_paths:
+        Vec<TargetAnchoredContextStructuralPath>,
+
+    merge_base_paths:
+        Vec<TargetAnchoredContextStructuralPath>,
+
+    merge_extension_paths:
+        Vec<TargetAnchoredContextStructuralPath>,
+}
+
+impl GroundedTargetAnchoredContextTransformation {
+    pub fn identity(
+        &self,
+    ) -> &GroundedTargetAnchoredContextTransformationIdentity {
+        &self.identity
+    }
+
+    pub fn target_anchor_topology(
+        &self,
+    ) -> TargetAnchoredContextTopologyClass {
+        self.target_anchor_topology
+    }
+
+    pub fn context_merge_topology(
+        &self,
+    ) -> TargetAnchoredContextTopologyClass {
+        self.context_merge_topology
+    }
+
+    pub fn split_historical_atom(
+        &self,
+    ) -> u64 {
+        self.split_historical_atom
+    }
+
+    pub fn split_current_atom(
+        &self,
+    ) -> u64 {
+        self.split_current_atom
+    }
+
+    pub fn merge_historical_atom(
+        &self,
+    ) -> u64 {
+        self.merge_historical_atom
+    }
+
+    pub fn merge_current_atom(
+        &self,
+    ) -> u64 {
+        self.merge_current_atom
+    }
+
+    pub fn merge_extension_historical_atom(
+        &self,
+    ) -> u64 {
+        self.merge_extension_historical_atom
+    }
+
+    pub fn split_transformed_paths(
+        &self,
+    ) -> &[TargetAnchoredContextStructuralPath] {
+        &self.split_transformed_paths
+    }
+
+    pub fn split_retained_paths(
+        &self,
+    ) -> &[TargetAnchoredContextStructuralPath] {
+        &self.split_retained_paths
+    }
+
+    pub fn merge_base_paths(
+        &self,
+    ) -> &[TargetAnchoredContextStructuralPath] {
+        &self.merge_base_paths
+    }
+
+    pub fn merge_extension_paths(
+        &self,
+    ) -> &[TargetAnchoredContextStructuralPath] {
+        &self.merge_extension_paths
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct GroundedTargetAnchoredContextTransformationResult {
+    status:
+        TargetAnchoredContextTransformationStatus,
+
+    visited_node_count: usize,
+    occurrence_count: usize,
+
+    transformation:
+        Option<GroundedTargetAnchoredContextTransformation>,
+}
+
+impl GroundedTargetAnchoredContextTransformationResult {
+    fn rejected(
+        status:
+            TargetAnchoredContextTransformationStatus,
+        visited_node_count: usize,
+        occurrence_count: usize,
+    ) -> Self {
+        Self {
+            status,
+            visited_node_count,
+            occurrence_count,
+            transformation: None,
+        }
+    }
+
+    pub fn status(
+        &self,
+    ) -> TargetAnchoredContextTransformationStatus {
+        self.status
+    }
+
+    pub fn derived(
+        &self,
+    ) -> bool {
+        self.status
+            == TargetAnchoredContextTransformationStatus::Derived
+    }
+
+    pub fn visited_node_count(
+        &self,
+    ) -> usize {
+        self.visited_node_count
+    }
+
+    pub fn occurrence_count(
+        &self,
+    ) -> usize {
+        self.occurrence_count
+    }
+
+    pub fn transformation(
+        &self,
+    ) -> Option<
+        &GroundedTargetAnchoredContextTransformation
+    > {
+        self.transformation.as_ref()
+    }
+
+    pub fn identity(
+        &self,
+    ) -> Option<
+        &GroundedTargetAnchoredContextTransformationIdentity
+    > {
+        self.transformation
+            .as_ref()
+            .map(
+                GroundedTargetAnchoredContextTransformation::
+                    identity,
+            )
+    }
+}
+
+#[derive(Clone, Debug)]
+struct TargetAnchoredContextAtomOccurrence {
+    path:
+        TargetAnchoredContextStructuralPath,
+
+    historical_atom: u64,
+    current_atom: u64,
+}
+
+#[derive(Clone, Copy, Debug)]
+struct TargetAnchoredContextRole {
+    role_index: usize,
+    historical_atom: u64,
+    current_atom: u64,
+}
+
+#[derive(Clone, Debug)]
+struct TargetAnchoredContextTraversal {
+    visited_node_count: usize,
+    occurrences:
+        Vec<TargetAnchoredContextAtomOccurrence>,
+}
+
+impl TargetAnchoredContextTraversal {
+    fn new() -> Self {
+        Self {
+            visited_node_count: 0,
+            occurrences: Vec::new(),
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct AutonomousTargetAnchoredContextTransformation;
+
+impl AutonomousTargetAnchoredContextTransformation {
+    fn collect_aligned(
+        historical:
+            &CognitiveStructure,
+        current:
+            &CognitiveStructure,
+        path:
+            &TargetAnchoredContextStructuralPath,
+        policy:
+            TargetAnchoredContextTransformationPolicy,
+        traversal:
+            &mut TargetAnchoredContextTraversal,
+    ) -> Result<
+        (),
+        TargetAnchoredContextTransformationStatus,
+    > {
+        traversal.visited_node_count =
+            traversal
+                .visited_node_count
+                .checked_add(1)
+                .ok_or(
+                    TargetAnchoredContextTransformationStatus::
+                        NodeFrontierExceeded,
+                )?;
+
+        if traversal.visited_node_count
+            > policy.max_nodes()
+        {
+            return Err(
+                TargetAnchoredContextTransformationStatus::
+                    NodeFrontierExceeded,
+            );
+        }
+
+        match (
+            historical,
+            current,
+        ) {
+            (
+                CognitiveStructure::Atom(
+                    historical_atom,
+                ),
+                CognitiveStructure::Atom(
+                    current_atom,
+                ),
+            ) => {
+                if traversal.occurrences.len()
+                    >= policy.max_occurrences()
+                {
+                    return Err(
+                        TargetAnchoredContextTransformationStatus::
+                            OccurrenceFrontierExceeded,
+                    );
+                }
+
+                traversal.occurrences.push(
+                    TargetAnchoredContextAtomOccurrence {
+                        path: path.clone(),
+                        historical_atom:
+                            *historical_atom,
+                        current_atom:
+                            *current_atom,
+                    },
+                );
+
+                Ok(())
+            }
+
+            (
+                CognitiveStructure::Ordered(
+                    historical_children,
+                ),
+                CognitiveStructure::Ordered(
+                    current_children,
+                ),
+            ) => {
+                if historical_children.len()
+                    != current_children.len()
+                {
+                    return Err(
+                        TargetAnchoredContextTransformationStatus::
+                            HypothesisStructuralMismatch,
+                    );
+                }
+
+                for (
+                    index,
+                    (
+                        historical_child,
+                        current_child,
+                    ),
+                ) in historical_children
+                    .iter()
+                    .zip(
+                        current_children.iter(),
+                    )
+                    .enumerate()
+                {
+                    let child_path =
+                        path.child(
+                            TargetAnchoredContextPathStep::
+                                OrderedChild(index),
+                        );
+
+                    Self::collect_aligned(
+                        historical_child,
+                        current_child,
+                        &child_path,
+                        policy,
+                        traversal,
+                    )?;
+                }
+
+                Ok(())
+            }
+
+            (
+                CognitiveStructure::Unordered(
+                    historical_children,
+                ),
+                CognitiveStructure::Unordered(
+                    current_children,
+                ),
+            ) => {
+                if historical_children.len()
+                    != current_children.len()
+                {
+                    return Err(
+                        TargetAnchoredContextTransformationStatus::
+                            HypothesisStructuralMismatch,
+                    );
+                }
+
+                for (
+                    index,
+                    (
+                        historical_child,
+                        current_child,
+                    ),
+                ) in historical_children
+                    .iter()
+                    .zip(
+                        current_children.iter(),
+                    )
+                    .enumerate()
+                {
+                    let child_path =
+                        path.child(
+                            TargetAnchoredContextPathStep::
+                                UnorderedChild(index),
+                        );
+
+                    Self::collect_aligned(
+                        historical_child,
+                        current_child,
+                        &child_path,
+                        policy,
+                        traversal,
+                    )?;
+                }
+
+                Ok(())
+            }
+
+            _ => Err(
+                TargetAnchoredContextTransformationStatus::
+                    HypothesisStructuralMismatch,
+            ),
+        }
+    }
+
+    fn paths_for_pair(
+        occurrences:
+            &[TargetAnchoredContextAtomOccurrence],
+        historical_atom: u64,
+        current_atom: u64,
+    ) -> Vec<TargetAnchoredContextStructuralPath> {
+        occurrences
+            .iter()
+            .filter(|occurrence| {
+                occurrence.historical_atom
+                    == historical_atom
+                    && occurrence.current_atom
+                        == current_atom
+            })
+            .map(|occurrence| {
+                occurrence.path.clone()
+            })
+            .collect()
+    }
+
+    fn topology_class(
+        paths:
+            &[TargetAnchoredContextStructuralPath],
+    ) -> Option<
+        TargetAnchoredContextTopologyClass
+    > {
+        let first =
+            paths.first()?;
+
+        let expected =
+            first.topology_class();
+
+        if paths.iter().all(|path| {
+            path.topology_class()
+                == expected
+        }) {
+            Some(expected)
+        } else {
+            None
+        }
+    }
+
+    fn roles(
+        correspondence:
+            &SchemaLevelTargetCorrespondence,
+        policy:
+            TargetAnchoredContextTransformationPolicy,
+    ) -> Result<
+        Vec<TargetAnchoredContextRole>,
+        TargetAnchoredContextTransformationStatus,
+    > {
+        if correspondence.bindings().len()
+            > policy.max_target_roles()
+        {
+            return Err(
+                TargetAnchoredContextTransformationStatus::
+                    TargetRoleFrontierExceeded,
+            );
+        }
+
+        Ok(
+            correspondence
+                .bindings()
+                .iter()
+                .map(|binding| {
+                    TargetAnchoredContextRole {
+                        role_index:
+                            binding.role_index(),
+
+                        historical_atom:
+                            binding.historical_atom(),
+
+                        current_atom:
+                            binding.current_atom(),
+                    }
+                })
+                .collect(),
+        )
+    }
+
+    pub fn derive(
+        historical_hypothesis:
+            &CognitiveStructure,
+        current_hypothesis:
+            &CognitiveStructure,
+        target_correspondence:
+            &SchemaLevelTargetCorrespondence,
+        policy:
+            TargetAnchoredContextTransformationPolicy,
+    ) -> GroundedTargetAnchoredContextTransformationResult {
+        if target_correspondence.match_kind()
+            != SchemaLevelTargetMatchKind::RolePreserving
+        {
+            return
+                GroundedTargetAnchoredContextTransformationResult::
+                    rejected(
+                        TargetAnchoredContextTransformationStatus::
+                            TargetCorrespondenceNotRolePreserving,
+                        0,
+                        0,
+                    );
+        }
+
+        let roles =
+            match Self::roles(
+                target_correspondence,
+                policy,
+            ) {
+                Ok(roles) => roles,
+
+                Err(status) => {
+                    return
+                        GroundedTargetAnchoredContextTransformationResult::
+                            rejected(
+                                status,
+                                0,
+                                0,
+                            );
+                }
+            };
+
+        let mut hypothesis_traversal =
+            TargetAnchoredContextTraversal::new();
+
+        if let Err(status) =
+            Self::collect_aligned(
+                historical_hypothesis,
+                current_hypothesis,
+                &TargetAnchoredContextStructuralPath::
+                    root(),
+                policy,
+                &mut hypothesis_traversal,
+            )
+        {
+            return
+                GroundedTargetAnchoredContextTransformationResult::
+                    rejected(
+                        status,
+                        hypothesis_traversal
+                            .visited_node_count,
+                        hypothesis_traversal
+                            .occurrences
+                            .len(),
+                    );
+        }
+
+        let visited_node_count =
+            hypothesis_traversal
+                .visited_node_count;
+
+        let occurrence_count =
+            hypothesis_traversal
+                .occurrences
+                .len();
+
+        let mut split_candidates =
+            Vec::<(
+                TargetAnchoredContextRole,
+                Vec<TargetAnchoredContextStructuralPath>,
+                Vec<TargetAnchoredContextStructuralPath>,
+            )>::new();
+
+        let mut merge_candidates =
+            Vec::<(
+                TargetAnchoredContextRole,
+                Vec<TargetAnchoredContextStructuralPath>,
+                Vec<u64>,
+            )>::new();
+
+        for role in &roles {
+            let transformed =
+                Self::paths_for_pair(
+                    &hypothesis_traversal
+                        .occurrences,
+                    role.historical_atom,
+                    role.current_atom,
+                );
+
+            let retained =
+                Self::paths_for_pair(
+                    &hypothesis_traversal
+                        .occurrences,
+                    role.historical_atom,
+                    role.historical_atom,
+                );
+
+            if !transformed.is_empty()
+                && !retained.is_empty()
+            {
+                split_candidates.push(
+                    (
+                        *role,
+                        transformed.clone(),
+                        retained,
+                    ),
+                );
+            }
+
+            if !transformed.is_empty() {
+                let mut extra_sources =
+                    hypothesis_traversal
+                        .occurrences
+                        .iter()
+                        .filter(|occurrence| {
+                            occurrence.current_atom
+                                == role.current_atom
+                                && occurrence
+                                    .historical_atom
+                                    != role.historical_atom
+                        })
+                        .map(|occurrence| {
+                            occurrence.historical_atom
+                        })
+                        .collect::<Vec<_>>();
+
+                extra_sources.sort_unstable();
+                extra_sources.dedup();
+
+                if !extra_sources.is_empty() {
+                    merge_candidates.push(
+                        (
+                            *role,
+                            transformed,
+                            extra_sources,
+                        ),
+                    );
+                }
+            }
+        }
+
+        let split =
+            match split_candidates.len() {
+                0 => {
+                    return
+                        GroundedTargetAnchoredContextTransformationResult::
+                            rejected(
+                                TargetAnchoredContextTransformationStatus::
+                                    MissingSelectiveSplitAnchor,
+                                visited_node_count,
+                                occurrence_count,
+                            );
+                }
+
+                1 => split_candidates
+                    .remove(0),
+
+                _ => {
+                    return
+                        GroundedTargetAnchoredContextTransformationResult::
+                            rejected(
+                                TargetAnchoredContextTransformationStatus::
+                                    MultipleSelectiveSplitAnchors,
+                                visited_node_count,
+                                occurrence_count,
+                            );
+                }
+            };
+
+        let merge =
+            match merge_candidates.len() {
+                0 => {
+                    return
+                        GroundedTargetAnchoredContextTransformationResult::
+                            rejected(
+                                TargetAnchoredContextTransformationStatus::
+                                    MissingAnchoredMerge,
+                                visited_node_count,
+                                occurrence_count,
+                            );
+                }
+
+                1 => merge_candidates
+                    .remove(0),
+
+                _ => {
+                    return
+                        GroundedTargetAnchoredContextTransformationResult::
+                            rejected(
+                                TargetAnchoredContextTransformationStatus::
+                                    MultipleAnchoredMerges,
+                                visited_node_count,
+                                occurrence_count,
+                            );
+                }
+            };
+
+        if split.0.role_index
+            == merge.0.role_index
+        {
+            return
+                GroundedTargetAnchoredContextTransformationResult::
+                    rejected(
+                        TargetAnchoredContextTransformationStatus::
+                            AnchorsNotDistinct,
+                        visited_node_count,
+                        occurrence_count,
+                    );
+        }
+
+        /*
+         * Exactly one split:
+         *
+         * historical split atom may map only to itself and to the
+         * frozen target-bound current atom.
+         */
+        let mut split_destinations =
+            hypothesis_traversal
+                .occurrences
+                .iter()
+                .filter(|occurrence| {
+                    occurrence.historical_atom
+                        == split.0.historical_atom
+                })
+                .map(|occurrence| {
+                    occurrence.current_atom
+                })
+                .collect::<Vec<_>>();
+
+        split_destinations.sort_unstable();
+        split_destinations.dedup();
+
+        let mut expected_split_destinations =
+            vec![
+                split.0.historical_atom,
+                split.0.current_atom,
+            ];
+
+        expected_split_destinations
+            .sort_unstable();
+
+        expected_split_destinations
+            .dedup();
+
+        if split_destinations
+            != expected_split_destinations
+        {
+            return
+                GroundedTargetAnchoredContextTransformationResult::
+                    rejected(
+                        TargetAnchoredContextTransformationStatus::
+                            SplitRelationNotSelective,
+                        visited_node_count,
+                        occurrence_count,
+                    );
+        }
+
+        /*
+         * Exactly one merge extension source.
+         */
+        if merge.2.len() != 1 {
+            return
+                GroundedTargetAnchoredContextTransformationResult::
+                    rejected(
+                        TargetAnchoredContextTransformationStatus::
+                            MergeRelationNotSingleSource,
+                        visited_node_count,
+                        occurrence_count,
+                    );
+        }
+
+        let merge_extension_source =
+            merge.2[0];
+
+        if roles.iter().any(|role| {
+            role.historical_atom
+                == merge_extension_source
+        }) {
+            return
+                GroundedTargetAnchoredContextTransformationResult::
+                    rejected(
+                        TargetAnchoredContextTransformationStatus::
+                            MergeExtensionUsesTargetRole,
+                        visited_node_count,
+                        occurrence_count,
+                    );
+        }
+
+        /*
+         * No other atom may participate in a non-bijective relation.
+         */
+        let mut forward =
+            std::collections::BTreeMap::<
+                u64,
+                std::collections::BTreeSet<u64>,
+            >::new();
+
+        let mut reverse =
+            std::collections::BTreeMap::<
+                u64,
+                std::collections::BTreeSet<u64>,
+            >::new();
+
+        for occurrence in
+            &hypothesis_traversal.occurrences
+        {
+            forward
+                .entry(
+                    occurrence.historical_atom,
+                )
+                .or_default()
+                .insert(
+                    occurrence.current_atom,
+                );
+
+            reverse
+                .entry(
+                    occurrence.current_atom,
+                )
+                .or_default()
+                .insert(
+                    occurrence.historical_atom,
+                );
+        }
+
+        let split_keys =
+            forward.iter()
+                .filter(|(_, values)| {
+                    values.len() > 1
+                })
+                .map(|(atom, _)| *atom)
+                .collect::<Vec<_>>();
+
+        let merge_keys =
+            reverse.iter()
+                .filter(|(_, values)| {
+                    values.len() > 1
+                })
+                .map(|(atom, _)| *atom)
+                .collect::<Vec<_>>();
+
+        if split_keys
+            != vec![
+                split.0.historical_atom
+            ]
+            || merge_keys
+                != vec![
+                    merge.0.current_atom
+                ]
+        {
+            return
+                GroundedTargetAnchoredContextTransformationResult::
+                    rejected(
+                        TargetAnchoredContextTransformationStatus::
+                            AdditionalNonBijectiveConflict,
+                        visited_node_count,
+                        occurrence_count,
+                    );
+        }
+
+        let expected_merge_sources =
+            std::collections::BTreeSet::from([
+                merge.0.historical_atom,
+                merge_extension_source,
+            ]);
+
+        if reverse
+            .get(
+                &merge.0.current_atom,
+            )
+            != Some(
+                &expected_merge_sources,
+            )
+        {
+            return
+                GroundedTargetAnchoredContextTransformationResult::
+                    rejected(
+                        TargetAnchoredContextTransformationStatus::
+                            MergeRelationNotSingleSource,
+                        visited_node_count,
+                        occurrence_count,
+                    );
+        }
+
+        /*
+         * Every changed atom pair must be either:
+         *
+         *   - one exact frozen C3H-B target binding, or
+         *   - the single merge extension into the selected merge
+         *     anchor's current atom.
+         */
+        for occurrence in
+            &hypothesis_traversal.occurrences
+        {
+            if occurrence.historical_atom
+                == occurrence.current_atom
+            {
+                continue;
+            }
+
+            let is_target_binding =
+                roles.iter().any(|role| {
+                    role.historical_atom
+                        == occurrence.historical_atom
+                        && role.current_atom
+                            == occurrence.current_atom
+                });
+
+            let is_merge_extension =
+                occurrence.historical_atom
+                    == merge_extension_source
+                    && occurrence.current_atom
+                        == merge.0.current_atom;
+
+            if !is_target_binding
+                && !is_merge_extension
+            {
+                return
+                    GroundedTargetAnchoredContextTransformationResult::
+                        rejected(
+                            TargetAnchoredContextTransformationStatus::
+                                UnexplainedChangedOccurrence,
+                            visited_node_count,
+                            occurrence_count,
+                        );
+            }
+        }
+
+        /*
+         * Derive the topology of the selected merge anchor from the
+         * grounded target pair itself.
+         */
+        let mut target_traversal =
+            TargetAnchoredContextTraversal::new();
+
+        if let Err(status) =
+            Self::collect_aligned(
+                target_correspondence
+                    .historical_target(),
+                target_correspondence
+                    .current_target(),
+                &TargetAnchoredContextStructuralPath::
+                    root(),
+                policy,
+                &mut target_traversal,
+            )
+        {
+            return
+                GroundedTargetAnchoredContextTransformationResult::
+                    rejected(
+                        status,
+                        visited_node_count,
+                        occurrence_count,
+                    );
+        }
+
+        let target_merge_paths =
+            Self::paths_for_pair(
+                &target_traversal.occurrences,
+                merge.0.historical_atom,
+                merge.0.current_atom,
+            );
+
+        if target_merge_paths.is_empty() {
+            return
+                GroundedTargetAnchoredContextTransformationResult::
+                    rejected(
+                        TargetAnchoredContextTransformationStatus::
+                            TargetMergeAnchorMissing,
+                        visited_node_count,
+                        occurrence_count,
+                    );
+        }
+
+        let target_anchor_topology =
+            match Self::topology_class(
+                &target_merge_paths,
+            ) {
+                Some(class) => class,
+
+                None => {
+                    return
+                        GroundedTargetAnchoredContextTransformationResult::
+                            rejected(
+                                TargetAnchoredContextTransformationStatus::
+                                    TargetMergeTopologyAmbiguous,
+                                visited_node_count,
+                                occurrence_count,
+                            );
+                }
+            };
+
+        let context_merge_topology =
+            match Self::topology_class(
+                &merge.1,
+            ) {
+                Some(class) => class,
+
+                None => {
+                    return
+                        GroundedTargetAnchoredContextTransformationResult::
+                            rejected(
+                                TargetAnchoredContextTransformationStatus::
+                                    ContextMergeTopologyAmbiguous,
+                                visited_node_count,
+                                occurrence_count,
+                            );
+                }
+            };
+
+        if target_anchor_topology
+            != context_merge_topology
+        {
+            return
+                GroundedTargetAnchoredContextTransformationResult::
+                    rejected(
+                        TargetAnchoredContextTransformationStatus::
+                            TargetContextTopologyMismatch,
+                        visited_node_count,
+                        occurrence_count,
+                    );
+        }
+
+        let merge_extension_paths =
+            Self::paths_for_pair(
+                &hypothesis_traversal.occurrences,
+                merge_extension_source,
+                merge.0.current_atom,
+            );
+
+        let identity =
+            GroundedTargetAnchoredContextTransformationIdentity::
+                new(
+                    roles.len(),
+                    split.0.role_index,
+                    merge.0.role_index,
+                );
+
+        GroundedTargetAnchoredContextTransformationResult {
+            status:
+                TargetAnchoredContextTransformationStatus::
+                    Derived,
+
+            visited_node_count,
+
+            occurrence_count,
+
+            transformation: Some(
+                GroundedTargetAnchoredContextTransformation {
+                    identity,
+
+                    target_anchor_topology,
+
+                    context_merge_topology,
+
+                    split_historical_atom:
+                        split.0.historical_atom,
+
+                    split_current_atom:
+                        split.0.current_atom,
+
+                    merge_historical_atom:
+                        merge.0.historical_atom,
+
+                    merge_current_atom:
+                        merge.0.current_atom,
+
+                    merge_extension_historical_atom:
+                        merge_extension_source,
+
+                    split_transformed_paths:
+                        split.1,
+
+                    split_retained_paths:
+                        split.2,
+
+                    merge_base_paths:
+                        merge.1,
+
+                    merge_extension_paths,
+                },
+            ),
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct UniversalAutonomousTargetAnchoredContextTransformation;
+
+impl UniversalAutonomousTargetAnchoredContextTransformation {
+    pub fn derive(
+        historical_hypothesis:
+            &CognitiveStructure,
+        current_hypothesis:
+            &CognitiveStructure,
+        target_correspondence:
+            &SchemaLevelTargetCorrespondence,
+        policy:
+            TargetAnchoredContextTransformationPolicy,
+    ) -> GroundedTargetAnchoredContextTransformationResult {
+        AutonomousTargetAnchoredContextTransformation::
+            derive(
+                historical_hypothesis,
+                current_hypothesis,
+                target_correspondence,
+                policy,
+            )
+    }
+}
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct HypothesisDiscriminationCandidate {
     experiment: AutonomousExperimentProposal,
@@ -16927,6 +18207,717 @@ mod p4g_c3h_schema_level_target_transfer_identity_tests {
         assert_eq!(
             first,
             second,
+        );
+    }
+}
+
+#[cfg(test)]
+mod p4g_c3h_target_anchored_context_transformation_tests {
+    use super::*;
+
+    fn a(
+        value: u64,
+    ) -> CognitiveStructure {
+        CognitiveStructure::Atom(value)
+    }
+
+    fn o(
+        children:
+            Vec<CognitiveStructure>,
+    ) -> CognitiveStructure {
+        CognitiveStructure::Ordered(children)
+    }
+
+    fn u(
+        children:
+            Vec<CognitiveStructure>,
+    ) -> CognitiveStructure {
+        CognitiveStructure::Unordered(children)
+    }
+
+    fn policy(
+    ) -> TargetAnchoredContextTransformationPolicy {
+        TargetAnchoredContextTransformationPolicy::
+            new(
+                16,
+                512,
+                256,
+            )
+            .unwrap()
+    }
+
+    fn correspondence(
+        historical:
+            CognitiveStructure,
+        current:
+            CognitiveStructure,
+    ) -> SchemaLevelTargetCorrespondence {
+        let schema =
+            AutonomousRolePreservingTargetSchema::
+                derive(
+                    &historical,
+                    &current,
+                    RolePreservingTargetSchemaPolicy::
+                        new(
+                            512,
+                            32,
+                        )
+                        .unwrap(),
+                );
+
+        assert!(
+            schema.derived(),
+        );
+
+        assert!(
+            schema.role_count() > 0,
+        );
+
+        SchemaLevelTargetCorrespondence::new(
+            historical,
+            current,
+            SchemaLevelTargetMatchKind::
+                RolePreserving,
+            schema.schema()
+                .unwrap()
+                .clone(),
+            schema.bindings()
+                .to_vec(),
+        )
+    }
+
+    fn direct_target(
+        first_historical: u64,
+        first_current: u64,
+        second_historical: u64,
+        second_current: u64,
+    ) -> SchemaLevelTargetCorrespondence {
+        correspondence(
+            o(vec![
+                a(100),
+                a(first_historical),
+                o(vec![
+                    a(second_historical),
+                ]),
+            ]),
+            o(vec![
+                a(100),
+                a(first_current),
+                o(vec![
+                    a(second_current),
+                ]),
+            ]),
+        )
+    }
+
+    fn recursive_target(
+        first_historical: u64,
+        first_current: u64,
+        second_historical: u64,
+        second_current: u64,
+    ) -> SchemaLevelTargetCorrespondence {
+        correspondence(
+            o(vec![
+                a(100),
+                a(first_historical),
+                u(vec![
+                    o(vec![
+                        a(second_historical),
+                    ]),
+                ]),
+            ]),
+            o(vec![
+                a(100),
+                a(first_current),
+                u(vec![
+                    o(vec![
+                        a(second_current),
+                    ]),
+                ]),
+            ]),
+        )
+    }
+
+    #[test]
+    fn direct_target_anchors_one_selective_split_and_distinct_single_source_merge() {
+        let target =
+            direct_target(
+                1,
+                2,
+                5,
+                7,
+            );
+
+        let historical =
+            o(vec![
+                a(1),
+                a(1),
+                a(5),
+                a(6),
+            ]);
+
+        let current =
+            o(vec![
+                a(1),
+                a(2),
+                a(7),
+                a(7),
+            ]);
+
+        let result =
+            AutonomousTargetAnchoredContextTransformation::
+                derive(
+                    &historical,
+                    &current,
+                    &target,
+                    policy(),
+                );
+
+        assert!(result.derived());
+
+        let transformation =
+            result.transformation()
+                .unwrap();
+
+        assert_eq!(
+            transformation
+                .target_anchor_topology(),
+            TargetAnchoredContextTopologyClass::
+                Direct,
+        );
+
+        assert_eq!(
+            transformation
+                .context_merge_topology(),
+            TargetAnchoredContextTopologyClass::
+                Direct,
+        );
+
+        assert_eq!(
+            transformation
+                .split_historical_atom(),
+            1,
+        );
+
+        assert_eq!(
+            transformation
+                .split_current_atom(),
+            2,
+        );
+
+        assert_eq!(
+            transformation
+                .merge_historical_atom(),
+            5,
+        );
+
+        assert_eq!(
+            transformation
+                .merge_current_atom(),
+            7,
+        );
+
+        assert_eq!(
+            transformation
+                .merge_extension_historical_atom(),
+            6,
+        );
+
+        assert_eq!(
+            transformation
+                .split_transformed_paths()
+                .len(),
+            1,
+        );
+
+        assert_eq!(
+            transformation
+                .split_retained_paths()
+                .len(),
+            1,
+        );
+
+        assert_eq!(
+            transformation
+                .merge_base_paths()
+                .len(),
+            1,
+        );
+
+        assert_eq!(
+            transformation
+                .merge_extension_paths()
+                .len(),
+            1,
+        );
+    }
+
+    #[test]
+    fn direct_and_recursive_realizations_share_abstract_identity() {
+        let direct_target =
+            direct_target(
+                1,
+                2,
+                5,
+                7,
+            );
+
+        let direct =
+            AutonomousTargetAnchoredContextTransformation::
+                derive(
+                    &o(vec![
+                        a(1),
+                        a(1),
+                        a(5),
+                        a(6),
+                    ]),
+                    &o(vec![
+                        a(1),
+                        a(2),
+                        a(7),
+                        a(7),
+                    ]),
+                    &direct_target,
+                    policy(),
+                );
+
+        let recursive_target =
+            recursive_target(
+                11,
+                12,
+                50,
+                70,
+            );
+
+        let recursive =
+            AutonomousTargetAnchoredContextTransformation::
+                derive(
+                    &o(vec![
+                        a(11),
+                        a(11),
+                        u(vec![
+                            a(50),
+                            a(60),
+                        ]),
+                    ]),
+                    &o(vec![
+                        a(11),
+                        a(12),
+                        u(vec![
+                            a(70),
+                            a(70),
+                        ]),
+                    ]),
+                    &recursive_target,
+                    policy(),
+                );
+
+        assert!(direct.derived());
+        assert!(recursive.derived());
+
+        assert_eq!(
+            direct.identity(),
+            recursive.identity(),
+            "concrete atoms and direct-vs-recursive realization are provenance, not abstract identity",
+        );
+
+        assert_eq!(
+            recursive
+                .transformation()
+                .unwrap()
+                .target_anchor_topology(),
+            TargetAnchoredContextTopologyClass::
+                Recursive,
+        );
+
+        assert_eq!(
+            recursive
+                .transformation()
+                .unwrap()
+                .context_merge_topology(),
+            TargetAnchoredContextTopologyClass::
+                Recursive,
+        );
+    }
+
+    #[test]
+    fn target_and_context_merge_topology_must_agree() {
+        let target =
+            direct_target(
+                1,
+                2,
+                5,
+                7,
+            );
+
+        let result =
+            AutonomousTargetAnchoredContextTransformation::
+                derive(
+                    &o(vec![
+                        a(1),
+                        a(1),
+                        u(vec![
+                            a(5),
+                            a(6),
+                        ]),
+                    ]),
+                    &o(vec![
+                        a(1),
+                        a(2),
+                        u(vec![
+                            a(7),
+                            a(7),
+                        ]),
+                    ]),
+                    &target,
+                    policy(),
+                );
+
+        assert_eq!(
+            result.status(),
+            TargetAnchoredContextTransformationStatus::
+                TargetContextTopologyMismatch,
+        );
+    }
+
+    #[test]
+    fn split_anchor_must_retain_at_least_one_historical_occurrence() {
+        let target =
+            direct_target(
+                1,
+                2,
+                5,
+                7,
+            );
+
+        let result =
+            AutonomousTargetAnchoredContextTransformation::
+                derive(
+                    &o(vec![
+                        a(1),
+                        a(5),
+                        a(6),
+                    ]),
+                    &o(vec![
+                        a(2),
+                        a(7),
+                        a(7),
+                    ]),
+                    &target,
+                    policy(),
+                );
+
+        assert_eq!(
+            result.status(),
+            TargetAnchoredContextTransformationStatus::
+                MissingSelectiveSplitAnchor,
+        );
+    }
+
+    #[test]
+    fn merge_anchor_requires_exactly_one_additional_source() {
+        let target =
+            direct_target(
+                1,
+                2,
+                5,
+                7,
+            );
+
+        let result =
+            AutonomousTargetAnchoredContextTransformation::
+                derive(
+                    &o(vec![
+                        a(1),
+                        a(1),
+                        a(5),
+                        a(6),
+                        a(8),
+                    ]),
+                    &o(vec![
+                        a(1),
+                        a(2),
+                        a(7),
+                        a(7),
+                        a(7),
+                    ]),
+                    &target,
+                    policy(),
+                );
+
+        assert_eq!(
+            result.status(),
+            TargetAnchoredContextTransformationStatus::
+                MergeRelationNotSingleSource,
+        );
+    }
+
+    #[test]
+    fn split_and_merge_anchors_must_be_distinct_target_roles() {
+        let target =
+            correspondence(
+                o(vec![
+                    a(1),
+                ]),
+                o(vec![
+                    a(2),
+                ]),
+            );
+
+        let result =
+            AutonomousTargetAnchoredContextTransformation::
+                derive(
+                    &o(vec![
+                        a(1),
+                        a(1),
+                        a(3),
+                    ]),
+                    &o(vec![
+                        a(1),
+                        a(2),
+                        a(2),
+                    ]),
+                    &target,
+                    policy(),
+                );
+
+        assert_eq!(
+            result.status(),
+            TargetAnchoredContextTransformationStatus::
+                AnchorsNotDistinct,
+        );
+    }
+
+    #[test]
+    fn unrelated_changed_occurrence_is_rejected() {
+        let target =
+            direct_target(
+                1,
+                2,
+                5,
+                7,
+            );
+
+        let result =
+            AutonomousTargetAnchoredContextTransformation::
+                derive(
+                    &o(vec![
+                        a(1),
+                        a(1),
+                        a(5),
+                        a(6),
+                        a(8),
+                    ]),
+                    &o(vec![
+                        a(1),
+                        a(2),
+                        a(7),
+                        a(7),
+                        a(9),
+                    ]),
+                    &target,
+                    policy(),
+                );
+
+        assert_eq!(
+            result.status(),
+            TargetAnchoredContextTransformationStatus::
+                UnexplainedChangedOccurrence,
+        );
+    }
+
+    #[test]
+    fn hypothesis_container_topology_is_semantic_and_cannot_be_rewritten() {
+        let target =
+            direct_target(
+                1,
+                2,
+                5,
+                7,
+            );
+
+        let result =
+            AutonomousTargetAnchoredContextTransformation::
+                derive(
+                    &o(vec![
+                        a(1),
+                        a(1),
+                        a(5),
+                        a(6),
+                    ]),
+                    &u(vec![
+                        a(1),
+                        a(2),
+                        a(7),
+                        a(7),
+                    ]),
+                    &target,
+                    policy(),
+                );
+
+        assert_eq!(
+            result.status(),
+            TargetAnchoredContextTransformationStatus::
+                HypothesisStructuralMismatch,
+        );
+    }
+
+    #[test]
+    fn concrete_atom_values_do_not_enter_abstract_identity() {
+        let first_target =
+            direct_target(
+                1,
+                2,
+                5,
+                7,
+            );
+
+        let first =
+            UniversalAutonomousTargetAnchoredContextTransformation::
+                derive(
+                    &o(vec![
+                        a(1),
+                        a(1),
+                        a(5),
+                        a(6),
+                    ]),
+                    &o(vec![
+                        a(1),
+                        a(2),
+                        a(7),
+                        a(7),
+                    ]),
+                    &first_target,
+                    policy(),
+                );
+
+        let second_target =
+            direct_target(
+                11,
+                12,
+                50,
+                70,
+            );
+
+        let second =
+            UniversalAutonomousTargetAnchoredContextTransformation::
+                derive(
+                    &o(vec![
+                        a(11),
+                        a(11),
+                        a(50),
+                        a(60),
+                    ]),
+                    &o(vec![
+                        a(11),
+                        a(12),
+                        a(70),
+                        a(70),
+                    ]),
+                    &second_target,
+                    policy(),
+                );
+
+        assert!(first.derived());
+        assert!(second.derived());
+
+        assert_eq!(
+            first.identity(),
+            second.identity(),
+        );
+
+        assert_ne!(
+            first
+                .transformation()
+                .unwrap()
+                .merge_extension_historical_atom(),
+            second
+                .transformation()
+                .unwrap()
+                .merge_extension_historical_atom(),
+        );
+    }
+
+    #[test]
+    fn traversal_and_target_role_frontiers_fail_closed() {
+        let target =
+            direct_target(
+                1,
+                2,
+                5,
+                7,
+            );
+
+        let role_bounded =
+            AutonomousTargetAnchoredContextTransformation::
+                derive(
+                    &o(vec![
+                        a(1),
+                        a(1),
+                        a(5),
+                        a(6),
+                    ]),
+                    &o(vec![
+                        a(1),
+                        a(2),
+                        a(7),
+                        a(7),
+                    ]),
+                    &target,
+                    TargetAnchoredContextTransformationPolicy::
+                        new(
+                            1,
+                            512,
+                            256,
+                        )
+                        .unwrap(),
+                );
+
+        assert_eq!(
+            role_bounded.status(),
+            TargetAnchoredContextTransformationStatus::
+                TargetRoleFrontierExceeded,
+        );
+
+        let node_bounded =
+            AutonomousTargetAnchoredContextTransformation::
+                derive(
+                    &o(vec![
+                        a(1),
+                        a(1),
+                        a(5),
+                        a(6),
+                    ]),
+                    &o(vec![
+                        a(1),
+                        a(2),
+                        a(7),
+                        a(7),
+                    ]),
+                    &target,
+                    TargetAnchoredContextTransformationPolicy::
+                        new(
+                            16,
+                            1,
+                            256,
+                        )
+                        .unwrap(),
+                );
+
+        assert_eq!(
+            node_bounded.status(),
+            TargetAnchoredContextTransformationStatus::
+                NodeFrontierExceeded,
+        );
+
+        assert!(
+            TargetAnchoredContextTransformationPolicy::
+                new(
+                    0,
+                    1,
+                    1,
+                )
+                .is_none(),
         );
     }
 }

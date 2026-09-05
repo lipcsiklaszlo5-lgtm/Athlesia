@@ -2636,3 +2636,350 @@ fn live_c3hb_current_only_target_refinement_preserves_all_historical_targets_exa
         transport_before,
     );
 }
+
+#[test]
+fn live_c3h_c8_target_anchored_context_transformation_recovers_unique_hypothesis_correspondence() {
+    use athlesia_autonomous_active_experimentation::{
+        AutonomousTargetAnchoredContextTransformation,
+        GroundedTargetAnchoredContextTransformationIdentity,
+        TargetAnchoredContextTopologyClass,
+        TargetAnchoredContextTransformationPolicy,
+    };
+
+    let policy =
+        TargetAnchoredContextTransformationPolicy::
+            new(
+                32,
+                4096,
+                2048,
+            )
+            .unwrap();
+
+    let mut shared_identity:
+        Option<
+            GroundedTargetAnchoredContextTransformationIdentity
+        > =
+        None;
+
+    let mut direct_count =
+        0_usize;
+
+    let mut recursive_count =
+        0_usize;
+
+    let mut total_derived_pairs =
+        0_usize;
+
+
+    for (
+        world_index,
+        candidate_value,
+    ) in [
+        2_u8,
+        14_u8,
+    ]
+    .into_iter()
+    .enumerate()
+    {
+        let game =
+            format!(
+                "p4gc3hc8-role-{candidate_value}"
+            );
+
+        let (
+            runtime,
+            historical,
+            current,
+        ) =
+            c3hb_live_historical_and_current_identity(
+                &game,
+                1_240_000
+                    + world_index as u64
+                        * 20_000,
+                ArcAgi3ActionId::Action1,
+                candidate_value,
+            );
+
+
+        let transport_before =
+            runtime
+                .transport()
+                .execute_count();
+
+        let exact_history_before =
+            runtime
+                .cognitive_runtime()
+                .cognition()
+                .epistemic_progress_event_count();
+
+        let transfer_history_before =
+            runtime
+                .cognitive_runtime()
+                .cognition()
+                .epistemic_transfer_progress_event_count();
+
+
+        let relation =
+            athlesia_autonomous_active_experimentation::
+                AutonomousSchemaLevelTargetTransferIdentity::
+                    derive(
+                        &historical,
+                        &current,
+                        c3hb_policy(),
+                    );
+
+        assert!(relation.derived());
+
+        assert_eq!(
+            relation
+                .role_preserving_match_count(),
+            4,
+        );
+
+
+        let mut role_target_count =
+            0_usize;
+
+        for correspondence in
+            relation.correspondences()
+        {
+            if correspondence.match_kind()
+                != athlesia_autonomous_active_experimentation::
+                    SchemaLevelTargetMatchKind::
+                        RolePreserving
+            {
+                continue;
+            }
+
+            role_target_count += 1;
+
+
+            let historical_context =
+                historical
+                    .forecasts()
+                    .iter()
+                    .filter(|forecast| {
+                        forecast.target()
+                            == correspondence
+                                .historical_target()
+                            && format!(
+                                "{:?}",
+                                forecast.status(),
+                            ) == "ContextAbstained"
+                    })
+                    .collect::<Vec<_>>();
+
+            let current_context =
+                current
+                    .forecasts()
+                    .iter()
+                    .filter(|forecast| {
+                        forecast.target()
+                            == correspondence
+                                .current_target()
+                            && format!(
+                                "{:?}",
+                                forecast.status(),
+                            ) == "ContextAbstained"
+                    })
+                    .collect::<Vec<_>>();
+
+            assert_eq!(
+                historical_context.len(),
+                4,
+            );
+
+            assert_eq!(
+                current_context.len(),
+                4,
+            );
+
+
+            let mut left_degree =
+                vec![
+                    0_usize;
+                    historical_context.len()
+                ];
+
+            let mut right_degree =
+                vec![
+                    0_usize;
+                    current_context.len()
+                ];
+
+            let mut target_derived_count =
+                0_usize;
+
+
+            for (
+                historical_index,
+                historical_forecast,
+            ) in historical_context
+                .iter()
+                .enumerate()
+            {
+                for (
+                    current_index,
+                    current_forecast,
+                ) in current_context
+                    .iter()
+                    .enumerate()
+                {
+                    let derived =
+                        AutonomousTargetAnchoredContextTransformation::
+                            derive(
+                                historical_forecast
+                                    .hypothesis(),
+                                current_forecast
+                                    .hypothesis(),
+                                correspondence,
+                                policy,
+                            );
+
+                    if !derived.derived() {
+                        continue;
+                    }
+
+                    target_derived_count += 1;
+                    total_derived_pairs += 1;
+
+                    left_degree[
+                        historical_index
+                    ] += 1;
+
+                    right_degree[
+                        current_index
+                    ] += 1;
+
+
+                    let transformation =
+                        derived
+                            .transformation()
+                            .unwrap();
+
+                    assert_eq!(
+                        transformation
+                            .target_anchor_topology(),
+                        transformation
+                            .context_merge_topology(),
+                        "production relation must reproduce frozen C3H-C7 target-conditioned realization",
+                    );
+
+                    match transformation
+                        .target_anchor_topology()
+                    {
+                        TargetAnchoredContextTopologyClass::
+                            Direct =>
+                        {
+                            direct_count += 1;
+                        }
+
+                        TargetAnchoredContextTopologyClass::
+                            Recursive =>
+                        {
+                            recursive_count += 1;
+                        }
+                    }
+
+
+                    let identity =
+                        transformation
+                            .identity()
+                            .clone();
+
+                    if let Some(
+                        expected,
+                    ) = &shared_identity
+                    {
+                        assert_eq!(
+                            &identity,
+                            expected,
+                            "all direct/recursive and cross-world realizations must share one abstract context transformation identity",
+                        );
+                    } else {
+                        shared_identity =
+                            Some(identity);
+                    }
+                }
+            }
+
+
+            assert_eq!(
+                target_derived_count,
+                4,
+                "production representation must recover exactly four of sixteen candidate hypothesis pairs",
+            );
+
+            assert!(
+                left_degree
+                    .iter()
+                    .all(|degree| {
+                        *degree == 1
+                    }),
+                "every historical context hypothesis must have exactly one grounded current continuation",
+            );
+
+            assert!(
+                right_degree
+                    .iter()
+                    .all(|degree| {
+                        *degree == 1
+                    }),
+                "every current context hypothesis must be consumed by exactly one grounded historical continuation",
+            );
+        }
+
+
+        assert_eq!(
+            role_target_count,
+            4,
+        );
+
+
+        assert_eq!(
+            runtime
+                .transport()
+                .execute_count(),
+            transport_before,
+            "C3H-C8 derivation has zero transport authority",
+        );
+
+        assert_eq!(
+            runtime
+                .cognitive_runtime()
+                .cognition()
+                .epistemic_progress_event_count(),
+            exact_history_before,
+            "C3H-C8 cannot mutate exact empirical progress history",
+        );
+
+        assert_eq!(
+            runtime
+                .cognitive_runtime()
+                .cognition()
+                .epistemic_transfer_progress_event_count(),
+            transfer_history_before,
+            "C3H-C8 cannot mutate frozen structural transfer history",
+        );
+    }
+
+
+    assert_eq!(
+        total_derived_pairs,
+        32,
+    );
+
+    assert_eq!(
+        direct_count,
+        16,
+    );
+
+    assert_eq!(
+        recursive_count,
+        16,
+    );
+
+    assert!(
+        shared_identity.is_some(),
+    );
+}
