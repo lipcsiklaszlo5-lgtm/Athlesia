@@ -951,6 +951,458 @@ impl UniversalAutonomousEpistemicForecastDiscrimination {
     }
 }
 
+// ============================================================================
+// P4G-C3C-A — REALIZED EPISTEMIC RESOLUTION EVIDENCE
+// ============================================================================
+//
+// C3B established a pre-action epistemic forecast vocabulary without
+// fabricating confidence or outcomes for abstaining hypotheses.
+//
+// C3C-A adds the complementary POST-action vocabulary.
+//
+// This layer does NOT estimate expected information gain.  It records only
+// what an explicit observed target consequence actually establishes:
+//
+//   Predicted + occurred      -> Supported
+//   Predicted + did not occur -> Counterexample
+//   ContextAbstained          -> ContextUninformative
+//   NoEffectOpportunity       -> NoOpportunityUninformative
+//
+// An abstaining forecast can never be silently converted into a negative
+// prediction.  Missing target observations fail closed rather than turning
+// absence of evidence into evidence of absence.
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct EpistemicTargetObservation {
+    target: CognitiveStructure,
+    occurred: bool,
+}
+
+impl EpistemicTargetObservation {
+    pub fn new(target: CognitiveStructure, occurred: bool) -> Self {
+        Self { target, occurred }
+    }
+
+    pub fn target(&self) -> &CognitiveStructure {
+        &self.target
+    }
+
+    pub fn occurred(&self) -> bool {
+        self.occurred
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct GroundedEpistemicOutcomeObservation {
+    source_state: CognitiveStructure,
+    action: CognitiveStructure,
+    targets: Vec<EpistemicTargetObservation>,
+}
+
+impl GroundedEpistemicOutcomeObservation {
+    pub fn new(
+        source_state: CognitiveStructure,
+        action: CognitiveStructure,
+        mut targets: Vec<EpistemicTargetObservation>,
+    ) -> Option<Self> {
+        if targets.is_empty() {
+            return None;
+        }
+
+        targets.sort_by(|left, right| {
+            format!("{:?}", left.target())
+                .cmp(&format!("{:?}", right.target()))
+                .then_with(|| left.occurred().cmp(&right.occurred()))
+        });
+
+        let mut canonical: Vec<EpistemicTargetObservation> = Vec::new();
+
+        for observation in targets {
+            if let Some(existing) = canonical
+                .iter()
+                .find(|existing| existing.target() == observation.target())
+            {
+                if existing.occurred() != observation.occurred() {
+                    return None;
+                }
+
+                continue;
+            }
+
+            canonical.push(observation);
+        }
+
+        Some(Self {
+            source_state,
+            action,
+            targets: canonical,
+        })
+    }
+
+    pub fn source_state(&self) -> &CognitiveStructure {
+        &self.source_state
+    }
+
+    pub fn action(&self) -> &CognitiveStructure {
+        &self.action
+    }
+
+    pub fn targets(&self) -> &[EpistemicTargetObservation] {
+        &self.targets
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub enum EpistemicForecastOutcomeAssessmentStatus {
+    Supported,
+    Counterexample,
+    ContextUninformative,
+    NoOpportunityUninformative,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct EpistemicForecastOutcomeAssessment {
+    forecast: EpistemicHypothesisForecast,
+    observed_target_occurrence: bool,
+    status: EpistemicForecastOutcomeAssessmentStatus,
+}
+
+impl EpistemicForecastOutcomeAssessment {
+    pub fn forecast(&self) -> &EpistemicHypothesisForecast {
+        &self.forecast
+    }
+
+    pub fn observed_target_occurrence(&self) -> bool {
+        self.observed_target_occurrence
+    }
+
+    pub fn status(&self) -> EpistemicForecastOutcomeAssessmentStatus {
+        self.status
+    }
+
+    pub fn falsified(&self) -> bool {
+        self.status == EpistemicForecastOutcomeAssessmentStatus::Counterexample
+    }
+
+    pub fn empirically_tested(&self) -> bool {
+        matches!(
+            self.status,
+            EpistemicForecastOutcomeAssessmentStatus::Supported
+                | EpistemicForecastOutcomeAssessmentStatus::Counterexample
+        )
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub struct EpistemicOutcomeResolutionPolicy {
+    max_forecasts: usize,
+    max_target_observations: usize,
+}
+
+impl EpistemicOutcomeResolutionPolicy {
+    pub fn new(max_forecasts: usize, max_target_observations: usize) -> Option<Self> {
+        if max_forecasts == 0 || max_target_observations == 0 {
+            return None;
+        }
+
+        Some(Self {
+            max_forecasts,
+            max_target_observations,
+        })
+    }
+
+    pub fn max_forecasts(self) -> usize {
+        self.max_forecasts
+    }
+
+    pub fn max_target_observations(self) -> usize {
+        self.max_target_observations
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub enum EpistemicOutcomeResolutionStatus {
+    Resolved,
+    SourceStateMismatch,
+    ActionMismatch,
+    ForecastFrontierExceeded,
+    ObservationFrontierExceeded,
+    ConflictingForecastIdentity,
+    MissingTargetObservation,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct EpistemicOutcomeResolutionResult {
+    status: EpistemicOutcomeResolutionStatus,
+    input_forecast_count: usize,
+    unique_forecast_count: usize,
+    target_observation_count: usize,
+    assessments: Vec<EpistemicForecastOutcomeAssessment>,
+    supported_prediction_count: usize,
+    counterexample_prediction_count: usize,
+    context_uninformative_count: usize,
+    no_opportunity_uninformative_count: usize,
+}
+
+impl EpistemicOutcomeResolutionResult {
+    fn rejected(
+        status: EpistemicOutcomeResolutionStatus,
+        input_forecast_count: usize,
+        unique_forecast_count: usize,
+        target_observation_count: usize,
+    ) -> Self {
+        Self {
+            status,
+            input_forecast_count,
+            unique_forecast_count,
+            target_observation_count,
+            assessments: Vec::new(),
+            supported_prediction_count: 0,
+            counterexample_prediction_count: 0,
+            context_uninformative_count: 0,
+            no_opportunity_uninformative_count: 0,
+        }
+    }
+
+    pub fn status(&self) -> EpistemicOutcomeResolutionStatus {
+        self.status
+    }
+
+    pub fn resolved(&self) -> bool {
+        self.status == EpistemicOutcomeResolutionStatus::Resolved
+    }
+
+    pub fn input_forecast_count(&self) -> usize {
+        self.input_forecast_count
+    }
+
+    pub fn unique_forecast_count(&self) -> usize {
+        self.unique_forecast_count
+    }
+
+    pub fn target_observation_count(&self) -> usize {
+        self.target_observation_count
+    }
+
+    pub fn assessments(&self) -> &[EpistemicForecastOutcomeAssessment] {
+        &self.assessments
+    }
+
+    pub fn supported_prediction_count(&self) -> usize {
+        self.supported_prediction_count
+    }
+
+    pub fn counterexample_prediction_count(&self) -> usize {
+        self.counterexample_prediction_count
+    }
+
+    pub fn empirically_tested_prediction_count(&self) -> usize {
+        self.supported_prediction_count
+            .saturating_add(self.counterexample_prediction_count)
+    }
+
+    pub fn context_uninformative_count(&self) -> usize {
+        self.context_uninformative_count
+    }
+
+    pub fn no_opportunity_uninformative_count(&self) -> usize {
+        self.no_opportunity_uninformative_count
+    }
+
+    pub fn falsified_hypothesis_count(&self) -> usize {
+        self.counterexample_prediction_count
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct AutonomousEpistemicOutcomeResolution;
+
+impl AutonomousEpistemicOutcomeResolution {
+    fn forecast_order(
+        left: &EpistemicHypothesisForecast,
+        right: &EpistemicHypothesisForecast,
+    ) -> std::cmp::Ordering {
+        format!("{:?}", left.hypothesis())
+            .cmp(&format!("{:?}", right.hypothesis()))
+            .then_with(|| format!("{:?}", left.target()).cmp(&format!("{:?}", right.target())))
+            .then_with(|| left.status().cmp(&right.status()))
+            .then_with(|| {
+                format!("{:?}", left.predicted_outcome())
+                    .cmp(&format!("{:?}", right.predicted_outcome()))
+            })
+            .then_with(|| {
+                left.evidence()
+                    .support_count()
+                    .cmp(&right.evidence().support_count())
+            })
+            .then_with(|| {
+                left.evidence()
+                    .opportunity_count()
+                    .cmp(&right.evidence().opportunity_count())
+            })
+            .then_with(|| {
+                left.evidence()
+                    .counterexample_count()
+                    .cmp(&right.evidence().counterexample_count())
+            })
+    }
+
+    pub fn evaluate(
+        possibility: &GroundedEpistemicExperimentPossibility,
+        observation: &GroundedEpistemicOutcomeObservation,
+        policy: EpistemicOutcomeResolutionPolicy,
+    ) -> EpistemicOutcomeResolutionResult {
+        let input_forecast_count = possibility.forecasts().len();
+
+        let target_observation_count = observation.targets().len();
+
+        if possibility.source_state() != observation.source_state() {
+            return EpistemicOutcomeResolutionResult::rejected(
+                EpistemicOutcomeResolutionStatus::SourceStateMismatch,
+                input_forecast_count,
+                0,
+                target_observation_count,
+            );
+        }
+
+        if possibility.action() != observation.action() {
+            return EpistemicOutcomeResolutionResult::rejected(
+                EpistemicOutcomeResolutionStatus::ActionMismatch,
+                input_forecast_count,
+                0,
+                target_observation_count,
+            );
+        }
+
+        if input_forecast_count > policy.max_forecasts() {
+            return EpistemicOutcomeResolutionResult::rejected(
+                EpistemicOutcomeResolutionStatus::ForecastFrontierExceeded,
+                input_forecast_count,
+                0,
+                target_observation_count,
+            );
+        }
+
+        if target_observation_count > policy.max_target_observations() {
+            return EpistemicOutcomeResolutionResult::rejected(
+                EpistemicOutcomeResolutionStatus::ObservationFrontierExceeded,
+                input_forecast_count,
+                0,
+                target_observation_count,
+            );
+        }
+
+        let mut forecasts = possibility.forecasts().to_vec();
+
+        forecasts.sort_by(Self::forecast_order);
+
+        let mut canonical: Vec<EpistemicHypothesisForecast> = Vec::new();
+
+        for forecast in forecasts {
+            if let Some(existing) = canonical
+                .iter()
+                .find(|existing| existing.hypothesis() == forecast.hypothesis())
+            {
+                if existing != &forecast {
+                    return EpistemicOutcomeResolutionResult::rejected(
+                        EpistemicOutcomeResolutionStatus::ConflictingForecastIdentity,
+                        input_forecast_count,
+                        canonical.len(),
+                        target_observation_count,
+                    );
+                }
+
+                continue;
+            }
+
+            canonical.push(forecast);
+        }
+
+        let unique_forecast_count = canonical.len();
+
+        let mut assessments = Vec::with_capacity(unique_forecast_count);
+
+        let mut supported_prediction_count = 0_usize;
+        let mut counterexample_prediction_count = 0_usize;
+        let mut context_uninformative_count = 0_usize;
+        let mut no_opportunity_uninformative_count = 0_usize;
+
+        for forecast in canonical {
+            let Some(target_observation) = observation
+                .targets()
+                .iter()
+                .find(|target_observation| target_observation.target() == forecast.target())
+            else {
+                return EpistemicOutcomeResolutionResult::rejected(
+                    EpistemicOutcomeResolutionStatus::MissingTargetObservation,
+                    input_forecast_count,
+                    unique_forecast_count,
+                    target_observation_count,
+                );
+            };
+
+            let status = match forecast.status() {
+                EpistemicHypothesisForecastStatus::Predicted => {
+                    if target_observation.occurred() {
+                        supported_prediction_count = supported_prediction_count.saturating_add(1);
+
+                        EpistemicForecastOutcomeAssessmentStatus::Supported
+                    } else {
+                        counterexample_prediction_count =
+                            counterexample_prediction_count.saturating_add(1);
+
+                        EpistemicForecastOutcomeAssessmentStatus::Counterexample
+                    }
+                }
+
+                EpistemicHypothesisForecastStatus::ContextAbstained => {
+                    context_uninformative_count = context_uninformative_count.saturating_add(1);
+
+                    EpistemicForecastOutcomeAssessmentStatus::ContextUninformative
+                }
+
+                EpistemicHypothesisForecastStatus::NoEffectOpportunity => {
+                    no_opportunity_uninformative_count =
+                        no_opportunity_uninformative_count.saturating_add(1);
+
+                    EpistemicForecastOutcomeAssessmentStatus::NoOpportunityUninformative
+                }
+            };
+
+            assessments.push(EpistemicForecastOutcomeAssessment {
+                forecast,
+                observed_target_occurrence: target_observation.occurred(),
+                status,
+            });
+        }
+
+        EpistemicOutcomeResolutionResult {
+            status: EpistemicOutcomeResolutionStatus::Resolved,
+            input_forecast_count,
+            unique_forecast_count,
+            target_observation_count,
+            assessments,
+            supported_prediction_count,
+            counterexample_prediction_count,
+            context_uninformative_count,
+            no_opportunity_uninformative_count,
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct UniversalAutonomousEpistemicOutcomeResolution;
+
+impl UniversalAutonomousEpistemicOutcomeResolution {
+    pub fn evaluate(
+        possibility: &GroundedEpistemicExperimentPossibility,
+        observation: &GroundedEpistemicOutcomeObservation,
+        policy: EpistemicOutcomeResolutionPolicy,
+    ) -> EpistemicOutcomeResolutionResult {
+        AutonomousEpistemicOutcomeResolution::evaluate(possibility, observation, policy)
+    }
+}
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct HypothesisDiscriminationCandidate {
     experiment: AutonomousExperimentProposal,
@@ -9154,5 +9606,317 @@ mod p4g_c3b_epistemic_forecast_representation_tests {
         assert_eq!(EpistemicForecastDiscriminationPolicy::new(0, 1), None,);
 
         assert_eq!(EpistemicForecastDiscriminationPolicy::new(1, 0), None,);
+    }
+}
+
+#[cfg(test)]
+mod p4g_c3c_realized_epistemic_resolution_tests {
+    use super::*;
+
+    fn a(value: u64) -> CognitiveStructure {
+        CognitiveStructure::atom(value)
+    }
+
+    fn evidence() -> EpistemicForecastEvidence {
+        EpistemicForecastEvidence::new(3, 3, 0).expect("exact test evidence")
+    }
+
+    fn predicted(hypothesis: u64, target: u64) -> EpistemicHypothesisForecast {
+        EpistemicHypothesisForecast::predicted(
+            a(hypothesis),
+            a(target),
+            a(target + 10_000),
+            evidence(),
+        )
+        .expect("test prediction")
+    }
+
+    fn abstained(hypothesis: u64, target: u64) -> EpistemicHypothesisForecast {
+        EpistemicHypothesisForecast::context_abstained(a(hypothesis), a(target), evidence())
+            .expect("test abstention")
+    }
+
+    fn no_opportunity(hypothesis: u64, target: u64) -> EpistemicHypothesisForecast {
+        EpistemicHypothesisForecast::no_effect_opportunity(a(hypothesis), a(target), evidence())
+            .expect("test no-opportunity forecast")
+    }
+
+    fn possibility(
+        forecasts: Vec<EpistemicHypothesisForecast>,
+    ) -> GroundedEpistemicExperimentPossibility {
+        GroundedEpistemicExperimentPossibility::new(a(1), a(10), forecasts)
+            .expect("grounded test possibility")
+    }
+
+    fn observation(
+        targets: Vec<EpistemicTargetObservation>,
+    ) -> GroundedEpistemicOutcomeObservation {
+        GroundedEpistemicOutcomeObservation::new(a(1), a(10), targets)
+            .expect("grounded test outcome")
+    }
+
+    fn target(id: u64, occurred: bool) -> EpistemicTargetObservation {
+        EpistemicTargetObservation::new(a(id), occurred)
+    }
+
+    fn policy() -> EpistemicOutcomeResolutionPolicy {
+        EpistemicOutcomeResolutionPolicy::new(32, 32).expect("positive test bounds")
+    }
+
+    #[test]
+    fn real_occurrence_supports_prediction_and_real_absence_is_counterexample() {
+        let result = AutonomousEpistemicOutcomeResolution::evaluate(
+            &possibility(vec![predicted(100, 500), predicted(101, 501)]),
+            &observation(vec![target(500, true), target(501, false)]),
+            policy(),
+        );
+
+        assert!(result.resolved());
+        assert_eq!(result.supported_prediction_count(), 1,);
+        assert_eq!(result.counterexample_prediction_count(), 1,);
+        assert_eq!(result.empirically_tested_prediction_count(), 2,);
+        assert_eq!(result.falsified_hypothesis_count(), 1,);
+
+        assert!(result.assessments().iter().any(|assessment| {
+            assessment.status() == EpistemicForecastOutcomeAssessmentStatus::Supported
+        }),);
+
+        assert!(result.assessments().iter().any(|assessment| {
+            assessment.status() == EpistemicForecastOutcomeAssessmentStatus::Counterexample
+                && assessment.falsified()
+        }),);
+    }
+
+    #[test]
+    fn contextual_abstention_remains_uninformative_even_when_target_occurs_or_fails() {
+        for occurred in [false, true] {
+            let result = AutonomousEpistemicOutcomeResolution::evaluate(
+                &possibility(vec![abstained(100, 500)]),
+                &observation(vec![target(500, occurred)]),
+                policy(),
+            );
+
+            assert!(result.resolved());
+            assert_eq!(result.context_uninformative_count(), 1,);
+            assert_eq!(result.empirically_tested_prediction_count(), 0,);
+            assert_eq!(result.falsified_hypothesis_count(), 0,);
+
+            assert_eq!(
+                result.assessments()[0].status(),
+                EpistemicForecastOutcomeAssessmentStatus::ContextUninformative,
+            );
+        }
+    }
+
+    #[test]
+    fn no_effect_opportunity_never_becomes_negative_prediction_evidence() {
+        let result = AutonomousEpistemicOutcomeResolution::evaluate(
+            &possibility(vec![no_opportunity(100, 500)]),
+            &observation(vec![target(500, false)]),
+            policy(),
+        );
+
+        assert!(result.resolved());
+        assert_eq!(result.no_opportunity_uninformative_count(), 1,);
+        assert_eq!(result.counterexample_prediction_count(), 0,);
+        assert_eq!(result.falsified_hypothesis_count(), 0,);
+    }
+
+    #[test]
+    fn missing_target_observation_fails_closed_instead_of_treating_absence_as_nonoccurrence() {
+        let result = AutonomousEpistemicOutcomeResolution::evaluate(
+            &possibility(vec![predicted(100, 500), predicted(101, 501)]),
+            &observation(vec![target(500, true)]),
+            policy(),
+        );
+
+        assert_eq!(
+            result.status(),
+            EpistemicOutcomeResolutionStatus::MissingTargetObservation,
+        );
+        assert!(!result.resolved());
+        assert!(result.assessments().is_empty());
+        assert_eq!(result.empirically_tested_prediction_count(), 0,);
+        assert_eq!(result.falsified_hypothesis_count(), 0,);
+    }
+
+    #[test]
+    fn source_or_action_mismatch_abstains_atomically() {
+        let possibility = possibility(vec![predicted(100, 500)]);
+
+        let wrong_state =
+            GroundedEpistemicOutcomeObservation::new(a(999), a(10), vec![target(500, true)])
+                .unwrap();
+
+        let wrong_action =
+            GroundedEpistemicOutcomeObservation::new(a(1), a(999), vec![target(500, true)])
+                .unwrap();
+
+        let state_result =
+            AutonomousEpistemicOutcomeResolution::evaluate(&possibility, &wrong_state, policy());
+
+        let action_result =
+            AutonomousEpistemicOutcomeResolution::evaluate(&possibility, &wrong_action, policy());
+
+        assert_eq!(
+            state_result.status(),
+            EpistemicOutcomeResolutionStatus::SourceStateMismatch,
+        );
+        assert_eq!(
+            action_result.status(),
+            EpistemicOutcomeResolutionStatus::ActionMismatch,
+        );
+
+        assert!(state_result.assessments().is_empty());
+        assert!(action_result.assessments().is_empty());
+    }
+
+    #[test]
+    fn conflicting_target_observation_is_rejected_at_construction() {
+        assert_eq!(
+            GroundedEpistemicOutcomeObservation::new(
+                a(1),
+                a(10),
+                vec![target(500, true), target(500, false),],
+            ),
+            None,
+        );
+
+        let deduplicated = GroundedEpistemicOutcomeObservation::new(
+            a(1),
+            a(10),
+            vec![target(500, true), target(500, true)],
+        )
+        .unwrap();
+
+        assert_eq!(deduplicated.targets().len(), 1,);
+    }
+
+    #[test]
+    fn conflicting_forecast_identity_fails_closed_without_partial_resolution() {
+        let same_hypothesis_prediction = predicted(100, 500);
+
+        let same_hypothesis_abstention = abstained(100, 500);
+
+        let result = AutonomousEpistemicOutcomeResolution::evaluate(
+            &possibility(vec![same_hypothesis_prediction, same_hypothesis_abstention]),
+            &observation(vec![target(500, true)]),
+            policy(),
+        );
+
+        assert_eq!(
+            result.status(),
+            EpistemicOutcomeResolutionStatus::ConflictingForecastIdentity,
+        );
+
+        assert!(result.assessments().is_empty());
+        assert_eq!(result.falsified_hypothesis_count(), 0,);
+    }
+
+    #[test]
+    fn exact_duplicate_forecasts_do_not_inflate_realized_resolution() {
+        let forecast = predicted(100, 500);
+
+        let result = AutonomousEpistemicOutcomeResolution::evaluate(
+            &possibility(vec![forecast.clone(), forecast]),
+            &observation(vec![target(500, false)]),
+            policy(),
+        );
+
+        assert!(result.resolved());
+        assert_eq!(result.input_forecast_count(), 2,);
+        assert_eq!(result.unique_forecast_count(), 1,);
+        assert_eq!(result.counterexample_prediction_count(), 1,);
+    }
+
+    #[test]
+    fn outcome_resolution_is_order_invariant_non_mutating_and_facade_equivalent() {
+        let possibility = possibility(vec![
+            predicted(100, 500),
+            abstained(101, 500),
+            predicted(102, 501),
+        ]);
+
+        let observation = observation(vec![target(500, false), target(501, true)]);
+
+        let mut reversed_forecasts = possibility.forecasts().to_vec();
+        reversed_forecasts.reverse();
+
+        let reversed_possibility = GroundedEpistemicExperimentPossibility::new(
+            possibility.source_state().clone(),
+            possibility.action().clone(),
+            reversed_forecasts,
+        )
+        .unwrap();
+
+        let mut reversed_targets = observation.targets().to_vec();
+        reversed_targets.reverse();
+
+        let reversed_observation = GroundedEpistemicOutcomeObservation::new(
+            observation.source_state().clone(),
+            observation.action().clone(),
+            reversed_targets,
+        )
+        .unwrap();
+
+        let before_possibility = possibility.clone();
+        let before_observation = observation.clone();
+
+        let direct =
+            AutonomousEpistemicOutcomeResolution::evaluate(&possibility, &observation, policy());
+
+        let reordered = AutonomousEpistemicOutcomeResolution::evaluate(
+            &reversed_possibility,
+            &reversed_observation,
+            policy(),
+        );
+
+        let facade = UniversalAutonomousEpistemicOutcomeResolution::evaluate(
+            &possibility,
+            &observation,
+            policy(),
+        );
+
+        assert_eq!(direct, reordered);
+        assert_eq!(direct, facade);
+        assert_eq!(possibility, before_possibility);
+        assert_eq!(observation, before_observation);
+    }
+
+    #[test]
+    fn hard_frontiers_fail_closed_before_any_partial_outcome_resolution() {
+        let possibility = possibility(vec![predicted(100, 500), predicted(101, 501)]);
+
+        let observation = observation(vec![target(500, true), target(501, false)]);
+
+        let forecast_bounded = AutonomousEpistemicOutcomeResolution::evaluate(
+            &possibility,
+            &observation,
+            EpistemicOutcomeResolutionPolicy::new(1, 16).unwrap(),
+        );
+
+        assert_eq!(
+            forecast_bounded.status(),
+            EpistemicOutcomeResolutionStatus::ForecastFrontierExceeded,
+        );
+
+        assert!(forecast_bounded.assessments().is_empty(),);
+
+        let observation_bounded = AutonomousEpistemicOutcomeResolution::evaluate(
+            &possibility,
+            &observation,
+            EpistemicOutcomeResolutionPolicy::new(16, 1).unwrap(),
+        );
+
+        assert_eq!(
+            observation_bounded.status(),
+            EpistemicOutcomeResolutionStatus::ObservationFrontierExceeded,
+        );
+
+        assert!(observation_bounded.assessments().is_empty(),);
+
+        assert_eq!(EpistemicOutcomeResolutionPolicy::new(0, 1,), None,);
+
+        assert_eq!(EpistemicOutcomeResolutionPolicy::new(1, 0,), None,);
     }
 }

@@ -432,3 +432,216 @@ fn live_resolved_context_remains_noninformative_after_m47_m50_bridge() {
         "resolved-context epistemic queries must not execute hidden transport",
     );
 }
+
+#[test]
+fn live_real_action_consequence_resolves_pre_action_m50_epistemic_forecasts() {
+    let game = "p4gc3c-live-resolution";
+
+    let action_one = action(ArcAgi3ActionId::Action1);
+    let action_two = action(ArcAgi3ActionId::Action2);
+
+    let mut runtime = live_runtime(game, 340_000);
+
+    /*
+     * Frozen C2 learning trajectory.
+     *
+     * Then enter the C3A/C3B holdout context via ACTION2 so ACTION1 has
+     * never yet been executed from this context.
+     */
+    mature_runtime(&mut runtime, game);
+    real_training_turn(&mut runtime, game, action_two, 7_u8);
+
+    let cognitive_action = ArcAgi3CognitiveProtocolBridge::encode_action(action_one);
+
+    let before_state = runtime
+        .cognitive_runtime()
+        .current_grounded_world_state()
+        .expect("holdout context must be grounded")
+        .clone();
+
+    let version_policy =
+        athlesia_universal_domain_learning::GroundedExplanatoryVersionSpacePolicy::new(
+            1, 64, 512, 256,
+        )
+        .expect("positive explanatory bounds");
+
+    /*
+     * This forecast is created BEFORE the real Action1 consequence.
+     */
+    let possibility = runtime
+        .cognitive_runtime()
+        .cognition()
+        .current_m50_epistemic_possibility(&before_state, &cognitive_action, version_policy)
+        .expect("holdout Action1 must expose grounded pre-action forecasts");
+
+    let pre_action_discrimination =
+        athlesia_autonomous_active_experimentation::
+            AutonomousEpistemicForecastDiscrimination::
+                evaluate(
+                    &possibility,
+                    athlesia_autonomous_active_experimentation::
+                        EpistemicForecastDiscriminationPolicy::
+                            new(
+                                512,
+                                512,
+                            )
+                            .expect("positive discrimination bounds"),
+                );
+
+    assert!(
+        pre_action_discrimination.informative(),
+        "the action must be epistemically unresolved before execution",
+    );
+
+    let before_transport = runtime.transport().execute_count();
+
+    /*
+     * REAL environment consequence:
+     *
+     * unseen context 7 --ACTION1--> 6
+     *
+     * Existing unconditional Add(6)-type predictions can now be
+     * supported, while incompatible predicted effects are falsified.
+     */
+    real_training_turn(&mut runtime, game, action_one, 6_u8);
+
+    assert_eq!(
+        runtime.transport().execute_count(),
+        before_transport + 1,
+        "exactly one real Action1 environment transaction must occur",
+    );
+
+    assert_eq!(runtime.transport().last_executed_action(), Some(action_one),);
+
+    let after_state = runtime
+        .cognitive_runtime()
+        .current_grounded_world_state()
+        .expect("real Action1 consequence must leave grounded after-state")
+        .clone();
+
+    let before_resolution_transport = runtime.transport().execute_count();
+
+    let resolution = runtime
+        .cognitive_runtime()
+        .cognition()
+        .resolve_m50_epistemic_possibility_against_transition(
+            &possibility,
+            &before_state,
+            &after_state,
+            &cognitive_action,
+            athlesia_autonomous_active_experimentation::EpistemicOutcomeResolutionPolicy::new(
+                512, 512,
+            )
+            .expect("positive outcome-resolution bounds"),
+        )
+        .expect("frozen C3B targets must decode exactly");
+
+    assert!(
+        resolution.resolved(),
+        "real environment consequence must resolve the pre-action epistemic record",
+    );
+
+    assert!(
+        resolution.supported_prediction_count() > 0,
+        "real consequence must support at least one pre-action prediction",
+    );
+
+    assert!(
+        resolution.counterexample_prediction_count() > 0,
+        "the same real consequence must falsify at least one incompatible pre-action prediction",
+    );
+
+    assert!(
+        resolution.context_uninformative_count() > 0,
+        "contextual abstentions must remain explicitly uninformative after the real consequence",
+    );
+
+    assert_eq!(
+        resolution.falsified_hypothesis_count(),
+        resolution.counterexample_prediction_count(),
+        "falsification count must be exact rather than inferred from raw disagreement",
+    );
+
+    assert_eq!(
+        runtime.transport().execute_count(),
+        before_resolution_transport,
+        "post-action epistemic resolution must have zero hidden transport effect",
+    );
+}
+
+#[test]
+fn live_real_consequence_with_wrong_action_identity_is_rejected_without_hidden_transport() {
+    let game = "p4gc3c-live-provenance-negative";
+
+    let action_one = action(ArcAgi3ActionId::Action1);
+    let action_two = action(ArcAgi3ActionId::Action2);
+
+    let mut runtime = live_runtime(game, 350_000);
+
+    mature_runtime(&mut runtime, game);
+
+    real_training_turn(&mut runtime, game, action_two, 7_u8);
+
+    let cognitive_action_one = ArcAgi3CognitiveProtocolBridge::encode_action(action_one);
+
+    let cognitive_action_two = ArcAgi3CognitiveProtocolBridge::encode_action(action_two);
+
+    let before_state = runtime
+        .cognitive_runtime()
+        .current_grounded_world_state()
+        .unwrap()
+        .clone();
+
+    let possibility = runtime
+        .cognitive_runtime()
+        .cognition()
+        .current_m50_epistemic_possibility(
+            &before_state,
+            &cognitive_action_one,
+            athlesia_universal_domain_learning::GroundedExplanatoryVersionSpacePolicy::new(
+                1, 64, 512, 256,
+            )
+            .unwrap(),
+        )
+        .expect("pre-action Action1 forecast");
+
+    real_training_turn(&mut runtime, game, action_one, 6_u8);
+
+    let after_state = runtime
+        .cognitive_runtime()
+        .current_grounded_world_state()
+        .unwrap()
+        .clone();
+
+    let before_resolution_transport = runtime.transport().execute_count();
+
+    let result = runtime
+        .cognitive_runtime()
+        .cognition()
+        .resolve_m50_epistemic_possibility_against_transition(
+            &possibility,
+            &before_state,
+            &after_state,
+            &cognitive_action_two,
+            athlesia_autonomous_active_experimentation::EpistemicOutcomeResolutionPolicy::new(
+                512, 512,
+            )
+            .unwrap(),
+        )
+        .expect("target decoding remains valid");
+
+    assert_eq!(
+        result.status(),
+        athlesia_autonomous_active_experimentation::
+            EpistemicOutcomeResolutionStatus::ActionMismatch,
+        "a real consequence cannot be reassigned to the wrong action identity",
+    );
+
+    assert!(result.assessments().is_empty());
+
+    assert_eq!(
+        runtime.transport().execute_count(),
+        before_resolution_transport,
+        "rejected provenance must not cause hidden transport",
+    );
+}

@@ -9834,6 +9834,110 @@ impl OnlinePersistentCognitiveState {
         )
     }
 
+    fn c3c_decode_effect_target(
+        target: &CognitiveStructure,
+    ) -> Option<(
+        athlesia_universal_domain_learning::TransitionEffectKind,
+        &CognitiveStructure,
+    )> {
+        const TARGET_TAG: u64 = 0x5034_4743_3342_5447;
+        const EFFECT_KIND_TAG: u64 = 0x5034_4743_3342_454B;
+
+        let CognitiveStructure::Ordered(target_parts) = target else {
+            return None;
+        };
+
+        if target_parts.len() != 3
+            || target_parts.first() != Some(&CognitiveStructure::atom(TARGET_TAG))
+        {
+            return None;
+        }
+
+        let CognitiveStructure::Ordered(kind_parts) = &target_parts[1] else {
+            return None;
+        };
+
+        if kind_parts.len() != 2
+            || kind_parts.first() != Some(&CognitiveStructure::atom(EFFECT_KIND_TAG))
+        {
+            return None;
+        }
+
+        let kind = match &kind_parts[1] {
+            CognitiveStructure::Atom(1) => {
+                athlesia_universal_domain_learning::TransitionEffectKind::Added
+            }
+
+            CognitiveStructure::Atom(2) => {
+                athlesia_universal_domain_learning::TransitionEffectKind::Removed
+            }
+
+            _ => return None,
+        };
+
+        Some((kind, &target_parts[2]))
+    }
+
+    pub fn resolve_m50_epistemic_possibility_against_transition(
+        &self,
+        possibility:
+            &athlesia_autonomous_active_experimentation::
+                GroundedEpistemicExperimentPossibility,
+        before: &athlesia_universal_domain_learning::GroundedStateSnapshot,
+        after: &athlesia_universal_domain_learning::GroundedStateSnapshot,
+        observed_action: &CognitiveStructure,
+        policy: athlesia_autonomous_active_experimentation::EpistemicOutcomeResolutionPolicy,
+    ) -> Option<athlesia_autonomous_active_experimentation::EpistemicOutcomeResolutionResult> {
+        /*
+         * The source identity is reconstructed from the exact PRE-action
+         * grounded state using the same frozen C3B structural encoding.
+         *
+         * M50 itself remains authoritative for source/action mismatch
+         * classification.
+         */
+        let source_state = Self::c3b_source_state_identity(before);
+
+        let mut targets = Vec::new();
+
+        for forecast in possibility.forecasts() {
+            let (effect_kind, effect_fact) = Self::c3c_decode_effect_target(forecast.target())?;
+
+            let occurred = match effect_kind {
+                athlesia_universal_domain_learning::TransitionEffectKind::Added => {
+                    !before.contains_fact(effect_fact) && after.contains_fact(effect_fact)
+                }
+
+                athlesia_universal_domain_learning::TransitionEffectKind::Removed => {
+                    before.contains_fact(effect_fact) && !after.contains_fact(effect_fact)
+                }
+            };
+
+            targets.push(
+                athlesia_autonomous_active_experimentation::EpistemicTargetObservation::new(
+                    forecast.target().clone(),
+                    occurred,
+                ),
+            );
+        }
+
+        let observation =
+            athlesia_autonomous_active_experimentation::GroundedEpistemicOutcomeObservation::new(
+                source_state,
+                observed_action.clone(),
+                targets,
+            )?;
+
+        Some(
+            athlesia_autonomous_active_experimentation::
+                AutonomousEpistemicOutcomeResolution::
+                    evaluate(
+                        possibility,
+                        &observation,
+                        policy,
+                    ),
+        )
+    }
+
     pub fn perceptual_temporal_evidence(
         &self,
     ) -> &athlesia_core_knowledge_perceptual_grounding::PerceptualProposalTemporalEvidenceState
@@ -11168,6 +11272,169 @@ mod p4g_c3b_exact_m47_m50_epistemic_bridge_tests {
             owner.current_m50_epistemic_possibility(&state(&[1]), &a(200), version_policy(),),
             None,
             "an ungrounded action must not gain fabricated epistemic authority",
+        );
+    }
+}
+
+#[cfg(test)]
+mod p4g_c3c_live_resolution_bridge_contract_tests {
+    use super::*;
+
+    use athlesia_autonomous_active_experimentation::{
+        EpistemicForecastOutcomeAssessmentStatus, EpistemicOutcomeResolutionPolicy,
+        EpistemicOutcomeResolutionStatus,
+    };
+
+    use athlesia_universal_domain_learning::{
+        GroundedExplanatoryVersionSpacePolicy, GroundedStateSnapshot, GroundedTransformationEpisode,
+    };
+
+    fn a(value: u64) -> CognitiveStructure {
+        CognitiveStructure::atom(value)
+    }
+
+    fn state(facts: &[u64]) -> GroundedStateSnapshot {
+        GroundedStateSnapshot::new(facts.iter().copied().map(a).collect())
+            .expect("nonempty test state")
+    }
+
+    fn episode(before: &[u64], after: &[u64], action: u64) -> GroundedTransformationEpisode {
+        GroundedTransformationEpisode::new(state(before), state(after), a(action))
+    }
+
+    fn owner() -> OnlinePersistentCognitiveState {
+        let mut owner = OnlinePersistentCognitiveState::new();
+
+        owner.transition_schema_learning.episodes =
+            vec![episode(&[1], &[1, 900], 100), episode(&[2], &[2, 900], 100)];
+
+        owner
+    }
+
+    fn version_policy() -> GroundedExplanatoryVersionSpacePolicy {
+        GroundedExplanatoryVersionSpacePolicy::new(1, 16, 128, 64)
+            .expect("positive version-space bounds")
+    }
+
+    fn resolution_policy() -> EpistemicOutcomeResolutionPolicy {
+        EpistemicOutcomeResolutionPolicy::new(64, 64).expect("positive resolution bounds")
+    }
+
+    #[test]
+    fn real_grounded_transition_resolves_prediction_without_reinterpreting_abstention() {
+        let owner = owner();
+
+        let before = state(&[1]);
+        let after = state(&[1, 900]);
+        let action = a(100);
+
+        let possibility = owner
+            .current_m50_epistemic_possibility(&before, &action, version_policy())
+            .expect("grounded pre-action possibility");
+
+        let result = owner
+            .resolve_m50_epistemic_possibility_against_transition(
+                &possibility,
+                &before,
+                &after,
+                &action,
+                resolution_policy(),
+            )
+            .expect("valid C3B targets must decode");
+
+        assert!(result.resolved());
+
+        assert!(
+            result.supported_prediction_count() > 0,
+            "the observed addition must support at least one real prediction",
+        );
+
+        assert!(
+            result.context_uninformative_count() > 0,
+            "contextual abstention must survive outcome resolution as uninformative",
+        );
+
+        assert!(
+            result
+                .assessments()
+                .iter()
+                .filter(|assessment| {
+                    assessment.status()
+                        == EpistemicForecastOutcomeAssessmentStatus::ContextUninformative
+                })
+                .all(|assessment| { !assessment.empirically_tested() && !assessment.falsified() }),
+            "abstention must never be reinterpreted as failed prediction",
+        );
+    }
+
+    #[test]
+    fn observed_action_mismatch_is_preserved_as_m50_rejection() {
+        let owner = owner();
+
+        let before = state(&[1]);
+        let after = state(&[1, 900]);
+
+        let possibility = owner
+            .current_m50_epistemic_possibility(&before, &a(100), version_policy())
+            .unwrap();
+
+        let result = owner
+            .resolve_m50_epistemic_possibility_against_transition(
+                &possibility,
+                &before,
+                &after,
+                &a(999),
+                resolution_policy(),
+            )
+            .expect("target structure remains valid");
+
+        assert_eq!(
+            result.status(),
+            EpistemicOutcomeResolutionStatus::ActionMismatch,
+        );
+
+        assert!(result.assessments().is_empty());
+    }
+
+    #[test]
+    fn malformed_effect_target_fails_closed_before_outcome_evidence_exists() {
+        let owner = owner();
+
+        let before = state(&[1]);
+        let after = state(&[1, 900]);
+
+        let malformed =
+            athlesia_autonomous_active_experimentation::EpistemicHypothesisForecast::predicted(
+                a(1000),
+                a(0xDEAD),
+                a(9000),
+                athlesia_autonomous_active_experimentation::EpistemicForecastEvidence::new(1, 1, 0)
+                    .unwrap(),
+            )
+            .unwrap();
+
+        let possibility =
+            athlesia_autonomous_active_experimentation::
+                GroundedEpistemicExperimentPossibility::new(
+                    OnlinePersistentCognitiveState::
+                        c3b_source_state_identity(
+                            &before,
+                        ),
+                    a(100),
+                    vec![malformed],
+                )
+                .unwrap();
+
+        assert_eq!(
+            owner.resolve_m50_epistemic_possibility_against_transition(
+                &possibility,
+                &before,
+                &after,
+                &a(100),
+                resolution_policy(),
+            ),
+            None,
+            "unknown target encoding must never be guessed or treated as a negative observation",
         );
     }
 }
