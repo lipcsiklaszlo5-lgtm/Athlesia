@@ -1793,3 +1793,459 @@ fn live_real_transfer_history_can_estimate_structurally_identical_other_source_q
         "transfer estimator has zero transport authority",
     );
 }
+
+fn c3h_distinct_transfer_targets(
+    identity:
+        &athlesia_autonomous_active_experimentation::
+            EmpiricalEpistemicTransferIdentity,
+) -> Vec<CognitiveStructure> {
+    let mut result =
+        Vec::new();
+
+    for forecast in
+        identity.forecasts()
+    {
+        let target =
+            forecast.target().clone();
+
+        if !result.contains(
+            &target,
+        ) {
+            result.push(target);
+        }
+    }
+
+    result
+}
+
+
+fn c3h_target_difference(
+    left: &[CognitiveStructure],
+    right: &[CognitiveStructure],
+) -> Vec<CognitiveStructure> {
+    left.iter()
+        .filter(|candidate| {
+            !right.contains(candidate)
+        })
+        .cloned()
+        .collect()
+}
+
+
+fn c3h_binding_signature(
+    result:
+        &athlesia_autonomous_active_experimentation::
+            RolePreservingTargetSchemaResult,
+) -> Vec<(u64, u64)> {
+    let mut signature =
+        result.bindings()
+            .iter()
+            .map(|binding| {
+                (
+                    binding.historical_atom(),
+                    binding.current_atom(),
+                )
+            })
+            .collect::<Vec<_>>();
+
+    signature.sort();
+
+    signature
+}
+
+
+#[test]
+fn live_c3h_role_preserving_schema_recovers_d6_target_substitution() {
+    let mut cross_world_binding_signature:
+        Option<Vec<(u64, u64)>> =
+        None;
+
+    /*
+     * Two separated holdout response values from the D6 family.
+     * The schema must emerge from live cognition, not from manually
+     * constructed target fixtures.
+     */
+    for (
+        world_index,
+        candidate_value,
+    ) in [
+        2_u8,
+        14_u8,
+    ]
+    .into_iter()
+    .enumerate()
+    {
+        let game = format!(
+            "p4gc3h-live-role-schema-{candidate_value}"
+        );
+
+        let mut runtime =
+            live_runtime(
+                &game,
+                700_000
+                    + world_index as u64
+                        * 10_000,
+            );
+
+        mature_runtime(
+            &mut runtime,
+            &game,
+        );
+
+        real_training_turn(
+            &mut runtime,
+            &game,
+            action(
+                ArcAgi3ActionId::Action2,
+            ),
+            7_u8,
+        );
+
+        let state7 = runtime
+            .cognitive_runtime()
+            .current_grounded_world_state()
+            .unwrap()
+            .clone();
+
+        let action_one =
+            ArcAgi3CognitiveProtocolBridge::
+                encode_action(
+                    action(
+                        ArcAgi3ActionId::Action1,
+                    ),
+                );
+
+        let pre_learning =
+            runtime
+                .cognitive_runtime()
+                .cognition()
+                .current_m50_epistemic_possibility(
+                    &state7,
+                    &action_one,
+                    athlesia_universal_domain_learning::
+                        GroundedExplanatoryVersionSpacePolicy::
+                            new(
+                                1,
+                                64,
+                                512,
+                                256,
+                            )
+                            .unwrap(),
+                )
+                .expect(
+                    "state7 Action1 must be informative before the real progress event",
+                );
+
+        let pre_discrimination =
+            athlesia_autonomous_active_experimentation::
+                AutonomousEpistemicForecastDiscrimination::
+                    evaluate(
+                        &pre_learning,
+                        athlesia_autonomous_active_experimentation::
+                            EpistemicForecastDiscriminationPolicy::
+                                new(
+                                    512,
+                                    512,
+                                )
+                                .unwrap(),
+                    );
+
+        assert!(
+            pre_discrimination.informative(),
+        );
+
+        let history_before =
+            runtime
+                .cognitive_runtime()
+                .cognition()
+                .epistemic_transfer_progress_event_count();
+
+        real_training_turn(
+            &mut runtime,
+            &game,
+            action(
+                ArcAgi3ActionId::Action1,
+            ),
+            6_u8,
+        );
+
+        assert_eq!(
+            runtime
+                .cognitive_runtime()
+                .cognition()
+                .epistemic_transfer_progress_event_count(),
+            history_before + 1,
+        );
+
+        let historical_identity =
+            runtime
+                .cognitive_runtime()
+                .cognition()
+                .epistemic_transfer_progress_history()
+                .last()
+                .unwrap()
+                .transfer_identity()
+                .clone();
+
+        /*
+         * The second real Action1 transition creates the different
+         * live source-state target frontier observed in D6.
+         */
+        real_training_turn(
+            &mut runtime,
+            &game,
+            action(
+                ArcAgi3ActionId::Action1,
+            ),
+            candidate_value,
+        );
+
+        let current_state =
+            runtime
+                .cognitive_runtime()
+                .current_grounded_world_state()
+                .unwrap()
+                .clone();
+
+        let current_possibility =
+            runtime
+                .cognitive_runtime()
+                .cognition()
+                .current_m50_epistemic_possibility(
+                    &current_state,
+                    &action_one,
+                    athlesia_universal_domain_learning::
+                        GroundedExplanatoryVersionSpacePolicy::
+                            new(
+                                1,
+                                64,
+                                512,
+                                256,
+                            )
+                            .unwrap(),
+                )
+                .expect(
+                    "holdout live current state must expose Action1 possibility",
+                );
+
+        let current_discrimination =
+            athlesia_autonomous_active_experimentation::
+                AutonomousEpistemicForecastDiscrimination::
+                    evaluate(
+                        &current_possibility,
+                        athlesia_autonomous_active_experimentation::
+                            EpistemicForecastDiscriminationPolicy::
+                                new(
+                                    512,
+                                    512,
+                                )
+                                .unwrap(),
+                    );
+
+        assert!(
+            current_discrimination.informative(),
+        );
+
+        let current_identity =
+            athlesia_autonomous_active_experimentation::
+                AutonomousEmpiricalEpistemicTransferIdentity::
+                    derive(
+                        &current_possibility,
+                        athlesia_autonomous_active_experimentation::
+                            EmpiricalEpistemicTransferIdentityPolicy::
+                                new(
+                                    512,
+                                )
+                                .unwrap(),
+                    )
+                    .identity()
+                    .unwrap()
+                    .clone();
+
+        let historical_targets =
+            c3h_distinct_transfer_targets(
+                &historical_identity,
+            );
+
+        let current_targets =
+            c3h_distinct_transfer_targets(
+                &current_identity,
+            );
+
+        let lost =
+            c3h_target_difference(
+                &historical_targets,
+                &current_targets,
+            );
+
+        let gained =
+            c3h_target_difference(
+                &current_targets,
+                &historical_targets,
+            );
+
+        assert_eq!(
+            lost.len(),
+            4,
+            "D6 live family must expose four historical targets replaced in the new source state",
+        );
+
+        assert_eq!(
+            gained.len(),
+            4,
+        );
+
+        let transport_before_schema_queries =
+            runtime.transport().execute_count();
+
+        let history_before_schema_queries =
+            runtime
+                .cognitive_runtime()
+                .cognition()
+                .epistemic_transfer_progress_event_count();
+
+        let mut world_signature:
+            Option<Vec<(u64, u64)>> =
+            None;
+
+        let mut mapped =
+            0_usize;
+
+        for historical_target in
+            &lost
+        {
+            let mut best:
+                Option<
+                    athlesia_autonomous_active_experimentation::
+                        RolePreservingTargetSchemaResult,
+                > =
+                None;
+
+            for current_target in
+                &gained
+            {
+                let candidate =
+                    athlesia_autonomous_active_experimentation::
+                        AutonomousRolePreservingTargetSchema::
+                            derive(
+                                historical_target,
+                                current_target,
+                                athlesia_autonomous_active_experimentation::
+                                    RolePreservingTargetSchemaPolicy::
+                                        new(
+                                            256,
+                                            32,
+                                        )
+                                        .unwrap(),
+                            );
+
+                if !candidate.derived()
+                    || candidate.role_count() == 0
+                {
+                    continue;
+                }
+
+                let replace =
+                    best.as_ref()
+                        .map(|existing| {
+                            (
+                                candidate.role_count(),
+                                candidate
+                                    .substitution_occurrence_count(),
+                            )
+                            <
+                            (
+                                existing.role_count(),
+                                existing
+                                    .substitution_occurrence_count(),
+                            )
+                        })
+                        .unwrap_or(true);
+
+                if replace {
+                    best =
+                        Some(candidate);
+                }
+            }
+
+            let best =
+                best.expect(
+                    "every D6 lost target must have a role-preserving live replacement",
+                );
+
+            /*
+             * D6 showed two UNIQUE bindings even when one binding is
+             * repeated at multiple structural positions.
+             */
+            assert_eq!(
+                best.role_count(),
+                2,
+            );
+
+            let signature =
+                c3h_binding_signature(
+                    &best,
+                );
+
+            assert_eq!(
+                signature.len(),
+                2,
+            );
+
+            if let Some(expected) =
+                &world_signature
+            {
+                assert_eq!(
+                    &signature,
+                    expected,
+                    "all four target replacements in one live world must share the same role binding relation",
+                );
+            } else {
+                world_signature =
+                    Some(signature);
+            }
+
+            mapped += 1;
+        }
+
+        assert_eq!(
+            mapped,
+            4,
+        );
+
+        let world_signature =
+            world_signature.unwrap();
+
+        if let Some(expected) =
+            &cross_world_binding_signature
+        {
+            assert_eq!(
+                &world_signature,
+                expected,
+                "separated live holdout response values must recover the same structural substitution relation",
+            );
+        } else {
+            cross_world_binding_signature =
+                Some(world_signature);
+        }
+
+        assert_eq!(
+            runtime.transport().execute_count(),
+            transport_before_schema_queries,
+            "C3H-A schema derivation has zero transport authority",
+        );
+
+        assert_eq!(
+            runtime
+                .cognitive_runtime()
+                .cognition()
+                .epistemic_transfer_progress_event_count(),
+            history_before_schema_queries,
+            "C3H-A schema derivation cannot mutate retained empirical history",
+        );
+    }
+
+    assert!(
+        cross_world_binding_signature.is_some(),
+    );
+}

@@ -3454,6 +3454,630 @@ impl UniversalAutonomousEmpiricalExpectedEpistemicTransferProgress {
     }
 }
 
+
+// ============================================================================
+// P4G-C3H-A — ROLE-PRESERVING TARGET STRUCTURAL SCHEMA
+// ============================================================================
+//
+// C3G-D6 established that exact target identity is too concrete across
+// otherwise related live epistemic problems:
+//
+//   * all genuinely disappearing targets retained the same tree topology;
+//   * every lost target had a structurally corresponding gained target;
+//   * repeated concrete atom substitutions occurred consistently across
+//     multiple positions in the same target.
+//
+// C3H-A therefore introduces a generic STRUCTURAL RELATION representation.
+//
+// Equal atoms remain exact constants.
+// Unequal atoms become role variables.
+//
+// Role bindings are:
+//
+//   historical_atom -> current_atom
+//
+// and must be one-to-one inside a derived schema:
+//
+//   same historical atom -> same current atom
+//   same current atom    -> same historical atom
+//
+// Concrete binding values are retained separately from the abstract schema.
+// Consequently two transitions using different concrete atom values can
+// derive exactly the same structural schema.
+//
+// This layer does NOT:
+//   * alter C3G exact transfer identity;
+//   * alter empirical expectation;
+//   * assign probability/confidence;
+//   * rank actions;
+//   * execute transport;
+//   * alter M48 authority.
+
+#[derive(Clone, Debug, Eq, Hash, PartialEq)]
+pub enum RolePreservingTargetSchemaNode {
+    ConstantAtom(u64),
+    Role(usize),
+    Ordered(Vec<RolePreservingTargetSchemaNode>),
+    Unordered(Vec<RolePreservingTargetSchemaNode>),
+}
+
+#[derive(Clone, Debug, Eq, Hash, PartialEq)]
+pub struct RolePreservingTargetStructuralSchema {
+    root: RolePreservingTargetSchemaNode,
+    role_count: usize,
+}
+
+impl RolePreservingTargetStructuralSchema {
+    fn new(
+        root: RolePreservingTargetSchemaNode,
+        role_count: usize,
+    ) -> Self {
+        Self {
+            root,
+            role_count,
+        }
+    }
+
+    pub fn root(
+        &self,
+    ) -> &RolePreservingTargetSchemaNode {
+        &self.root
+    }
+
+    pub fn role_count(
+        &self,
+    ) -> usize {
+        self.role_count
+    }
+}
+
+#[derive(Clone, Debug, Eq, Hash, PartialEq)]
+pub struct RolePreservingTargetAtomBinding {
+    role_index: usize,
+    historical_atom: u64,
+    current_atom: u64,
+    occurrence_count: usize,
+}
+
+impl RolePreservingTargetAtomBinding {
+    fn new(
+        role_index: usize,
+        historical_atom: u64,
+        current_atom: u64,
+    ) -> Self {
+        Self {
+            role_index,
+            historical_atom,
+            current_atom,
+            occurrence_count: 1,
+        }
+    }
+
+    pub fn role_index(
+        &self,
+    ) -> usize {
+        self.role_index
+    }
+
+    pub fn historical_atom(
+        &self,
+    ) -> u64 {
+        self.historical_atom
+    }
+
+    pub fn current_atom(
+        &self,
+    ) -> u64 {
+        self.current_atom
+    }
+
+    pub fn occurrence_count(
+        &self,
+    ) -> usize {
+        self.occurrence_count
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub struct RolePreservingTargetSchemaPolicy {
+    max_nodes: usize,
+    max_roles: usize,
+}
+
+impl RolePreservingTargetSchemaPolicy {
+    pub fn new(
+        max_nodes: usize,
+        max_roles: usize,
+    ) -> Option<Self> {
+        if max_nodes == 0
+            || max_roles == 0
+        {
+            return None;
+        }
+
+        Some(Self {
+            max_nodes,
+            max_roles,
+        })
+    }
+
+    pub fn max_nodes(
+        self,
+    ) -> usize {
+        self.max_nodes
+    }
+
+    pub fn max_roles(
+        self,
+    ) -> usize {
+        self.max_roles
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub enum RolePreservingTargetSchemaStatus {
+    Derived,
+    StructuralMismatch,
+    NodeFrontierExceeded,
+    RoleFrontierExceeded,
+    ConflictingHistoricalBinding,
+    ConflictingCurrentBinding,
+    OccurrenceOverflow,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct RolePreservingTargetSchemaResult {
+    status:
+        RolePreservingTargetSchemaStatus,
+
+    visited_node_count: usize,
+
+    schema:
+        Option<
+            RolePreservingTargetStructuralSchema,
+        >,
+
+    bindings:
+        Vec<
+            RolePreservingTargetAtomBinding,
+        >,
+}
+
+impl RolePreservingTargetSchemaResult {
+    fn rejected(
+        status:
+            RolePreservingTargetSchemaStatus,
+        visited_node_count: usize,
+    ) -> Self {
+        Self {
+            status,
+            visited_node_count,
+            schema: None,
+            bindings: Vec::new(),
+        }
+    }
+
+    pub fn status(
+        &self,
+    ) -> RolePreservingTargetSchemaStatus {
+        self.status
+    }
+
+    pub fn derived(
+        &self,
+    ) -> bool {
+        self.status
+            == RolePreservingTargetSchemaStatus::
+                Derived
+    }
+
+    pub fn visited_node_count(
+        &self,
+    ) -> usize {
+        self.visited_node_count
+    }
+
+    pub fn schema(
+        &self,
+    ) -> Option<
+        &RolePreservingTargetStructuralSchema,
+    > {
+        self.schema.as_ref()
+    }
+
+    pub fn bindings(
+        &self,
+    ) -> &[
+        RolePreservingTargetAtomBinding
+    ] {
+        &self.bindings
+    }
+
+    pub fn role_count(
+        &self,
+    ) -> usize {
+        self.schema
+            .as_ref()
+            .map(
+                RolePreservingTargetStructuralSchema::
+                    role_count,
+            )
+            .unwrap_or(0)
+    }
+
+    pub fn substitution_occurrence_count(
+        &self,
+    ) -> usize {
+        self.bindings
+            .iter()
+            .map(
+                RolePreservingTargetAtomBinding::
+                    occurrence_count,
+            )
+            .sum()
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct AutonomousRolePreservingTargetSchema;
+
+impl AutonomousRolePreservingTargetSchema {
+    pub fn derive(
+        historical:
+            &CognitiveStructure,
+        current:
+            &CognitiveStructure,
+        policy:
+            RolePreservingTargetSchemaPolicy,
+    ) -> RolePreservingTargetSchemaResult {
+        struct Builder {
+            policy:
+                RolePreservingTargetSchemaPolicy,
+
+            visited_node_count:
+                usize,
+
+            bindings:
+                Vec<
+                    RolePreservingTargetAtomBinding,
+                >,
+        }
+
+        impl Builder {
+            fn visit(
+                &mut self,
+            ) -> Result<
+                (),
+                RolePreservingTargetSchemaStatus,
+            > {
+                self.visited_node_count =
+                    self
+                        .visited_node_count
+                        .checked_add(1)
+                        .ok_or(
+                            RolePreservingTargetSchemaStatus::
+                                NodeFrontierExceeded,
+                        )?;
+
+                if self.visited_node_count
+                    > self.policy.max_nodes()
+                {
+                    return Err(
+                        RolePreservingTargetSchemaStatus::
+                            NodeFrontierExceeded,
+                    );
+                }
+
+                Ok(())
+            }
+
+            fn role(
+                &mut self,
+                historical_atom: u64,
+                current_atom: u64,
+            ) -> Result<
+                usize,
+                RolePreservingTargetSchemaStatus,
+            > {
+                if let Some(index) =
+                    self.bindings
+                        .iter()
+                        .position(|binding| {
+                            binding.historical_atom
+                                == historical_atom
+                        })
+                {
+                    if self.bindings[index]
+                        .current_atom
+                        != current_atom
+                    {
+                        return Err(
+                            RolePreservingTargetSchemaStatus::
+                                ConflictingHistoricalBinding,
+                        );
+                    }
+
+                    self.bindings[index]
+                        .occurrence_count =
+                        self.bindings[index]
+                            .occurrence_count
+                            .checked_add(1)
+                            .ok_or(
+                                RolePreservingTargetSchemaStatus::
+                                    OccurrenceOverflow,
+                            )?;
+
+                    return Ok(
+                        self.bindings[index]
+                            .role_index,
+                    );
+                }
+
+                if self.bindings
+                    .iter()
+                    .any(|binding| {
+                        binding.current_atom
+                            == current_atom
+                            && binding.historical_atom
+                                != historical_atom
+                    })
+                {
+                    return Err(
+                        RolePreservingTargetSchemaStatus::
+                            ConflictingCurrentBinding,
+                    );
+                }
+
+                if self.bindings.len()
+                    >= self.policy.max_roles()
+                {
+                    return Err(
+                        RolePreservingTargetSchemaStatus::
+                            RoleFrontierExceeded,
+                    );
+                }
+
+                let role_index =
+                    self.bindings.len();
+
+                self.bindings.push(
+                    RolePreservingTargetAtomBinding::
+                        new(
+                            role_index,
+                            historical_atom,
+                            current_atom,
+                        ),
+                );
+
+                Ok(role_index)
+            }
+
+            fn build(
+                &mut self,
+                historical:
+                    &CognitiveStructure,
+                current:
+                    &CognitiveStructure,
+            ) -> Result<
+                RolePreservingTargetSchemaNode,
+                RolePreservingTargetSchemaStatus,
+            > {
+                self.visit()?;
+
+                match (
+                    historical,
+                    current,
+                ) {
+                    (
+                        CognitiveStructure::Atom(
+                            historical_atom,
+                        ),
+                        CognitiveStructure::Atom(
+                            current_atom,
+                        ),
+                    ) => {
+                        if historical_atom
+                            == current_atom
+                        {
+                            Ok(
+                                RolePreservingTargetSchemaNode::
+                                    ConstantAtom(
+                                        *historical_atom,
+                                    ),
+                            )
+                        } else {
+                            let role =
+                                self.role(
+                                    *historical_atom,
+                                    *current_atom,
+                                )?;
+
+                            Ok(
+                                RolePreservingTargetSchemaNode::
+                                    Role(role),
+                            )
+                        }
+                    }
+
+                    (
+                        CognitiveStructure::Ordered(
+                            historical_children,
+                        ),
+                        CognitiveStructure::Ordered(
+                            current_children,
+                        ),
+                    ) => {
+                        if historical_children.len()
+                            != current_children.len()
+                        {
+                            return Err(
+                                RolePreservingTargetSchemaStatus::
+                                    StructuralMismatch,
+                            );
+                        }
+
+                        let mut children =
+                            Vec::with_capacity(
+                                historical_children.len(),
+                            );
+
+                        for (
+                            historical_child,
+                            current_child,
+                        ) in historical_children
+                            .iter()
+                            .zip(
+                                current_children
+                                    .iter(),
+                            )
+                        {
+                            children.push(
+                                self.build(
+                                    historical_child,
+                                    current_child,
+                                )?,
+                            );
+                        }
+
+                        Ok(
+                            RolePreservingTargetSchemaNode::
+                                Ordered(children),
+                        )
+                    }
+
+                    (
+                        CognitiveStructure::Unordered(
+                            historical_children,
+                        ),
+                        CognitiveStructure::Unordered(
+                            current_children,
+                        ),
+                    ) => {
+                        if historical_children.len()
+                            != current_children.len()
+                        {
+                            return Err(
+                                RolePreservingTargetSchemaStatus::
+                                    StructuralMismatch,
+                            );
+                        }
+
+                        /*
+                         * CognitiveStructure is already supplied in
+                         * its retained canonical structural order by
+                         * the upstream cognition layer.
+                         *
+                         * C3H-A does not invent a second graph
+                         * isomorphism/canonicalization authority.
+                         */
+                        let mut children =
+                            Vec::with_capacity(
+                                historical_children.len(),
+                            );
+
+                        for (
+                            historical_child,
+                            current_child,
+                        ) in historical_children
+                            .iter()
+                            .zip(
+                                current_children
+                                    .iter(),
+                            )
+                        {
+                            children.push(
+                                self.build(
+                                    historical_child,
+                                    current_child,
+                                )?,
+                            );
+                        }
+
+                        Ok(
+                            RolePreservingTargetSchemaNode::
+                                Unordered(children),
+                        )
+                    }
+
+                    _ => Err(
+                        RolePreservingTargetSchemaStatus::
+                            StructuralMismatch,
+                    ),
+                }
+            }
+        }
+
+        let mut builder =
+            Builder {
+                policy,
+                visited_node_count: 0,
+                bindings: Vec::new(),
+            };
+
+        let root =
+            match builder.build(
+                historical,
+                current,
+            ) {
+                Ok(root) => root,
+
+                Err(status) => {
+                    return
+                        RolePreservingTargetSchemaResult::
+                            rejected(
+                                status,
+                                builder
+                                    .visited_node_count,
+                            );
+                }
+            };
+
+        let role_count =
+            builder.bindings.len();
+
+        RolePreservingTargetSchemaResult {
+            status:
+                RolePreservingTargetSchemaStatus::
+                    Derived,
+
+            visited_node_count:
+                builder.visited_node_count,
+
+            schema: Some(
+                RolePreservingTargetStructuralSchema::
+                    new(
+                        root,
+                        role_count,
+                    ),
+            ),
+
+            bindings:
+                builder.bindings,
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct UniversalAutonomousRolePreservingTargetSchema;
+
+impl UniversalAutonomousRolePreservingTargetSchema {
+    pub fn derive(
+        historical:
+            &CognitiveStructure,
+        current:
+            &CognitiveStructure,
+        policy:
+            RolePreservingTargetSchemaPolicy,
+    ) -> RolePreservingTargetSchemaResult {
+        AutonomousRolePreservingTargetSchema::
+            derive(
+                historical,
+                current,
+                policy,
+            )
+    }
+}
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct HypothesisDiscriminationCandidate {
     experiment: AutonomousExperimentProposal,
@@ -14125,6 +14749,536 @@ mod p4g_c3g_empirical_transfer_expectation_tests {
         assert_eq!(
             estimate.distinct_source_state_count(),
             2,
+        );
+    }
+}
+
+#[cfg(test)]
+mod p4g_c3h_role_preserving_target_schema_tests {
+    use super::*;
+
+    fn a(
+        value: u64,
+    ) -> CognitiveStructure {
+        CognitiveStructure::Atom(
+            value,
+        )
+    }
+
+    fn ordered(
+        values:
+            Vec<CognitiveStructure>,
+    ) -> CognitiveStructure {
+        CognitiveStructure::Ordered(
+            values,
+        )
+    }
+
+    fn unordered(
+        values:
+            Vec<CognitiveStructure>,
+    ) -> CognitiveStructure {
+        CognitiveStructure::Unordered(
+            values,
+        )
+    }
+
+    fn policy(
+    ) -> RolePreservingTargetSchemaPolicy {
+        RolePreservingTargetSchemaPolicy::
+            new(
+                128,
+                16,
+            )
+            .unwrap()
+    }
+
+    #[test]
+    fn repeated_concrete_substitution_becomes_one_role_with_multiple_occurrences() {
+        let historical =
+            ordered(
+                vec![
+                    a(100),
+                    a(1),
+                    ordered(
+                        vec![
+                            a(5),
+                            a(5),
+                        ],
+                    ),
+                ],
+            );
+
+        let current =
+            ordered(
+                vec![
+                    a(100),
+                    a(2),
+                    ordered(
+                        vec![
+                            a(7),
+                            a(7),
+                        ],
+                    ),
+                ],
+            );
+
+        let result =
+            AutonomousRolePreservingTargetSchema::
+                derive(
+                    &historical,
+                    &current,
+                    policy(),
+                );
+
+        assert!(result.derived());
+
+        assert_eq!(
+            result.role_count(),
+            2,
+        );
+
+        assert_eq!(
+            result.substitution_occurrence_count(),
+            3,
+        );
+
+        let first =
+            &result.bindings()[0];
+
+        let second =
+            &result.bindings()[1];
+
+        assert_eq!(
+            (
+                first.historical_atom(),
+                first.current_atom(),
+                first.occurrence_count(),
+            ),
+            (
+                1,
+                2,
+                1,
+            ),
+        );
+
+        assert_eq!(
+            (
+                second.historical_atom(),
+                second.current_atom(),
+                second.occurrence_count(),
+            ),
+            (
+                5,
+                7,
+                2,
+            ),
+        );
+    }
+
+    #[test]
+    fn different_concrete_values_can_share_exact_same_abstract_schema() {
+        let first_historical =
+            ordered(
+                vec![
+                    a(100),
+                    a(1),
+                    ordered(
+                        vec![
+                            a(5),
+                            a(5),
+                        ],
+                    ),
+                ],
+            );
+
+        let first_current =
+            ordered(
+                vec![
+                    a(100),
+                    a(2),
+                    ordered(
+                        vec![
+                            a(7),
+                            a(7),
+                        ],
+                    ),
+                ],
+            );
+
+        let second_historical =
+            ordered(
+                vec![
+                    a(100),
+                    a(11),
+                    ordered(
+                        vec![
+                            a(50),
+                            a(50),
+                        ],
+                    ),
+                ],
+            );
+
+        let second_current =
+            ordered(
+                vec![
+                    a(100),
+                    a(12),
+                    ordered(
+                        vec![
+                            a(70),
+                            a(70),
+                        ],
+                    ),
+                ],
+            );
+
+        let first =
+            AutonomousRolePreservingTargetSchema::
+                derive(
+                    &first_historical,
+                    &first_current,
+                    policy(),
+                );
+
+        let second =
+            AutonomousRolePreservingTargetSchema::
+                derive(
+                    &second_historical,
+                    &second_current,
+                    policy(),
+                );
+
+        assert!(first.derived());
+        assert!(second.derived());
+
+        assert_eq!(
+            first.schema(),
+            second.schema(),
+            "schema equality must not depend on concrete role bindings",
+        );
+
+        assert_ne!(
+            first.bindings(),
+            second.bindings(),
+            "concrete provenance remains distinct",
+        );
+    }
+
+    #[test]
+    fn same_historical_role_cannot_bind_to_two_current_atoms() {
+        let historical =
+            ordered(
+                vec![
+                    a(5),
+                    a(5),
+                ],
+            );
+
+        let current =
+            ordered(
+                vec![
+                    a(7),
+                    a(8),
+                ],
+            );
+
+        let result =
+            AutonomousRolePreservingTargetSchema::
+                derive(
+                    &historical,
+                    &current,
+                    policy(),
+                );
+
+        assert_eq!(
+            result.status(),
+            RolePreservingTargetSchemaStatus::
+                ConflictingHistoricalBinding,
+        );
+
+        assert!(
+            result.schema().is_none(),
+        );
+    }
+
+    #[test]
+    fn two_historical_roles_cannot_collapse_into_one_current_atom() {
+        let historical =
+            ordered(
+                vec![
+                    a(5),
+                    a(6),
+                ],
+            );
+
+        let current =
+            ordered(
+                vec![
+                    a(7),
+                    a(7),
+                ],
+            );
+
+        let result =
+            AutonomousRolePreservingTargetSchema::
+                derive(
+                    &historical,
+                    &current,
+                    policy(),
+                );
+
+        assert_eq!(
+            result.status(),
+            RolePreservingTargetSchemaStatus::
+                ConflictingCurrentBinding,
+        );
+
+        assert!(
+            result.schema().is_none(),
+        );
+    }
+
+    #[test]
+    fn container_kind_and_arity_are_semantic_not_erasable() {
+        let ordered_target =
+            ordered(
+                vec![
+                    a(1),
+                    a(2),
+                ],
+            );
+
+        let unordered_target =
+            unordered(
+                vec![
+                    a(1),
+                    a(2),
+                ],
+            );
+
+        let kind_mismatch =
+            AutonomousRolePreservingTargetSchema::
+                derive(
+                    &ordered_target,
+                    &unordered_target,
+                    policy(),
+                );
+
+        assert_eq!(
+            kind_mismatch.status(),
+            RolePreservingTargetSchemaStatus::
+                StructuralMismatch,
+        );
+
+        let arity_mismatch =
+            AutonomousRolePreservingTargetSchema::
+                derive(
+                    &ordered(
+                        vec![
+                            a(1),
+                        ],
+                    ),
+                    &ordered(
+                        vec![
+                            a(2),
+                            a(3),
+                        ],
+                    ),
+                    policy(),
+                );
+
+        assert_eq!(
+            arity_mismatch.status(),
+            RolePreservingTargetSchemaStatus::
+                StructuralMismatch,
+        );
+    }
+
+    #[test]
+    fn node_and_role_frontiers_fail_closed() {
+        let historical =
+            ordered(
+                vec![
+                    a(1),
+                    a(2),
+                ],
+            );
+
+        let current =
+            ordered(
+                vec![
+                    a(3),
+                    a(4),
+                ],
+            );
+
+        let node_bound =
+            AutonomousRolePreservingTargetSchema::
+                derive(
+                    &historical,
+                    &current,
+                    RolePreservingTargetSchemaPolicy::
+                        new(
+                            1,
+                            8,
+                        )
+                        .unwrap(),
+                );
+
+        assert_eq!(
+            node_bound.status(),
+            RolePreservingTargetSchemaStatus::
+                NodeFrontierExceeded,
+        );
+
+        let role_bound =
+            AutonomousRolePreservingTargetSchema::
+                derive(
+                    &historical,
+                    &current,
+                    RolePreservingTargetSchemaPolicy::
+                        new(
+                            32,
+                            1,
+                        )
+                        .unwrap(),
+                );
+
+        assert_eq!(
+            role_bound.status(),
+            RolePreservingTargetSchemaStatus::
+                RoleFrontierExceeded,
+        );
+
+        assert_eq!(
+            RolePreservingTargetSchemaPolicy::
+                new(
+                    0,
+                    1,
+                ),
+            None,
+        );
+
+        assert_eq!(
+            RolePreservingTargetSchemaPolicy::
+                new(
+                    1,
+                    0,
+                ),
+            None,
+        );
+    }
+
+    #[test]
+    fn exact_equal_target_derives_zero_role_constant_schema() {
+        let target =
+            ordered(
+                vec![
+                    a(100),
+                    unordered(
+                        vec![
+                            a(5),
+                            a(6),
+                        ],
+                    ),
+                ],
+            );
+
+        let result =
+            AutonomousRolePreservingTargetSchema::
+                derive(
+                    &target,
+                    &target,
+                    policy(),
+                );
+
+        assert!(result.derived());
+
+        assert_eq!(
+            result.role_count(),
+            0,
+        );
+
+        assert_eq!(
+            result.substitution_occurrence_count(),
+            0,
+        );
+
+        assert!(
+            result.bindings().is_empty(),
+        );
+    }
+
+    #[test]
+    fn facade_is_deterministic_and_derivation_is_non_mutating() {
+        let historical =
+            ordered(
+                vec![
+                    a(100),
+                    a(1),
+                    a(5),
+                ],
+            );
+
+        let current =
+            ordered(
+                vec![
+                    a(100),
+                    a(2),
+                    a(7),
+                ],
+            );
+
+        let historical_before =
+            historical.clone();
+
+        let current_before =
+            current.clone();
+
+        let direct =
+            AutonomousRolePreservingTargetSchema::
+                derive(
+                    &historical,
+                    &current,
+                    policy(),
+                );
+
+        let repeated =
+            AutonomousRolePreservingTargetSchema::
+                derive(
+                    &historical,
+                    &current,
+                    policy(),
+                );
+
+        let facade =
+            UniversalAutonomousRolePreservingTargetSchema::
+                derive(
+                    &historical,
+                    &current,
+                    policy(),
+                );
+
+        assert_eq!(
+            direct,
+            repeated,
+        );
+
+        assert_eq!(
+            direct,
+            facade,
+        );
+
+        assert_eq!(
+            historical,
+            historical_before,
+        );
+
+        assert_eq!(
+            current,
+            current_before,
         );
     }
 }
