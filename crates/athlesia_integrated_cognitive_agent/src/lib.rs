@@ -9636,6 +9636,34 @@ impl OnlinePersistentCognitiveState {
         self.transition_schema_learning.episode_count()
     }
 
+    pub fn current_explanatory_version_space(
+        &self,
+        policy: athlesia_universal_domain_learning::GroundedExplanatoryVersionSpacePolicy,
+    ) -> athlesia_universal_domain_learning::GroundedExplanatoryVersionSpace {
+        athlesia_universal_domain_learning::GroundedExplanatoryVersionSpaceSynthesis::synthesize(
+            self.transition_schema_learning.episodes(),
+            policy,
+        )
+    }
+
+    pub fn current_factorized_action_discrimination(
+        &self,
+        state: &athlesia_universal_domain_learning::GroundedStateSnapshot,
+        actions: &[CognitiveStructure],
+        version_policy: athlesia_universal_domain_learning::GroundedExplanatoryVersionSpacePolicy,
+        discrimination_policy:
+            athlesia_universal_domain_learning::GroundedFactorizedDiscriminationPolicy,
+    ) -> athlesia_universal_domain_learning::GroundedFactorizedActionDiscriminationFrontier {
+        let version_space = self.current_explanatory_version_space(version_policy);
+
+        athlesia_universal_domain_learning::GroundedFactorizedActionDiscriminationEngine::evaluate(
+            state,
+            actions,
+            &version_space,
+            discrimination_policy,
+        )
+    }
+
     pub fn perceptual_temporal_evidence(
         &self,
     ) -> &athlesia_core_knowledge_perceptual_grounding::PerceptualProposalTemporalEvidenceState
@@ -10580,5 +10608,112 @@ impl UniversalEnvironmentInteractionBoundary {
         observation: &EnvironmentInteractionObservation,
     ) -> Option<EnvironmentInteractionEvidence> {
         EnvironmentInteractionBoundary::bind_epistemic_observation(dispatch, observation)
+    }
+}
+
+#[cfg(test)]
+mod endogenous_epistemic_frontier_bridge_tests {
+    use super::*;
+
+    use athlesia_universal_domain_learning::{
+        GroundedExplanatoryVersionSpacePolicy, GroundedFactorizedDiscriminationPolicy,
+        GroundedStateSnapshot, GroundedTransformationEpisode,
+    };
+
+    fn a(value: u64) -> CognitiveStructure {
+        CognitiveStructure::atom(value)
+    }
+
+    fn state(facts: &[u64]) -> GroundedStateSnapshot {
+        GroundedStateSnapshot::new(facts.iter().copied().map(a).collect())
+            .expect("test state is nonempty")
+    }
+
+    fn episode(before: &[u64], after: &[u64], action: u64) -> GroundedTransformationEpisode {
+        GroundedTransformationEpisode::new(state(before), state(after), a(action))
+    }
+
+    fn owner(episodes: Vec<GroundedTransformationEpisode>) -> OnlinePersistentCognitiveState {
+        let mut owner = OnlinePersistentCognitiveState::new();
+        owner.transition_schema_learning.episodes = episodes;
+        owner
+    }
+
+    fn version_policy() -> GroundedExplanatoryVersionSpacePolicy {
+        GroundedExplanatoryVersionSpacePolicy::new(1, 16, 128, 64)
+            .expect("positive explanatory frontier")
+    }
+
+    fn discrimination_policy() -> GroundedFactorizedDiscriminationPolicy {
+        GroundedFactorizedDiscriminationPolicy::new(16).expect("positive action frontier")
+    }
+
+    fn experience() -> Vec<GroundedTransformationEpisode> {
+        vec![episode(&[1], &[1, 900], 100), episode(&[2], &[2, 900], 100)]
+    }
+
+    #[test]
+    fn retained_experience_endogenously_exposes_an_informative_action() {
+        let owner = owner(experience());
+
+        let frontier = owner.current_factorized_action_discrimination(
+            &state(&[1]),
+            &[a(100), a(200)],
+            version_policy(),
+            discrimination_policy(),
+        );
+
+        let best = frontier
+            .best_informative()
+            .expect("retained competing explanations should expose an experiment");
+
+        assert_eq!(best.transformation(), &a(100));
+        assert!(best.pairwise_separation_score() > 0);
+
+        assert!(
+            frontier
+                .ranked()
+                .iter()
+                .find(|candidate| candidate.transformation() == &a(200))
+                .is_some_and(|candidate| !candidate.informative()),
+            "an ungrounded action must not acquire fabricated epistemic value",
+        );
+    }
+
+    #[test]
+    fn frontier_is_order_invariant_and_abstains_when_contexts_are_jointly_satisfied() {
+        let episodes = experience();
+
+        let direct = owner(episodes.clone()).current_factorized_action_discrimination(
+            &state(&[1]),
+            &[a(100), a(200)],
+            version_policy(),
+            discrimination_policy(),
+        );
+
+        let mut reversed_episodes = episodes;
+        reversed_episodes.reverse();
+
+        let reversed = owner(reversed_episodes).current_factorized_action_discrimination(
+            &state(&[1]),
+            &[a(200), a(100)],
+            version_policy(),
+            discrimination_policy(),
+        );
+
+        assert_eq!(direct, reversed);
+
+        let resolved = owner(experience()).current_factorized_action_discrimination(
+            &state(&[1, 2]),
+            &[a(100), a(200)],
+            version_policy(),
+            discrimination_policy(),
+        );
+
+        assert_eq!(
+            resolved.best_informative(),
+            None,
+            "when every retained context is simultaneously satisfied, disagreement must vanish",
+        );
     }
 }
