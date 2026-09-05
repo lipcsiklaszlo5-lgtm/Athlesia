@@ -2299,6 +2299,282 @@ impl UniversalPerceptualObjectPromotionGate {
     }
 }
 
+// -----------------------------------------------------------------------------
+// Retained grouping appearance evidence
+// -----------------------------------------------------------------------------
+//
+// P4F-A established a sufficient multi-axis eligibility route.
+//
+// P4F-B now gives the visual axes retained empirical history rather than
+// converting one boolean observation into arbitrary maximal confidence.
+//
+// Each observation is one explicit opportunity:
+// - appearance_cohesion_supported: candidate members currently satisfy the
+//   adapter's exact cohesion criterion;
+// - contrast_boundary_supported: candidate currently satisfies the adapter's
+//   exact exterior-contrast criterion.
+//
+// A visual axis is historically supported only when:
+// - at least the minimum number of observations exists; and
+// - support strictly exceeds contradiction.
+//
+// This is deliberately symmetric and does not encode ARC colors or game rules.
+
+#[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+pub struct PerceptualGroupingAppearanceObservationEvidence {
+    candidate: PerceptualGroupingCandidate,
+    appearance_cohesion_supported: bool,
+    contrast_boundary_supported: bool,
+}
+
+impl PerceptualGroupingAppearanceObservationEvidence {
+    pub fn new(
+        candidate: PerceptualGroupingCandidate,
+        appearance_cohesion_supported: bool,
+        contrast_boundary_supported: bool,
+    ) -> Self {
+        Self {
+            candidate,
+            appearance_cohesion_supported,
+            contrast_boundary_supported,
+        }
+    }
+
+    pub fn candidate(&self) -> &PerceptualGroupingCandidate {
+        &self.candidate
+    }
+
+    pub fn appearance_cohesion_supported(&self) -> bool {
+        self.appearance_cohesion_supported
+    }
+
+    pub fn contrast_boundary_supported(&self) -> bool {
+        self.contrast_boundary_supported
+    }
+}
+
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
+pub struct PerceptualGroupingAppearanceObservationResult {
+    evidence: Vec<PerceptualGroupingAppearanceObservationEvidence>,
+}
+
+impl PerceptualGroupingAppearanceObservationResult {
+    pub fn new(mut evidence: Vec<PerceptualGroupingAppearanceObservationEvidence>) -> Self {
+        evidence.sort_by(|left, right| left.candidate().cmp(right.candidate()));
+
+        evidence.dedup_by(|left, right| left.candidate() == right.candidate());
+
+        Self { evidence }
+    }
+
+    pub fn evidence(&self) -> &[PerceptualGroupingAppearanceObservationEvidence] {
+        &self.evidence
+    }
+
+    pub fn evidence_count(&self) -> usize {
+        self.evidence.len()
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+pub enum PerceptualGroupingAppearanceSupportStatus {
+    Unknown,
+    InsufficientHistory,
+    Supported,
+    Conflicted,
+}
+
+#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+pub struct PerceptualGroupingAppearanceRetentionPolicy {
+    minimum_observations: usize,
+}
+
+impl PerceptualGroupingAppearanceRetentionPolicy {
+    pub fn new(minimum_observations: usize) -> Option<Self> {
+        if minimum_observations == 0 {
+            return None;
+        }
+
+        Some(Self {
+            minimum_observations,
+        })
+    }
+
+    pub fn minimum_observations(self) -> usize {
+        self.minimum_observations
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct PerceptualGroupingAppearanceEvidenceRecord {
+    candidate: PerceptualGroupingCandidate,
+    observation_count: usize,
+    appearance_cohesion_support_count: usize,
+    contrast_boundary_support_count: usize,
+}
+
+impl PerceptualGroupingAppearanceEvidenceRecord {
+    fn new(evidence: &PerceptualGroupingAppearanceObservationEvidence) -> Self {
+        let mut record = Self {
+            candidate: evidence.candidate().clone(),
+            observation_count: 0,
+            appearance_cohesion_support_count: 0,
+            contrast_boundary_support_count: 0,
+        };
+
+        record.observe(evidence);
+
+        record
+    }
+
+    fn observe(&mut self, evidence: &PerceptualGroupingAppearanceObservationEvidence) {
+        self.observation_count = self.observation_count.saturating_add(1);
+
+        if evidence.appearance_cohesion_supported() {
+            self.appearance_cohesion_support_count =
+                self.appearance_cohesion_support_count.saturating_add(1);
+        }
+
+        if evidence.contrast_boundary_supported() {
+            self.contrast_boundary_support_count =
+                self.contrast_boundary_support_count.saturating_add(1);
+        }
+    }
+
+    pub fn candidate(&self) -> &PerceptualGroupingCandidate {
+        &self.candidate
+    }
+
+    pub fn observation_count(&self) -> usize {
+        self.observation_count
+    }
+
+    pub fn appearance_cohesion_support_count(&self) -> usize {
+        self.appearance_cohesion_support_count
+    }
+
+    pub fn contrast_boundary_support_count(&self) -> usize {
+        self.contrast_boundary_support_count
+    }
+}
+
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
+pub struct PerceptualGroupingAppearanceEvidenceState {
+    records: Vec<PerceptualGroupingAppearanceEvidenceRecord>,
+}
+
+impl PerceptualGroupingAppearanceEvidenceState {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    pub fn records(&self) -> &[PerceptualGroupingAppearanceEvidenceRecord] {
+        &self.records
+    }
+
+    pub fn record_count(&self) -> usize {
+        self.records.len()
+    }
+
+    pub fn record(
+        &self,
+        candidate: &PerceptualGroupingCandidate,
+    ) -> Option<&PerceptualGroupingAppearanceEvidenceRecord> {
+        self.records
+            .binary_search_by(|record| record.candidate().cmp(candidate))
+            .ok()
+            .map(|index| &self.records[index])
+    }
+
+    pub fn observe(&mut self, result: &PerceptualGroupingAppearanceObservationResult) {
+        for evidence in result.evidence() {
+            match self
+                .records
+                .binary_search_by(|record| record.candidate().cmp(evidence.candidate()))
+            {
+                Ok(index) => {
+                    self.records[index].observe(evidence);
+                }
+                Err(index) => {
+                    self.records.insert(
+                        index,
+                        PerceptualGroupingAppearanceEvidenceRecord::new(evidence),
+                    );
+                }
+            }
+        }
+    }
+
+    pub fn support_status(
+        &self,
+        candidate: &PerceptualGroupingCandidate,
+        policy: PerceptualGroupingAppearanceRetentionPolicy,
+    ) -> PerceptualGroupingAppearanceSupportStatus {
+        let Some(record) = self.record(candidate) else {
+            return PerceptualGroupingAppearanceSupportStatus::Unknown;
+        };
+
+        if record.observation_count() < policy.minimum_observations() {
+            return PerceptualGroupingAppearanceSupportStatus::InsufficientHistory;
+        }
+
+        let cohesion_contradiction_count = record
+            .observation_count()
+            .saturating_sub(record.appearance_cohesion_support_count());
+
+        let boundary_contradiction_count = record
+            .observation_count()
+            .saturating_sub(record.contrast_boundary_support_count());
+
+        let cohesion_supported =
+            record.appearance_cohesion_support_count() > cohesion_contradiction_count;
+
+        let boundary_supported =
+            record.contrast_boundary_support_count() > boundary_contradiction_count;
+
+        if cohesion_supported && boundary_supported {
+            PerceptualGroupingAppearanceSupportStatus::Supported
+        } else {
+            PerceptualGroupingAppearanceSupportStatus::Conflicted
+        }
+    }
+}
+
+// -----------------------------------------------------------------------------
+// Exact empirical support -> CognitiveSignal calibration
+// -----------------------------------------------------------------------------
+//
+// The signal is not a hand-authored confidence.
+//
+// It is exactly:
+//
+//      floor(1000 * support_count / opportunity_count)
+//
+// Invalid count relations abstain.
+//
+// A zero-support empirical history yields CognitiveSignal::zero().
+
+#[derive(Clone, Copy, Debug, Default, Eq, Hash, Ord, PartialEq, PartialOrd)]
+pub struct EmpiricalObjecthoodSignalCalibration;
+
+impl EmpiricalObjecthoodSignalCalibration {
+    pub fn from_counts(support_count: usize, opportunity_count: usize) -> Option<CognitiveSignal> {
+        if opportunity_count == 0 || support_count > opportunity_count {
+            return None;
+        }
+
+        if support_count == 0 {
+            return Some(CognitiveSignal::zero());
+        }
+
+        let scaled = (support_count as u128).saturating_mul(1000) / (opportunity_count as u128);
+
+        let value = u16::try_from(scaled).ok()?;
+
+        CognitiveSignal::new(value)
+    }
+}
+
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub struct ObjecthoodEvidence {
     cohesion: CognitiveSignal,

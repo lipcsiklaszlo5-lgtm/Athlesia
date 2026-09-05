@@ -9585,6 +9585,8 @@ pub struct OnlinePersistentCognitiveState {
         athlesia_core_knowledge_perceptual_grounding::PerceptualProposalTemporalEvidenceState,
     perceptual_grouping_behavior_evidence:
         athlesia_core_knowledge_perceptual_grounding::PerceptualGroupingBehaviorEvidenceState,
+    perceptual_grouping_appearance_evidence:
+        athlesia_core_knowledge_perceptual_grounding::PerceptualGroupingAppearanceEvidenceState,
 }
 
 impl OnlinePersistentCognitiveState {
@@ -9634,6 +9636,25 @@ impl OnlinePersistentCognitiveState {
         result: &athlesia_core_knowledge_perceptual_grounding::PerceptualGroupingBehaviorObservationResult,
     ) {
         self.perceptual_grouping_behavior_evidence.observe(result);
+    }
+
+    pub fn perceptual_grouping_appearance_evidence(
+        &self,
+    ) -> &athlesia_core_knowledge_perceptual_grounding::PerceptualGroupingAppearanceEvidenceState
+    {
+        &self.perceptual_grouping_appearance_evidence
+    }
+
+    pub fn perceptual_grouping_appearance_record_count(&self) -> usize {
+        self.perceptual_grouping_appearance_evidence.record_count()
+    }
+
+    pub fn retain_perceptual_grouping_appearance_result(
+        &mut self,
+        result: &athlesia_core_knowledge_perceptual_grounding::
+            PerceptualGroupingAppearanceObservationResult,
+    ) {
+        self.perceptual_grouping_appearance_evidence.observe(result);
     }
 
     pub fn observe_environment_transition(

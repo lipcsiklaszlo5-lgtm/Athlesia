@@ -139,6 +139,16 @@ impl ArcAgi3CognitiveInteractionRuntime {
             .expect("live grouping behavior thresholds are positive")
     }
 
+    fn live_grouping_appearance_retention_policy()
+    -> athlesia_core_knowledge_perceptual_grounding::PerceptualGroupingAppearanceRetentionPolicy
+    {
+        athlesia_core_knowledge_perceptual_grounding::
+            PerceptualGroupingAppearanceRetentionPolicy::new(2)
+            .expect(
+                "live appearance evidence requires a positive history threshold",
+            )
+    }
+
     pub fn current_perceptual_grouping_frontier(
         &self,
         temporal_policy:
@@ -226,6 +236,133 @@ impl ArcAgi3CognitiveInteractionRuntime {
         eligible.dedup();
 
         eligible
+    }
+
+    pub fn current_provisional_object_hypotheses(
+        &self,
+    ) -> Vec<athlesia_core_knowledge_perceptual_grounding::ObjectHypothesis> {
+        use athlesia_core_knowledge_perceptual_grounding::{
+            EmpiricalObjecthoodSignalCalibration, ObjectHypothesis, ObjecthoodEvidence,
+            PerceptualGroupingAppearanceSupportStatus, PerceptualObjectProposal,
+        };
+
+        let mut hypotheses = Vec::new();
+
+        for grouping in self.current_objecthood_eligible_groupings() {
+            if self
+                .cognition
+                .perceptual_grouping_appearance_evidence()
+                .support_status(&grouping, Self::live_grouping_appearance_retention_policy())
+                != PerceptualGroupingAppearanceSupportStatus::Supported
+            {
+                continue;
+            }
+
+            let Some(appearance_record) = self
+                .cognition
+                .perceptual_grouping_appearance_evidence()
+                .record(&grouping)
+            else {
+                continue;
+            };
+
+            let Some(behavior_record) = self
+                .cognition
+                .perceptual_grouping_behavior_evidence()
+                .record(&grouping)
+            else {
+                continue;
+            };
+
+            let behavioral_opportunities = behavior_record
+                .uniform_changed_count()
+                .saturating_add(behavior_record.mixed_count());
+
+            let Some(common_change) = EmpiricalObjecthoodSignalCalibration::from_counts(
+                behavior_record.uniform_changed_count(),
+                behavioral_opportunities,
+            ) else {
+                continue;
+            };
+
+            let Some(cohesion) = EmpiricalObjecthoodSignalCalibration::from_counts(
+                appearance_record.appearance_cohesion_support_count(),
+                appearance_record.observation_count(),
+            ) else {
+                continue;
+            };
+
+            let Some(boundary) = EmpiricalObjecthoodSignalCalibration::from_counts(
+                appearance_record.contrast_boundary_support_count(),
+                appearance_record.observation_count(),
+            ) else {
+                continue;
+            };
+
+            let mut persistence: Option<athlesia_mindstone_sparse_cognition::CognitiveSignal> =
+                None;
+
+            let mut valid_members = true;
+
+            for handle in grouping.members() {
+                let proposal = PerceptualObjectProposal::new(vec![*handle])
+                    .expect("one grouping member is one valid atomic proposal");
+
+                let Some(record) = self
+                    .cognition
+                    .perceptual_temporal_evidence()
+                    .record(&proposal)
+                else {
+                    valid_members = false;
+                    break;
+                };
+
+                let Some(member_signal) = EmpiricalObjecthoodSignalCalibration::from_counts(
+                    record.cross_frame_presence_count(),
+                    record.observation_count(),
+                ) else {
+                    valid_members = false;
+                    break;
+                };
+
+                persistence = Some(match persistence {
+                    Some(current) => current.min(member_signal),
+                    None => member_signal,
+                });
+            }
+
+            if !valid_members {
+                continue;
+            }
+
+            let Some(persistence) = persistence else {
+                continue;
+            };
+
+            let evidence = ObjecthoodEvidence::new(
+                cohesion,
+                persistence,
+                common_change,
+                boundary,
+                athlesia_mindstone_sparse_cognition::CognitiveSignal::zero(),
+                athlesia_mindstone_sparse_cognition::CognitiveSignal::zero(),
+            );
+
+            let Some(hypothesis) = ObjectHypothesis::new(grouping.members().to_vec(), evidence)
+            else {
+                continue;
+            };
+
+            if hypothesis.is_grounded_in(self.perception.latest_frame()) {
+                hypotheses.push(hypothesis);
+            }
+        }
+
+        hypotheses.sort_by(|left, right| left.members().cmp(right.members()));
+
+        hypotheses.dedup_by(|left, right| left.members() == right.members());
+
+        hypotheses
     }
 
     pub fn observation(&self) -> &ArcAgi3Observation {
@@ -368,6 +505,15 @@ impl ArcAgi3CognitiveInteractionRuntime {
                             );
 
                     next_cognition.retain_perceptual_grouping_behavior_result(&grouping_behavior);
+
+                    let grouping_appearance =
+                        ArcAgi3PerceptualIngestionBridge::grouping_appearance_observation(
+                            causal_transition.current_frame(),
+                            grouping_frontier.candidates(),
+                        );
+
+                    next_cognition
+                        .retain_perceptual_grouping_appearance_result(&grouping_appearance);
 
                     next_cognition.retain_perceptual_observation_result(&observation_result);
                 }

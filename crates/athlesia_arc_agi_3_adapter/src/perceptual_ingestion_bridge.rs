@@ -445,6 +445,34 @@ impl ArcAgi3PerceptualIngestionBridge {
         Some((appearance_cohesion, contrast_boundary))
     }
 
+    pub fn grouping_appearance_observation(
+        frame: &PerceptualFrame,
+        candidates: &[athlesia_core_knowledge_perceptual_grounding::PerceptualGroupingCandidate],
+    ) -> athlesia_core_knowledge_perceptual_grounding::PerceptualGroupingAppearanceObservationResult
+    {
+        let evidence = candidates
+            .iter()
+            .filter_map(|candidate| {
+                let (appearance_cohesion_supported, contrast_boundary_supported) =
+                    Self::grouping_visual_objecthood_evidence(frame, candidate)?;
+
+                Some(
+                    athlesia_core_knowledge_perceptual_grounding::
+                        PerceptualGroupingAppearanceObservationEvidence::new(
+                            candidate.clone(),
+                            appearance_cohesion_supported,
+                            contrast_boundary_supported,
+                        ),
+                )
+            })
+            .collect();
+
+        athlesia_core_knowledge_perceptual_grounding::
+            PerceptualGroupingAppearanceObservationResult::new(
+                evidence,
+            )
+    }
+
     pub fn empty_world_candidates() -> IntegratedPerceptualWorldCandidates {
         IntegratedPerceptualWorldCandidates::new(
             Vec::new(),
