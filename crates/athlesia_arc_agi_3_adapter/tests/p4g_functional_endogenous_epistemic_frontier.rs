@@ -2983,3 +2983,580 @@ fn live_c3h_c8_target_anchored_context_transformation_recovers_unique_hypothesis
         shared_identity.is_some(),
     );
 }
+
+#[test]
+fn live_c3h_c10_grounded_forecast_correspondence_closes_full_frontier_before_status_analysis() {
+    use athlesia_autonomous_active_experimentation::{
+        AutonomousGroundedForecastCorrespondence,
+        EpistemicHypothesisForecastStatus,
+        GroundedForecastCorrespondencePolicy,
+        GroundedForecastCorrespondenceRelation,
+    };
+
+    let policy =
+        GroundedForecastCorrespondencePolicy::
+            new(
+                32,
+                10_000,
+
+                32,
+                4096,
+                2048,
+
+                4096,
+                256,
+            )
+            .unwrap();
+
+    let mut total_forecasts =
+        0_usize;
+
+    let mut total_context =
+        0_usize;
+
+    let mut total_base =
+        0_usize;
+
+    let mut context_status_preserved =
+        0_usize;
+
+    let mut base_predicted_to_no_opportunity =
+        0_usize;
+
+    let mut context_none_to_none =
+        0_usize;
+
+    let mut base_some_to_none =
+        0_usize;
+
+    let mut evidence_maturity_changed =
+        0_usize;
+
+    let mut shared_context_identity = None;
+
+
+    for (
+        world_index,
+        candidate_value,
+    ) in [
+        2_u8,
+        14_u8,
+    ]
+    .into_iter()
+    .enumerate()
+    {
+        let game =
+            format!(
+                "p4gc3hc10-role-{candidate_value}"
+            );
+
+        let (
+            runtime,
+            historical,
+            current,
+        ) =
+            c3hb_live_historical_and_current_identity(
+                &game,
+                1_340_000
+                    + world_index as u64
+                        * 20_000,
+                ArcAgi3ActionId::Action1,
+                candidate_value,
+            );
+
+
+        let transport_before =
+            runtime
+                .transport()
+                .execute_count();
+
+        let exact_history_before =
+            runtime
+                .cognitive_runtime()
+                .cognition()
+                .epistemic_progress_event_count();
+
+        let transfer_history_before =
+            runtime
+                .cognitive_runtime()
+                .cognition()
+                .epistemic_transfer_progress_event_count();
+
+
+        let target_relation =
+            athlesia_autonomous_active_experimentation::
+                AutonomousSchemaLevelTargetTransferIdentity::
+                    derive(
+                        &historical,
+                        &current,
+                        c3hb_policy(),
+                    );
+
+        assert!(
+            target_relation.derived(),
+        );
+
+        assert_eq!(
+            target_relation
+                .role_preserving_match_count(),
+            4,
+        );
+
+
+        let mut role_target_count =
+            0_usize;
+
+
+        for target_correspondence in
+            target_relation.correspondences()
+        {
+            if target_correspondence
+                .match_kind()
+                != athlesia_autonomous_active_experimentation::
+                    SchemaLevelTargetMatchKind::
+                        RolePreserving
+            {
+                continue;
+            }
+
+            role_target_count += 1;
+
+
+            let result =
+                AutonomousGroundedForecastCorrespondence::
+                    derive(
+                        &historical,
+                        &current,
+                        target_correspondence,
+                        policy,
+                    );
+
+            assert!(
+                result.derived(),
+                "frozen C3H-C9 structural graph must derive one grounded correspondence",
+            );
+
+            assert_eq!(
+                result
+                    .matching_solution_count(),
+                1,
+            );
+
+            let correspondence =
+                result
+                    .correspondence()
+                    .unwrap();
+
+            assert_eq!(
+                correspondence
+                    .forecast_count(),
+                5,
+            );
+
+            assert_eq!(
+                correspondence
+                    .context_transformation_count(),
+                4,
+            );
+
+            assert_eq!(
+                correspondence
+                    .target_bound_continuation_count(),
+                1,
+            );
+
+            assert_eq!(
+                result
+                    .candidate_edge_count(),
+                5,
+                "C3H-C9 established exactly five non-overlapping structural candidate edges per role target",
+            );
+
+
+            let mut seen_current =
+                std::collections::BTreeSet::<
+                    usize
+                >::new();
+
+            for entry in
+                correspondence.entries()
+            {
+                total_forecasts += 1;
+
+                assert!(
+                    seen_current.insert(
+                        entry
+                            .current_forecast_index(),
+                    ),
+                    "grounded correspondence must be one-to-one",
+                );
+
+
+                let historical_forecast =
+                    &historical
+                        .forecasts()[
+                            entry
+                                .historical_forecast_index()
+                        ];
+
+                let current_forecast =
+                    &current
+                        .forecasts()[
+                            entry
+                                .current_forecast_index()
+                        ];
+
+
+                /*
+                 * These checks are intentionally AFTER structural
+                 * correspondence derivation.
+                 *
+                 * Status/outcome is observed provenance here, never
+                 * matching authority.
+                 */
+                match entry.relation() {
+                    GroundedForecastCorrespondenceRelation::
+                        TargetAnchoredContextTransformation(
+                            identity,
+                        ) =>
+                    {
+                        total_context += 1;
+
+                        assert_eq!(
+                            historical_forecast
+                                .status(),
+                            EpistemicHypothesisForecastStatus::
+                                ContextAbstained,
+                        );
+
+                        assert_eq!(
+                            current_forecast
+                                .status(),
+                            EpistemicHypothesisForecastStatus::
+                                ContextAbstained,
+                        );
+
+                        context_status_preserved +=
+                            1;
+
+                        assert!(
+                            historical_forecast
+                                .predicted_outcome()
+                                .is_none(),
+                        );
+
+                        assert!(
+                            current_forecast
+                                .predicted_outcome()
+                                .is_none(),
+                        );
+
+                        context_none_to_none +=
+                            1;
+
+
+                        if let Some(
+                            expected,
+                        ) =
+                            &shared_context_identity
+                        {
+                            assert_eq!(
+                                identity,
+                                expected,
+                            );
+                        } else {
+                            shared_context_identity =
+                                Some(
+                                    identity.clone(),
+                                );
+                        }
+                    }
+
+                    GroundedForecastCorrespondenceRelation::
+                        TargetBoundHypothesisContinuation =>
+                    {
+                        total_base += 1;
+
+                        assert_eq!(
+                            historical_forecast
+                                .status(),
+                            EpistemicHypothesisForecastStatus::
+                                Predicted,
+                        );
+
+                        assert_eq!(
+                            current_forecast
+                                .status(),
+                            EpistemicHypothesisForecastStatus::
+                                NoEffectOpportunity,
+                        );
+
+                        base_predicted_to_no_opportunity +=
+                            1;
+
+                        assert!(
+                            historical_forecast
+                                .predicted_outcome()
+                                .is_some(),
+                        );
+
+                        assert!(
+                            current_forecast
+                                .predicted_outcome()
+                                .is_none(),
+                        );
+
+                        base_some_to_none +=
+                            1;
+                    }
+                }
+
+
+                /*
+                 * C3H-C9 measured (-1,-1,0) on every matched edge.
+                 *
+                 * This remains source evidence and is deliberately
+                 * absent from GroundedForecastCorrespondenceRelation.
+                 */
+                assert_eq!(
+                    current_forecast
+                        .support_count()
+                        .checked_add(1),
+                    Some(
+                        historical_forecast
+                            .support_count(),
+                    ),
+                );
+
+                assert_eq!(
+                    current_forecast
+                        .opportunity_count()
+                        .checked_add(1),
+                    Some(
+                        historical_forecast
+                            .opportunity_count(),
+                    ),
+                );
+
+                assert_eq!(
+                    current_forecast
+                        .counterexample_count(),
+                    historical_forecast
+                        .counterexample_count(),
+                );
+
+                evidence_maturity_changed +=
+                    1;
+            }
+
+            assert_eq!(
+                seen_current.len(),
+                5,
+            );
+        }
+
+
+        assert_eq!(
+            role_target_count,
+            4,
+        );
+
+
+        assert_eq!(
+            runtime
+                .transport()
+                .execute_count(),
+            transport_before,
+            "C3H-C10 correspondence has zero transport authority",
+        );
+
+        assert_eq!(
+            runtime
+                .cognitive_runtime()
+                .cognition()
+                .epistemic_progress_event_count(),
+            exact_history_before,
+            "C3H-C10 cannot mutate exact progress history",
+        );
+
+        assert_eq!(
+            runtime
+                .cognitive_runtime()
+                .cognition()
+                .epistemic_transfer_progress_event_count(),
+            transfer_history_before,
+            "C3H-C10 cannot mutate transfer progress history",
+        );
+    }
+
+
+    assert_eq!(
+        total_forecasts,
+        40,
+    );
+
+    assert_eq!(
+        total_context,
+        32,
+    );
+
+    assert_eq!(
+        total_base,
+        8,
+    );
+
+    assert_eq!(
+        context_status_preserved,
+        32,
+    );
+
+    assert_eq!(
+        base_predicted_to_no_opportunity,
+        8,
+    );
+
+    assert_eq!(
+        context_none_to_none,
+        32,
+    );
+
+    assert_eq!(
+        base_some_to_none,
+        8,
+    );
+
+    assert_eq!(
+        evidence_maturity_changed,
+        40,
+    );
+
+    assert!(
+        shared_context_identity
+            .is_some(),
+    );
+}
+
+
+#[test]
+fn live_c3h_c10_exact_target_correspondence_cannot_be_reinterpreted_as_role_forecast_transfer() {
+    use athlesia_autonomous_active_experimentation::{
+        AutonomousGroundedForecastCorrespondence,
+        GroundedForecastCorrespondencePolicy,
+        GroundedForecastCorrespondenceStatus,
+    };
+
+    let (
+        runtime,
+        historical,
+        current,
+    ) =
+        c3hb_live_historical_and_current_identity(
+            "p4gc3hc10-exact-target-control",
+            1_390_000,
+            ArcAgi3ActionId::Action2,
+            2_u8,
+        );
+
+
+    let transport_before =
+        runtime
+            .transport()
+            .execute_count();
+
+    let exact_history_before =
+        runtime
+            .cognitive_runtime()
+            .cognition()
+            .epistemic_progress_event_count();
+
+    let transfer_history_before =
+        runtime
+            .cognitive_runtime()
+            .cognition()
+            .epistemic_transfer_progress_event_count();
+
+
+    let target_relation =
+        athlesia_autonomous_active_experimentation::
+            AutonomousSchemaLevelTargetTransferIdentity::
+                derive(
+                    &historical,
+                    &current,
+                    c3hb_policy(),
+                );
+
+    assert!(
+        target_relation.derived(),
+    );
+
+    let exact =
+        target_relation
+            .correspondences()
+            .iter()
+            .find(|correspondence| {
+                correspondence.match_kind()
+                    == athlesia_autonomous_active_experimentation::
+                        SchemaLevelTargetMatchKind::
+                            Exact
+            })
+            .expect(
+                "C3H-B refinement control contains exact historical target correspondence",
+            );
+
+
+    let result =
+        AutonomousGroundedForecastCorrespondence::
+            derive(
+                &historical,
+                &current,
+                exact,
+                GroundedForecastCorrespondencePolicy::
+                    new(
+                        32,
+                        10_000,
+                        32,
+                        4096,
+                        2048,
+                        4096,
+                        256,
+                    )
+                    .unwrap(),
+            );
+
+
+    assert_eq!(
+        result.status(),
+        GroundedForecastCorrespondenceStatus::
+            TargetCorrespondenceNotRolePreserving,
+    );
+
+    assert!(
+        result
+            .correspondence()
+            .is_none(),
+    );
+
+
+    assert_eq!(
+        runtime
+            .transport()
+            .execute_count(),
+        transport_before,
+    );
+
+    assert_eq!(
+        runtime
+            .cognitive_runtime()
+            .cognition()
+            .epistemic_progress_event_count(),
+        exact_history_before,
+    );
+
+    assert_eq!(
+        runtime
+            .cognitive_runtime()
+            .cognition()
+            .epistemic_transfer_progress_event_count(),
+        transfer_history_before,
+    );
+}

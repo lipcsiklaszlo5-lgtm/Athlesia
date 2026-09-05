@@ -6336,6 +6336,963 @@ impl UniversalAutonomousTargetAnchoredContextTransformation {
     }
 }
 
+// ============================================================================
+// P4G-C3H-C10 — GROUNDED FORECAST CORRESPONDENCE
+// ============================================================================
+//
+// C3H-C9 established, without using forecast status or predicted outcome:
+//
+//   - every role-preserving C3H-B target pair has one unique perfect
+//     historical-forecast -> current-forecast matching;
+//   - four edges derive through frozen C3H-C8 target-anchored context
+//     transformation;
+//   - one edge derives through the surviving target-bound hypothesis
+//     continuation relation;
+//   - the two relation kinds do not overlap.
+//
+// C3H-C10 makes that STRUCTURAL correspondence first-class.
+//
+// Forecast status, predicted outcome and empirical evidence counts remain
+// properties of the source forecasts. They do NOT participate in matching
+// and do NOT enter GroundedForecastCorrespondenceRelation identity.
+//
+// This milestone therefore does NOT yet create a forecast-state transition
+// schema and does NOT transfer evidence maturity.
+
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub enum GroundedForecastCorrespondenceStatus {
+    Derived,
+    TargetCorrespondenceNotRolePreserving,
+    EmptyHistoricalForecastFrontier,
+    EmptyCurrentForecastFrontier,
+    ForecastFrontierCardinalityMismatch,
+    ForecastFrontierExceeded,
+    StructuralRelationOverlap,
+    MatchingSearchExceeded,
+    NoPerfectMatching,
+    AmbiguousPerfectMatching,
+}
+
+#[derive(Clone, Debug, Eq, Hash, PartialEq)]
+pub enum GroundedForecastCorrespondenceRelation {
+    TargetAnchoredContextTransformation(
+        GroundedTargetAnchoredContextTransformationIdentity,
+    ),
+
+    TargetBoundHypothesisContinuation,
+}
+
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub struct GroundedForecastCorrespondencePolicy {
+    max_forecasts: usize,
+    max_matching_search_nodes: usize,
+
+    max_context_target_roles: usize,
+    max_context_nodes: usize,
+    max_context_occurrences: usize,
+
+    max_role_schema_nodes: usize,
+    max_role_schema_roles: usize,
+}
+
+impl GroundedForecastCorrespondencePolicy {
+    pub fn new(
+        max_forecasts: usize,
+        max_matching_search_nodes: usize,
+        max_context_target_roles: usize,
+        max_context_nodes: usize,
+        max_context_occurrences: usize,
+        max_role_schema_nodes: usize,
+        max_role_schema_roles: usize,
+    ) -> Option<Self> {
+        if max_forecasts == 0
+            || max_matching_search_nodes == 0
+            || max_context_target_roles == 0
+            || max_context_nodes == 0
+            || max_context_occurrences == 0
+            || max_role_schema_nodes == 0
+            || max_role_schema_roles == 0
+        {
+            return None;
+        }
+
+        Some(Self {
+            max_forecasts,
+            max_matching_search_nodes,
+
+            max_context_target_roles,
+            max_context_nodes,
+            max_context_occurrences,
+
+            max_role_schema_nodes,
+            max_role_schema_roles,
+        })
+    }
+
+    pub fn max_forecasts(
+        self,
+    ) -> usize {
+        self.max_forecasts
+    }
+
+    pub fn max_matching_search_nodes(
+        self,
+    ) -> usize {
+        self.max_matching_search_nodes
+    }
+
+    fn context_policy(
+        self,
+    ) -> TargetAnchoredContextTransformationPolicy {
+        TargetAnchoredContextTransformationPolicy::
+            new(
+                self.max_context_target_roles,
+                self.max_context_nodes,
+                self.max_context_occurrences,
+            )
+            .expect(
+                "GroundedForecastCorrespondencePolicy validated context bounds",
+            )
+    }
+
+    fn role_schema_policy(
+        self,
+    ) -> RolePreservingTargetSchemaPolicy {
+        RolePreservingTargetSchemaPolicy::
+            new(
+                self.max_role_schema_nodes,
+                self.max_role_schema_roles,
+            )
+            .expect(
+                "GroundedForecastCorrespondencePolicy validated role-schema bounds",
+            )
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct GroundedForecastCorrespondenceEntry {
+    historical_forecast_index: usize,
+    current_forecast_index: usize,
+
+    relation:
+        GroundedForecastCorrespondenceRelation,
+}
+
+impl GroundedForecastCorrespondenceEntry {
+    fn new(
+        historical_forecast_index: usize,
+        current_forecast_index: usize,
+        relation:
+            GroundedForecastCorrespondenceRelation,
+    ) -> Self {
+        Self {
+            historical_forecast_index,
+            current_forecast_index,
+            relation,
+        }
+    }
+
+    pub fn historical_forecast_index(
+        &self,
+    ) -> usize {
+        self.historical_forecast_index
+    }
+
+    pub fn current_forecast_index(
+        &self,
+    ) -> usize {
+        self.current_forecast_index
+    }
+
+    pub fn relation(
+        &self,
+    ) -> &GroundedForecastCorrespondenceRelation {
+        &self.relation
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct GroundedForecastCorrespondence {
+    entries:
+        Vec<GroundedForecastCorrespondenceEntry>,
+
+    context_transformation_count: usize,
+    target_bound_continuation_count: usize,
+
+    matching_search_node_count: usize,
+}
+
+impl GroundedForecastCorrespondence {
+    pub fn entries(
+        &self,
+    ) -> &[GroundedForecastCorrespondenceEntry] {
+        &self.entries
+    }
+
+    pub fn forecast_count(
+        &self,
+    ) -> usize {
+        self.entries.len()
+    }
+
+    pub fn context_transformation_count(
+        &self,
+    ) -> usize {
+        self.context_transformation_count
+    }
+
+    pub fn target_bound_continuation_count(
+        &self,
+    ) -> usize {
+        self.target_bound_continuation_count
+    }
+
+    pub fn matching_search_node_count(
+        &self,
+    ) -> usize {
+        self.matching_search_node_count
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct GroundedForecastCorrespondenceResult {
+    status:
+        GroundedForecastCorrespondenceStatus,
+
+    historical_forecast_count: usize,
+    current_forecast_count: usize,
+
+    candidate_edge_count: usize,
+    matching_solution_count: usize,
+    matching_search_node_count: usize,
+
+    correspondence:
+        Option<GroundedForecastCorrespondence>,
+}
+
+impl GroundedForecastCorrespondenceResult {
+    fn rejected(
+        status:
+            GroundedForecastCorrespondenceStatus,
+        historical_forecast_count: usize,
+        current_forecast_count: usize,
+        candidate_edge_count: usize,
+        matching_solution_count: usize,
+        matching_search_node_count: usize,
+    ) -> Self {
+        Self {
+            status,
+
+            historical_forecast_count,
+            current_forecast_count,
+
+            candidate_edge_count,
+            matching_solution_count,
+            matching_search_node_count,
+
+            correspondence: None,
+        }
+    }
+
+    pub fn status(
+        &self,
+    ) -> GroundedForecastCorrespondenceStatus {
+        self.status
+    }
+
+    pub fn derived(
+        &self,
+    ) -> bool {
+        self.status
+            == GroundedForecastCorrespondenceStatus::
+                Derived
+    }
+
+    pub fn historical_forecast_count(
+        &self,
+    ) -> usize {
+        self.historical_forecast_count
+    }
+
+    pub fn current_forecast_count(
+        &self,
+    ) -> usize {
+        self.current_forecast_count
+    }
+
+    pub fn candidate_edge_count(
+        &self,
+    ) -> usize {
+        self.candidate_edge_count
+    }
+
+    pub fn matching_solution_count(
+        &self,
+    ) -> usize {
+        self.matching_solution_count
+    }
+
+    pub fn matching_search_node_count(
+        &self,
+    ) -> usize {
+        self.matching_search_node_count
+    }
+
+    pub fn correspondence(
+        &self,
+    ) -> Option<&GroundedForecastCorrespondence> {
+        self.correspondence.as_ref()
+    }
+}
+
+#[derive(Clone, Debug, Default)]
+struct GroundedForecastMatchingSearch {
+    search_node_count: usize,
+    truncated: bool,
+
+    solution_count: usize,
+
+    first_solution:
+        Vec<usize>,
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct AutonomousGroundedForecastCorrespondence;
+
+impl AutonomousGroundedForecastCorrespondence {
+    fn target_bound_hypothesis_continuation(
+        historical:
+            &CognitiveStructure,
+        current:
+            &CognitiveStructure,
+        target_correspondence:
+            &SchemaLevelTargetCorrespondence,
+        policy:
+            GroundedForecastCorrespondencePolicy,
+    ) -> bool {
+        if historical == current {
+            return true;
+        }
+
+        let relation =
+            AutonomousRolePreservingTargetSchema::
+                derive(
+                    historical,
+                    current,
+                    policy.role_schema_policy(),
+                );
+
+        if !relation.derived()
+            || relation.role_count() == 0
+        {
+            return false;
+        }
+
+        relation.bindings()
+            .iter()
+            .all(|binding| {
+                target_correspondence
+                    .bindings()
+                    .iter()
+                    .any(|target_binding| {
+                        target_binding
+                            .historical_atom()
+                            == binding
+                                .historical_atom()
+                            && target_binding
+                                .current_atom()
+                                == binding
+                                    .current_atom()
+                    })
+            })
+    }
+
+    fn structural_relation(
+        historical:
+            &CognitiveStructure,
+        current:
+            &CognitiveStructure,
+        target_correspondence:
+            &SchemaLevelTargetCorrespondence,
+        policy:
+            GroundedForecastCorrespondencePolicy,
+    ) -> Result<
+        Option<GroundedForecastCorrespondenceRelation>,
+        GroundedForecastCorrespondenceStatus,
+    > {
+        let context =
+            AutonomousTargetAnchoredContextTransformation::
+                derive(
+                    historical,
+                    current,
+                    target_correspondence,
+                    policy.context_policy(),
+                );
+
+        let context_identity =
+            context.identity()
+                .cloned();
+
+        let base =
+            Self::
+                target_bound_hypothesis_continuation(
+                    historical,
+                    current,
+                    target_correspondence,
+                    policy,
+                );
+
+        match (
+            context_identity,
+            base,
+        ) {
+            (
+                Some(_),
+                true,
+            ) => Err(
+                GroundedForecastCorrespondenceStatus::
+                    StructuralRelationOverlap,
+            ),
+
+            (
+                Some(identity),
+                false,
+            ) => Ok(
+                Some(
+                    GroundedForecastCorrespondenceRelation::
+                        TargetAnchoredContextTransformation(
+                            identity,
+                        ),
+                ),
+            ),
+
+            (
+                None,
+                true,
+            ) => Ok(
+                Some(
+                    GroundedForecastCorrespondenceRelation::
+                        TargetBoundHypothesisContinuation,
+                ),
+            ),
+
+            (
+                None,
+                false,
+            ) => Ok(None),
+        }
+    }
+
+    fn enumerate_unique_matching(
+        matrix:
+            &[Vec<
+                Option<
+                    GroundedForecastCorrespondenceRelation
+                >
+            >],
+        max_search_nodes: usize,
+    ) -> GroundedForecastMatchingSearch {
+        fn recurse(
+            row: usize,
+            matrix:
+                &[Vec<
+                    Option<
+                        GroundedForecastCorrespondenceRelation
+                    >
+                >],
+            used:
+                &mut [bool],
+            assignment:
+                &mut Vec<usize>,
+            max_search_nodes: usize,
+            result:
+                &mut GroundedForecastMatchingSearch,
+        ) {
+            if result.truncated {
+                return;
+            }
+
+            result.search_node_count =
+                match result
+                    .search_node_count
+                    .checked_add(1)
+                {
+                    Some(value) => value,
+
+                    None => {
+                        result.truncated =
+                            true;
+
+                        return;
+                    }
+                };
+
+            if result.search_node_count
+                > max_search_nodes
+            {
+                result.truncated =
+                    true;
+
+                return;
+            }
+
+            if row == matrix.len() {
+                result.solution_count += 1;
+
+                if result.solution_count == 1 {
+                    result.first_solution =
+                        assignment.clone();
+                }
+
+                return;
+            }
+
+            for current_index in
+                0..matrix[row].len()
+            {
+                if used[current_index] {
+                    continue;
+                }
+
+                if matrix[row][current_index]
+                    .is_none()
+                {
+                    continue;
+                }
+
+                used[current_index] = true;
+
+                assignment.push(
+                    current_index,
+                );
+
+                recurse(
+                    row + 1,
+                    matrix,
+                    used,
+                    assignment,
+                    max_search_nodes,
+                    result,
+                );
+
+                assignment.pop();
+
+                used[current_index] = false;
+
+                if result.truncated {
+                    return;
+                }
+
+                /*
+                 * More than one solution is already sufficient to
+                 * reject correspondence identity. No need to enumerate
+                 * a potentially large ambiguity frontier.
+                 */
+                if result.solution_count > 1 {
+                    return;
+                }
+            }
+        }
+
+        let mut result =
+            GroundedForecastMatchingSearch::
+                default();
+
+        let mut used =
+            vec![
+                false;
+                matrix.len()
+            ];
+
+        let mut assignment =
+            Vec::<usize>::new();
+
+        recurse(
+            0,
+            matrix,
+            &mut used,
+            &mut assignment,
+            max_search_nodes,
+            &mut result,
+        );
+
+        result
+    }
+
+    pub fn derive(
+        historical:
+            &EmpiricalEpistemicTransferIdentity,
+        current:
+            &EmpiricalEpistemicTransferIdentity,
+        target_correspondence:
+            &SchemaLevelTargetCorrespondence,
+        policy:
+            GroundedForecastCorrespondencePolicy,
+    ) -> GroundedForecastCorrespondenceResult {
+        if target_correspondence.match_kind()
+            != SchemaLevelTargetMatchKind::
+                RolePreserving
+        {
+            return
+                GroundedForecastCorrespondenceResult::
+                    rejected(
+                        GroundedForecastCorrespondenceStatus::
+                            TargetCorrespondenceNotRolePreserving,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                    );
+        }
+
+        let historical_forecasts =
+            historical
+                .forecasts()
+                .iter()
+                .enumerate()
+                .filter(|(_, forecast)| {
+                    forecast.target()
+                        == target_correspondence
+                            .historical_target()
+                })
+                .collect::<Vec<_>>();
+
+        let current_forecasts =
+            current
+                .forecasts()
+                .iter()
+                .enumerate()
+                .filter(|(_, forecast)| {
+                    forecast.target()
+                        == target_correspondence
+                            .current_target()
+                })
+                .collect::<Vec<_>>();
+
+        let historical_count =
+            historical_forecasts.len();
+
+        let current_count =
+            current_forecasts.len();
+
+        if historical_count == 0 {
+            return
+                GroundedForecastCorrespondenceResult::
+                    rejected(
+                        GroundedForecastCorrespondenceStatus::
+                            EmptyHistoricalForecastFrontier,
+                        historical_count,
+                        current_count,
+                        0,
+                        0,
+                        0,
+                    );
+        }
+
+        if current_count == 0 {
+            return
+                GroundedForecastCorrespondenceResult::
+                    rejected(
+                        GroundedForecastCorrespondenceStatus::
+                            EmptyCurrentForecastFrontier,
+                        historical_count,
+                        current_count,
+                        0,
+                        0,
+                        0,
+                    );
+        }
+
+        if historical_count
+            != current_count
+        {
+            return
+                GroundedForecastCorrespondenceResult::
+                    rejected(
+                        GroundedForecastCorrespondenceStatus::
+                            ForecastFrontierCardinalityMismatch,
+                        historical_count,
+                        current_count,
+                        0,
+                        0,
+                        0,
+                    );
+        }
+
+        if historical_count
+            > policy.max_forecasts()
+        {
+            return
+                GroundedForecastCorrespondenceResult::
+                    rejected(
+                        GroundedForecastCorrespondenceStatus::
+                            ForecastFrontierExceeded,
+                        historical_count,
+                        current_count,
+                        0,
+                        0,
+                        0,
+                    );
+        }
+
+        let mut matrix =
+            vec![
+                vec![
+                    None;
+                    current_count
+                ];
+                historical_count
+            ];
+
+        let mut candidate_edge_count =
+            0_usize;
+
+        for (
+            historical_local_index,
+            (
+                _,
+                historical_forecast,
+            ),
+        ) in historical_forecasts
+            .iter()
+            .enumerate()
+        {
+            for (
+                current_local_index,
+                (
+                    _,
+                    current_forecast,
+                ),
+            ) in current_forecasts
+                .iter()
+                .enumerate()
+            {
+                let relation =
+                    match Self::structural_relation(
+                        historical_forecast
+                            .hypothesis(),
+                        current_forecast
+                            .hypothesis(),
+                        target_correspondence,
+                        policy,
+                    ) {
+                        Ok(relation) => relation,
+
+                        Err(status) => {
+                            return
+                                GroundedForecastCorrespondenceResult::
+                                    rejected(
+                                        status,
+                                        historical_count,
+                                        current_count,
+                                        candidate_edge_count,
+                                        0,
+                                        0,
+                                    );
+                        }
+                    };
+
+                if relation.is_some() {
+                    candidate_edge_count +=
+                        1;
+                }
+
+                matrix[
+                    historical_local_index
+                ][
+                    current_local_index
+                ] =
+                    relation;
+            }
+        }
+
+        let matching =
+            Self::enumerate_unique_matching(
+                &matrix,
+                policy
+                    .max_matching_search_nodes(),
+            );
+
+        if matching.truncated {
+            return
+                GroundedForecastCorrespondenceResult::
+                    rejected(
+                        GroundedForecastCorrespondenceStatus::
+                            MatchingSearchExceeded,
+                        historical_count,
+                        current_count,
+                        candidate_edge_count,
+                        matching.solution_count,
+                        matching.search_node_count,
+                    );
+        }
+
+        if matching.solution_count == 0 {
+            return
+                GroundedForecastCorrespondenceResult::
+                    rejected(
+                        GroundedForecastCorrespondenceStatus::
+                            NoPerfectMatching,
+                        historical_count,
+                        current_count,
+                        candidate_edge_count,
+                        matching.solution_count,
+                        matching.search_node_count,
+                    );
+        }
+
+        if matching.solution_count != 1 {
+            return
+                GroundedForecastCorrespondenceResult::
+                    rejected(
+                        GroundedForecastCorrespondenceStatus::
+                            AmbiguousPerfectMatching,
+                        historical_count,
+                        current_count,
+                        candidate_edge_count,
+                        matching.solution_count,
+                        matching.search_node_count,
+                    );
+        }
+
+        let mut entries =
+            Vec::<
+                GroundedForecastCorrespondenceEntry
+            >::with_capacity(
+                historical_count,
+            );
+
+        let mut context_transformation_count =
+            0_usize;
+
+        let mut target_bound_continuation_count =
+            0_usize;
+
+        for (
+            historical_local_index,
+            current_local_index,
+        ) in matching
+            .first_solution
+            .iter()
+            .copied()
+            .enumerate()
+        {
+            let (
+                historical_global_index,
+                _,
+            ) =
+                historical_forecasts[
+                    historical_local_index
+                ];
+
+            let (
+                current_global_index,
+                _,
+            ) =
+                current_forecasts[
+                    current_local_index
+                ];
+
+            let relation =
+                matrix[
+                    historical_local_index
+                ][
+                    current_local_index
+                ]
+                .as_ref()
+                .expect(
+                    "unique matching uses only present structural relation edges",
+                )
+                .clone();
+
+            match &relation {
+                GroundedForecastCorrespondenceRelation::
+                    TargetAnchoredContextTransformation(
+                        _,
+                    ) =>
+                {
+                    context_transformation_count +=
+                        1;
+                }
+
+                GroundedForecastCorrespondenceRelation::
+                    TargetBoundHypothesisContinuation =>
+                {
+                    target_bound_continuation_count +=
+                        1;
+                }
+            }
+
+            entries.push(
+                GroundedForecastCorrespondenceEntry::
+                    new(
+                        historical_global_index,
+                        current_global_index,
+                        relation,
+                    ),
+            );
+        }
+
+        GroundedForecastCorrespondenceResult {
+            status:
+                GroundedForecastCorrespondenceStatus::
+                    Derived,
+
+            historical_forecast_count:
+                historical_count,
+
+            current_forecast_count:
+                current_count,
+
+            candidate_edge_count,
+
+            matching_solution_count:
+                matching.solution_count,
+
+            matching_search_node_count:
+                matching.search_node_count,
+
+            correspondence: Some(
+                GroundedForecastCorrespondence {
+                    entries,
+
+                    context_transformation_count,
+
+                    target_bound_continuation_count,
+
+                    matching_search_node_count:
+                        matching.search_node_count,
+                },
+            ),
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct UniversalAutonomousGroundedForecastCorrespondence;
+
+impl UniversalAutonomousGroundedForecastCorrespondence {
+    pub fn derive(
+        historical:
+            &EmpiricalEpistemicTransferIdentity,
+        current:
+            &EmpiricalEpistemicTransferIdentity,
+        target_correspondence:
+            &SchemaLevelTargetCorrespondence,
+        policy:
+            GroundedForecastCorrespondencePolicy,
+    ) -> GroundedForecastCorrespondenceResult {
+        AutonomousGroundedForecastCorrespondence::
+            derive(
+                historical,
+                current,
+                target_correspondence,
+                policy,
+            )
+    }
+}
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct HypothesisDiscriminationCandidate {
     experiment: AutonomousExperimentProposal,
@@ -18916,6 +19873,265 @@ mod p4g_c3h_target_anchored_context_transformation_tests {
                     0,
                     1,
                     1,
+                )
+                .is_none(),
+        );
+    }
+}
+
+#[cfg(test)]
+mod p4g_c3h_grounded_forecast_correspondence_tests {
+    use super::*;
+
+    fn base(
+    ) -> GroundedForecastCorrespondenceRelation {
+        GroundedForecastCorrespondenceRelation::
+            TargetBoundHypothesisContinuation
+    }
+
+    fn matrix(
+        rows:
+            Vec<Vec<bool>>,
+    ) -> Vec<
+        Vec<
+            Option<
+                GroundedForecastCorrespondenceRelation
+            >
+        >
+    > {
+        rows.into_iter()
+            .map(|row| {
+                row.into_iter()
+                    .map(|present| {
+                        present.then(base)
+                    })
+                    .collect()
+            })
+            .collect()
+    }
+
+    #[test]
+    fn unique_perfect_matching_is_preserved_exactly() {
+        let search =
+            AutonomousGroundedForecastCorrespondence::
+                enumerate_unique_matching(
+                    &matrix(vec![
+                        vec![
+                            true,
+                            false,
+                            false,
+                        ],
+                        vec![
+                            false,
+                            true,
+                            false,
+                        ],
+                        vec![
+                            false,
+                            false,
+                            true,
+                        ],
+                    ]),
+                    100,
+                );
+
+        assert!(!search.truncated);
+
+        assert_eq!(
+            search.solution_count,
+            1,
+        );
+
+        assert_eq!(
+            search.first_solution,
+            vec![
+                0,
+                1,
+                2,
+            ],
+        );
+    }
+
+    #[test]
+    fn ambiguous_perfect_matching_is_not_arbitrarily_selected() {
+        let search =
+            AutonomousGroundedForecastCorrespondence::
+                enumerate_unique_matching(
+                    &matrix(vec![
+                        vec![
+                            true,
+                            true,
+                        ],
+                        vec![
+                            true,
+                            true,
+                        ],
+                    ]),
+                    100,
+                );
+
+        assert!(!search.truncated);
+
+        assert!(
+            search.solution_count > 1,
+        );
+    }
+
+    #[test]
+    fn incomplete_relation_graph_has_no_perfect_matching() {
+        let search =
+            AutonomousGroundedForecastCorrespondence::
+                enumerate_unique_matching(
+                    &matrix(vec![
+                        vec![
+                            true,
+                            false,
+                        ],
+                        vec![
+                            true,
+                            false,
+                        ],
+                    ]),
+                    100,
+                );
+
+        assert!(!search.truncated);
+
+        assert_eq!(
+            search.solution_count,
+            0,
+        );
+
+        assert!(
+            search.first_solution
+                .is_empty(),
+        );
+    }
+
+    #[test]
+    fn matching_search_bound_fails_closed() {
+        let search =
+            AutonomousGroundedForecastCorrespondence::
+                enumerate_unique_matching(
+                    &matrix(vec![
+                        vec![
+                            true,
+                            true,
+                            true,
+                        ],
+                        vec![
+                            true,
+                            true,
+                            true,
+                        ],
+                        vec![
+                            true,
+                            true,
+                            true,
+                        ],
+                    ]),
+                    1,
+                );
+
+        assert!(search.truncated);
+    }
+
+    #[test]
+    fn policy_rejects_every_zero_bound() {
+        assert!(
+            GroundedForecastCorrespondencePolicy::
+                new(
+                    0,
+                    1,
+                    1,
+                    1,
+                    1,
+                    1,
+                    1,
+                )
+                .is_none(),
+        );
+
+        assert!(
+            GroundedForecastCorrespondencePolicy::
+                new(
+                    1,
+                    0,
+                    1,
+                    1,
+                    1,
+                    1,
+                    1,
+                )
+                .is_none(),
+        );
+
+        assert!(
+            GroundedForecastCorrespondencePolicy::
+                new(
+                    1,
+                    1,
+                    0,
+                    1,
+                    1,
+                    1,
+                    1,
+                )
+                .is_none(),
+        );
+
+        assert!(
+            GroundedForecastCorrespondencePolicy::
+                new(
+                    1,
+                    1,
+                    1,
+                    0,
+                    1,
+                    1,
+                    1,
+                )
+                .is_none(),
+        );
+
+        assert!(
+            GroundedForecastCorrespondencePolicy::
+                new(
+                    1,
+                    1,
+                    1,
+                    1,
+                    0,
+                    1,
+                    1,
+                )
+                .is_none(),
+        );
+
+        assert!(
+            GroundedForecastCorrespondencePolicy::
+                new(
+                    1,
+                    1,
+                    1,
+                    1,
+                    1,
+                    0,
+                    1,
+                )
+                .is_none(),
+        );
+
+        assert!(
+            GroundedForecastCorrespondencePolicy::
+                new(
+                    1,
+                    1,
+                    1,
+                    1,
+                    1,
+                    1,
+                    0,
                 )
                 .is_none(),
         );
