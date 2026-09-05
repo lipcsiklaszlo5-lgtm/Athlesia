@@ -10,6 +10,7 @@ athlesia_autonomous_active_experimentation = { path = "../athlesia_autonomous_ac
 athlesia_core_knowledge_perceptual_grounding = { path = "../athlesia_core_knowledge_perceptual_grounding" }
 athlesia_mindstone_sparse_cognition = { path = "../athlesia_mindstone_sparse_cognition" }
 athlesia_integrated_cognitive_agent = { path = "../athlesia_integrated_cognitive_agent" }
+athlesia_universal_domain_learning = { path = "../athlesia_universal_domain_learning" }
 
 reqwest = { version = "0.12", default-features = false, features = ["blocking", "json", "cookies", "rustls-tls"] }
 serde = { version = "1", features = ["derive"] }
@@ -19,4 +20,3 @@ serde_json = "1"
 
 [dev-dependencies]
 athlesia_meta_learning_skill_memory = { path = "../athlesia_meta_learning_skill_memory" }
-athlesia_universal_domain_learning = { path = "../athlesia_universal_domain_learning" }

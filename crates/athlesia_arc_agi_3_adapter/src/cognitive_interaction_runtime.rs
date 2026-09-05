@@ -544,6 +544,118 @@ impl ArcAgi3CognitiveInteractionRuntime {
             .cloned()
     }
 
+    fn live_transition_schema_policy() -> athlesia_universal_domain_learning::TransitionSchemaPolicy
+    {
+        let minimum_precision = athlesia_mindstone_sparse_cognition::CognitiveSignal::new(600)
+            .expect("live transition precision threshold is positive and bounded");
+
+        let minimum_association_lift = athlesia_mindstone_sparse_cognition::CognitiveSignal::new(1)
+            .expect("live transition association threshold is positive and bounded");
+
+        athlesia_universal_domain_learning::TransitionSchemaPolicy::new(
+            2,
+            minimum_precision,
+            minimum_association_lift,
+            256,
+            64,
+        )
+        .expect("live transition-schema policy has positive bounded frontiers")
+    }
+
+    fn live_transition_schema_learning_policy()
+    -> athlesia_integrated_cognitive_agent::EndogenousTransitionSchemaLearningPolicy {
+        athlesia_integrated_cognitive_agent::EndogenousTransitionSchemaLearningPolicy::new(
+            256,
+            Self::live_transition_schema_policy(),
+        )
+        .expect("live transition learning has a positive evidence frontier")
+    }
+
+    fn live_perceptual_world_context()
+    -> athlesia_core_knowledge_perceptual_grounding::IntegratedPerceptualWorldContext {
+        use athlesia_core_knowledge_perceptual_grounding::{
+            ActionConsequencePolicy, IntegratedPerceptualWorldContext, PerceptualChangePolicy,
+            PersistenceTrackingPolicy, TopologicalRelationPolicy,
+        };
+
+        IntegratedPerceptualWorldContext::new(
+            Self::live_scene_grounding_policy(),
+            PersistenceTrackingPolicy::new(64, 64, 128)
+                .expect("live persistence bounds are positive"),
+            TopologicalRelationPolicy::new(64, 128).expect("live topology bounds are positive"),
+            PerceptualChangePolicy::new(64, 128).expect("live change bounds are positive"),
+            ActionConsequencePolicy::new(64, 64, 128)
+                .expect("live action-consequence bounds are positive"),
+        )
+    }
+
+    fn live_executable_world_model_policy()
+    -> athlesia_universal_domain_learning::GroundedExecutableWorldModelPolicy {
+        athlesia_universal_domain_learning::GroundedExecutableWorldModelPolicy::new(64)
+            .expect("live executable world-model schema frontier is positive")
+    }
+
+    pub fn current_grounded_world_state(
+        &self,
+    ) -> Option<&athlesia_universal_domain_learning::GroundedStateSnapshot> {
+        self.cognition
+            .transition_schema_learning()
+            .episodes()
+            .last()
+            .map(athlesia_universal_domain_learning::GroundedTransformationEpisode::after)
+    }
+
+    pub fn current_executable_world_model(
+        &self,
+    ) -> Option<athlesia_universal_domain_learning::GroundedExecutableWorldModel> {
+        let episodes = self.cognition.transition_schema_learning().episodes();
+
+        /*
+         * One transition cannot self-confirm an executable causal model.
+         */
+        if episodes.len() < 2 {
+            return None;
+        }
+
+        let induction =
+            athlesia_universal_domain_learning::UniversalTransitionSchemaInduction::evaluate(
+                episodes,
+                &[],
+                Self::live_transition_schema_policy(),
+            );
+
+        if induction.selected().is_empty() {
+            return None;
+        }
+
+        Some(
+            athlesia_universal_domain_learning::UniversalGroundedExecutableWorldModel::build(
+                induction.selected(),
+                Self::live_executable_world_model_policy(),
+            ),
+        )
+    }
+
+    pub fn current_structural_prediction_for_action(
+        &self,
+        action: crate::ArcAgi3Action,
+    ) -> Option<athlesia_universal_domain_learning::GroundedStructuralPrediction> {
+        let state = self.current_grounded_world_state()?;
+
+        let model = self.current_executable_world_model()?;
+
+        let transformation =
+            crate::cognitive_protocol_bridge::ArcAgi3CognitiveProtocolBridge::encode_action(action);
+
+        Some(
+            athlesia_universal_domain_learning::UniversalGroundedExecutableWorldModel::predict(
+                state,
+                &transformation,
+                &model,
+            ),
+        )
+    }
+
     pub fn observation(&self) -> &ArcAgi3Observation {
         self.session.observation()
     }
@@ -628,6 +740,8 @@ impl ArcAgi3CognitiveInteractionRuntime {
          * A failed environment response or failed perceptual projection
          * cannot partially advance any retained runtime state.
          */
+        let previous_best_scene = self.current_best_scene_interpretation();
+
         let mut next_session = self.session.clone();
 
         let completed_turn = next_session.complete_turn(observation.clone(), confidence)?;
@@ -695,6 +809,61 @@ impl ArcAgi3CognitiveInteractionRuntime {
                         .retain_perceptual_grouping_appearance_result(&grouping_appearance);
 
                     next_cognition.retain_perceptual_observation_result(&observation_result);
+
+                    /*
+                     * The current scene is derived from a temporary immutable
+                     * view of the fully updated cognitive clone.
+                     *
+                     * Nothing is committed to self until all projection and
+                     * learning work succeeds.
+                     */
+                    let current_best_scene = {
+                        let next_runtime_view = Self {
+                            session: next_session.clone(),
+                            perception: next_perception.clone(),
+                            cognition: next_cognition.clone(),
+                        };
+
+                        next_runtime_view.current_best_scene_interpretation()
+                    };
+
+                    if let (Some(previous_scene), Some(current_scene), Some(environment_evidence)) = (
+                        previous_best_scene.as_ref().cloned(),
+                        current_best_scene,
+                        completed_turn.evidence(),
+                    ) {
+                        let candidates =
+                            athlesia_core_knowledge_perceptual_grounding::
+                                IntegratedPerceptualWorldCandidates::new(
+                                    vec![previous_scene],
+                                    vec![current_scene],
+                                    Vec::new(),
+                                    Vec::new(),
+                                    Vec::new(),
+                                    Vec::new(),
+                                );
+
+                        if let Some(world_input) =
+                            athlesia_core_knowledge_perceptual_grounding::
+                                IntegratedPerceptualWorldInput::new(
+                                    causal_transition
+                                        .previous_frame()
+                                        .clone(),
+                                    causal_transition
+                                        .current_frame()
+                                        .clone(),
+                                    candidates,
+                                )
+                        {
+                            next_cognition
+                                .observe_environment_transition(
+                                    &world_input,
+                                    Self::live_perceptual_world_context(),
+                                    environment_evidence,
+                                    Self::live_transition_schema_learning_policy(),
+                                );
+                        }
+                    }
                 }
             }
         }
