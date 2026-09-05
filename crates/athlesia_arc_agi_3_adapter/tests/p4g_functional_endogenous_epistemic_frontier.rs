@@ -218,3 +218,217 @@ fn fresh_live_runtime_cannot_fabricate_epistemic_frontier_without_experience() {
         "abstention must not create hidden pending work",
     );
 }
+
+#[test]
+fn live_holdout_m47_m50_bridge_preserves_exact_epistemic_separation_without_transport() {
+    let game = "p4gc3b-live-holdout";
+
+    let action_one = action(ArcAgi3ActionId::Action1);
+    let action_two = action(ArcAgi3ActionId::Action2);
+
+    let mut runtime = live_runtime(game, 320_000);
+
+    /*
+     * Retain the frozen C2 learning history, then enter the same genuinely
+     * unseen context used by C3A through a REAL Action2 environment turn.
+     *
+     * No Action1 outcome is observed in context 7 before the epistemic query.
+     */
+    mature_runtime(&mut runtime, game);
+    real_training_turn(&mut runtime, game, action_two, 7_u8);
+
+    let before_query_transport = runtime.transport().execute_count();
+
+    let cognitive_runtime = runtime.cognitive_runtime();
+
+    let current_state = cognitive_runtime
+        .current_grounded_world_state()
+        .expect("live holdout context must retain a grounded current M47 state");
+
+    let cognitive_action = ArcAgi3CognitiveProtocolBridge::encode_action(action_one);
+
+    let version_policy =
+        athlesia_universal_domain_learning::GroundedExplanatoryVersionSpacePolicy::new(
+            1, 64, 512, 256,
+        )
+        .expect("C3B live explanatory bounds are positive");
+
+    let m47 = cognitive_runtime
+        .cognition()
+        .current_factorized_action_discrimination(
+            current_state,
+            std::slice::from_ref(&cognitive_action),
+            version_policy,
+            athlesia_universal_domain_learning::GroundedFactorizedDiscriminationPolicy::new(8)
+                .expect("C3B live M47 action bound is positive"),
+        );
+
+    let m47_action = m47
+        .best_informative()
+        .expect("live holdout Action1 must remain informative in M47");
+
+    assert_eq!(
+        m47_action.transformation(),
+        &cognitive_action,
+        "M47 epistemic authority must remain bound to exact Action1 identity",
+    );
+
+    let m50_possibility = cognitive_runtime
+        .cognition()
+        .current_m50_epistemic_possibility(current_state, &cognitive_action, version_policy)
+        .expect("live retained M47 evidence must materialize an M50 epistemic possibility");
+
+    assert_eq!(
+        m50_possibility.action(),
+        &cognitive_action,
+        "M50 possibility must preserve exact live Action1 identity",
+    );
+
+    let m50 =
+        athlesia_autonomous_active_experimentation::
+            AutonomousEpistemicForecastDiscrimination::evaluate(
+                &m50_possibility,
+                athlesia_autonomous_active_experimentation::
+                    EpistemicForecastDiscriminationPolicy::new(
+                        512,
+                        512,
+                    )
+                    .expect("C3B live M50 bounds are positive"),
+            );
+
+    assert!(
+        m50.informative(),
+        "the same live holdout disagreement must remain informative after M47 -> M50 mapping",
+    );
+
+    assert_eq!(
+        m50.pairwise_separation_score(),
+        m47_action.pairwise_separation_score(),
+        "live M47 -> M50 bridge must preserve the exact factorized separation score",
+    );
+
+    let predicted_count = m50_possibility
+        .forecasts()
+        .iter()
+        .filter(|forecast| {
+            forecast.status()
+                == athlesia_autonomous_active_experimentation::
+                    EpistemicHypothesisForecastStatus::Predicted
+        })
+        .count();
+
+    let abstained = m50_possibility
+        .forecasts()
+        .iter()
+        .filter(|forecast| {
+            forecast.status()
+                == athlesia_autonomous_active_experimentation::
+                    EpistemicHypothesisForecastStatus::ContextAbstained
+        })
+        .collect::<Vec<_>>();
+
+    assert!(
+        predicted_count > 0,
+        "live M50 epistemic possibility must contain at least one real grounded prediction",
+    );
+
+    assert!(
+        !abstained.is_empty(),
+        "live M50 epistemic possibility must retain contextual abstention",
+    );
+
+    assert!(
+        abstained
+            .iter()
+            .all(|forecast| forecast.predicted_outcome().is_none()),
+        "live contextual abstention must never acquire a fabricated predicted outcome",
+    );
+
+    assert_eq!(
+        runtime.transport().execute_count(),
+        before_query_transport,
+        "M47 and M50 epistemic queries must have zero hidden transport effect",
+    );
+}
+
+#[test]
+fn live_resolved_context_remains_noninformative_after_m47_m50_bridge() {
+    let game = "p4gc3b-live-resolved";
+
+    let action_one = action(ArcAgi3ActionId::Action1);
+
+    let mut runtime = live_runtime(game, 330_000);
+
+    /*
+     * The frozen mature trajectory ends in an already learned context.
+     * C3A proved that this context carries no actionable epistemic split.
+     * C3B must preserve that negative fact across the M47 -> M50 boundary.
+     */
+    mature_runtime(&mut runtime, game);
+
+    let before_query_transport = runtime.transport().execute_count();
+
+    let cognitive_runtime = runtime.cognitive_runtime();
+
+    let current_state = cognitive_runtime
+        .current_grounded_world_state()
+        .expect("matured live runtime must retain grounded M47 state");
+
+    let cognitive_action = ArcAgi3CognitiveProtocolBridge::encode_action(action_one);
+
+    let version_policy =
+        athlesia_universal_domain_learning::GroundedExplanatoryVersionSpacePolicy::new(
+            1, 64, 512, 256,
+        )
+        .expect("C3B resolved explanatory bounds are positive");
+
+    let m47 = cognitive_runtime
+        .cognition()
+        .current_factorized_action_discrimination(
+            current_state,
+            std::slice::from_ref(&cognitive_action),
+            version_policy,
+            athlesia_universal_domain_learning::GroundedFactorizedDiscriminationPolicy::new(8)
+                .expect("C3B resolved M47 bound is positive"),
+        );
+
+    assert_eq!(
+        m47.best_informative(),
+        None,
+        "resolved live context must remain noninformative at M47",
+    );
+
+    let m50_possibility = cognitive_runtime
+        .cognition()
+        .current_m50_epistemic_possibility(current_state, &cognitive_action, version_policy)
+        .expect("resolved context may retain grounded explanatory forecasts");
+
+    let m50 =
+        athlesia_autonomous_active_experimentation::
+            AutonomousEpistemicForecastDiscrimination::evaluate(
+                &m50_possibility,
+                athlesia_autonomous_active_experimentation::
+                    EpistemicForecastDiscriminationPolicy::new(
+                        512,
+                        512,
+                    )
+                    .expect("C3B resolved M50 bounds are positive"),
+            );
+
+    assert!(
+        !m50.informative(),
+        "M50 must not manufacture epistemic disagreement absent from live M47",
+    );
+
+    assert_eq!(
+        m50.pairwise_separation_score(),
+        0,
+        "resolved live M47 evidence must remain zero-separation after M50 mapping",
+    );
+
+    assert_eq!(
+        runtime.transport().execute_count(),
+        before_query_transport,
+        "resolved-context epistemic queries must not execute hidden transport",
+    );
+}

@@ -9664,6 +9664,176 @@ impl OnlinePersistentCognitiveState {
         )
     }
 
+    fn c3b_effect_kind_structure(
+        kind: athlesia_universal_domain_learning::TransitionEffectKind,
+    ) -> CognitiveStructure {
+        let value = match kind {
+            athlesia_universal_domain_learning::TransitionEffectKind::Added => 1,
+            athlesia_universal_domain_learning::TransitionEffectKind::Removed => 2,
+        };
+
+        CognitiveStructure::Ordered(vec![
+            CognitiveStructure::atom(0x5034_4743_3342_454B),
+            CognitiveStructure::atom(value),
+        ])
+    }
+
+    fn c3b_context_identity(
+        context: Option<&athlesia_universal_domain_learning::ContextPremiseSet>,
+    ) -> CognitiveStructure {
+        match context {
+            None => {
+                CognitiveStructure::Ordered(vec![CognitiveStructure::atom(0x5034_4743_3342_434E)])
+            }
+
+            Some(context) => CognitiveStructure::Ordered(vec![
+                CognitiveStructure::atom(0x5034_4743_3342_4353),
+                CognitiveStructure::Unordered(context.premises().to_vec()),
+            ]),
+        }
+    }
+
+    fn c3b_effect_target(
+        kind: athlesia_universal_domain_learning::TransitionEffectKind,
+        fact: &CognitiveStructure,
+    ) -> CognitiveStructure {
+        CognitiveStructure::Ordered(vec![
+            CognitiveStructure::atom(0x5034_4743_3342_5447),
+            Self::c3b_effect_kind_structure(kind),
+            fact.clone(),
+        ])
+    }
+
+    fn c3b_predicted_partial_outcome(
+        kind: athlesia_universal_domain_learning::TransitionEffectKind,
+        fact: &CognitiveStructure,
+    ) -> CognitiveStructure {
+        CognitiveStructure::Ordered(vec![
+            CognitiveStructure::atom(0x5034_4743_3342_4F55),
+            Self::c3b_effect_kind_structure(kind),
+            fact.clone(),
+        ])
+    }
+
+    fn c3b_hypothesis_identity(
+        hypothesis: &athlesia_universal_domain_learning::GroundedExplanatoryHypothesis,
+    ) -> CognitiveStructure {
+        CognitiveStructure::Ordered(vec![
+            CognitiveStructure::atom(0x5034_4743_3342_4859),
+            hypothesis.transformation().clone(),
+            Self::c3b_context_identity(hypothesis.context()),
+            Self::c3b_effect_target(hypothesis.effect_kind(), hypothesis.effect_fact()),
+        ])
+    }
+
+    fn c3b_source_state_identity(
+        state: &athlesia_universal_domain_learning::GroundedStateSnapshot,
+    ) -> CognitiveStructure {
+        CognitiveStructure::Ordered(vec![
+            CognitiveStructure::atom(0x5034_4743_3342_5354),
+            CognitiveStructure::Unordered(state.facts().to_vec()),
+        ])
+    }
+
+    pub fn current_m50_epistemic_possibility(
+        &self,
+        state: &athlesia_universal_domain_learning::GroundedStateSnapshot,
+        action: &CognitiveStructure,
+        version_policy: athlesia_universal_domain_learning::GroundedExplanatoryVersionSpacePolicy,
+    ) -> Option<athlesia_autonomous_active_experimentation::GroundedEpistemicExperimentPossibility>
+    {
+        let version_space = self.current_explanatory_version_space(version_policy);
+
+        /*
+         * A truncated explanatory space is partial knowledge.
+         * It must never be silently promoted to M50 epistemic authority.
+         */
+        if version_space.evaluation_truncated() || version_space.frontier_truncated() {
+            return None;
+        }
+
+        let mut forecasts = Vec::new();
+
+        for hypothesis in version_space
+            .active()
+            .iter()
+            .filter(|hypothesis| hypothesis.transformation() == action)
+        {
+            let evidence =
+                athlesia_autonomous_active_experimentation::EpistemicForecastEvidence::new(
+                    hypothesis.support_count(),
+                    hypothesis.opportunity_count(),
+                    hypothesis.counterexample_count(),
+                )?;
+
+            let hypothesis_identity = Self::c3b_hypothesis_identity(hypothesis);
+
+            let target =
+                Self::c3b_effect_target(hypothesis.effect_kind(), hypothesis.effect_fact());
+
+            let prediction = hypothesis.predict(state, action);
+
+            let forecast = match prediction.status() {
+                athlesia_universal_domain_learning::
+                    GroundedExplanatoryPredictionStatus::Predicted => {
+                    athlesia_autonomous_active_experimentation::
+                        EpistemicHypothesisForecast::predicted(
+                            hypothesis_identity,
+                            target,
+                            Self::c3b_predicted_partial_outcome(
+                                hypothesis.effect_kind(),
+                                hypothesis.effect_fact(),
+                            ),
+                            evidence,
+                        )
+                }
+
+                athlesia_universal_domain_learning::
+                    GroundedExplanatoryPredictionStatus::
+                        ContextNotSatisfied => {
+                    athlesia_autonomous_active_experimentation::
+                        EpistemicHypothesisForecast::
+                            context_abstained(
+                                hypothesis_identity,
+                                target,
+                                evidence,
+                            )
+                }
+
+                athlesia_universal_domain_learning::
+                    GroundedExplanatoryPredictionStatus::
+                        NoEffectOpportunity => {
+                    athlesia_autonomous_active_experimentation::
+                        EpistemicHypothesisForecast::
+                            no_effect_opportunity(
+                                hypothesis_identity,
+                                target,
+                                evidence,
+                            )
+                }
+
+                athlesia_universal_domain_learning::
+                    GroundedExplanatoryPredictionStatus::
+                        IrrelevantTransformation => {
+                    /*
+                     * We filtered by exact transformation above.
+                     * Reaching this state would violate cross-layer
+                     * identity preservation, so fail closed.
+                     */
+                    return None;
+                }
+            }?;
+
+            forecasts.push(forecast);
+        }
+
+        athlesia_autonomous_active_experimentation::GroundedEpistemicExperimentPossibility::new(
+            Self::c3b_source_state_identity(state),
+            action.clone(),
+            forecasts,
+        )
+    }
+
     pub fn perceptual_temporal_evidence(
         &self,
     ) -> &athlesia_core_knowledge_perceptual_grounding::PerceptualProposalTemporalEvidenceState
@@ -10714,6 +10884,290 @@ mod endogenous_epistemic_frontier_bridge_tests {
             resolved.best_informative(),
             None,
             "when every retained context is simultaneously satisfied, disagreement must vanish",
+        );
+    }
+}
+
+#[cfg(test)]
+mod p4g_c3b_exact_m47_m50_epistemic_bridge_tests {
+    use super::*;
+
+    use athlesia_autonomous_active_experimentation::{
+        AutonomousEpistemicForecastDiscrimination, EpistemicForecastDiscriminationPolicy,
+        EpistemicHypothesisForecastStatus,
+    };
+
+    use athlesia_universal_domain_learning::{
+        GroundedExplanatoryVersionSpacePolicy, GroundedStateSnapshot, GroundedTransformationEpisode,
+    };
+
+    fn a(value: u64) -> CognitiveStructure {
+        CognitiveStructure::atom(value)
+    }
+
+    fn state(facts: &[u64]) -> GroundedStateSnapshot {
+        GroundedStateSnapshot::new(facts.iter().copied().map(a).collect())
+            .expect("test state is nonempty")
+    }
+
+    fn episode(before: &[u64], after: &[u64], action: u64) -> GroundedTransformationEpisode {
+        GroundedTransformationEpisode::new(state(before), state(after), a(action))
+    }
+
+    fn experience() -> Vec<GroundedTransformationEpisode> {
+        vec![episode(&[1], &[1, 900], 100), episode(&[2], &[2, 900], 100)]
+    }
+
+    fn owner(episodes: Vec<GroundedTransformationEpisode>) -> OnlinePersistentCognitiveState {
+        let mut owner = OnlinePersistentCognitiveState::new();
+
+        owner.transition_schema_learning.episodes = episodes;
+
+        owner
+    }
+
+    fn version_policy() -> GroundedExplanatoryVersionSpacePolicy {
+        GroundedExplanatoryVersionSpacePolicy::new(1, 16, 128, 64)
+            .expect("positive explanatory frontier")
+    }
+
+    fn discrimination_policy() -> EpistemicForecastDiscriminationPolicy {
+        EpistemicForecastDiscriminationPolicy::new(64, 64).expect("positive M50 epistemic bounds")
+    }
+
+    #[test]
+    fn exact_m47_prediction_and_context_abstention_survive_into_m50_without_fake_outcome() {
+        let owner = owner(experience());
+
+        let possibility = owner
+            .current_m50_epistemic_possibility(&state(&[1]), &a(100), version_policy())
+            .expect("retained M47 explanations must map into M50 epistemic forecasts");
+
+        assert_eq!(possibility.action(), &a(100),);
+
+        let predicted = possibility
+            .forecasts()
+            .iter()
+            .filter(|forecast| forecast.status() == EpistemicHypothesisForecastStatus::Predicted)
+            .collect::<Vec<_>>();
+
+        let abstained = possibility
+            .forecasts()
+            .iter()
+            .filter(|forecast| {
+                forecast.status() == EpistemicHypothesisForecastStatus::ContextAbstained
+            })
+            .collect::<Vec<_>>();
+
+        assert!(
+            !predicted.is_empty(),
+            "real M47 predictions must remain concrete predictions",
+        );
+
+        assert!(
+            !abstained.is_empty(),
+            "M47 ContextNotSatisfied must remain first-class abstention",
+        );
+
+        assert!(
+            predicted
+                .iter()
+                .all(|forecast| { forecast.predicted_outcome().is_some() }),
+        );
+
+        assert!(
+            abstained
+                .iter()
+                .all(|forecast| { forecast.predicted_outcome().is_none() }),
+            "contextual abstention must not acquire a fabricated outcome",
+        );
+
+        let evidence = possibility
+            .forecasts()
+            .iter()
+            .map(|forecast| {
+                (
+                    forecast.evidence().support_count(),
+                    forecast.evidence().opportunity_count(),
+                    forecast.evidence().counterexample_count(),
+                )
+            })
+            .collect::<Vec<_>>();
+
+        assert!(
+            evidence.contains(&(2, 2, 0)),
+            "unconditional M47 evidence must be preserved exactly",
+        );
+
+        assert!(
+            evidence
+                .iter()
+                .filter(|evidence| { **evidence == (1, 1, 0) })
+                .count()
+                >= 2,
+            "context-conditioned M47 evidence counts must survive exactly",
+        );
+    }
+
+    #[test]
+    fn m50_discrimination_matches_m47_factorized_epistemic_separation() {
+        let owner = owner(experience());
+        let current = state(&[1]);
+        let action = a(100);
+
+        let m47 = owner.current_factorized_action_discrimination(
+            &current,
+            std::slice::from_ref(&action),
+            version_policy(),
+            athlesia_universal_domain_learning::GroundedFactorizedDiscriminationPolicy::new(8)
+                .expect("positive M47 action frontier"),
+        );
+
+        let m50_possibility = owner
+            .current_m50_epistemic_possibility(&current, &action, version_policy())
+            .expect("exact M47 evidence must create M50 possibility");
+
+        let m50 = AutonomousEpistemicForecastDiscrimination::evaluate(
+            &m50_possibility,
+            discrimination_policy(),
+        );
+
+        let m47_action = m47
+            .best_informative()
+            .expect("M47 fixture is intentionally epistemically informative");
+
+        assert!(
+            m50.informative(),
+            "M50 bridge must preserve real M47 epistemic informativeness",
+        );
+
+        assert_eq!(
+            m50.pairwise_separation_score(),
+            m47_action.pairwise_separation_score(),
+            "M47 -> M50 must preserve exact factorized separation score",
+        );
+    }
+
+    #[test]
+    fn resolved_current_context_remains_noninformative_after_cross_layer_mapping() {
+        let owner = owner(experience());
+
+        let possibility = owner
+            .current_m50_epistemic_possibility(&state(&[1, 2]), &a(100), version_policy())
+            .expect("resolved context may still have grounded forecasts");
+
+        let result = AutonomousEpistemicForecastDiscrimination::evaluate(
+            &possibility,
+            discrimination_policy(),
+        );
+
+        assert!(
+            !result.informative(),
+            "M50 must not manufacture disagreement absent from M47",
+        );
+
+        assert_eq!(result.pairwise_separation_score(), 0,);
+    }
+
+    #[test]
+    fn no_effect_opportunity_survives_without_becoming_information_gain() {
+        let owner = owner(experience());
+
+        let possibility = owner
+            .current_m50_epistemic_possibility(&state(&[1, 900]), &a(100), version_policy())
+            .expect("grounded hypotheses still exist when effect opportunity is absent");
+
+        assert!(possibility.forecasts().iter().any(|forecast| {
+            forecast.status() == EpistemicHypothesisForecastStatus::NoEffectOpportunity
+        }),);
+
+        let result = AutonomousEpistemicForecastDiscrimination::evaluate(
+            &possibility,
+            discrimination_policy(),
+        );
+
+        assert!(
+            !result.informative(),
+            "NoEffectOpportunity must not be reinterpreted as epistemic separation",
+        );
+
+        assert_eq!(result.pairwise_separation_score(), 0,);
+    }
+
+    #[test]
+    fn bridge_is_order_invariant_and_keeps_distinct_context_hypothesis_identities() {
+        let episodes = experience();
+
+        let direct = owner(episodes.clone())
+            .current_m50_epistemic_possibility(&state(&[1]), &a(100), version_policy())
+            .unwrap();
+
+        let mut reversed_episodes = episodes;
+        reversed_episodes.reverse();
+
+        let reversed = owner(reversed_episodes)
+            .current_m50_epistemic_possibility(&state(&[1]), &a(100), version_policy())
+            .unwrap();
+
+        assert_eq!(
+            direct, reversed,
+            "episode ordering must not alter cross-layer epistemic identity",
+        );
+
+        let same_target = direct
+            .forecasts()
+            .iter()
+            .filter(|candidate| candidate.target() == direct.forecasts()[0].target())
+            .collect::<Vec<_>>();
+
+        assert!(
+            same_target.len() >= 3,
+            "fixture must retain unconditional and contextual explanations",
+        );
+
+        let mut identities = same_target
+            .iter()
+            .map(|candidate| candidate.hypothesis().clone())
+            .collect::<Vec<_>>();
+
+        identities.dedup();
+
+        assert!(
+            identities.len() >= 3,
+            "different M47 contexts must remain structurally distinct hypotheses",
+        );
+    }
+
+    #[test]
+    fn truncated_m47_version_space_fails_closed_before_m50_authority_exists() {
+        let owner = owner(experience());
+
+        let evaluation_truncated =
+            GroundedExplanatoryVersionSpacePolicy::new(1, 16, 1, 64).unwrap();
+
+        assert_eq!(
+            owner.current_m50_epistemic_possibility(&state(&[1]), &a(100), evaluation_truncated,),
+            None,
+            "partial M47 evaluation must not become partial M50 authority",
+        );
+
+        let frontier_truncated = GroundedExplanatoryVersionSpacePolicy::new(1, 16, 128, 1).unwrap();
+
+        assert_eq!(
+            owner.current_m50_epistemic_possibility(&state(&[1]), &a(100), frontier_truncated,),
+            None,
+            "truncated active hypothesis frontier must fail closed",
+        );
+    }
+
+    #[test]
+    fn action_without_retained_explanatory_evidence_cannot_create_m50_possibility() {
+        let owner = owner(experience());
+
+        assert_eq!(
+            owner.current_m50_epistemic_possibility(&state(&[1]), &a(200), version_policy(),),
+            None,
+            "an ungrounded action must not gain fabricated epistemic authority",
         );
     }
 }

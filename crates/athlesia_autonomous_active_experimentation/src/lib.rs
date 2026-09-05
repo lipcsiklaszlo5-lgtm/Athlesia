@@ -484,6 +484,473 @@ impl CompetingHypothesisPrediction {
     }
 }
 
+// ============================================================================
+// P4G-C3B-A — EVIDENCE-GROUNDED EPISTEMIC FORECAST REPRESENTATION
+// ============================================================================
+//
+// This representation preserves epistemic abstention without manufacturing
+// an outcome, confidence, information gain, learning progress, utility,
+// controllability or execution authority.
+//
+// Historical evidence remains explicit as support/opportunity/counterexample
+// counts. State-conditioned forecast status remains a separate fact.
+//
+// In particular:
+//
+//   Predicted          -> carries a concrete partial predicted outcome.
+//   ContextAbstained   -> carries NO fabricated outcome.
+//   NoEffectOpportunity-> carries NO fabricated outcome.
+//
+// Only Predicted vs ContextAbstained on the SAME target contributes to the
+// factorized separation score. NoEffectOpportunity does not.
+
+#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+pub enum EpistemicHypothesisForecastStatus {
+    Predicted,
+    ContextAbstained,
+    NoEffectOpportunity,
+}
+
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub struct EpistemicForecastEvidence {
+    support_count: u64,
+    opportunity_count: u64,
+    counterexample_count: u64,
+}
+
+impl EpistemicForecastEvidence {
+    pub fn new(
+        support_count: u64,
+        opportunity_count: u64,
+        counterexample_count: u64,
+    ) -> Option<Self> {
+        if support_count == 0 || opportunity_count == 0 {
+            return None;
+        }
+
+        if support_count.checked_add(counterexample_count)? != opportunity_count {
+            return None;
+        }
+
+        Some(Self {
+            support_count,
+            opportunity_count,
+            counterexample_count,
+        })
+    }
+
+    pub fn support_count(self) -> u64 {
+        self.support_count
+    }
+
+    pub fn opportunity_count(self) -> u64 {
+        self.opportunity_count
+    }
+
+    pub fn counterexample_count(self) -> u64 {
+        self.counterexample_count
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct EpistemicHypothesisForecast {
+    hypothesis: CognitiveStructure,
+    target: CognitiveStructure,
+    predicted_outcome: Option<CognitiveStructure>,
+    evidence: EpistemicForecastEvidence,
+    status: EpistemicHypothesisForecastStatus,
+}
+
+impl EpistemicHypothesisForecast {
+    fn new(
+        hypothesis: CognitiveStructure,
+        target: CognitiveStructure,
+        predicted_outcome: Option<CognitiveStructure>,
+        evidence: EpistemicForecastEvidence,
+        status: EpistemicHypothesisForecastStatus,
+    ) -> Option<Self> {
+        let outcome_contract_holds = matches!(
+            (status, predicted_outcome.is_some()),
+            (EpistemicHypothesisForecastStatus::Predicted, true)
+                | (EpistemicHypothesisForecastStatus::ContextAbstained, false)
+                | (
+                    EpistemicHypothesisForecastStatus::NoEffectOpportunity,
+                    false
+                )
+        );
+
+        if !outcome_contract_holds {
+            return None;
+        }
+
+        Some(Self {
+            hypothesis,
+            target,
+            predicted_outcome,
+            evidence,
+            status,
+        })
+    }
+
+    pub fn predicted(
+        hypothesis: CognitiveStructure,
+        target: CognitiveStructure,
+        predicted_outcome: CognitiveStructure,
+        evidence: EpistemicForecastEvidence,
+    ) -> Option<Self> {
+        Self::new(
+            hypothesis,
+            target,
+            Some(predicted_outcome),
+            evidence,
+            EpistemicHypothesisForecastStatus::Predicted,
+        )
+    }
+
+    pub fn context_abstained(
+        hypothesis: CognitiveStructure,
+        target: CognitiveStructure,
+        evidence: EpistemicForecastEvidence,
+    ) -> Option<Self> {
+        Self::new(
+            hypothesis,
+            target,
+            None,
+            evidence,
+            EpistemicHypothesisForecastStatus::ContextAbstained,
+        )
+    }
+
+    pub fn no_effect_opportunity(
+        hypothesis: CognitiveStructure,
+        target: CognitiveStructure,
+        evidence: EpistemicForecastEvidence,
+    ) -> Option<Self> {
+        Self::new(
+            hypothesis,
+            target,
+            None,
+            evidence,
+            EpistemicHypothesisForecastStatus::NoEffectOpportunity,
+        )
+    }
+
+    pub fn hypothesis(&self) -> &CognitiveStructure {
+        &self.hypothesis
+    }
+
+    pub fn target(&self) -> &CognitiveStructure {
+        &self.target
+    }
+
+    pub fn predicted_outcome(&self) -> Option<&CognitiveStructure> {
+        self.predicted_outcome.as_ref()
+    }
+
+    pub fn evidence(&self) -> EpistemicForecastEvidence {
+        self.evidence
+    }
+
+    pub fn status(&self) -> EpistemicHypothesisForecastStatus {
+        self.status
+    }
+
+    pub fn is_predicted(&self) -> bool {
+        self.status == EpistemicHypothesisForecastStatus::Predicted
+    }
+
+    pub fn is_context_abstained(&self) -> bool {
+        self.status == EpistemicHypothesisForecastStatus::ContextAbstained
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct GroundedEpistemicExperimentPossibility {
+    source_state: CognitiveStructure,
+    action: CognitiveStructure,
+    forecasts: Vec<EpistemicHypothesisForecast>,
+}
+
+impl GroundedEpistemicExperimentPossibility {
+    pub fn new(
+        source_state: CognitiveStructure,
+        action: CognitiveStructure,
+        forecasts: Vec<EpistemicHypothesisForecast>,
+    ) -> Option<Self> {
+        if forecasts.is_empty() {
+            return None;
+        }
+
+        Some(Self {
+            source_state,
+            action,
+            forecasts,
+        })
+    }
+
+    pub fn source_state(&self) -> &CognitiveStructure {
+        &self.source_state
+    }
+
+    pub fn action(&self) -> &CognitiveStructure {
+        &self.action
+    }
+
+    pub fn forecasts(&self) -> &[EpistemicHypothesisForecast] {
+        &self.forecasts
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub struct EpistemicForecastDiscriminationPolicy {
+    max_forecasts: usize,
+    max_targets: usize,
+}
+
+impl EpistemicForecastDiscriminationPolicy {
+    pub fn new(max_forecasts: usize, max_targets: usize) -> Option<Self> {
+        if max_forecasts == 0 || max_targets == 0 {
+            return None;
+        }
+
+        Some(Self {
+            max_forecasts,
+            max_targets,
+        })
+    }
+
+    pub fn max_forecasts(self) -> usize {
+        self.max_forecasts
+    }
+
+    pub fn max_targets(self) -> usize {
+        self.max_targets
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct EpistemicTargetDisagreement {
+    target: CognitiveStructure,
+    predicted_count: usize,
+    context_abstention_count: usize,
+    no_effect_opportunity_count: usize,
+}
+
+impl EpistemicTargetDisagreement {
+    pub fn target(&self) -> &CognitiveStructure {
+        &self.target
+    }
+
+    pub fn predicted_count(&self) -> usize {
+        self.predicted_count
+    }
+
+    pub fn context_abstention_count(&self) -> usize {
+        self.context_abstention_count
+    }
+
+    pub fn no_effect_opportunity_count(&self) -> usize {
+        self.no_effect_opportunity_count
+    }
+
+    pub fn pairwise_separation_score(&self) -> usize {
+        self.predicted_count
+            .saturating_mul(self.context_abstention_count)
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct GroundedEpistemicExperimentDiscrimination {
+    action: CognitiveStructure,
+    input_forecast_count: usize,
+    unique_forecast_count: usize,
+    forecast_frontier_truncated: bool,
+    target_frontier_truncated: bool,
+    disagreements: Vec<EpistemicTargetDisagreement>,
+    pairwise_separation_score: usize,
+}
+
+impl GroundedEpistemicExperimentDiscrimination {
+    pub fn action(&self) -> &CognitiveStructure {
+        &self.action
+    }
+
+    pub fn input_forecast_count(&self) -> usize {
+        self.input_forecast_count
+    }
+
+    pub fn unique_forecast_count(&self) -> usize {
+        self.unique_forecast_count
+    }
+
+    pub fn forecast_frontier_truncated(&self) -> bool {
+        self.forecast_frontier_truncated
+    }
+
+    pub fn target_frontier_truncated(&self) -> bool {
+        self.target_frontier_truncated
+    }
+
+    pub fn disagreements(&self) -> &[EpistemicTargetDisagreement] {
+        &self.disagreements
+    }
+
+    pub fn pairwise_separation_score(&self) -> usize {
+        self.pairwise_separation_score
+    }
+
+    pub fn informative(&self) -> bool {
+        !self.forecast_frontier_truncated
+            && !self.target_frontier_truncated
+            && self.pairwise_separation_score > 0
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct AutonomousEpistemicForecastDiscrimination;
+
+impl AutonomousEpistemicForecastDiscrimination {
+    fn forecast_order(
+        left: &EpistemicHypothesisForecast,
+        right: &EpistemicHypothesisForecast,
+    ) -> std::cmp::Ordering {
+        format!("{:?}", left.target())
+            .cmp(&format!("{:?}", right.target()))
+            .then_with(|| {
+                format!("{:?}", left.hypothesis()).cmp(&format!("{:?}", right.hypothesis()))
+            })
+            .then_with(|| left.status().cmp(&right.status()))
+            .then_with(|| {
+                format!("{:?}", left.predicted_outcome())
+                    .cmp(&format!("{:?}", right.predicted_outcome()))
+            })
+            .then_with(|| {
+                left.evidence()
+                    .support_count()
+                    .cmp(&right.evidence().support_count())
+            })
+            .then_with(|| {
+                left.evidence()
+                    .opportunity_count()
+                    .cmp(&right.evidence().opportunity_count())
+            })
+            .then_with(|| {
+                left.evidence()
+                    .counterexample_count()
+                    .cmp(&right.evidence().counterexample_count())
+            })
+    }
+
+    pub fn evaluate(
+        possibility: &GroundedEpistemicExperimentPossibility,
+        policy: EpistemicForecastDiscriminationPolicy,
+    ) -> GroundedEpistemicExperimentDiscrimination {
+        let input_forecast_count = possibility.forecasts().len();
+
+        let mut forecasts = possibility.forecasts().to_vec();
+
+        forecasts.sort_by(Self::forecast_order);
+        forecasts.dedup();
+
+        let unique_forecast_count = forecasts.len();
+
+        if unique_forecast_count > policy.max_forecasts() {
+            return GroundedEpistemicExperimentDiscrimination {
+                action: possibility.action().clone(),
+                input_forecast_count,
+                unique_forecast_count,
+                forecast_frontier_truncated: true,
+                target_frontier_truncated: false,
+                disagreements: Vec::new(),
+                pairwise_separation_score: 0,
+            };
+        }
+
+        let mut targets = forecasts
+            .iter()
+            .map(|forecast| forecast.target().clone())
+            .collect::<Vec<_>>();
+
+        targets.sort_by(|left, right| format!("{left:?}").cmp(&format!("{right:?}")));
+
+        targets.dedup();
+
+        if targets.len() > policy.max_targets() {
+            return GroundedEpistemicExperimentDiscrimination {
+                action: possibility.action().clone(),
+                input_forecast_count,
+                unique_forecast_count,
+                forecast_frontier_truncated: false,
+                target_frontier_truncated: true,
+                disagreements: Vec::new(),
+                pairwise_separation_score: 0,
+            };
+        }
+
+        let mut disagreements = Vec::with_capacity(targets.len());
+
+        for target in targets {
+            let relevant = forecasts
+                .iter()
+                .filter(|forecast| forecast.target() == &target);
+
+            let mut predicted_count = 0_usize;
+            let mut context_abstention_count = 0_usize;
+            let mut no_effect_opportunity_count = 0_usize;
+
+            for forecast in relevant {
+                match forecast.status() {
+                    EpistemicHypothesisForecastStatus::Predicted => {
+                        predicted_count = predicted_count.saturating_add(1);
+                    }
+
+                    EpistemicHypothesisForecastStatus::ContextAbstained => {
+                        context_abstention_count = context_abstention_count.saturating_add(1);
+                    }
+
+                    EpistemicHypothesisForecastStatus::NoEffectOpportunity => {
+                        no_effect_opportunity_count = no_effect_opportunity_count.saturating_add(1);
+                    }
+                }
+            }
+
+            disagreements.push(EpistemicTargetDisagreement {
+                target,
+                predicted_count,
+                context_abstention_count,
+                no_effect_opportunity_count,
+            });
+        }
+
+        let pairwise_separation_score = disagreements
+            .iter()
+            .map(EpistemicTargetDisagreement::pairwise_separation_score)
+            .fold(0_usize, usize::saturating_add);
+
+        GroundedEpistemicExperimentDiscrimination {
+            action: possibility.action().clone(),
+            input_forecast_count,
+            unique_forecast_count,
+            forecast_frontier_truncated: false,
+            target_frontier_truncated: false,
+            disagreements,
+            pairwise_separation_score,
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct UniversalAutonomousEpistemicForecastDiscrimination;
+
+impl UniversalAutonomousEpistemicForecastDiscrimination {
+    pub fn evaluate(
+        possibility: &GroundedEpistemicExperimentPossibility,
+        policy: EpistemicForecastDiscriminationPolicy,
+    ) -> GroundedEpistemicExperimentDiscrimination {
+        AutonomousEpistemicForecastDiscrimination::evaluate(possibility, policy)
+    }
+}
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct HypothesisDiscriminationCandidate {
     experiment: AutonomousExperimentProposal,
@@ -8487,5 +8954,205 @@ mod integrated_autonomous_experimentation_cycle_tests {
         assert_eq!(possibilities, before_possibilities);
 
         assert_eq!(samples, before_samples);
+    }
+}
+
+#[cfg(test)]
+mod p4g_c3b_epistemic_forecast_representation_tests {
+    use super::*;
+
+    fn a(value: u64) -> CognitiveStructure {
+        CognitiveStructure::atom(value)
+    }
+
+    fn evidence(support: u64, opportunity: u64, counterexamples: u64) -> EpistemicForecastEvidence {
+        EpistemicForecastEvidence::new(support, opportunity, counterexamples)
+            .expect("test evidence must be internally exact")
+    }
+
+    fn possibility(
+        forecasts: Vec<EpistemicHypothesisForecast>,
+    ) -> GroundedEpistemicExperimentPossibility {
+        GroundedEpistemicExperimentPossibility::new(a(1), a(10), forecasts)
+            .expect("test possibility requires forecasts")
+    }
+
+    fn policy() -> EpistemicForecastDiscriminationPolicy {
+        EpistemicForecastDiscriminationPolicy::new(16, 16).expect("positive C3B-A bounds")
+    }
+
+    #[test]
+    fn empirical_evidence_contract_is_exact_and_rejects_invented_counts() {
+        let exact = evidence(3, 5, 2);
+
+        assert_eq!(exact.support_count(), 3);
+        assert_eq!(exact.opportunity_count(), 5);
+        assert_eq!(exact.counterexample_count(), 2);
+
+        assert_eq!(EpistemicForecastEvidence::new(0, 1, 1), None,);
+
+        assert_eq!(EpistemicForecastEvidence::new(1, 0, 0), None,);
+
+        assert_eq!(
+            EpistemicForecastEvidence::new(2, 5, 2),
+            None,
+            "support plus counterexamples must equal exact opportunity count",
+        );
+
+        assert_eq!(
+            EpistemicForecastEvidence::new(u64::MAX, 1, 1),
+            None,
+            "overflowing evidence arithmetic must fail closed",
+        );
+    }
+
+    #[test]
+    fn contextual_abstention_is_first_class_without_fabricated_outcome_or_confidence() {
+        let historical = evidence(2, 2, 0);
+        let outcome = a(900);
+
+        let predicted =
+            EpistemicHypothesisForecast::predicted(a(100), a(500), outcome.clone(), historical)
+                .expect("grounded prediction is valid");
+
+        let abstained = EpistemicHypothesisForecast::context_abstained(a(101), a(500), historical)
+            .expect("contextual abstention is valid");
+
+        assert_eq!(
+            predicted.status(),
+            EpistemicHypothesisForecastStatus::Predicted,
+        );
+
+        assert_eq!(predicted.predicted_outcome(), Some(&outcome),);
+
+        assert_eq!(
+            abstained.status(),
+            EpistemicHypothesisForecastStatus::ContextAbstained,
+        );
+
+        assert_eq!(
+            abstained.predicted_outcome(),
+            None,
+            "contextual abstention must never become a synthetic outcome",
+        );
+
+        assert_eq!(predicted.evidence(), historical);
+        assert_eq!(abstained.evidence(), historical);
+        assert_eq!(predicted.target(), abstained.target());
+        assert_ne!(predicted.hypothesis(), abstained.hypothesis());
+    }
+
+    #[test]
+    fn prediction_vs_context_abstention_is_informative_but_no_opportunity_is_not() {
+        let historical = evidence(2, 2, 0);
+
+        let predicted =
+            EpistemicHypothesisForecast::predicted(a(100), a(500), a(900), historical).unwrap();
+
+        let abstained =
+            EpistemicHypothesisForecast::context_abstained(a(101), a(500), historical).unwrap();
+
+        let informative = AutonomousEpistemicForecastDiscrimination::evaluate(
+            &possibility(vec![predicted.clone(), abstained]),
+            policy(),
+        );
+
+        assert!(informative.informative());
+        assert_eq!(informative.pairwise_separation_score(), 1);
+        assert_eq!(informative.disagreements().len(), 1);
+        assert_eq!(informative.disagreements()[0].predicted_count(), 1,);
+        assert_eq!(informative.disagreements()[0].context_abstention_count(), 1,);
+
+        let no_opportunity =
+            EpistemicHypothesisForecast::no_effect_opportunity(a(101), a(500), historical).unwrap();
+
+        let noninformative = AutonomousEpistemicForecastDiscrimination::evaluate(
+            &possibility(vec![predicted, no_opportunity]),
+            policy(),
+        );
+
+        assert!(!noninformative.informative());
+        assert_eq!(noninformative.pairwise_separation_score(), 0,);
+
+        assert_eq!(
+            noninformative.disagreements()[0].no_effect_opportunity_count(),
+            1,
+        );
+    }
+
+    #[test]
+    fn order_and_exact_duplication_cannot_inflate_epistemic_separation() {
+        let historical = evidence(3, 3, 0);
+
+        let predicted =
+            EpistemicHypothesisForecast::predicted(a(100), a(500), a(900), historical).unwrap();
+
+        let abstained =
+            EpistemicHypothesisForecast::context_abstained(a(101), a(500), historical).unwrap();
+
+        let direct = AutonomousEpistemicForecastDiscrimination::evaluate(
+            &possibility(vec![
+                predicted.clone(),
+                abstained.clone(),
+                predicted.clone(),
+            ]),
+            policy(),
+        );
+
+        let reversed = UniversalAutonomousEpistemicForecastDiscrimination::evaluate(
+            &possibility(vec![abstained, predicted.clone(), predicted]),
+            policy(),
+        );
+
+        assert_eq!(direct, reversed);
+        assert_eq!(direct.input_forecast_count(), 3);
+        assert_eq!(direct.unique_forecast_count(), 2);
+        assert_eq!(direct.pairwise_separation_score(), 1);
+    }
+
+    #[test]
+    fn hard_frontiers_fail_closed_without_partial_epistemic_authority() {
+        let historical = evidence(1, 1, 0);
+
+        let forecasts = vec![
+            EpistemicHypothesisForecast::predicted(a(100), a(500), a(900), historical).unwrap(),
+            EpistemicHypothesisForecast::context_abstained(a(101), a(500), historical).unwrap(),
+        ];
+
+        let forecast_bounded = AutonomousEpistemicForecastDiscrimination::evaluate(
+            &possibility(forecasts.clone()),
+            EpistemicForecastDiscriminationPolicy::new(1, 16).unwrap(),
+        );
+
+        assert!(forecast_bounded.forecast_frontier_truncated());
+        assert!(!forecast_bounded.informative());
+        assert_eq!(forecast_bounded.pairwise_separation_score(), 0,);
+
+        let multi_target = possibility(vec![
+            forecasts[0].clone(),
+            forecasts[1].clone(),
+            EpistemicHypothesisForecast::predicted(a(102), a(501), a(901), historical).unwrap(),
+        ]);
+
+        let target_bounded = AutonomousEpistemicForecastDiscrimination::evaluate(
+            &multi_target,
+            EpistemicForecastDiscriminationPolicy::new(16, 1).unwrap(),
+        );
+
+        assert!(target_bounded.target_frontier_truncated());
+        assert!(!target_bounded.informative());
+        assert_eq!(target_bounded.pairwise_separation_score(), 0,);
+    }
+
+    #[test]
+    fn epistemic_possibility_requires_real_forecast_and_positive_bounds() {
+        assert_eq!(
+            GroundedEpistemicExperimentPossibility::new(a(1), a(2), Vec::new(),),
+            None,
+        );
+
+        assert_eq!(EpistemicForecastDiscriminationPolicy::new(0, 1), None,);
+
+        assert_eq!(EpistemicForecastDiscriminationPolicy::new(1, 0), None,);
     }
 }
