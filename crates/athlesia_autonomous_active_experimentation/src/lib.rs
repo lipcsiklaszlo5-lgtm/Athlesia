@@ -1403,6 +1403,262 @@ impl UniversalAutonomousEpistemicOutcomeResolution {
     }
 }
 
+// ============================================================================
+// P4G-C3D-A — REALIZED EPISTEMIC PROGRESS
+// ============================================================================
+//
+// This is NOT expected information gain.
+//
+// It measures an observed change in epistemic separation after a real
+// consequence has already been resolved:
+//
+//     same source state + same action
+//     pre-learning model separation
+//         -> real intervention evidence
+//         -> post-learning model separation
+//
+// Reduction and increase remain separate.  An experience that exposes new
+// ambiguity is therefore not mislabeled as zero progress.
+//
+// The realized outcome must correspond exactly to the complete canonical
+// pre-action forecast set.  No detached resolution record can be reused.
+
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub enum EpistemicResolutionProgressStatus {
+    Measured,
+    OutcomeNotResolved,
+    SourceStateMismatch,
+    ActionMismatch,
+    ResolutionForecastMismatch,
+    PreLearningFrontierTruncated,
+    PostLearningFrontierTruncated,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct EpistemicResolutionProgressSample {
+    source_state: CognitiveStructure,
+    action: CognitiveStructure,
+    separation_before: usize,
+    separation_after: usize,
+    realized_separation_reduction: usize,
+    realized_separation_increase: usize,
+    supported_prediction_count: usize,
+    counterexample_prediction_count: usize,
+    context_uninformative_count: usize,
+    no_opportunity_uninformative_count: usize,
+}
+
+impl EpistemicResolutionProgressSample {
+    pub fn source_state(&self) -> &CognitiveStructure {
+        &self.source_state
+    }
+
+    pub fn action(&self) -> &CognitiveStructure {
+        &self.action
+    }
+
+    pub fn separation_before(&self) -> usize {
+        self.separation_before
+    }
+
+    pub fn separation_after(&self) -> usize {
+        self.separation_after
+    }
+
+    pub fn realized_separation_reduction(&self) -> usize {
+        self.realized_separation_reduction
+    }
+
+    pub fn realized_separation_increase(&self) -> usize {
+        self.realized_separation_increase
+    }
+
+    pub fn supported_prediction_count(&self) -> usize {
+        self.supported_prediction_count
+    }
+
+    pub fn counterexample_prediction_count(&self) -> usize {
+        self.counterexample_prediction_count
+    }
+
+    pub fn empirically_tested_prediction_count(&self) -> usize {
+        self.supported_prediction_count
+            .saturating_add(self.counterexample_prediction_count)
+    }
+
+    pub fn context_uninformative_count(&self) -> usize {
+        self.context_uninformative_count
+    }
+
+    pub fn no_opportunity_uninformative_count(&self) -> usize {
+        self.no_opportunity_uninformative_count
+    }
+
+    pub fn reduced_uncertainty(&self) -> bool {
+        self.realized_separation_reduction > 0
+    }
+
+    pub fn increased_uncertainty(&self) -> bool {
+        self.realized_separation_increase > 0
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct EpistemicResolutionProgressResult {
+    status: EpistemicResolutionProgressStatus,
+    sample: Option<EpistemicResolutionProgressSample>,
+}
+
+impl EpistemicResolutionProgressResult {
+    fn rejected(status: EpistemicResolutionProgressStatus) -> Self {
+        Self {
+            status,
+            sample: None,
+        }
+    }
+
+    pub fn status(&self) -> EpistemicResolutionProgressStatus {
+        self.status
+    }
+
+    pub fn measured(&self) -> bool {
+        self.status == EpistemicResolutionProgressStatus::Measured
+    }
+
+    pub fn sample(&self) -> Option<&EpistemicResolutionProgressSample> {
+        self.sample.as_ref()
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct AutonomousEpistemicResolutionProgress;
+
+impl AutonomousEpistemicResolutionProgress {
+    fn canonical_forecasts(
+        possibility: &GroundedEpistemicExperimentPossibility,
+    ) -> Vec<EpistemicHypothesisForecast> {
+        let mut forecasts = possibility.forecasts().to_vec();
+
+        forecasts.sort_by(|left, right| format!("{left:?}").cmp(&format!("{right:?}")));
+
+        forecasts.dedup();
+        forecasts
+    }
+
+    fn resolved_forecasts(
+        resolution: &EpistemicOutcomeResolutionResult,
+    ) -> Vec<EpistemicHypothesisForecast> {
+        let mut forecasts = resolution
+            .assessments()
+            .iter()
+            .map(|assessment| assessment.forecast().clone())
+            .collect::<Vec<_>>();
+
+        forecasts.sort_by(|left, right| format!("{left:?}").cmp(&format!("{right:?}")));
+
+        forecasts.dedup();
+        forecasts
+    }
+
+    pub fn measure(
+        pre_learning: &GroundedEpistemicExperimentPossibility,
+        realized_outcome: &EpistemicOutcomeResolutionResult,
+        post_learning: &GroundedEpistemicExperimentPossibility,
+        discrimination_policy: EpistemicForecastDiscriminationPolicy,
+    ) -> EpistemicResolutionProgressResult {
+        if !realized_outcome.resolved() {
+            return EpistemicResolutionProgressResult::rejected(
+                EpistemicResolutionProgressStatus::OutcomeNotResolved,
+            );
+        }
+
+        if pre_learning.source_state() != post_learning.source_state() {
+            return EpistemicResolutionProgressResult::rejected(
+                EpistemicResolutionProgressStatus::SourceStateMismatch,
+            );
+        }
+
+        if pre_learning.action() != post_learning.action() {
+            return EpistemicResolutionProgressResult::rejected(
+                EpistemicResolutionProgressStatus::ActionMismatch,
+            );
+        }
+
+        if Self::canonical_forecasts(pre_learning) != Self::resolved_forecasts(realized_outcome) {
+            return EpistemicResolutionProgressResult::rejected(
+                EpistemicResolutionProgressStatus::ResolutionForecastMismatch,
+            );
+        }
+
+        let before = AutonomousEpistemicForecastDiscrimination::evaluate(
+            pre_learning,
+            discrimination_policy,
+        );
+
+        if before.forecast_frontier_truncated() || before.target_frontier_truncated() {
+            return EpistemicResolutionProgressResult::rejected(
+                EpistemicResolutionProgressStatus::PreLearningFrontierTruncated,
+            );
+        }
+
+        let after = AutonomousEpistemicForecastDiscrimination::evaluate(
+            post_learning,
+            discrimination_policy,
+        );
+
+        if after.forecast_frontier_truncated() || after.target_frontier_truncated() {
+            return EpistemicResolutionProgressResult::rejected(
+                EpistemicResolutionProgressStatus::PostLearningFrontierTruncated,
+            );
+        }
+
+        let separation_before = before.pairwise_separation_score();
+
+        let separation_after = after.pairwise_separation_score();
+
+        let realized_separation_reduction = separation_before.saturating_sub(separation_after);
+
+        let realized_separation_increase = separation_after.saturating_sub(separation_before);
+
+        EpistemicResolutionProgressResult {
+            status: EpistemicResolutionProgressStatus::Measured,
+
+            sample: Some(EpistemicResolutionProgressSample {
+                source_state: pre_learning.source_state().clone(),
+                action: pre_learning.action().clone(),
+                separation_before,
+                separation_after,
+                realized_separation_reduction,
+                realized_separation_increase,
+                supported_prediction_count: realized_outcome.supported_prediction_count(),
+                counterexample_prediction_count: realized_outcome.counterexample_prediction_count(),
+                context_uninformative_count: realized_outcome.context_uninformative_count(),
+                no_opportunity_uninformative_count: realized_outcome
+                    .no_opportunity_uninformative_count(),
+            }),
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct UniversalAutonomousEpistemicResolutionProgress;
+
+impl UniversalAutonomousEpistemicResolutionProgress {
+    pub fn measure(
+        pre_learning: &GroundedEpistemicExperimentPossibility,
+        realized_outcome: &EpistemicOutcomeResolutionResult,
+        post_learning: &GroundedEpistemicExperimentPossibility,
+        discrimination_policy: EpistemicForecastDiscriminationPolicy,
+    ) -> EpistemicResolutionProgressResult {
+        AutonomousEpistemicResolutionProgress::measure(
+            pre_learning,
+            realized_outcome,
+            post_learning,
+            discrimination_policy,
+        )
+    }
+}
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct HypothesisDiscriminationCandidate {
     experiment: AutonomousExperimentProposal,
@@ -9918,5 +10174,255 @@ mod p4g_c3c_realized_epistemic_resolution_tests {
         assert_eq!(EpistemicOutcomeResolutionPolicy::new(0, 1,), None,);
 
         assert_eq!(EpistemicOutcomeResolutionPolicy::new(1, 0,), None,);
+    }
+}
+
+#[cfg(test)]
+mod p4g_c3d_realized_epistemic_progress_tests {
+    use super::*;
+
+    fn a(value: u64) -> CognitiveStructure {
+        CognitiveStructure::atom(value)
+    }
+
+    fn evidence() -> EpistemicForecastEvidence {
+        EpistemicForecastEvidence::new(2, 2, 0).expect("exact test evidence")
+    }
+
+    fn predicted(hypothesis: u64, target: u64) -> EpistemicHypothesisForecast {
+        EpistemicHypothesisForecast::predicted(
+            a(hypothesis),
+            a(target),
+            a(target + 10_000),
+            evidence(),
+        )
+        .unwrap()
+    }
+
+    fn abstained(hypothesis: u64, target: u64) -> EpistemicHypothesisForecast {
+        EpistemicHypothesisForecast::context_abstained(a(hypothesis), a(target), evidence())
+            .unwrap()
+    }
+
+    fn possibility(
+        source: u64,
+        action: u64,
+        forecasts: Vec<EpistemicHypothesisForecast>,
+    ) -> GroundedEpistemicExperimentPossibility {
+        GroundedEpistemicExperimentPossibility::new(a(source), a(action), forecasts).unwrap()
+    }
+
+    fn resolution(
+        possibility: &GroundedEpistemicExperimentPossibility,
+        target_id: u64,
+        occurred: bool,
+    ) -> EpistemicOutcomeResolutionResult {
+        let observation = GroundedEpistemicOutcomeObservation::new(
+            possibility.source_state().clone(),
+            possibility.action().clone(),
+            vec![EpistemicTargetObservation::new(a(target_id), occurred)],
+        )
+        .unwrap();
+
+        AutonomousEpistemicOutcomeResolution::evaluate(
+            possibility,
+            &observation,
+            EpistemicOutcomeResolutionPolicy::new(32, 32).unwrap(),
+        )
+    }
+
+    fn policy() -> EpistemicForecastDiscriminationPolicy {
+        EpistemicForecastDiscriminationPolicy::new(32, 32).unwrap()
+    }
+
+    #[test]
+    fn real_model_update_can_measure_exact_epistemic_separation_reduction() {
+        let pre = possibility(1, 10, vec![predicted(100, 500), abstained(101, 500)]);
+
+        let outcome = resolution(&pre, 500, true);
+
+        let post = possibility(1, 10, vec![predicted(100, 500), predicted(101, 500)]);
+
+        let result =
+            AutonomousEpistemicResolutionProgress::measure(&pre, &outcome, &post, policy());
+
+        assert!(result.measured());
+
+        let sample = result.sample().unwrap();
+
+        assert_eq!(sample.separation_before(), 1);
+        assert_eq!(sample.separation_after(), 0);
+        assert_eq!(sample.realized_separation_reduction(), 1,);
+        assert_eq!(sample.realized_separation_increase(), 0,);
+        assert!(sample.reduced_uncertainty());
+        assert!(!sample.increased_uncertainty());
+        assert_eq!(sample.empirically_tested_prediction_count(), 1,);
+    }
+
+    #[test]
+    fn newly_exposed_ambiguity_is_recorded_as_increase_not_silently_clipped() {
+        let pre = possibility(1, 10, vec![predicted(100, 500), predicted(101, 500)]);
+
+        let outcome = resolution(&pre, 500, true);
+
+        let post = possibility(1, 10, vec![predicted(100, 500), abstained(101, 500)]);
+
+        let result =
+            AutonomousEpistemicResolutionProgress::measure(&pre, &outcome, &post, policy());
+
+        let sample = result.sample().unwrap();
+
+        assert_eq!(sample.separation_before(), 0);
+        assert_eq!(sample.separation_after(), 1);
+        assert_eq!(sample.realized_separation_reduction(), 0,);
+        assert_eq!(sample.realized_separation_increase(), 1,);
+        assert!(!sample.reduced_uncertainty());
+        assert!(sample.increased_uncertainty());
+    }
+
+    #[test]
+    fn source_or_action_change_cannot_be_called_learning_progress() {
+        let pre = possibility(1, 10, vec![predicted(100, 500)]);
+
+        let outcome = resolution(&pre, 500, true);
+
+        let wrong_source = possibility(2, 10, vec![predicted(100, 500)]);
+
+        let wrong_action = possibility(1, 11, vec![predicted(100, 500)]);
+
+        assert_eq!(
+            AutonomousEpistemicResolutionProgress::measure(
+                &pre,
+                &outcome,
+                &wrong_source,
+                policy(),
+            )
+            .status(),
+            EpistemicResolutionProgressStatus::
+                SourceStateMismatch,
+        );
+
+        assert_eq!(
+            AutonomousEpistemicResolutionProgress::measure(
+                &pre,
+                &outcome,
+                &wrong_action,
+                policy(),
+            )
+            .status(),
+            EpistemicResolutionProgressStatus::
+                ActionMismatch,
+        );
+    }
+
+    #[test]
+    fn detached_outcome_resolution_cannot_be_reused_for_another_forecast_frontier() {
+        let first = possibility(1, 10, vec![predicted(100, 500)]);
+
+        let second = possibility(1, 10, vec![predicted(999, 500)]);
+
+        let detached = resolution(&second, 500, true);
+
+        let result =
+            AutonomousEpistemicResolutionProgress::measure(&first, &detached, &first, policy());
+
+        assert_eq!(
+            result.status(),
+            EpistemicResolutionProgressStatus::ResolutionForecastMismatch,
+        );
+
+        assert!(result.sample().is_none());
+    }
+
+    #[test]
+    fn unresolved_outcome_cannot_manufacture_progress() {
+        let pre = possibility(1, 10, vec![predicted(100, 500)]);
+
+        let wrong_observation = GroundedEpistemicOutcomeObservation::new(
+            a(1),
+            a(999),
+            vec![EpistemicTargetObservation::new(a(500), true)],
+        )
+        .unwrap();
+
+        let unresolved = AutonomousEpistemicOutcomeResolution::evaluate(
+            &pre,
+            &wrong_observation,
+            EpistemicOutcomeResolutionPolicy::new(32, 32).unwrap(),
+        );
+
+        let result =
+            AutonomousEpistemicResolutionProgress::measure(&pre, &unresolved, &pre, policy());
+
+        assert_eq!(
+            result.status(),
+            EpistemicResolutionProgressStatus::OutcomeNotResolved,
+        );
+
+        assert!(result.sample().is_none());
+    }
+
+    #[test]
+    fn hard_discrimination_frontier_fails_closed_before_progress_measurement() {
+        let pre = possibility(1, 10, vec![predicted(100, 500), abstained(101, 500)]);
+
+        let outcome = resolution(&pre, 500, true);
+
+        let result = AutonomousEpistemicResolutionProgress::measure(
+            &pre,
+            &outcome,
+            &pre,
+            EpistemicForecastDiscriminationPolicy::new(1, 32).unwrap(),
+        );
+
+        assert_eq!(
+            result.status(),
+            EpistemicResolutionProgressStatus::PreLearningFrontierTruncated,
+        );
+
+        assert!(result.sample().is_none());
+    }
+
+    #[test]
+    fn measurement_is_order_invariant_non_mutating_and_facade_equivalent() {
+        let pre = possibility(1, 10, vec![predicted(100, 500), abstained(101, 500)]);
+
+        let outcome = resolution(&pre, 500, false);
+
+        let post = possibility(1, 10, vec![predicted(100, 500), predicted(101, 500)]);
+
+        let mut reversed = pre.forecasts().to_vec();
+        reversed.reverse();
+
+        let reordered = GroundedEpistemicExperimentPossibility::new(
+            pre.source_state().clone(),
+            pre.action().clone(),
+            reversed,
+        )
+        .unwrap();
+
+        let before_pre = pre.clone();
+        let before_outcome = outcome.clone();
+        let before_post = post.clone();
+
+        let direct =
+            AutonomousEpistemicResolutionProgress::measure(&pre, &outcome, &post, policy());
+
+        let reordered_result =
+            AutonomousEpistemicResolutionProgress::measure(&reordered, &outcome, &post, policy());
+
+        let facade = UniversalAutonomousEpistemicResolutionProgress::measure(
+            &pre,
+            &outcome,
+            &post,
+            policy(),
+        );
+
+        assert_eq!(direct, reordered_result);
+        assert_eq!(direct, facade);
+
+        assert_eq!(pre, before_pre);
+        assert_eq!(outcome, before_outcome);
+        assert_eq!(post, before_post);
     }
 }

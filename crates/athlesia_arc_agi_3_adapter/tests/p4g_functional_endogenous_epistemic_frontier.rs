@@ -645,3 +645,313 @@ fn live_real_consequence_with_wrong_action_identity_is_rejected_without_hidden_t
         "rejected provenance must not cause hidden transport",
     );
 }
+
+#[test]
+fn live_real_learning_changes_same_holdout_epistemic_frontier_and_c3d_measures_exact_change() {
+    let game = "p4gc3d-live-progress";
+
+    let action_one = action(ArcAgi3ActionId::Action1);
+    let action_two = action(ArcAgi3ActionId::Action2);
+
+    let mut runtime = live_runtime(game, 360_000);
+
+    /*
+     * Establish the frozen C2/C3 experience, then enter a genuinely unseen
+     * current context through real ACTION2.
+     *
+     * ACTION1 has not yet been executed from context 7.
+     */
+    mature_runtime(&mut runtime, game);
+
+    real_training_turn(&mut runtime, game, action_two, 7_u8);
+
+    let cognitive_action = ArcAgi3CognitiveProtocolBridge::encode_action(action_one);
+
+    /*
+     * Preserve the exact PRE-action state.
+     *
+     * After the real consequence, the retained cognitive owner will contain
+     * new learning, but this same state is intentionally queried again so
+     * C3D compares the same epistemic question:
+     *
+     *     "What would ACTION1 do from this exact state?"
+     */
+    let before_state = runtime
+        .cognitive_runtime()
+        .current_grounded_world_state()
+        .expect("holdout context must retain a grounded state")
+        .clone();
+
+    let version_policy =
+        athlesia_universal_domain_learning::GroundedExplanatoryVersionSpacePolicy::new(
+            1, 64, 512, 256,
+        )
+        .expect("positive explanatory bounds");
+
+    let pre_learning = runtime
+        .cognitive_runtime()
+        .cognition()
+        .current_m50_epistemic_possibility(&before_state, &cognitive_action, version_policy)
+        .expect("unseen context must expose a grounded pre-learning Action1 possibility");
+
+    let discrimination_policy =
+        athlesia_autonomous_active_experimentation::EpistemicForecastDiscriminationPolicy::new(
+            512, 512,
+        )
+        .expect("positive discrimination bounds");
+
+    let pre_discrimination =
+        athlesia_autonomous_active_experimentation::
+            AutonomousEpistemicForecastDiscrimination::
+                evaluate(
+                    &pre_learning,
+                    discrimination_policy,
+                );
+
+    assert!(
+        pre_discrimination.informative(),
+        "pre-learning holdout frontier must contain real unresolved epistemic separation",
+    );
+
+    assert!(pre_discrimination.pairwise_separation_score() > 0,);
+
+    let before_action_transport = runtime.transport().execute_count();
+
+    /*
+     * REAL learning event.
+     *
+     * The same retained owner observes:
+     *
+     *     context 7 --ACTION1--> context 6
+     */
+    real_training_turn(&mut runtime, game, action_one, 6_u8);
+
+    assert_eq!(
+        runtime.transport().execute_count(),
+        before_action_transport + 1,
+        "exactly one real intervention must separate pre- and post-learning cognition",
+    );
+
+    assert_eq!(runtime.transport().last_executed_action(), Some(action_one),);
+
+    let after_state = runtime
+        .cognitive_runtime()
+        .current_grounded_world_state()
+        .expect("real consequence must leave a grounded after-state")
+        .clone();
+
+    /*
+     * Resolve the PRE-action possibility against the real consequence.
+     * This is the frozen C3C bridge.
+     */
+    let realized_outcome = runtime
+        .cognitive_runtime()
+        .cognition()
+        .resolve_m50_epistemic_possibility_against_transition(
+            &pre_learning,
+            &before_state,
+            &after_state,
+            &cognitive_action,
+            athlesia_autonomous_active_experimentation::EpistemicOutcomeResolutionPolicy::new(
+                512, 512,
+            )
+            .expect("positive outcome-resolution bounds"),
+        )
+        .expect("frozen C3B effect targets must decode");
+
+    assert!(realized_outcome.resolved());
+
+    assert!(
+        realized_outcome.empirically_tested_prediction_count() > 0,
+        "real environment consequence must test at least one concrete prediction",
+    );
+
+    /*
+     * IMPORTANT:
+     *
+     * Re-evaluate the SAME OLD state 7 after the retained owner has learned
+     * from ACTION1 7 -> 6.
+     *
+     * This is not the new current state. It is a counterfactual re-query of
+     * the exact same pre-action epistemic problem using the UPDATED retained
+     * model.
+     */
+    let post_learning = runtime
+        .cognitive_runtime()
+        .cognition()
+        .current_m50_epistemic_possibility(&before_state, &cognitive_action, version_policy)
+        .expect("updated retained cognition must still answer the same grounded Action1 query");
+
+    assert_eq!(
+        pre_learning.source_state(),
+        post_learning.source_state(),
+        "C3D live progress must compare the exact same source-state identity",
+    );
+
+    assert_eq!(
+        pre_learning.action(),
+        post_learning.action(),
+        "C3D live progress must compare the exact same action identity",
+    );
+
+    let post_discrimination =
+        athlesia_autonomous_active_experimentation::
+            AutonomousEpistemicForecastDiscrimination::
+                evaluate(
+                    &post_learning,
+                    discrimination_policy,
+                );
+
+    assert!(
+        !post_discrimination.forecast_frontier_truncated()
+            && !post_discrimination.target_frontier_truncated(),
+        "post-learning comparison must not depend on a partial frontier",
+    );
+
+    let before_resolution_transport = runtime.transport().execute_count();
+
+    let progress =
+        athlesia_autonomous_active_experimentation::AutonomousEpistemicResolutionProgress::measure(
+            &pre_learning,
+            &realized_outcome,
+            &post_learning,
+            discrimination_policy,
+        );
+
+    assert!(
+        progress.measured(),
+        "a real consequence followed by retained model update must yield measurable C3D progress",
+    );
+
+    let sample = progress
+        .sample()
+        .expect("measured C3D result must contain one exact sample");
+
+    assert_eq!(sample.source_state(), pre_learning.source_state(),);
+
+    assert_eq!(sample.action(), pre_learning.action(),);
+
+    assert_eq!(
+        sample.separation_before(),
+        pre_discrimination.pairwise_separation_score(),
+        "C3D must preserve exact pre-learning separation",
+    );
+
+    assert_eq!(
+        sample.separation_after(),
+        post_discrimination.pairwise_separation_score(),
+        "C3D must preserve exact post-learning separation",
+    );
+
+    assert_ne!(
+        sample.separation_before(),
+        sample.separation_after(),
+        "the real ACTION1 consequence must actually change the retained answer to the same holdout epistemic question",
+    );
+
+    assert!(
+        sample.realized_separation_reduction() > 0 || sample.realized_separation_increase() > 0,
+        "realized model change must remain explicit rather than being clipped to zero",
+    );
+
+    assert!(
+        !(sample.realized_separation_reduction() > 0 && sample.realized_separation_increase() > 0),
+        "one scalar separation change cannot simultaneously be classified as both increase and reduction",
+    );
+
+    assert_eq!(
+        sample.supported_prediction_count(),
+        realized_outcome.supported_prediction_count(),
+    );
+
+    assert_eq!(
+        sample.counterexample_prediction_count(),
+        realized_outcome.counterexample_prediction_count(),
+    );
+
+    assert_eq!(
+        runtime.transport().execute_count(),
+        before_resolution_transport,
+        "post-learning re-query and C3D measurement must have zero hidden transport effect",
+    );
+}
+
+#[test]
+fn live_epistemic_requery_without_new_environment_evidence_cannot_manufacture_progress() {
+    let game = "p4gc3d-live-no-new-evidence";
+
+    let action_one = action(ArcAgi3ActionId::Action1);
+    let action_two = action(ArcAgi3ActionId::Action2);
+
+    let mut runtime = live_runtime(game, 370_000);
+
+    mature_runtime(&mut runtime, game);
+
+    real_training_turn(&mut runtime, game, action_two, 7_u8);
+
+    let cognitive_action = ArcAgi3CognitiveProtocolBridge::encode_action(action_one);
+
+    let state = runtime
+        .cognitive_runtime()
+        .current_grounded_world_state()
+        .expect("holdout context must be grounded")
+        .clone();
+
+    let version_policy =
+        athlesia_universal_domain_learning::GroundedExplanatoryVersionSpacePolicy::new(
+            1, 64, 512, 256,
+        )
+        .expect("positive explanatory bounds");
+
+    let before_transport = runtime.transport().execute_count();
+
+    let first = runtime
+        .cognitive_runtime()
+        .cognition()
+        .current_m50_epistemic_possibility(&state, &cognitive_action, version_policy)
+        .expect("first epistemic query");
+
+    let second = runtime
+        .cognitive_runtime()
+        .cognition()
+        .current_m50_epistemic_possibility(&state, &cognitive_action, version_policy)
+        .expect("second epistemic query");
+
+    assert_eq!(
+        first, second,
+        "without intervening environment evidence, repeated epistemic queries must be identical",
+    );
+
+    let policy =
+        athlesia_autonomous_active_experimentation::EpistemicForecastDiscriminationPolicy::new(
+            512, 512,
+        )
+        .expect("positive discrimination bounds");
+
+    let first_frontier =
+        athlesia_autonomous_active_experimentation::
+            AutonomousEpistemicForecastDiscrimination::
+                evaluate(
+                    &first,
+                    policy,
+                );
+
+    let second_frontier =
+        athlesia_autonomous_active_experimentation::
+            AutonomousEpistemicForecastDiscrimination::
+                evaluate(
+                    &second,
+                    policy,
+                );
+
+    assert_eq!(
+        first_frontier, second_frontier,
+        "epistemic separation cannot change merely because cognition was queried twice",
+    );
+
+    assert_eq!(
+        runtime.transport().execute_count(),
+        before_transport,
+        "epistemic re-query must have zero hidden transport effect",
+    );
+}
