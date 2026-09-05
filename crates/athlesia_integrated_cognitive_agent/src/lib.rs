@@ -10160,6 +10160,57 @@ impl OnlinePersistentCognitiveState {
                 )
     }
 
+    pub fn current_empirical_epistemic_action_priority_frontier(
+        &self,
+        state: &athlesia_universal_domain_learning::GroundedStateSnapshot,
+        actions: &[CognitiveStructure],
+        version_policy: athlesia_universal_domain_learning::GroundedExplanatoryVersionSpacePolicy,
+        discrimination_policy:
+            athlesia_autonomous_active_experimentation::
+                EpistemicForecastDiscriminationPolicy,
+        expectation_policy:
+            athlesia_autonomous_active_experimentation::
+                EmpiricalExpectedEpistemicProgressPolicy,
+        priority_policy:
+            athlesia_autonomous_active_experimentation::
+                EmpiricalEpistemicActionPriorityPolicy,
+    ) -> athlesia_autonomous_active_experimentation::EmpiricalEpistemicActionPriorityFrontier {
+        let mut candidates = Vec::new();
+
+        for action in actions {
+            let Some(possibility) =
+                self.current_m50_epistemic_possibility(state, action, version_policy)
+            else {
+                continue;
+            };
+
+            let expectation = self.current_empirical_expected_epistemic_progress(
+                &possibility,
+                discrimination_policy,
+                expectation_policy,
+            );
+
+            let Some(candidate) =
+                athlesia_autonomous_active_experimentation::
+                    EmpiricalEpistemicActionPriorityCandidate::
+                        from_estimate(
+                            &possibility,
+                            &expectation,
+                            discrimination_policy,
+                        )
+            else {
+                continue;
+            };
+
+            candidates.push(candidate);
+        }
+
+        athlesia_autonomous_active_experimentation::AutonomousEmpiricalEpistemicActionPriority::rank(
+            &candidates,
+            priority_policy,
+        )
+    }
+
     pub fn observe_environment_transition(
         &mut self,
         input: &athlesia_core_knowledge_perceptual_grounding::IntegratedPerceptualWorldInput,
@@ -11763,5 +11814,303 @@ mod p4g_c3e_retained_epistemic_progress_history_tests {
         assert_eq!(estimate.expected_reduction_numerator(), 2,);
 
         assert_eq!(estimate.expected_reduction_denominator(), 2,);
+    }
+}
+
+#[cfg(test)]
+mod p4g_c3f_endogenous_priority_frontier_bridge_tests {
+    use super::*;
+
+    use athlesia_autonomous_active_experimentation::{
+        AutonomousEpistemicOutcomeResolution, AutonomousEpistemicResolutionProgress,
+        EmpiricalEpistemicActionPriorityPolicy, EmpiricalEpistemicActionPriorityStatus,
+        EmpiricalExpectedEpistemicProgressPolicy, EpistemicForecastDiscriminationPolicy,
+        EpistemicForecastOutcomeAssessmentStatus, EpistemicHypothesisForecast,
+        EpistemicHypothesisForecastStatus, EpistemicOutcomeResolutionPolicy,
+        EpistemicTargetObservation, GroundedEpistemicExperimentPossibility,
+        GroundedEpistemicOutcomeObservation,
+    };
+
+    use athlesia_universal_domain_learning::{
+        GroundedExplanatoryVersionSpacePolicy, GroundedStateSnapshot, GroundedTransformationEpisode,
+    };
+
+    fn a(value: u64) -> CognitiveStructure {
+        CognitiveStructure::atom(value)
+    }
+
+    fn state(facts: &[u64]) -> GroundedStateSnapshot {
+        GroundedStateSnapshot::new(facts.iter().copied().map(a).collect())
+            .expect("nonempty test state")
+    }
+
+    fn episode(before: &[u64], after: &[u64], action: u64) -> GroundedTransformationEpisode {
+        GroundedTransformationEpisode::new(state(before), state(after), a(action))
+    }
+
+    fn owner() -> OnlinePersistentCognitiveState {
+        let mut owner = OnlinePersistentCognitiveState::new();
+
+        owner.transition_schema_learning.episodes =
+            vec![episode(&[1], &[1, 900], 100), episode(&[2], &[2, 900], 100)];
+
+        owner
+    }
+
+    fn version_policy() -> GroundedExplanatoryVersionSpacePolicy {
+        GroundedExplanatoryVersionSpacePolicy::new(1, 16, 128, 64)
+            .expect("positive explanatory bounds")
+    }
+
+    fn discrimination_policy() -> EpistemicForecastDiscriminationPolicy {
+        EpistemicForecastDiscriminationPolicy::new(128, 128)
+            .expect("positive discrimination bounds")
+    }
+
+    fn expectation_policy() -> EmpiricalExpectedEpistemicProgressPolicy {
+        EmpiricalExpectedEpistemicProgressPolicy::new(16, 16, 1)
+            .expect("positive expectation bounds")
+    }
+
+    fn priority_policy() -> EmpiricalEpistemicActionPriorityPolicy {
+        EmpiricalEpistemicActionPriorityPolicy::new(8).expect("positive priority bound")
+    }
+
+    fn reduction_sample(
+        possibility: &GroundedEpistemicExperimentPossibility,
+    ) -> athlesia_autonomous_active_experimentation::EpistemicResolutionProgressSample {
+        let mut observed_targets = Vec::new();
+
+        for forecast in possibility.forecasts() {
+            if !observed_targets
+                .iter()
+                .any(|existing: &EpistemicTargetObservation| existing.target() == forecast.target())
+            {
+                observed_targets.push(EpistemicTargetObservation::new(
+                    forecast.target().clone(),
+                    true,
+                ));
+            }
+        }
+
+        let observation = GroundedEpistemicOutcomeObservation::new(
+            possibility.source_state().clone(),
+            possibility.action().clone(),
+            observed_targets,
+        )
+        .expect("complete target observation");
+
+        let outcome = AutonomousEpistemicOutcomeResolution::evaluate(
+            possibility,
+            &observation,
+            EpistemicOutcomeResolutionPolicy::new(128, 128).unwrap(),
+        );
+
+        assert!(outcome.resolved());
+
+        assert!(
+            outcome.assessments().iter().any(|assessment| {
+                assessment.status()
+                    == EpistemicForecastOutcomeAssessmentStatus::ContextUninformative
+            }),
+            "fixture must actually contain contextual epistemic abstention",
+        );
+
+        let post_forecasts = possibility
+            .forecasts()
+            .iter()
+            .map(|forecast| match forecast.status() {
+                EpistemicHypothesisForecastStatus::ContextAbstained => {
+                    EpistemicHypothesisForecast::predicted(
+                        forecast.hypothesis().clone(),
+                        forecast.target().clone(),
+                        CognitiveStructure::Ordered(vec![
+                            a(0x5034_4743_3346_5445),
+                            forecast.target().clone(),
+                        ]),
+                        forecast.evidence(),
+                    )
+                    .expect("synthetic post-model contract prediction")
+                }
+
+                _ => forecast.clone(),
+            })
+            .collect::<Vec<_>>();
+
+        let post = GroundedEpistemicExperimentPossibility::new(
+            possibility.source_state().clone(),
+            possibility.action().clone(),
+            post_forecasts,
+        )
+        .expect("post-learning possibility");
+
+        let progress = AutonomousEpistemicResolutionProgress::measure(
+            possibility,
+            &outcome,
+            &post,
+            discrimination_policy(),
+        );
+
+        let sample = progress
+            .sample()
+            .expect("contract fixture must create measured progress")
+            .clone();
+
+        assert!(
+            sample.realized_separation_reduction() > 0,
+            "fixture history must contain actual reduction rather than a fabricated positive label",
+        );
+
+        sample
+    }
+
+    #[test]
+    fn retained_exact_matching_history_endogenously_creates_priority_for_grounded_action() {
+        let mut owner = owner();
+        let current = state(&[1]);
+        let action = a(100);
+
+        let possibility = owner
+            .current_m50_epistemic_possibility(&current, &action, version_policy())
+            .expect("fixture action must be epistemically grounded");
+
+        owner.retain_epistemic_progress_event(
+            700,
+            reduction_sample(&possibility),
+            RetainedEpistemicProgressHistoryPolicy::new(8).unwrap(),
+        );
+
+        let before_history = owner.epistemic_progress_event_count();
+
+        let frontier = owner.current_empirical_epistemic_action_priority_frontier(
+            &current,
+            &[a(200), action.clone()],
+            version_policy(),
+            discrimination_policy(),
+            expectation_policy(),
+            priority_policy(),
+        );
+
+        assert!(frontier.ranked_successfully(),);
+
+        assert_eq!(
+            frontier
+                .best()
+                .expect("one exact empirical candidate")
+                .action(),
+            &action,
+        );
+
+        assert_eq!(
+            owner.epistemic_progress_event_count(),
+            before_history,
+            "priority query must not mutate retained empirical history",
+        );
+    }
+
+    #[test]
+    fn no_retained_history_means_no_endogenous_priority_even_when_action_is_epistemically_informative()
+     {
+        let owner = owner();
+        let current = state(&[1]);
+
+        let frontier = owner.current_empirical_epistemic_action_priority_frontier(
+            &current,
+            &[a(100)],
+            version_policy(),
+            discrimination_policy(),
+            expectation_policy(),
+            priority_policy(),
+        );
+
+        assert_eq!(
+            frontier.status(),
+            EmpiricalEpistemicActionPriorityStatus::NoPositiveEmpiricalPriority,
+        );
+
+        assert!(frontier.best().is_none());
+    }
+
+    #[test]
+    fn retained_pre_learning_history_becomes_stale_when_current_model_pattern_changes() {
+        let mut owner = owner();
+        let current = state(&[1]);
+        let action = a(100);
+
+        let possibility = owner
+            .current_m50_epistemic_possibility(&current, &action, version_policy())
+            .unwrap();
+
+        owner.retain_epistemic_progress_event(
+            701,
+            reduction_sample(&possibility),
+            RetainedEpistemicProgressHistoryPolicy::new(8).unwrap(),
+        );
+
+        /*
+         * Real explanatory evidence now contradicts the old Add(900)
+         * pattern in context 1.  The retained C3E sample remains history,
+         * but it is NOT fresh evidence for the new current pattern.
+         */
+        owner
+            .transition_schema_learning
+            .episodes
+            .push(episode(&[1], &[1], 100));
+
+        let frontier = owner.current_empirical_epistemic_action_priority_frontier(
+            &current,
+            &[action],
+            version_policy(),
+            discrimination_policy(),
+            expectation_policy(),
+            priority_policy(),
+        );
+
+        assert_eq!(
+            frontier.status(),
+            EmpiricalEpistemicActionPriorityStatus::NoPositiveEmpiricalPriority,
+        );
+
+        assert!(
+            frontier.best().is_none(),
+            "stale empirical progress history must not authorize priority after the epistemic pattern changed",
+        );
+    }
+
+    #[test]
+    fn action_order_cannot_change_endogenous_priority_frontier() {
+        let mut owner = owner();
+        let current = state(&[1]);
+        let action = a(100);
+
+        let possibility = owner
+            .current_m50_epistemic_possibility(&current, &action, version_policy())
+            .unwrap();
+
+        owner.retain_epistemic_progress_event(
+            702,
+            reduction_sample(&possibility),
+            RetainedEpistemicProgressHistoryPolicy::new(8).unwrap(),
+        );
+
+        let direct = owner.current_empirical_epistemic_action_priority_frontier(
+            &current,
+            &[a(200), action.clone()],
+            version_policy(),
+            discrimination_policy(),
+            expectation_policy(),
+            priority_policy(),
+        );
+
+        let reversed = owner.current_empirical_epistemic_action_priority_frontier(
+            &current,
+            &[action, a(200)],
+            version_policy(),
+            discrimination_policy(),
+            expectation_policy(),
+            priority_policy(),
+        );
+
+        assert_eq!(direct, reversed);
     }
 }

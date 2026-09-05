@@ -2187,6 +2187,356 @@ impl UniversalAutonomousEmpiricalExpectedEpistemicProgress {
     }
 }
 
+// ============================================================================
+// P4G-C3F-A — EMPIRICAL EPISTEMIC ACTION PRIORITY
+// ============================================================================
+//
+// C3E learned an empirical expectation from retained REAL intervention
+// history.  C3F-A allows that evidence to rank epistemic actions.
+//
+// This layer is NOT execution authority.
+//
+// It does not:
+//   * dispatch an action;
+//   * bypass M48;
+//   * fabricate probability, likelihood, confidence, utility or Shannon EIG;
+//   * generalize between different source states;
+//   * turn insufficient history into a score.
+//
+// A candidate exists only when:
+//
+//   1. the current epistemic possibility is still informative;
+//   2. the supplied C3E estimate exactly matches the CURRENT complete
+//      epistemic pattern;
+//   3. the estimate is supported by retained empirical evidence;
+//   4. empirical expected separation reduction is strictly greater than
+//      empirical expected separation increase.
+//
+// Ranking compares exact rational net expected progress:
+//
+//     (total_reduction - total_increase) / qualifying_sample_count
+//
+// Cross multiplication is checked. Overflow fails closed.
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct EmpiricalEpistemicActionPriorityCandidate {
+    source_state: CognitiveStructure,
+    action: CognitiveStructure,
+    qualifying_sample_count: usize,
+    expected_reduction_numerator: u128,
+    expected_increase_numerator: u128,
+    expectation_denominator: usize,
+}
+
+impl EmpiricalEpistemicActionPriorityCandidate {
+    pub fn from_estimate(
+        current: &GroundedEpistemicExperimentPossibility,
+        expectation: &EmpiricalExpectedEpistemicProgressResult,
+        discrimination_policy: EpistemicForecastDiscriminationPolicy,
+    ) -> Option<Self> {
+        if !expectation.estimated() {
+            return None;
+        }
+
+        let estimate = expectation.estimate()?;
+
+        let discrimination =
+            AutonomousEpistemicForecastDiscrimination::evaluate(current, discrimination_policy);
+
+        if discrimination.forecast_frontier_truncated()
+            || discrimination.target_frontier_truncated()
+            || !discrimination.informative()
+        {
+            return None;
+        }
+
+        let current_pattern =
+            EpistemicProgressExpectationPattern::from_current_possibility(current, &discrimination);
+
+        if &current_pattern != estimate.pattern() {
+            return None;
+        }
+
+        let reduction_denominator = estimate.expected_reduction_denominator();
+
+        let increase_denominator = estimate.expected_increase_denominator();
+
+        if reduction_denominator == 0
+            || reduction_denominator != increase_denominator
+            || reduction_denominator != estimate.qualifying_sample_count()
+        {
+            return None;
+        }
+
+        let reduction = estimate.expected_reduction_numerator();
+
+        let increase = estimate.expected_increase_numerator();
+
+        if reduction <= increase {
+            return None;
+        }
+
+        Some(Self {
+            source_state: current.source_state().clone(),
+            action: current.action().clone(),
+            qualifying_sample_count: estimate.qualifying_sample_count(),
+            expected_reduction_numerator: reduction,
+            expected_increase_numerator: increase,
+            expectation_denominator: reduction_denominator,
+        })
+    }
+
+    pub fn source_state(&self) -> &CognitiveStructure {
+        &self.source_state
+    }
+
+    pub fn action(&self) -> &CognitiveStructure {
+        &self.action
+    }
+
+    pub fn qualifying_sample_count(&self) -> usize {
+        self.qualifying_sample_count
+    }
+
+    pub fn expected_reduction_numerator(&self) -> u128 {
+        self.expected_reduction_numerator
+    }
+
+    pub fn expected_increase_numerator(&self) -> u128 {
+        self.expected_increase_numerator
+    }
+
+    pub fn expectation_denominator(&self) -> usize {
+        self.expectation_denominator
+    }
+
+    pub fn net_expected_progress_numerator(&self) -> u128 {
+        self.expected_reduction_numerator
+            .saturating_sub(self.expected_increase_numerator)
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub struct EmpiricalEpistemicActionPriorityPolicy {
+    max_candidates: usize,
+}
+
+impl EmpiricalEpistemicActionPriorityPolicy {
+    pub fn new(max_candidates: usize) -> Option<Self> {
+        if max_candidates == 0 {
+            return None;
+        }
+
+        Some(Self { max_candidates })
+    }
+
+    pub fn max_candidates(self) -> usize {
+        self.max_candidates
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub enum EmpiricalEpistemicActionPriorityStatus {
+    Ranked,
+    NoPositiveEmpiricalPriority,
+    CandidateFrontierExceeded,
+    SourceStateMismatch,
+    ConflictingActionIdentity,
+    ArithmeticOverflow,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct EmpiricalEpistemicActionPriorityFrontier {
+    status: EmpiricalEpistemicActionPriorityStatus,
+    input_candidate_count: usize,
+    unique_candidate_count: usize,
+    ranked: Vec<EmpiricalEpistemicActionPriorityCandidate>,
+}
+
+impl EmpiricalEpistemicActionPriorityFrontier {
+    fn rejected(
+        status: EmpiricalEpistemicActionPriorityStatus,
+        input_candidate_count: usize,
+        unique_candidate_count: usize,
+    ) -> Self {
+        Self {
+            status,
+            input_candidate_count,
+            unique_candidate_count,
+            ranked: Vec::new(),
+        }
+    }
+
+    pub fn status(&self) -> EmpiricalEpistemicActionPriorityStatus {
+        self.status
+    }
+
+    pub fn ranked_successfully(&self) -> bool {
+        self.status == EmpiricalEpistemicActionPriorityStatus::Ranked
+    }
+
+    pub fn input_candidate_count(&self) -> usize {
+        self.input_candidate_count
+    }
+
+    pub fn unique_candidate_count(&self) -> usize {
+        self.unique_candidate_count
+    }
+
+    pub fn ranked(&self) -> &[EmpiricalEpistemicActionPriorityCandidate] {
+        &self.ranked
+    }
+
+    pub fn best(&self) -> Option<&EmpiricalEpistemicActionPriorityCandidate> {
+        if self.ranked_successfully() {
+            self.ranked.first()
+        } else {
+            None
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct AutonomousEmpiricalEpistemicActionPriority;
+
+impl AutonomousEmpiricalEpistemicActionPriority {
+    fn checked_expected_net_cmp(
+        left: &EmpiricalEpistemicActionPriorityCandidate,
+        right: &EmpiricalEpistemicActionPriorityCandidate,
+    ) -> Option<std::cmp::Ordering> {
+        let left_cross = left
+            .net_expected_progress_numerator()
+            .checked_mul(right.expectation_denominator() as u128)?;
+
+        let right_cross = right
+            .net_expected_progress_numerator()
+            .checked_mul(left.expectation_denominator() as u128)?;
+
+        /*
+         * Descending exact rational expected net progress.
+         */
+        Some(
+            right_cross
+                .cmp(&left_cross)
+                .then_with(|| {
+                    right
+                        .qualifying_sample_count()
+                        .cmp(&left.qualifying_sample_count())
+                })
+                .then_with(|| format!("{:?}", left.action()).cmp(&format!("{:?}", right.action()))),
+        )
+    }
+
+    pub fn rank(
+        candidates: &[EmpiricalEpistemicActionPriorityCandidate],
+        policy: EmpiricalEpistemicActionPriorityPolicy,
+    ) -> EmpiricalEpistemicActionPriorityFrontier {
+        let input_candidate_count = candidates.len();
+
+        if input_candidate_count == 0 {
+            return EmpiricalEpistemicActionPriorityFrontier::rejected(
+                EmpiricalEpistemicActionPriorityStatus::NoPositiveEmpiricalPriority,
+                0,
+                0,
+            );
+        }
+
+        if input_candidate_count > policy.max_candidates() {
+            return EmpiricalEpistemicActionPriorityFrontier::rejected(
+                EmpiricalEpistemicActionPriorityStatus::CandidateFrontierExceeded,
+                input_candidate_count,
+                0,
+            );
+        }
+
+        let expected_source = candidates[0].source_state();
+
+        if candidates
+            .iter()
+            .any(|candidate| candidate.source_state() != expected_source)
+        {
+            return EmpiricalEpistemicActionPriorityFrontier::rejected(
+                EmpiricalEpistemicActionPriorityStatus::SourceStateMismatch,
+                input_candidate_count,
+                0,
+            );
+        }
+
+        let mut canonical = candidates.to_vec();
+
+        canonical.sort_by(|left, right| {
+            format!("{:?}", left.action())
+                .cmp(&format!("{:?}", right.action()))
+                .then_with(|| format!("{left:?}").cmp(&format!("{right:?}")))
+        });
+
+        let mut unique: Vec<EmpiricalEpistemicActionPriorityCandidate> = Vec::new();
+
+        for candidate in canonical {
+            if let Some(existing) = unique
+                .iter()
+                .find(|existing| existing.action() == candidate.action())
+            {
+                if existing != &candidate {
+                    return EmpiricalEpistemicActionPriorityFrontier::rejected(
+                        EmpiricalEpistemicActionPriorityStatus::ConflictingActionIdentity,
+                        input_candidate_count,
+                        unique.len(),
+                    );
+                }
+
+                continue;
+            }
+
+            unique.push(candidate);
+        }
+
+        let unique_candidate_count = unique.len();
+
+        /*
+         * Validate every pair before sorting, because Rust sort
+         * comparators cannot return a fallible result.
+         */
+        for left_index in 0..unique.len() {
+            for right_index in (left_index + 1)..unique.len() {
+                if Self::checked_expected_net_cmp(&unique[left_index], &unique[right_index])
+                    .is_none()
+                {
+                    return EmpiricalEpistemicActionPriorityFrontier::rejected(
+                        EmpiricalEpistemicActionPriorityStatus::ArithmeticOverflow,
+                        input_candidate_count,
+                        unique_candidate_count,
+                    );
+                }
+            }
+        }
+
+        unique.sort_by(|left, right| {
+            Self::checked_expected_net_cmp(left, right)
+                .expect("pairwise arithmetic was validated before ranking")
+        });
+
+        EmpiricalEpistemicActionPriorityFrontier {
+            status: EmpiricalEpistemicActionPriorityStatus::Ranked,
+            input_candidate_count,
+            unique_candidate_count,
+            ranked: unique,
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct UniversalAutonomousEmpiricalEpistemicActionPriority;
+
+impl UniversalAutonomousEmpiricalEpistemicActionPriority {
+    pub fn rank(
+        candidates: &[EmpiricalEpistemicActionPriorityCandidate],
+        policy: EmpiricalEpistemicActionPriorityPolicy,
+    ) -> EmpiricalEpistemicActionPriorityFrontier {
+        AutonomousEmpiricalEpistemicActionPriority::rank(candidates, policy)
+    }
+}
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct HypothesisDiscriminationCandidate {
     experiment: AutonomousExperimentProposal,
@@ -11386,5 +11736,432 @@ mod p4g_c3e_empirical_expected_epistemic_progress_tests {
         assert_eq!(direct, facade);
         assert_eq!(pre, before_pre);
         assert_eq!(direct_history, before_history);
+    }
+}
+
+#[cfg(test)]
+mod p4g_c3f_empirical_epistemic_action_priority_tests {
+    use super::*;
+
+    fn a(value: u64) -> CognitiveStructure {
+        CognitiveStructure::atom(value)
+    }
+
+    fn evidence() -> EpistemicForecastEvidence {
+        EpistemicForecastEvidence::new(2, 2, 0).unwrap()
+    }
+
+    fn predicted(hypothesis: u64, target: u64) -> EpistemicHypothesisForecast {
+        EpistemicHypothesisForecast::predicted(
+            a(hypothesis),
+            a(target),
+            a(target + 10_000),
+            evidence(),
+        )
+        .unwrap()
+    }
+
+    fn abstained(hypothesis: u64, target: u64) -> EpistemicHypothesisForecast {
+        EpistemicHypothesisForecast::context_abstained(a(hypothesis), a(target), evidence())
+            .unwrap()
+    }
+
+    fn possibility(
+        source: u64,
+        action: u64,
+        forecasts: Vec<EpistemicHypothesisForecast>,
+    ) -> GroundedEpistemicExperimentPossibility {
+        GroundedEpistemicExperimentPossibility::new(a(source), a(action), forecasts).unwrap()
+    }
+
+    fn pre(source: u64, action: u64) -> GroundedEpistemicExperimentPossibility {
+        possibility(
+            source,
+            action,
+            vec![predicted(100, 500), abstained(101, 500)],
+        )
+    }
+
+    fn resolution(
+        pre: &GroundedEpistemicExperimentPossibility,
+    ) -> EpistemicOutcomeResolutionResult {
+        let observation = GroundedEpistemicOutcomeObservation::new(
+            pre.source_state().clone(),
+            pre.action().clone(),
+            vec![EpistemicTargetObservation::new(a(500), true)],
+        )
+        .unwrap();
+
+        AutonomousEpistemicOutcomeResolution::evaluate(
+            pre,
+            &observation,
+            EpistemicOutcomeResolutionPolicy::new(64, 64).unwrap(),
+        )
+    }
+
+    fn reduction_post(source: u64, action: u64) -> GroundedEpistemicExperimentPossibility {
+        possibility(
+            source,
+            action,
+            vec![predicted(100, 500), predicted(101, 500)],
+        )
+    }
+
+    fn increase_post(source: u64, action: u64) -> GroundedEpistemicExperimentPossibility {
+        possibility(
+            source,
+            action,
+            vec![
+                predicted(100, 500),
+                abstained(101, 500),
+                abstained(102, 500),
+            ],
+        )
+    }
+
+    fn progress(
+        pre: &GroundedEpistemicExperimentPossibility,
+        post: &GroundedEpistemicExperimentPossibility,
+    ) -> EpistemicResolutionProgressSample {
+        AutonomousEpistemicResolutionProgress::measure(
+            pre,
+            &resolution(pre),
+            post,
+            discrimination_policy(),
+        )
+        .sample()
+        .unwrap()
+        .clone()
+    }
+
+    fn progress_evidence(
+        id: u64,
+        sample: EpistemicResolutionProgressSample,
+    ) -> GroundedEpistemicProgressEvidence {
+        GroundedEpistemicProgressEvidence::new(a(id), sample)
+    }
+
+    fn discrimination_policy() -> EpistemicForecastDiscriminationPolicy {
+        EpistemicForecastDiscriminationPolicy::new(64, 64).unwrap()
+    }
+
+    fn expectation_policy(minimum: usize) -> EmpiricalExpectedEpistemicProgressPolicy {
+        EmpiricalExpectedEpistemicProgressPolicy::new(64, 64, minimum).unwrap()
+    }
+
+    fn estimate(
+        current: &GroundedEpistemicExperimentPossibility,
+        history: &[GroundedEpistemicProgressEvidence],
+        minimum: usize,
+    ) -> EmpiricalExpectedEpistemicProgressResult {
+        AutonomousEmpiricalExpectedEpistemicProgress::estimate(
+            current,
+            history,
+            discrimination_policy(),
+            expectation_policy(minimum),
+        )
+    }
+
+    fn candidate(
+        current: &GroundedEpistemicExperimentPossibility,
+        history: &[GroundedEpistemicProgressEvidence],
+        minimum: usize,
+    ) -> Option<EmpiricalEpistemicActionPriorityCandidate> {
+        let expectation = estimate(current, history, minimum);
+
+        EmpiricalEpistemicActionPriorityCandidate::from_estimate(
+            current,
+            &expectation,
+            discrimination_policy(),
+        )
+    }
+
+    #[test]
+    fn repeated_real_reduction_history_creates_exact_non_authoritative_priority_candidate() {
+        let current = pre(1, 10);
+
+        let post = reduction_post(1, 10);
+
+        let history = vec![
+            progress_evidence(1000, progress(&current, &post)),
+            progress_evidence(1001, progress(&current, &post)),
+        ];
+
+        let candidate = candidate(&current, &history, 2)
+            .expect("repeated exact empirical reduction history should create epistemic priority");
+
+        assert_eq!(candidate.source_state(), current.source_state(),);
+
+        assert_eq!(candidate.action(), current.action(),);
+
+        assert_eq!(candidate.qualifying_sample_count(), 2,);
+
+        assert_eq!(candidate.expected_reduction_numerator(), 2,);
+
+        assert_eq!(candidate.expected_increase_numerator(), 0,);
+
+        assert_eq!(candidate.expectation_denominator(), 2,);
+
+        assert_eq!(candidate.net_expected_progress_numerator(), 2,);
+    }
+
+    #[test]
+    fn insufficient_history_cannot_manufacture_action_priority() {
+        let current = pre(1, 10);
+        let post = reduction_post(1, 10);
+
+        let history = vec![progress_evidence(1000, progress(&current, &post))];
+
+        assert_eq!(candidate(&current, &history, 2,), None,);
+    }
+
+    #[test]
+    fn neutral_or_uncertainty_increasing_empirical_history_is_not_positive_priority() {
+        let current = pre(1, 10);
+
+        let unchanged = current.clone();
+
+        let neutral_history = vec![progress_evidence(1000, progress(&current, &unchanged))];
+
+        assert_eq!(candidate(&current, &neutral_history, 1,), None,);
+
+        let increased = increase_post(1, 10);
+
+        let increasing_history = vec![progress_evidence(1001, progress(&current, &increased))];
+
+        assert_eq!(candidate(&current, &increasing_history, 1,), None,);
+    }
+
+    #[test]
+    fn stale_expectation_for_different_current_epistemic_pattern_is_rejected() {
+        let original = pre(1, 10);
+
+        let post = reduction_post(1, 10);
+
+        let expectation = estimate(
+            &original,
+            &[progress_evidence(1000, progress(&original, &post))],
+            1,
+        );
+
+        let changed_current = possibility(
+            1,
+            10,
+            vec![
+                predicted(100, 500),
+                abstained(101, 500),
+                abstained(102, 500),
+            ],
+        );
+
+        assert_eq!(
+            EmpiricalEpistemicActionPriorityCandidate::from_estimate(
+                &changed_current,
+                &expectation,
+                discrimination_policy(),
+            ),
+            None,
+        );
+    }
+
+    #[test]
+    fn exact_rational_expected_net_progress_ranks_actions_without_float_or_signal_conversion() {
+        let action_a = pre(1, 10);
+        let action_b = pre(1, 11);
+
+        let reduction_a = reduction_post(1, 10);
+
+        let reduction_b = reduction_post(1, 11);
+
+        let candidate_a = candidate(
+            &action_a,
+            &[
+                progress_evidence(1000, progress(&action_a, &reduction_a)),
+                progress_evidence(1001, progress(&action_a, &action_a)),
+            ],
+            2,
+        )
+        .unwrap();
+
+        /*
+         * action A = 1 / 2 expected net reduction.
+         */
+        assert_eq!(candidate_a.net_expected_progress_numerator(), 1,);
+        assert_eq!(candidate_a.expectation_denominator(), 2,);
+
+        let candidate_b = candidate(
+            &action_b,
+            &[
+                progress_evidence(2000, progress(&action_b, &reduction_b)),
+                progress_evidence(2001, progress(&action_b, &reduction_b)),
+                progress_evidence(2002, progress(&action_b, &action_b)),
+            ],
+            3,
+        )
+        .unwrap();
+
+        /*
+         * action B = 2 / 3 expected net reduction.
+         */
+        assert_eq!(candidate_b.net_expected_progress_numerator(), 2,);
+        assert_eq!(candidate_b.expectation_denominator(), 3,);
+
+        let frontier = AutonomousEmpiricalEpistemicActionPriority::rank(
+            &[candidate_a, candidate_b.clone()],
+            EmpiricalEpistemicActionPriorityPolicy::new(8).unwrap(),
+        );
+
+        assert!(frontier.ranked_successfully());
+
+        assert_eq!(
+            frontier.best(),
+            Some(&candidate_b),
+            "2/3 must rank above 1/2 by exact checked cross multiplication",
+        );
+    }
+
+    #[test]
+    fn candidates_from_different_source_states_cannot_share_one_priority_frontier() {
+        let first = pre(1, 10);
+        let second = pre(2, 11);
+
+        let first_post = reduction_post(1, 10);
+
+        let second_post = reduction_post(2, 11);
+
+        let first_candidate = candidate(
+            &first,
+            &[progress_evidence(1000, progress(&first, &first_post))],
+            1,
+        )
+        .unwrap();
+
+        let second_candidate = candidate(
+            &second,
+            &[progress_evidence(2000, progress(&second, &second_post))],
+            1,
+        )
+        .unwrap();
+
+        let frontier = AutonomousEmpiricalEpistemicActionPriority::rank(
+            &[first_candidate, second_candidate],
+            EmpiricalEpistemicActionPriorityPolicy::new(8).unwrap(),
+        );
+
+        assert_eq!(
+            frontier.status(),
+            EmpiricalEpistemicActionPriorityStatus::SourceStateMismatch,
+        );
+
+        assert!(frontier.best().is_none());
+    }
+
+    #[test]
+    fn exact_duplicate_action_candidate_deduplicates_but_conflicting_reuse_fails_closed() {
+        let current = pre(1, 10);
+
+        let reduction = reduction_post(1, 10);
+
+        let one_sample = candidate(
+            &current,
+            &[progress_evidence(1000, progress(&current, &reduction))],
+            1,
+        )
+        .unwrap();
+
+        let duplicate_frontier = AutonomousEmpiricalEpistemicActionPriority::rank(
+            &[one_sample.clone(), one_sample.clone()],
+            EmpiricalEpistemicActionPriorityPolicy::new(8).unwrap(),
+        );
+
+        assert!(duplicate_frontier.ranked_successfully(),);
+
+        assert_eq!(duplicate_frontier.input_candidate_count(), 2,);
+
+        assert_eq!(duplicate_frontier.unique_candidate_count(), 1,);
+
+        let two_samples = candidate(
+            &current,
+            &[
+                progress_evidence(2000, progress(&current, &reduction)),
+                progress_evidence(2001, progress(&current, &reduction)),
+            ],
+            2,
+        )
+        .unwrap();
+
+        let conflict = AutonomousEmpiricalEpistemicActionPriority::rank(
+            &[one_sample, two_samples],
+            EmpiricalEpistemicActionPriorityPolicy::new(8).unwrap(),
+        );
+
+        assert_eq!(
+            conflict.status(),
+            EmpiricalEpistemicActionPriorityStatus::ConflictingActionIdentity,
+        );
+
+        assert!(conflict.best().is_none());
+    }
+
+    #[test]
+    fn empty_and_bounded_frontiers_fail_closed_and_facade_is_equivalent() {
+        let empty = AutonomousEmpiricalEpistemicActionPriority::rank(
+            &[],
+            EmpiricalEpistemicActionPriorityPolicy::new(1).unwrap(),
+        );
+
+        assert_eq!(
+            empty.status(),
+            EmpiricalEpistemicActionPriorityStatus::NoPositiveEmpiricalPriority,
+        );
+
+        let first = pre(1, 10);
+        let second = pre(1, 11);
+
+        let first_candidate = candidate(
+            &first,
+            &[progress_evidence(
+                1000,
+                progress(&first, &reduction_post(1, 10)),
+            )],
+            1,
+        )
+        .unwrap();
+
+        let second_candidate = candidate(
+            &second,
+            &[progress_evidence(
+                2000,
+                progress(&second, &reduction_post(1, 11)),
+            )],
+            1,
+        )
+        .unwrap();
+
+        let bounded = AutonomousEmpiricalEpistemicActionPriority::rank(
+            &[first_candidate.clone(), second_candidate.clone()],
+            EmpiricalEpistemicActionPriorityPolicy::new(1).unwrap(),
+        );
+
+        assert_eq!(
+            bounded.status(),
+            EmpiricalEpistemicActionPriorityStatus::CandidateFrontierExceeded,
+        );
+
+        assert!(bounded.best().is_none());
+
+        let direct = AutonomousEmpiricalEpistemicActionPriority::rank(
+            &[second_candidate.clone(), first_candidate.clone()],
+            EmpiricalEpistemicActionPriorityPolicy::new(8).unwrap(),
+        );
+
+        let facade = UniversalAutonomousEmpiricalEpistemicActionPriority::rank(
+            &[first_candidate, second_candidate],
+            EmpiricalEpistemicActionPriorityPolicy::new(8).unwrap(),
+        );
+
+        assert_eq!(direct, facade);
+
+        assert_eq!(EmpiricalEpistemicActionPriorityPolicy::new(0), None,);
     }
 }
