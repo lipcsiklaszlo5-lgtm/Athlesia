@@ -366,6 +366,85 @@ impl ArcAgi3PerceptualIngestionBridge {
         )
     }
 
+    pub fn grouping_visual_objecthood_evidence(
+        frame: &PerceptualFrame,
+        candidate: &athlesia_core_knowledge_perceptual_grounding::PerceptualGroupingCandidate,
+    ) -> Option<(bool, bool)> {
+        if !candidate.is_grounded_in(frame) {
+            return None;
+        }
+
+        let mut members = std::collections::BTreeMap::<(u8, u8), u8>::new();
+
+        for &handle in candidate.members() {
+            let element = frame.element(handle)?;
+
+            let decoded = Self::decode_element_signature(element.signature()).ok()?;
+
+            let ArcAgi3PerceptualElementSignature::Cell { x, y, value } = decoded else {
+                return None;
+            };
+
+            if Self::decode_handle_coordinate(handle) != Some((x, y)) {
+                return None;
+            }
+
+            members.insert((x, y), value);
+        }
+
+        if members.len() != candidate.member_count() {
+            return None;
+        }
+
+        let shared_value = members.values().next().copied()?;
+
+        let appearance_cohesion = members.values().all(|value| *value == shared_value);
+
+        if !appearance_cohesion {
+            return Some((false, false));
+        }
+
+        let mut exterior_neighbor_count = 0_usize;
+        let mut every_exterior_neighbor_contrasts = true;
+
+        for &(x, y) in members.keys() {
+            let neighbor_coordinates = [
+                x.checked_sub(1).map(|nx| (nx, y)),
+                x.checked_add(1).map(|nx| (nx, y)),
+                y.checked_sub(1).map(|ny| (x, ny)),
+                y.checked_add(1).map(|ny| (x, ny)),
+            ];
+
+            for coordinate in neighbor_coordinates.into_iter().flatten() {
+                if members.contains_key(&coordinate) {
+                    continue;
+                }
+
+                let handle = Self::cell_handle(coordinate.0, coordinate.1);
+
+                let Some(element) = frame.element(handle) else {
+                    continue;
+                };
+
+                let decoded = Self::decode_element_signature(element.signature()).ok()?;
+
+                let ArcAgi3PerceptualElementSignature::Cell { value, .. } = decoded else {
+                    return None;
+                };
+
+                exterior_neighbor_count = exterior_neighbor_count.saturating_add(1);
+
+                if value == shared_value {
+                    every_exterior_neighbor_contrasts = false;
+                }
+            }
+        }
+
+        let contrast_boundary = exterior_neighbor_count > 0 && every_exterior_neighbor_contrasts;
+
+        Some((appearance_cohesion, contrast_boundary))
+    }
+
     pub fn empty_world_candidates() -> IntegratedPerceptualWorldCandidates {
         IntegratedPerceptualWorldCandidates::new(
             Vec::new(),

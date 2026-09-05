@@ -174,6 +174,60 @@ impl ArcAgi3CognitiveInteractionRuntime {
         candidates
     }
 
+    pub fn current_objecthood_eligible_groupings(
+        &self,
+    ) -> Vec<athlesia_core_knowledge_perceptual_grounding::PerceptualGroupingCandidate> {
+        use athlesia_core_knowledge_perceptual_grounding::{
+            PerceptualObjectPromotionEvidence, PerceptualObjectPromotionGate,
+            PerceptualObjectProposal, PerceptualProposalTemporalSupportStatus,
+        };
+
+        let frame = self.perception.latest_frame();
+
+        let mut eligible = Vec::new();
+
+        for grouping in self.current_empirically_coherent_groupings() {
+            let temporal_persistence = grouping.members().iter().all(|handle| {
+                let proposal = PerceptualObjectProposal::new(vec![*handle])
+                    .expect("one grouping member forms one valid atomic proposal");
+
+                self.cognition
+                    .perceptual_temporal_evidence()
+                    .support_status(&proposal, Self::live_temporal_grouping_policy())
+                    == PerceptualProposalTemporalSupportStatus::Supported
+            });
+
+            let Some((appearance_cohesion, contrast_boundary)) =
+                ArcAgi3PerceptualIngestionBridge::grouping_visual_objecthood_evidence(
+                    frame, &grouping,
+                )
+            else {
+                continue;
+            };
+
+            /*
+             * The source collection is already restricted to retained
+             * empirically coherent groupings. Therefore common_change=true
+             * here is not inferred from appearance or geometry.
+             */
+            let evidence = PerceptualObjectPromotionEvidence::new(
+                temporal_persistence,
+                true,
+                appearance_cohesion,
+                contrast_boundary,
+            );
+
+            if let Some(candidate) = PerceptualObjectPromotionGate::evaluate(grouping, evidence) {
+                eligible.push(candidate.grouping().clone());
+            }
+        }
+
+        eligible.sort();
+        eligible.dedup();
+
+        eligible
+    }
+
     pub fn observation(&self) -> &ArcAgi3Observation {
         self.session.observation()
     }

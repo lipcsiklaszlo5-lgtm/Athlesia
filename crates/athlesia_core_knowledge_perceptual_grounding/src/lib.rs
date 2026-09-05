@@ -2187,6 +2187,118 @@ mod retained_perceptual_grouping_behavior_evidence_tests {
     }
 }
 
+// -----------------------------------------------------------------------------
+// Multi-axis objecthood eligibility
+// -----------------------------------------------------------------------------
+//
+// This gate deliberately stops before semantic object promotion.
+//
+// A structural grouping is merely ELIGIBLE for future ObjectHypothesis
+// construction when multiple independent evidence families agree:
+//
+// - retained temporal persistence;
+// - retained common-change behavior;
+// - current perceptual appearance cohesion;
+// - an explicit contrast boundary.
+//
+// No CognitiveSignal is synthesized here. Therefore no unsupported confidence
+// value is smuggled into ObjecthoodEvidence.
+//
+// P4F-B may later translate independently grounded evidence into calibrated
+// objecthood axes, but only after this eligibility behavior is functionally
+// validated.
+
+#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+pub struct PerceptualObjectPromotionEvidence {
+    temporal_persistence: bool,
+    common_change: bool,
+    appearance_cohesion: bool,
+    contrast_boundary: bool,
+}
+
+impl PerceptualObjectPromotionEvidence {
+    pub fn new(
+        temporal_persistence: bool,
+        common_change: bool,
+        appearance_cohesion: bool,
+        contrast_boundary: bool,
+    ) -> Self {
+        Self {
+            temporal_persistence,
+            common_change,
+            appearance_cohesion,
+            contrast_boundary,
+        }
+    }
+
+    pub fn temporal_persistence(self) -> bool {
+        self.temporal_persistence
+    }
+
+    pub fn common_change(self) -> bool {
+        self.common_change
+    }
+
+    pub fn appearance_cohesion(self) -> bool {
+        self.appearance_cohesion
+    }
+
+    pub fn contrast_boundary(self) -> bool {
+        self.contrast_boundary
+    }
+
+    pub fn all_required_axes_supported(self) -> bool {
+        self.temporal_persistence
+            && self.common_change
+            && self.appearance_cohesion
+            && self.contrast_boundary
+    }
+}
+
+#[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+pub struct PerceptualObjectPromotionCandidate {
+    grouping: PerceptualGroupingCandidate,
+    evidence: PerceptualObjectPromotionEvidence,
+}
+
+impl PerceptualObjectPromotionCandidate {
+    pub fn grouping(&self) -> &PerceptualGroupingCandidate {
+        &self.grouping
+    }
+
+    pub fn evidence(&self) -> PerceptualObjectPromotionEvidence {
+        self.evidence
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, Hash, Ord, PartialEq, PartialOrd)]
+pub struct PerceptualObjectPromotionGate;
+
+impl PerceptualObjectPromotionGate {
+    pub fn evaluate(
+        grouping: PerceptualGroupingCandidate,
+        evidence: PerceptualObjectPromotionEvidence,
+    ) -> Option<PerceptualObjectPromotionCandidate> {
+        if !evidence.all_required_axes_supported() {
+            return None;
+        }
+
+        Some(PerceptualObjectPromotionCandidate { grouping, evidence })
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, Hash, Ord, PartialEq, PartialOrd)]
+pub struct UniversalPerceptualObjectPromotionGate;
+
+impl UniversalPerceptualObjectPromotionGate {
+    pub fn evaluate(
+        grouping: PerceptualGroupingCandidate,
+        evidence: PerceptualObjectPromotionEvidence,
+    ) -> Option<PerceptualObjectPromotionCandidate> {
+        PerceptualObjectPromotionGate::evaluate(grouping, evidence)
+    }
+}
+
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub struct ObjecthoodEvidence {
     cohesion: CognitiveSignal,
