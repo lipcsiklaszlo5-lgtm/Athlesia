@@ -9812,6 +9812,312 @@ pub struct OnlinePersistentCognitiveState {
         athlesia_core_knowledge_perceptual_grounding::PerceptualGroupingAppearanceEvidenceState,
 }
 
+
+// ============================================================================
+// P4G-C3H-C15B — SEMANTIC PROVENANCE + DYNAMIC FORECAST REALIZATION
+// ============================================================================
+//
+// C14B established that structural forecast correspondence and concrete
+// forecast realization are distinct:
+//
+//   * C10 identifies which hypotheses structurally correspond.
+//   * the current grounded state determines context satisfaction and
+//     effect opportunity.
+//
+// M50 intentionally retains only the structural CognitiveStructure identity.
+// This M51 sidecar preserves the original typed M47 hypothesis without making
+// it part of M50/C10 equality, hashing, matching, priority, or transport
+// authority.
+//
+// Dynamic realization delegates exclusively to M47
+// GroundedExplanatoryHypothesis::predict().
+//
+// No CognitiveStructure hypothesis identity is reverse-decoded.
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct GroundedEpistemicForecastSemanticProvenance {
+    forecast_index: usize,
+    hypothesis_identity: CognitiveStructure,
+    hypothesis:
+        athlesia_universal_domain_learning::
+            GroundedExplanatoryHypothesis,
+}
+
+impl GroundedEpistemicForecastSemanticProvenance {
+    pub fn forecast_index(&self) -> usize {
+        self.forecast_index
+    }
+
+    pub fn hypothesis_identity(
+        &self,
+    ) -> &CognitiveStructure {
+        &self.hypothesis_identity
+    }
+
+    pub fn hypothesis(
+        &self,
+    ) -> &athlesia_universal_domain_learning::
+        GroundedExplanatoryHypothesis {
+        &self.hypothesis
+    }
+}
+
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct GroundedDynamicEpistemicForecastRealization {
+    forecast_index: usize,
+    hypothesis_identity: CognitiveStructure,
+    prediction:
+        athlesia_universal_domain_learning::
+            GroundedExplanatoryPrediction,
+}
+
+impl GroundedDynamicEpistemicForecastRealization {
+    pub fn forecast_index(&self) -> usize {
+        self.forecast_index
+    }
+
+    pub fn hypothesis_identity(
+        &self,
+    ) -> &CognitiveStructure {
+        &self.hypothesis_identity
+    }
+
+    pub fn prediction(
+        &self,
+    ) -> &athlesia_universal_domain_learning::
+        GroundedExplanatoryPrediction {
+        &self.prediction
+    }
+}
+
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct GroundedDynamicEpistemicPossibilityRealization {
+    state:
+        athlesia_universal_domain_learning::
+            GroundedStateSnapshot,
+    action: CognitiveStructure,
+    forecasts:
+        Vec<
+            GroundedDynamicEpistemicForecastRealization,
+        >,
+}
+
+impl GroundedDynamicEpistemicPossibilityRealization {
+    pub fn state(
+        &self,
+    ) -> &athlesia_universal_domain_learning::
+        GroundedStateSnapshot {
+        &self.state
+    }
+
+    pub fn action(
+        &self,
+    ) -> &CognitiveStructure {
+        &self.action
+    }
+
+    pub fn forecasts(
+        &self,
+    ) -> &[GroundedDynamicEpistemicForecastRealization] {
+        &self.forecasts
+    }
+
+    pub fn forecast_count(&self) -> usize {
+        self.forecasts.len()
+    }
+}
+
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct GroundedSemanticEpistemicExperimentPossibility {
+    possibility:
+        athlesia_autonomous_active_experimentation::
+            GroundedEpistemicExperimentPossibility,
+    semantic_provenance:
+        Vec<
+            GroundedEpistemicForecastSemanticProvenance,
+        >,
+}
+
+impl GroundedSemanticEpistemicExperimentPossibility {
+    fn new(
+        possibility:
+            athlesia_autonomous_active_experimentation::
+                GroundedEpistemicExperimentPossibility,
+        semantic_provenance:
+            Vec<
+                GroundedEpistemicForecastSemanticProvenance,
+            >,
+    ) -> Option<Self> {
+        if possibility.forecasts().len()
+            != semantic_provenance.len()
+        {
+            return None;
+        }
+
+        for (
+            expected_index,
+            provenance,
+        ) in semantic_provenance
+            .iter()
+            .enumerate()
+        {
+            if provenance.forecast_index
+                != expected_index
+            {
+                return None;
+            }
+
+            let forecast =
+                possibility
+                    .forecasts()
+                    .get(
+                        provenance.forecast_index,
+                    )?;
+
+            if forecast.hypothesis()
+                != &provenance
+                    .hypothesis_identity
+            {
+                return None;
+            }
+
+            if provenance
+                .hypothesis
+                .transformation()
+                != possibility.action()
+            {
+                return None;
+            }
+        }
+
+        Some(Self {
+            possibility,
+            semantic_provenance,
+        })
+    }
+
+    pub fn m50_possibility(
+        &self,
+    ) -> &athlesia_autonomous_active_experimentation::
+        GroundedEpistemicExperimentPossibility {
+        &self.possibility
+    }
+
+    pub fn semantic_provenance(
+        &self,
+    ) -> &[GroundedEpistemicForecastSemanticProvenance] {
+        &self.semantic_provenance
+    }
+
+    pub fn forecast_count(&self) -> usize {
+        self.possibility
+            .forecasts()
+            .len()
+    }
+
+    pub fn realize_at_state(
+        &self,
+        state:
+            &athlesia_universal_domain_learning::
+                GroundedStateSnapshot,
+    ) -> Option<
+        GroundedDynamicEpistemicPossibilityRealization,
+    > {
+        if self
+            .semantic_provenance
+            .len()
+            != self
+                .possibility
+                .forecasts()
+                .len()
+        {
+            return None;
+        }
+
+        let mut forecasts =
+            Vec::with_capacity(
+                self.semantic_provenance.len(),
+            );
+
+        for provenance in
+            &self.semantic_provenance
+        {
+            let forecast =
+                self
+                    .possibility
+                    .forecasts()
+                    .get(
+                        provenance
+                            .forecast_index,
+                    )?;
+
+            if forecast.hypothesis()
+                != &provenance
+                    .hypothesis_identity
+            {
+                return None;
+            }
+
+            if provenance
+                .hypothesis
+                .transformation()
+                != self
+                    .possibility
+                    .action()
+            {
+                return None;
+            }
+
+            let prediction =
+                provenance
+                    .hypothesis
+                    .predict(
+                        state,
+                        self
+                            .possibility
+                            .action(),
+                    );
+
+            if prediction.status()
+                == athlesia_universal_domain_learning::
+                    GroundedExplanatoryPredictionStatus::
+                        IrrelevantTransformation
+            {
+                return None;
+            }
+
+            forecasts.push(
+                GroundedDynamicEpistemicForecastRealization {
+                    forecast_index:
+                        provenance
+                            .forecast_index,
+                    hypothesis_identity:
+                        provenance
+                            .hypothesis_identity
+                            .clone(),
+                    prediction,
+                },
+            );
+        }
+
+        Some(
+            GroundedDynamicEpistemicPossibilityRealization {
+                state: state.clone(),
+                action:
+                    self
+                        .possibility
+                        .action()
+                        .clone(),
+                forecasts,
+            },
+        )
+    }
+}
+
+
 impl OnlinePersistentCognitiveState {
     pub fn new() -> Self {
         Self::default()
@@ -9923,6 +10229,103 @@ impl OnlinePersistentCognitiveState {
             CognitiveStructure::Unordered(state.facts().to_vec()),
         ])
     }
+
+    pub fn current_semantic_m50_epistemic_possibility(
+        &self,
+        state:
+            &athlesia_universal_domain_learning::
+                GroundedStateSnapshot,
+        action: &CognitiveStructure,
+        version_policy:
+            athlesia_universal_domain_learning::
+                GroundedExplanatoryVersionSpacePolicy,
+    ) -> Option<
+        GroundedSemanticEpistemicExperimentPossibility,
+    > {
+        let possibility =
+            self.current_m50_epistemic_possibility(
+                state,
+                action,
+                version_policy,
+            )?;
+
+        let version_space =
+            self.current_explanatory_version_space(
+                version_policy,
+            );
+
+        if version_space.evaluation_truncated()
+            || version_space.frontier_truncated()
+        {
+            return None;
+        }
+
+        let mut semantic_provenance =
+            Vec::with_capacity(
+                possibility
+                    .forecasts()
+                    .len(),
+            );
+
+        for (
+            forecast_index,
+            forecast,
+        ) in possibility
+            .forecasts()
+            .iter()
+            .enumerate()
+        {
+            let mut matching =
+                version_space
+                    .active()
+                    .iter()
+                    .filter(
+                        |hypothesis| {
+                            hypothesis
+                                .transformation()
+                                == action
+                                && Self::
+                                    c3b_hypothesis_identity(
+                                        hypothesis,
+                                    )
+                                    == *forecast
+                                        .hypothesis()
+                        },
+                    );
+
+            let hypothesis =
+                matching
+                    .next()?
+                    .clone();
+
+            /*
+             * Exact encoded identity must identify exactly one active
+             * typed hypothesis.  Ambiguous semantic provenance is not
+             * usable authority.
+             */
+            if matching.next().is_some() {
+                return None;
+            }
+
+            semantic_provenance.push(
+                GroundedEpistemicForecastSemanticProvenance {
+                    forecast_index,
+                    hypothesis_identity:
+                        forecast
+                            .hypothesis()
+                            .clone(),
+                    hypothesis,
+                },
+            );
+        }
+
+        GroundedSemanticEpistemicExperimentPossibility::
+            new(
+                possibility,
+                semantic_provenance,
+            )
+    }
+
 
     pub fn current_m50_epistemic_possibility(
         &self,
@@ -12792,5 +13195,297 @@ mod p4g_c3g_empirical_transfer_expectation_bridge_tests {
         );
 
         assert!(result.estimate().is_none());
+    }
+}
+
+
+#[cfg(test)]
+mod p4g_c3h_c15b_semantic_provenance_bridge_tests {
+    use super::*;
+
+    fn a(
+        value: u64,
+    ) -> CognitiveStructure {
+        CognitiveStructure::atom(
+            value,
+        )
+    }
+
+    fn state(
+        facts: &[u64],
+    ) -> athlesia_universal_domain_learning::
+        GroundedStateSnapshot {
+        athlesia_universal_domain_learning::
+            GroundedStateSnapshot::new(
+                facts
+                    .iter()
+                    .copied()
+                    .map(a)
+                    .collect(),
+            )
+            .expect(
+                "nonempty state",
+            )
+    }
+
+    fn episode(
+        before: &[u64],
+        after: &[u64],
+        action: u64,
+    ) -> athlesia_universal_domain_learning::
+        GroundedTransformationEpisode {
+        athlesia_universal_domain_learning::
+            GroundedTransformationEpisode::
+                new(
+                    state(before),
+                    state(after),
+                    a(action),
+                )
+    }
+
+    fn version_policy(
+    ) -> athlesia_universal_domain_learning::
+        GroundedExplanatoryVersionSpacePolicy {
+        athlesia_universal_domain_learning::
+            GroundedExplanatoryVersionSpacePolicy::
+                new(
+                    1,
+                    16,
+                    128,
+                    64,
+                )
+                .expect(
+                    "positive explanatory bounds",
+                )
+    }
+
+    fn owner(
+    ) -> OnlinePersistentCognitiveState {
+        let mut owner =
+            OnlinePersistentCognitiveState::
+                new();
+
+        owner
+            .transition_schema_learning
+            .episodes =
+            vec![
+                episode(
+                    &[1],
+                    &[1, 900],
+                    100,
+                ),
+                episode(
+                    &[2],
+                    &[2, 900],
+                    100,
+                ),
+            ];
+
+        owner
+    }
+
+    #[test]
+    fn semantic_sidecar_preserves_exact_frozen_m50_possibility() {
+        let owner =
+            owner();
+
+        let current =
+            state(
+                &[1],
+            );
+
+        let action =
+            a(
+                100,
+            );
+
+        let frozen =
+            owner
+                .current_m50_epistemic_possibility(
+                    &current,
+                    &action,
+                    version_policy(),
+                )
+                .expect(
+                    "fixture must expose M50 possibility",
+                );
+
+        let semantic =
+            owner
+                .current_semantic_m50_epistemic_possibility(
+                    &current,
+                    &action,
+                    version_policy(),
+                )
+                .expect(
+                    "typed semantic provenance must align exactly",
+                );
+
+        assert_eq!(
+            semantic
+                .m50_possibility(),
+            &frozen,
+            "C15B must not alter frozen M50 representation",
+        );
+
+        assert_eq!(
+            semantic
+                .forecast_count(),
+            frozen
+                .forecasts()
+                .len(),
+        );
+
+        assert_eq!(
+            semantic
+                .semantic_provenance()
+                .len(),
+            frozen
+                .forecasts()
+                .len(),
+        );
+
+        for (
+            index,
+            provenance,
+        ) in semantic
+            .semantic_provenance()
+            .iter()
+            .enumerate()
+        {
+            assert_eq!(
+                provenance
+                    .forecast_index(),
+                index,
+            );
+
+            assert_eq!(
+                provenance
+                    .hypothesis_identity(),
+                frozen
+                    .forecasts()[
+                        index
+                    ]
+                    .hypothesis(),
+            );
+
+            assert_eq!(
+                provenance
+                    .hypothesis()
+                    .transformation(),
+                &action,
+            );
+        }
+    }
+
+    #[test]
+    fn typed_semantic_provenance_reuses_m47_predict_for_new_state() {
+        let owner =
+            owner();
+
+        let before =
+            state(
+                &[1],
+            );
+
+        let after =
+            state(
+                &[1, 900],
+            );
+
+        let action =
+            a(
+                100,
+            );
+
+        let transfer_history_before =
+            owner
+                .epistemic_transfer_progress_event_count();
+
+        let semantic =
+            owner
+                .current_semantic_m50_epistemic_possibility(
+                    &before,
+                    &action,
+                    version_policy(),
+                )
+                .expect(
+                    "semantic possibility",
+                );
+
+        let realized_before =
+            semantic
+                .realize_at_state(
+                    &before,
+                )
+                .expect(
+                    "before-state realization",
+                );
+
+        let realized_after =
+            semantic
+                .realize_at_state(
+                    &after,
+                )
+                .expect(
+                    "after-state realization",
+                );
+
+        assert_eq!(
+            realized_before
+                .forecast_count(),
+            semantic
+                .forecast_count(),
+        );
+
+        assert_eq!(
+            realized_after
+                .forecast_count(),
+            semantic
+                .forecast_count(),
+        );
+
+        assert_eq!(
+            realized_before
+                .action(),
+            &action,
+        );
+
+        assert_eq!(
+            realized_after
+                .action(),
+            &action,
+        );
+
+        assert!(
+            realized_before
+                .forecasts()
+                .iter()
+                .zip(
+                    realized_after
+                        .forecasts(),
+                )
+                .any(
+                    |(
+                        before_prediction,
+                        after_prediction,
+                    )| {
+                        before_prediction
+                            .prediction()
+                            .status()
+                            != after_prediction
+                                .prediction()
+                                .status()
+                    },
+                ),
+            "a genuine effect-opportunity state change must alter at least one typed forecast realization",
+        );
+
+        assert_eq!(
+            owner
+                .epistemic_transfer_progress_event_count(),
+            transfer_history_before,
+            "semantic queries must not mutate retained transfer history",
+        );
     }
 }

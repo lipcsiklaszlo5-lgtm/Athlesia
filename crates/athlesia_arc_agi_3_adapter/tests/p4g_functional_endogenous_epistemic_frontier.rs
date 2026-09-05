@@ -3560,3 +3560,635 @@ fn live_c3h_c10_exact_target_correspondence_cannot_be_reinterpreted_as_role_fore
         transfer_history_before,
     );
 }
+
+
+#[test]
+fn live_c3h_c15b_semantic_provenance_preserves_c10_and_dynamic_state_causality() {
+    let (
+        runtime2,
+        historical2,
+        current2,
+    ) =
+        c3hb_live_historical_and_current_identity(
+            "p4gc3hc15b-state2",
+            6_000_000,
+            ArcAgi3ActionId::Action1,
+            2,
+        );
+
+    let (
+        runtime7,
+        historical7,
+        current7,
+    ) =
+        c3hb_live_historical_and_current_identity(
+            "p4gc3hc15b-state7",
+            6_100_000,
+            ArcAgi3ActionId::Action1,
+            7,
+        );
+
+    assert_eq!(
+        historical2,
+        historical7,
+        "C14B authority: historical transfer identity is equal",
+    );
+
+    let state2 =
+        runtime2
+            .cognitive_runtime()
+            .current_grounded_world_state()
+            .expect(
+                "state2 grounded state",
+            )
+            .clone();
+
+    let state7 =
+        runtime7
+            .cognitive_runtime()
+            .current_grounded_world_state()
+            .expect(
+                "state7 grounded state",
+            )
+            .clone();
+
+    let action_one =
+        ArcAgi3CognitiveProtocolBridge::
+            encode_action(
+                action(
+                    ArcAgi3ActionId::Action1,
+                ),
+            );
+
+    let policy =
+        || {
+            athlesia_universal_domain_learning::
+                GroundedExplanatoryVersionSpacePolicy::
+                    new(
+                        1,
+                        64,
+                        512,
+                        256,
+                    )
+                    .unwrap()
+        };
+
+    let frozen2 =
+        runtime2
+            .cognitive_runtime()
+            .cognition()
+            .current_m50_epistemic_possibility(
+                &state2,
+                &action_one,
+                policy(),
+            )
+            .expect(
+                "frozen state2 M50 possibility",
+            );
+
+    let semantic2 =
+        runtime2
+            .cognitive_runtime()
+            .cognition()
+            .current_semantic_m50_epistemic_possibility(
+                &state2,
+                &action_one,
+                policy(),
+            )
+            .expect(
+                "state2 typed semantic sidecar",
+            );
+
+    assert_eq!(
+        semantic2
+            .m50_possibility(),
+        &frozen2,
+        "semantic sidecar cannot alter M50 possibility",
+    );
+
+    let frozen7 =
+        runtime7
+            .cognitive_runtime()
+            .cognition()
+            .current_m50_epistemic_possibility(
+                &state7,
+                &action_one,
+                policy(),
+            )
+            .expect(
+                "frozen state7 M50 possibility",
+            );
+
+    let semantic7 =
+        runtime7
+            .cognitive_runtime()
+            .cognition()
+            .current_semantic_m50_epistemic_possibility(
+                &state7,
+                &action_one,
+                policy(),
+            )
+            .expect(
+                "state7 typed semantic sidecar",
+            );
+
+    assert_eq!(
+        semantic7
+            .m50_possibility(),
+        &frozen7,
+        "semantic sidecar cannot alter M50 possibility",
+    );
+
+    let derived2 =
+        athlesia_autonomous_active_experimentation::
+            AutonomousEmpiricalEpistemicTransferIdentity::
+                derive(
+                    semantic2
+                        .m50_possibility(),
+                    athlesia_autonomous_active_experimentation::
+                        EmpiricalEpistemicTransferIdentityPolicy::
+                            new(
+                                512,
+                            )
+                            .unwrap(),
+                )
+                .identity()
+                .expect(
+                    "state2 transfer identity",
+                )
+                .clone();
+
+    let derived7 =
+        athlesia_autonomous_active_experimentation::
+            AutonomousEmpiricalEpistemicTransferIdentity::
+                derive(
+                    semantic7
+                        .m50_possibility(),
+                    athlesia_autonomous_active_experimentation::
+                        EmpiricalEpistemicTransferIdentityPolicy::
+                            new(
+                                512,
+                            )
+                            .unwrap(),
+                )
+                .identity()
+                .expect(
+                    "state7 transfer identity",
+                )
+                .clone();
+
+    assert_eq!(
+        derived2,
+        current2,
+        "semantic bridge preserves exact frozen state2 transfer identity",
+    );
+
+    assert_eq!(
+        derived7,
+        current7,
+        "semantic bridge preserves exact frozen state7 transfer identity",
+    );
+
+    let relation2 =
+        athlesia_autonomous_active_experimentation::
+            AutonomousSchemaLevelTargetTransferIdentity::
+                derive(
+                    &historical2,
+                    &derived2,
+                    c3hb_policy(),
+                );
+
+    let relation7 =
+        athlesia_autonomous_active_experimentation::
+            AutonomousSchemaLevelTargetTransferIdentity::
+                derive(
+                    &historical7,
+                    &derived7,
+                    c3hb_policy(),
+                );
+
+    assert!(
+        relation2.derived()
+            && relation7.derived(),
+    );
+
+    let realization22 =
+        semantic2
+            .realize_at_state(
+                &state2,
+            )
+            .expect(
+                "history2/state2 semantic realization",
+            );
+
+    let realization27 =
+        semantic2
+            .realize_at_state(
+                &state7,
+            )
+            .expect(
+                "history2/state7 semantic realization",
+            );
+
+    let realization77 =
+        semantic7
+            .realize_at_state(
+                &state7,
+            )
+            .expect(
+                "history7/state7 semantic realization",
+            );
+
+    let realization72 =
+        semantic7
+            .realize_at_state(
+                &state2,
+            )
+            .expect(
+                "history7/state2 semantic realization",
+            );
+
+    let mut state2_context =
+        0_usize;
+    let mut state2_base =
+        0_usize;
+    let mut state7_context =
+        0_usize;
+    let mut state7_base =
+        0_usize;
+
+    for (
+        target2,
+        target7,
+    ) in relation2
+        .correspondences()
+        .iter()
+        .filter(
+            |target| {
+                target.match_kind()
+                    == athlesia_autonomous_active_experimentation::
+                        SchemaLevelTargetMatchKind::
+                            RolePreserving
+            },
+        )
+        .zip(
+            relation7
+                .correspondences()
+                .iter()
+                .filter(
+                    |target| {
+                        target.match_kind()
+                            == athlesia_autonomous_active_experimentation::
+                                SchemaLevelTargetMatchKind::
+                                    RolePreserving
+                    },
+                ),
+        )
+    {
+        let c10_2 =
+            athlesia_autonomous_active_experimentation::
+                AutonomousGroundedForecastCorrespondence::
+                    derive(
+                        &historical2,
+                        &derived2,
+                        target2,
+                        athlesia_autonomous_active_experimentation::
+                            GroundedForecastCorrespondencePolicy::
+                                new(
+                                    32,
+                                    10_000,
+                                    32,
+                                    4096,
+                                    2048,
+                                    4096,
+                                    256,
+                                )
+                                .unwrap(),
+                    );
+
+        let c10_7 =
+            athlesia_autonomous_active_experimentation::
+                AutonomousGroundedForecastCorrespondence::
+                    derive(
+                        &historical7,
+                        &derived7,
+                        target7,
+                        athlesia_autonomous_active_experimentation::
+                            GroundedForecastCorrespondencePolicy::
+                                new(
+                                    32,
+                                    10_000,
+                                    32,
+                                    4096,
+                                    2048,
+                                    4096,
+                                    256,
+                                )
+                                .unwrap(),
+                    );
+
+        assert!(
+            c10_2.derived()
+                && c10_7.derived(),
+        );
+
+        let correspondence2 =
+            c10_2
+                .correspondence()
+                .unwrap();
+
+        let correspondence7 =
+            c10_7
+                .correspondence()
+                .unwrap();
+
+        assert_eq!(
+            correspondence2
+                .forecast_count(),
+            5,
+        );
+
+        assert_eq!(
+            correspondence7
+                .forecast_count(),
+            5,
+        );
+
+        for entry in
+            correspondence2.entries()
+        {
+            let empirical_forecast =
+                &derived2
+                    .forecasts()[
+                        entry
+                            .current_forecast_index()
+                    ];
+
+            let hypothesis_identity =
+                empirical_forecast
+                    .hypothesis();
+
+            let mut matching22 =
+                realization22
+                    .forecasts()
+                    .iter()
+                    .filter(
+                        |realization| {
+                            realization
+                                .hypothesis_identity()
+                                == hypothesis_identity
+                        },
+                    );
+
+            let realized22 =
+                matching22
+                    .next()
+                    .expect(
+                        "every C10 state2 forecast must retain exact semantic provenance",
+                    );
+
+            assert!(
+                matching22
+                    .next()
+                    .is_none(),
+                "C10 state2 forecast identity must map to exactly one semantic realization",
+            );
+
+            let mut matching27 =
+                realization27
+                    .forecasts()
+                    .iter()
+                    .filter(
+                        |realization| {
+                            realization
+                                .hypothesis_identity()
+                                == hypothesis_identity
+                        },
+                    );
+
+            let realized27 =
+                matching27
+                    .next()
+                    .expect(
+                        "state2 semantic provenance must remain identifiable under state7 realization",
+                    );
+
+            assert!(
+                matching27
+                    .next()
+                    .is_none(),
+                "counterfactual state7 realization must retain unique state2 hypothesis identity",
+            );
+
+            let status22 =
+                realized22
+                    .prediction()
+                    .status();
+
+            let status27 =
+                realized27
+                    .prediction()
+                    .status();
+
+            match entry.relation() {
+                athlesia_autonomous_active_experimentation::
+                    GroundedForecastCorrespondenceRelation::
+                        TargetAnchoredContextTransformation(
+                            _,
+                        ) =>
+                {
+                    state2_context += 1;
+
+                    assert_eq!(
+                        status22,
+                        athlesia_universal_domain_learning::
+                            GroundedExplanatoryPredictionStatus::
+                                ContextNotSatisfied,
+                    );
+
+                    assert_eq!(
+                        status27,
+                        athlesia_universal_domain_learning::
+                            GroundedExplanatoryPredictionStatus::
+                                Predicted,
+                    );
+                }
+
+                athlesia_autonomous_active_experimentation::
+                    GroundedForecastCorrespondenceRelation::
+                        TargetBoundHypothesisContinuation =>
+                {
+                    state2_base += 1;
+
+                    assert_eq!(
+                        status22,
+                        athlesia_universal_domain_learning::
+                            GroundedExplanatoryPredictionStatus::
+                                NoEffectOpportunity,
+                    );
+
+                    assert_eq!(
+                        status27,
+                        athlesia_universal_domain_learning::
+                            GroundedExplanatoryPredictionStatus::
+                                Predicted,
+                    );
+                }
+            }
+        }
+
+        for entry in
+            correspondence7.entries()
+        {
+            let empirical_forecast =
+                &derived7
+                    .forecasts()[
+                        entry
+                            .current_forecast_index()
+                    ];
+
+            let hypothesis_identity =
+                empirical_forecast
+                    .hypothesis();
+
+            let mut matching77 =
+                realization77
+                    .forecasts()
+                    .iter()
+                    .filter(
+                        |realization| {
+                            realization
+                                .hypothesis_identity()
+                                == hypothesis_identity
+                        },
+                    );
+
+            let realized77 =
+                matching77
+                    .next()
+                    .expect(
+                        "every C10 state7 forecast must retain exact semantic provenance",
+                    );
+
+            assert!(
+                matching77
+                    .next()
+                    .is_none(),
+                "C10 state7 forecast identity must map to exactly one semantic realization",
+            );
+
+            let mut matching72 =
+                realization72
+                    .forecasts()
+                    .iter()
+                    .filter(
+                        |realization| {
+                            realization
+                                .hypothesis_identity()
+                                == hypothesis_identity
+                        },
+                    );
+
+            let realized72 =
+                matching72
+                    .next()
+                    .expect(
+                        "state7 semantic provenance must remain identifiable under state2 realization",
+                    );
+
+            assert!(
+                matching72
+                    .next()
+                    .is_none(),
+                "counterfactual state2 realization must retain unique state7 hypothesis identity",
+            );
+
+            let status77 =
+                realized77
+                    .prediction()
+                    .status();
+
+            let status72 =
+                realized72
+                    .prediction()
+                    .status();
+
+            match entry.relation() {
+                athlesia_autonomous_active_experimentation::
+                    GroundedForecastCorrespondenceRelation::
+                        TargetAnchoredContextTransformation(
+                            _,
+                        ) =>
+                {
+                    state7_context += 1;
+
+                    assert_eq!(
+                        status77,
+                        athlesia_universal_domain_learning::
+                            GroundedExplanatoryPredictionStatus::
+                                Predicted,
+                    );
+
+                    assert_eq!(
+                        status72,
+                        athlesia_universal_domain_learning::
+                            GroundedExplanatoryPredictionStatus::
+                                ContextNotSatisfied,
+                    );
+                }
+
+                athlesia_autonomous_active_experimentation::
+                    GroundedForecastCorrespondenceRelation::
+                        TargetBoundHypothesisContinuation =>
+                {
+                    state7_base += 1;
+
+                    assert_eq!(
+                        status77,
+                        athlesia_universal_domain_learning::
+                            GroundedExplanatoryPredictionStatus::
+                                Predicted,
+                    );
+
+                    assert_eq!(
+                        status72,
+                        athlesia_universal_domain_learning::
+                            GroundedExplanatoryPredictionStatus::
+                                NoEffectOpportunity,
+                    );
+                }
+            }
+        }
+    }
+
+    assert_eq!(
+        state2_context,
+        16,
+    );
+
+    assert_eq!(
+        state2_base,
+        4,
+    );
+
+    assert_eq!(
+        state7_context,
+        16,
+    );
+
+    assert_eq!(
+        state7_base,
+        4,
+    );
+
+    println!(
+        "C3HC15B_LIVE \
+         M50_EXACT_PRESERVATION=1 \
+         C10_STRUCTURAL_PRESERVATION=1 \
+         STATE2_CONTEXT_NOT_SATISFIED=16 \
+         STATE2_NO_EFFECT_OPPORTUNITY=4 \
+         STATE7_PREDICTED_CONTEXT=16 \
+         STATE7_PREDICTED_BASE=4 \
+         COUNTERFACTUAL_CROSSOVER=1"
+    );
+}
