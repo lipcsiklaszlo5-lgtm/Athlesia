@@ -4192,3 +4192,418 @@ fn live_c3h_c15b_semantic_provenance_preserves_c10_and_dynamic_state_causality()
          COUNTERFACTUAL_CROSSOVER=1"
     );
 }
+
+
+#[test]
+fn live_c3h_c16d_combines_structural_current_and_measured_history_without_fabricating_value() {
+    type ApplicabilityStatus =
+        athlesia_integrated_cognitive_agent::
+            GroundedRealizationConditionedTransferApplicabilityStatus;
+
+    type EvidenceStatus =
+        athlesia_integrated_cognitive_agent::
+            GroundedRealizationConditionedTransferEvidenceStatus;
+
+
+    fn version_policy(
+    ) -> athlesia_universal_domain_learning::
+        GroundedExplanatoryVersionSpacePolicy {
+        athlesia_universal_domain_learning::
+            GroundedExplanatoryVersionSpacePolicy::
+                new(
+                    1,
+                    64,
+                    512,
+                    256,
+                )
+                .unwrap()
+    }
+
+
+    fn transfer_identity_policy(
+    ) -> athlesia_autonomous_active_experimentation::
+        EmpiricalEpistemicTransferIdentityPolicy {
+        athlesia_autonomous_active_experimentation::
+            EmpiricalEpistemicTransferIdentityPolicy::
+                new(
+                    512,
+                )
+                .unwrap()
+    }
+
+
+    fn measure(
+        game: &str,
+        first_index: u64,
+        value: u8,
+    ) -> (
+        ApplicabilityStatus,
+        EvidenceStatus,
+        usize,
+        usize,
+        usize,
+        usize,
+        usize,
+    ) {
+        let (
+            runtime,
+            _historical,
+            _current,
+        ) =
+            c3hb_live_historical_and_current_identity(
+                game,
+                first_index,
+                ArcAgi3ActionId::Action1,
+                value,
+            );
+
+        let current_state =
+            runtime
+                .cognitive_runtime()
+                .current_grounded_world_state()
+                .expect(
+                    "C16D requires genuinely reached grounded state",
+                )
+                .clone();
+
+        let action_one =
+            ArcAgi3CognitiveProtocolBridge::
+                encode_action(
+                    action(
+                        ArcAgi3ActionId::Action1,
+                    ),
+                );
+
+        let history_before =
+            runtime
+                .cognitive_runtime()
+                .cognition()
+                .epistemic_transfer_progress_event_count();
+
+        let transport_before =
+            runtime
+                .transport()
+                .execute_count();
+
+        let result =
+            athlesia_integrated_cognitive_agent::
+                GroundedRealizationConditionedTransferEvidenceSynthesis::
+                    derive(
+                        runtime
+                            .cognitive_runtime()
+                            .cognition(),
+
+                        &current_state,
+
+                        &action_one,
+
+                        version_policy(),
+
+                        transfer_identity_policy(),
+
+                        c3hb_policy(),
+
+                        64,
+                    )
+                    .expect(
+                        "bounded C16D query must remain well formed",
+                    );
+
+        assert_eq!(
+            runtime
+                .cognitive_runtime()
+                .cognition()
+                .epistemic_transfer_progress_event_count(),
+            history_before,
+            "C16D query must not manufacture empirical history",
+        );
+
+        assert_eq!(
+            runtime
+                .transport()
+                .execute_count(),
+            transport_before,
+            "C16D query has zero transport authority",
+        );
+
+        assert_eq!(
+            result
+                .retained_history_count(),
+            1,
+            "fixture owns one real historical C3G event",
+        );
+
+        assert_eq!(
+            result
+                .structurally_corresponding_history_count(),
+            1,
+            "frozen C3H relation must identify the historical event structurally",
+        );
+
+        assert_eq!(
+            result
+                .evidence_count(),
+            1,
+            "one structural historical event must produce one evidence bundle",
+        );
+
+        let evidence =
+            &result
+                .evidence()[0];
+
+        assert_eq!(
+            evidence
+                .historical_sample()
+                .action(),
+            &action_one,
+        );
+
+        println!(
+            "C3HC16D_WORLD \
+             VALUE={} \
+             APPLICABILITY={:?} \
+             EVIDENCE_STATUS={:?} \
+             HISTORICAL_PROGRESS={:?} \
+             PREDICTED={} \
+             CONTEXT_UNINFORMATIVE={} \
+             NO_OPPORTUNITY={} \
+             HIST_REDUCTION={} \
+             HIST_INCREASE={}",
+            value,
+            result
+                .applicability()
+                .status(),
+            evidence
+                .status(),
+            evidence
+                .historical_progress_class(),
+            result
+                .applicability()
+                .predicted_count(),
+            result
+                .applicability()
+                .context_uninformative_count(),
+            result
+                .applicability()
+                .no_effect_opportunity_count(),
+            evidence
+                .historical_sample()
+                .realized_separation_reduction(),
+            evidence
+                .historical_sample()
+                .realized_separation_increase(),
+        );
+
+        (
+            result
+                .applicability()
+                .status(),
+
+            evidence
+                .status(),
+
+            result
+                .applicability()
+                .predicted_count(),
+
+            result
+                .applicability()
+                .context_uninformative_count(),
+
+            result
+                .applicability()
+                .no_effect_opportunity_count(),
+
+            history_before,
+
+            transport_before,
+        )
+    }
+
+
+    let canonical2 =
+        measure(
+            "p4gc3hc16d-canonical-2",
+            7_600_000,
+            2,
+        );
+
+    let crossover7 =
+        measure(
+            "p4gc3hc16d-crossover-7",
+            7_700_000,
+            7,
+        );
+
+    let canonical14 =
+        measure(
+            "p4gc3hc16d-canonical-14",
+            7_800_000,
+            14,
+        );
+
+
+    /*
+     * R2 corrected an oracle-scope mistake:
+     *
+     * C15B's 16 ContextNotSatisfied + 4 NoEffectOpportunity
+     * was the structurally corresponding C10 ROLE SUBSET.
+     *
+     * C16C/C16D intentionally describe the ENTIRE current M50
+     * hypothesis frontier.
+     *
+     * The full frontier contains prediction opportunities in all
+     * three worlds, but their exact realization profiles differ
+     * strongly and replicate across independent canonical holdouts.
+     */
+    assert_eq!(
+        canonical2.0,
+        ApplicabilityStatus::
+            PredictedWithUninformative,
+    );
+
+    assert_eq!(
+        crossover7.0,
+        ApplicabilityStatus::
+            PredictedWithUninformative,
+    );
+
+    assert_eq!(
+        canonical14.0,
+        ApplicabilityStatus::
+            PredictedWithUninformative,
+    );
+
+
+    /*
+     * Exact full-frontier semantic profiles are authority.
+     */
+    assert_eq!(
+        (
+            canonical2.2,
+            canonical2.3,
+            canonical2.4,
+        ),
+        (
+            4,
+            80,
+            12,
+        ),
+        "state2 full frontier must preserve the observed canonical realization profile",
+    );
+
+    assert_eq!(
+        (
+            canonical14.2,
+            canonical14.3,
+            canonical14.4,
+        ),
+        (
+            4,
+            80,
+            12,
+        ),
+        "independent state14 holdout must replicate the canonical realization profile",
+    );
+
+    assert_eq!(
+        (
+            crossover7.2,
+            crossover7.3,
+            crossover7.4,
+        ),
+        (
+            40,
+            48,
+            8,
+        ),
+        "state7 semantic crossover must preserve its distinct full-frontier realization profile",
+    );
+
+
+    assert_eq!(
+        (
+            canonical2.2,
+            canonical2.3,
+            canonical2.4,
+        ),
+        (
+            canonical14.2,
+            canonical14.3,
+            canonical14.4,
+        ),
+        "canonical C3H holdouts must replicate independently",
+    );
+
+    assert_ne!(
+        (
+            canonical2.2,
+            canonical2.3,
+            canonical2.4,
+        ),
+        (
+            crossover7.2,
+            crossover7.3,
+            crossover7.4,
+        ),
+        "coarse applicability status must not erase the causal semantic crossover",
+    );
+
+
+    /*
+     * Historical C3G provenance is identical in class here:
+     * the retained event measured an uncertainty increase.
+     *
+     * C16D must preserve that fact without pretending it predicts
+     * present progress.
+     */
+    assert_eq!(
+        canonical2.1,
+        EvidenceStatus::
+            CurrentPredictionOpportunityWithHistoricalIncrease,
+    );
+
+    assert_eq!(
+        crossover7.1,
+        EvidenceStatus::
+            CurrentPredictionOpportunityWithHistoricalIncrease,
+    );
+
+    assert_eq!(
+        canonical14.1,
+        EvidenceStatus::
+            CurrentPredictionOpportunityWithHistoricalIncrease,
+    );
+
+
+    /*
+     * Query remains observational only.
+     */
+    assert_eq!(
+        canonical2.5,
+        1,
+    );
+
+    assert_eq!(
+        crossover7.5,
+        1,
+    );
+
+    assert_eq!(
+        canonical14.5,
+        1,
+    );
+
+    println!(
+        "C3HC16D_RESULT \
+         STRUCTURAL_HISTORY_PRESENT_ALL=1 \
+         COARSE_STATUS_COLLISION_EXPECTED=1 \
+         CANONICAL_FULL_PROFILE_REPLICATED=1 \
+         CROSSOVER_FULL_PROFILE_DISTINCT=1 \
+         HISTORICAL_INCREASE_PROVENANCE_ALL=1 \
+         EXPECTED_PROGRESS_CREATED=0 \
+         PRIORITY_CREATED=0 \
+         M48_AUTHORITY_CREATED=0 \
+         TRANSPORT_CREATED=0"
+    );
+}

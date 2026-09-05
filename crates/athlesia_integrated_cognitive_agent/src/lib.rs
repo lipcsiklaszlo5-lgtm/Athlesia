@@ -9930,6 +9930,656 @@ impl GroundedDynamicEpistemicPossibilityRealization {
 }
 
 
+
+// ============================================================================
+// P4G-C3H-C16C — REALIZATION-CONDITIONED TRANSFER APPLICABILITY SCAFFOLD
+// ============================================================================
+//
+// C16B showed that structural correspondence alone does not determine whether
+// a real intervention produces a retained epistemic-progress event.
+//
+// This representation therefore records ONLY the current grounded-state
+// realization profile.
+//
+// It is deliberately NOT:
+//   * expected progress,
+//   * experiment utility,
+//   * EIG,
+//   * priority,
+//   * action authority,
+//   * transport authority.
+//
+// Positive historical progress cannot be imported merely because this profile
+// contains a Predicted forecast.
+
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub enum GroundedRealizationConditionedTransferApplicabilityStatus {
+    PredictedOnly,
+    PredictedWithUninformative,
+    ContextUninformativeOnly,
+    NoEffectOpportunityOnly,
+    MixedUninformativeOnly,
+}
+
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct GroundedRealizationConditionedTransferApplicability {
+    status:
+        GroundedRealizationConditionedTransferApplicabilityStatus,
+
+    forecast_count: usize,
+    predicted_count: usize,
+    context_uninformative_count: usize,
+    no_effect_opportunity_count: usize,
+}
+
+impl GroundedRealizationConditionedTransferApplicability {
+    fn from_prediction_statuses<I>(
+        statuses: I,
+    ) -> Option<Self>
+    where
+        I: IntoIterator<
+            Item =
+                athlesia_universal_domain_learning::
+                    GroundedExplanatoryPredictionStatus,
+        >,
+    {
+        let mut forecast_count =
+            0_usize;
+
+        let mut predicted_count =
+            0_usize;
+
+        let mut context_uninformative_count =
+            0_usize;
+
+        let mut no_effect_opportunity_count =
+            0_usize;
+
+        for status in statuses {
+            forecast_count =
+                forecast_count
+                    .saturating_add(1);
+
+            match status {
+                athlesia_universal_domain_learning::
+                    GroundedExplanatoryPredictionStatus::
+                        Predicted =>
+                {
+                    predicted_count =
+                        predicted_count
+                            .saturating_add(1);
+                }
+
+                athlesia_universal_domain_learning::
+                    GroundedExplanatoryPredictionStatus::
+                        ContextNotSatisfied =>
+                {
+                    context_uninformative_count =
+                        context_uninformative_count
+                            .saturating_add(1);
+                }
+
+                athlesia_universal_domain_learning::
+                    GroundedExplanatoryPredictionStatus::
+                        NoEffectOpportunity =>
+                {
+                    no_effect_opportunity_count =
+                        no_effect_opportunity_count
+                            .saturating_add(1);
+                }
+
+                athlesia_universal_domain_learning::
+                    GroundedExplanatoryPredictionStatus::
+                        IrrelevantTransformation =>
+                {
+                    /*
+                     * C15B already fail-closes irrelevant transformations.
+                     * If one reaches this scaffold, provenance is malformed.
+                     */
+                    return None;
+                }
+            }
+        }
+
+        if forecast_count == 0 {
+            return None;
+        }
+
+        let status =
+            if predicted_count
+                == forecast_count
+            {
+                GroundedRealizationConditionedTransferApplicabilityStatus::
+                    PredictedOnly
+            } else if predicted_count > 0 {
+                GroundedRealizationConditionedTransferApplicabilityStatus::
+                    PredictedWithUninformative
+            } else if context_uninformative_count
+                == forecast_count
+            {
+                GroundedRealizationConditionedTransferApplicabilityStatus::
+                    ContextUninformativeOnly
+            } else if no_effect_opportunity_count
+                == forecast_count
+            {
+                GroundedRealizationConditionedTransferApplicabilityStatus::
+                    NoEffectOpportunityOnly
+            } else {
+                GroundedRealizationConditionedTransferApplicabilityStatus::
+                    MixedUninformativeOnly
+            };
+
+        Some(Self {
+            status,
+            forecast_count,
+            predicted_count,
+            context_uninformative_count,
+            no_effect_opportunity_count,
+        })
+    }
+
+    pub fn from_realization(
+        realization:
+            &GroundedDynamicEpistemicPossibilityRealization,
+    ) -> Option<Self> {
+        Self::from_prediction_statuses(
+            realization
+                .forecasts()
+                .iter()
+                .map(
+                    |forecast| {
+                        forecast
+                            .prediction()
+                            .status()
+                    },
+                ),
+        )
+    }
+
+    pub fn status(
+        &self,
+    ) -> GroundedRealizationConditionedTransferApplicabilityStatus {
+        self.status
+    }
+
+    pub fn forecast_count(
+        &self,
+    ) -> usize {
+        self.forecast_count
+    }
+
+    pub fn predicted_count(
+        &self,
+    ) -> usize {
+        self.predicted_count
+    }
+
+    pub fn context_uninformative_count(
+        &self,
+    ) -> usize {
+        self.context_uninformative_count
+    }
+
+    pub fn no_effect_opportunity_count(
+        &self,
+    ) -> usize {
+        self.no_effect_opportunity_count
+    }
+
+    /*
+     * This means only:
+     *
+     *   at least one typed hypothesis currently has a real prediction
+     *   opportunity.
+     *
+     * It DOES NOT mean historical progress is transferable.
+     */
+    pub fn has_current_prediction_opportunity(
+        &self,
+    ) -> bool {
+        self.predicted_count > 0
+    }
+
+    pub fn entirely_uninformative_in_current_state(
+        &self,
+    ) -> bool {
+        self.predicted_count == 0
+    }
+}
+
+
+
+// ============================================================================
+// P4G-C3H-C16D — STRUCTURAL + CURRENT-REALIZATION + MEASURED-HISTORY EVIDENCE
+// ============================================================================
+//
+// C16B established an important negative result:
+//
+//   structural correspondence + current prediction opportunity
+//
+// is NOT sufficient to claim transferable positive epistemic progress.
+//
+// Therefore this layer retains the three empirical ingredients separately.
+// It is evidence provenance, not expected value or executive authority.
+
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub enum GroundedHistoricalEpistemicProgressClass {
+    ReductionObserved,
+    NeutralObserved,
+    IncreaseObserved,
+}
+
+
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub enum GroundedRealizationConditionedTransferEvidenceStatus {
+    CurrentUninformative,
+    CurrentPredictionOpportunityWithHistoricalReduction,
+    CurrentPredictionOpportunityWithHistoricalNeutrality,
+    CurrentPredictionOpportunityWithHistoricalIncrease,
+}
+
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct GroundedRealizationConditionedTransferEvidence {
+    historical_transfer_identity:
+        athlesia_autonomous_active_experimentation::
+            EmpiricalEpistemicTransferIdentity,
+
+    current_transfer_identity:
+        athlesia_autonomous_active_experimentation::
+            EmpiricalEpistemicTransferIdentity,
+
+    applicability:
+        GroundedRealizationConditionedTransferApplicability,
+
+    historical_sample:
+        athlesia_autonomous_active_experimentation::
+            EpistemicResolutionProgressSample,
+
+    historical_progress_class:
+        GroundedHistoricalEpistemicProgressClass,
+
+    status:
+        GroundedRealizationConditionedTransferEvidenceStatus,
+}
+
+impl GroundedRealizationConditionedTransferEvidence {
+    fn classify_historical_progress(
+        reduction: usize,
+        increase: usize,
+    ) -> Option<GroundedHistoricalEpistemicProgressClass> {
+        if reduction > 0 && increase > 0 {
+            return None;
+        }
+
+        if reduction > 0 {
+            Some(
+                GroundedHistoricalEpistemicProgressClass::
+                    ReductionObserved,
+            )
+        } else if increase > 0 {
+            Some(
+                GroundedHistoricalEpistemicProgressClass::
+                    IncreaseObserved,
+            )
+        } else {
+            Some(
+                GroundedHistoricalEpistemicProgressClass::
+                    NeutralObserved,
+            )
+        }
+    }
+
+    fn new(
+        action: &CognitiveStructure,
+
+        historical_transfer_identity:
+            athlesia_autonomous_active_experimentation::
+                EmpiricalEpistemicTransferIdentity,
+
+        current_transfer_identity:
+            athlesia_autonomous_active_experimentation::
+                EmpiricalEpistemicTransferIdentity,
+
+        applicability:
+            GroundedRealizationConditionedTransferApplicability,
+
+        historical_sample:
+            athlesia_autonomous_active_experimentation::
+                EpistemicResolutionProgressSample,
+    ) -> Option<Self> {
+        if historical_sample.action() != action {
+            return None;
+        }
+
+        let historical_progress_class =
+            Self::classify_historical_progress(
+                historical_sample
+                    .realized_separation_reduction(),
+
+                historical_sample
+                    .realized_separation_increase(),
+            )?;
+
+        let status =
+            if applicability
+                .entirely_uninformative_in_current_state()
+            {
+                GroundedRealizationConditionedTransferEvidenceStatus::
+                    CurrentUninformative
+            } else {
+                match historical_progress_class {
+                    GroundedHistoricalEpistemicProgressClass::
+                        ReductionObserved =>
+                    {
+                        GroundedRealizationConditionedTransferEvidenceStatus::
+                            CurrentPredictionOpportunityWithHistoricalReduction
+                    }
+
+                    GroundedHistoricalEpistemicProgressClass::
+                        NeutralObserved =>
+                    {
+                        GroundedRealizationConditionedTransferEvidenceStatus::
+                            CurrentPredictionOpportunityWithHistoricalNeutrality
+                    }
+
+                    GroundedHistoricalEpistemicProgressClass::
+                        IncreaseObserved =>
+                    {
+                        GroundedRealizationConditionedTransferEvidenceStatus::
+                            CurrentPredictionOpportunityWithHistoricalIncrease
+                    }
+                }
+            };
+
+        Some(Self {
+            historical_transfer_identity,
+            current_transfer_identity,
+            applicability,
+            historical_sample,
+            historical_progress_class,
+            status,
+        })
+    }
+
+    pub fn historical_transfer_identity(
+        &self,
+    ) -> &athlesia_autonomous_active_experimentation::
+        EmpiricalEpistemicTransferIdentity {
+        &self.historical_transfer_identity
+    }
+
+    pub fn current_transfer_identity(
+        &self,
+    ) -> &athlesia_autonomous_active_experimentation::
+        EmpiricalEpistemicTransferIdentity {
+        &self.current_transfer_identity
+    }
+
+    pub fn applicability(
+        &self,
+    ) -> &GroundedRealizationConditionedTransferApplicability {
+        &self.applicability
+    }
+
+    pub fn historical_sample(
+        &self,
+    ) -> &athlesia_autonomous_active_experimentation::
+        EpistemicResolutionProgressSample {
+        &self.historical_sample
+    }
+
+    pub fn historical_progress_class(
+        &self,
+    ) -> GroundedHistoricalEpistemicProgressClass {
+        self.historical_progress_class
+    }
+
+    pub fn status(
+        &self,
+    ) -> GroundedRealizationConditionedTransferEvidenceStatus {
+        self.status
+    }
+
+    pub fn has_current_prediction_opportunity(
+        &self,
+    ) -> bool {
+        self.applicability
+            .has_current_prediction_opportunity()
+    }
+
+    /*
+     * Deliberately absent:
+     *
+     *   expected_progress()
+     *   expected_value()
+     *   priority()
+     *   utility()
+     *   authorization()
+     *
+     * C16D is empirical evidence provenance only.
+     */
+}
+
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct GroundedRealizationConditionedTransferEvidenceFrontier {
+    applicability:
+        GroundedRealizationConditionedTransferApplicability,
+
+    retained_history_count: usize,
+    structurally_corresponding_history_count: usize,
+
+    evidence:
+        Vec<GroundedRealizationConditionedTransferEvidence>,
+}
+
+impl GroundedRealizationConditionedTransferEvidenceFrontier {
+    pub fn applicability(
+        &self,
+    ) -> &GroundedRealizationConditionedTransferApplicability {
+        &self.applicability
+    }
+
+    pub fn retained_history_count(
+        &self,
+    ) -> usize {
+        self.retained_history_count
+    }
+
+    pub fn structurally_corresponding_history_count(
+        &self,
+    ) -> usize {
+        self.structurally_corresponding_history_count
+    }
+
+    pub fn evidence(
+        &self,
+    ) -> &[GroundedRealizationConditionedTransferEvidence] {
+        &self.evidence
+    }
+
+    pub fn evidence_count(
+        &self,
+    ) -> usize {
+        self.evidence.len()
+    }
+
+    pub fn abstained(
+        &self,
+    ) -> bool {
+        self.evidence.is_empty()
+    }
+}
+
+
+#[derive(Clone, Copy, Debug, Default, Eq, Hash, PartialEq)]
+pub struct GroundedRealizationConditionedTransferEvidenceSynthesis;
+
+impl GroundedRealizationConditionedTransferEvidenceSynthesis {
+    pub fn derive(
+        owner:
+            &OnlinePersistentCognitiveState,
+
+        state:
+            &athlesia_universal_domain_learning::
+                GroundedStateSnapshot,
+
+        action:
+            &CognitiveStructure,
+
+        version_policy:
+            athlesia_universal_domain_learning::
+                GroundedExplanatoryVersionSpacePolicy,
+
+        transfer_identity_policy:
+            athlesia_autonomous_active_experimentation::
+                EmpiricalEpistemicTransferIdentityPolicy,
+
+        target_transfer_policy:
+            athlesia_autonomous_active_experimentation::
+                SchemaLevelTargetTransferIdentityPolicy,
+
+        max_history_events:
+            usize,
+    ) -> Option<
+        GroundedRealizationConditionedTransferEvidenceFrontier,
+    > {
+        if max_history_events == 0 {
+            return None;
+        }
+
+        /*
+         * CURRENT semantics:
+         * use C15B typed provenance and M47 predict().
+         */
+        let semantic =
+            owner
+                .current_semantic_m50_epistemic_possibility(
+                    state,
+                    action,
+                    version_policy,
+                )?;
+
+        let realization =
+            semantic
+                .realize_at_state(
+                    state,
+                )?;
+
+        let applicability =
+            GroundedRealizationConditionedTransferApplicability::
+                from_realization(
+                    &realization,
+                )?;
+
+        /*
+         * CURRENT C3G identity is representation/provenance only.
+         */
+        let current_transfer_identity =
+            athlesia_autonomous_active_experimentation::
+                AutonomousEmpiricalEpistemicTransferIdentity::
+                    derive(
+                        semantic
+                            .m50_possibility(),
+
+                        transfer_identity_policy,
+                    )
+                    .identity()?
+                    .clone();
+
+        let history =
+            owner
+                .epistemic_transfer_progress_history();
+
+        /*
+         * Hard bound:
+         * never silently evaluate only part of retained history.
+         */
+        if history.len() > max_history_events {
+            return None;
+        }
+
+        let mut evidence =
+            Vec::new();
+
+        let mut structurally_corresponding_history_count =
+            0_usize;
+
+        for event in history {
+            let sample =
+                event.sample();
+
+            if sample.action() != action {
+                continue;
+            }
+
+            /*
+             * C3H-B structural correspondence is necessary,
+             * but never sufficient for value transfer.
+             */
+            let target_transfer =
+                athlesia_autonomous_active_experimentation::
+                    AutonomousSchemaLevelTargetTransferIdentity::
+                        derive(
+                            event
+                                .transfer_identity(),
+
+                            &current_transfer_identity,
+
+                            target_transfer_policy,
+                        );
+
+            if !target_transfer
+                .derived()
+            {
+                continue;
+            }
+
+            structurally_corresponding_history_count =
+                structurally_corresponding_history_count
+                    .saturating_add(1);
+
+            let candidate =
+                GroundedRealizationConditionedTransferEvidence::
+                    new(
+                        action,
+
+                        event
+                            .transfer_identity()
+                            .clone(),
+
+                        current_transfer_identity
+                            .clone(),
+
+                        applicability
+                            .clone(),
+
+                        sample
+                            .clone(),
+                    )?;
+
+            evidence.push(
+                candidate,
+            );
+        }
+
+        Some(
+            GroundedRealizationConditionedTransferEvidenceFrontier {
+                applicability,
+                retained_history_count:
+                    history.len(),
+
+                structurally_corresponding_history_count,
+
+                evidence,
+            },
+        )
+    }
+}
+
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct GroundedSemanticEpistemicExperimentPossibility {
     possibility:
@@ -13487,5 +14137,332 @@ mod p4g_c3h_c15b_semantic_provenance_bridge_tests {
             transfer_history_before,
             "semantic queries must not mutate retained transfer history",
         );
+    }
+}
+
+
+#[cfg(test)]
+mod p4g_c3h_c16c_realization_conditioned_transfer_applicability_tests {
+    use super::*;
+
+    type Status =
+        athlesia_universal_domain_learning::
+            GroundedExplanatoryPredictionStatus;
+
+    fn profile(
+        statuses: &[Status],
+    ) -> GroundedRealizationConditionedTransferApplicability {
+        GroundedRealizationConditionedTransferApplicability::
+            from_prediction_statuses(
+                statuses
+                    .iter()
+                    .copied(),
+            )
+            .expect(
+                "fixture must define a valid nonempty current realization",
+            )
+    }
+
+    #[test]
+    fn empty_realization_fails_closed() {
+        assert!(
+            GroundedRealizationConditionedTransferApplicability::
+                from_prediction_statuses(
+                    std::iter::empty(),
+                )
+                .is_none(),
+        );
+    }
+
+    #[test]
+    fn irrelevant_transformation_fails_closed() {
+        assert!(
+            GroundedRealizationConditionedTransferApplicability::
+                from_prediction_statuses(
+                    [
+                        Status::Predicted,
+                        Status::IrrelevantTransformation,
+                    ],
+                )
+                .is_none(),
+        );
+    }
+
+    #[test]
+    fn predicted_only_is_current_prediction_opportunity_not_transfer_value() {
+        let result =
+            profile(
+                &[
+                    Status::Predicted,
+                    Status::Predicted,
+                    Status::Predicted,
+                ],
+            );
+
+        assert_eq!(
+            result.status(),
+            GroundedRealizationConditionedTransferApplicabilityStatus::
+                PredictedOnly,
+        );
+
+        assert_eq!(
+            result.forecast_count(),
+            3,
+        );
+
+        assert_eq!(
+            result.predicted_count(),
+            3,
+        );
+
+        assert_eq!(
+            result.context_uninformative_count(),
+            0,
+        );
+
+        assert_eq!(
+            result.no_effect_opportunity_count(),
+            0,
+        );
+
+        assert!(
+            result
+                .has_current_prediction_opportunity(),
+        );
+
+        assert!(
+            !result
+                .entirely_uninformative_in_current_state(),
+        );
+    }
+
+    #[test]
+    fn context_abstention_is_not_prediction_or_falsification() {
+        let result =
+            profile(
+                &[
+                    Status::ContextNotSatisfied,
+                    Status::ContextNotSatisfied,
+                ],
+            );
+
+        assert_eq!(
+            result.status(),
+            GroundedRealizationConditionedTransferApplicabilityStatus::
+                ContextUninformativeOnly,
+        );
+
+        assert_eq!(
+            result.predicted_count(),
+            0,
+        );
+
+        assert_eq!(
+            result.context_uninformative_count(),
+            2,
+        );
+
+        assert!(
+            result
+                .entirely_uninformative_in_current_state(),
+        );
+    }
+
+    #[test]
+    fn no_effect_opportunity_is_not_negative_progress_evidence() {
+        let result =
+            profile(
+                &[
+                    Status::NoEffectOpportunity,
+                    Status::NoEffectOpportunity,
+                ],
+            );
+
+        assert_eq!(
+            result.status(),
+            GroundedRealizationConditionedTransferApplicabilityStatus::
+                NoEffectOpportunityOnly,
+        );
+
+        assert_eq!(
+            result.no_effect_opportunity_count(),
+            2,
+        );
+
+        assert!(
+            result
+                .entirely_uninformative_in_current_state(),
+        );
+    }
+
+    #[test]
+    fn mixed_uninformative_realization_remains_abstention() {
+        let result =
+            profile(
+                &[
+                    Status::ContextNotSatisfied,
+                    Status::NoEffectOpportunity,
+                    Status::ContextNotSatisfied,
+                ],
+            );
+
+        assert_eq!(
+            result.status(),
+            GroundedRealizationConditionedTransferApplicabilityStatus::
+                MixedUninformativeOnly,
+        );
+
+        assert_eq!(
+            result.predicted_count(),
+            0,
+        );
+
+        assert_eq!(
+            result.context_uninformative_count(),
+            2,
+        );
+
+        assert_eq!(
+            result.no_effect_opportunity_count(),
+            1,
+        );
+
+        assert!(
+            result
+                .entirely_uninformative_in_current_state(),
+        );
+    }
+
+    #[test]
+    fn mixed_prediction_and_abstention_is_distinct_from_predicted_only() {
+        let result =
+            profile(
+                &[
+                    Status::Predicted,
+                    Status::ContextNotSatisfied,
+                    Status::NoEffectOpportunity,
+                ],
+            );
+
+        assert_eq!(
+            result.status(),
+            GroundedRealizationConditionedTransferApplicabilityStatus::
+                PredictedWithUninformative,
+        );
+
+        assert_eq!(
+            result.predicted_count(),
+            1,
+        );
+
+        assert!(
+            result
+                .has_current_prediction_opportunity(),
+        );
+    }
+
+    #[test]
+    fn applicability_profile_is_order_invariant() {
+        let left =
+            profile(
+                &[
+                    Status::Predicted,
+                    Status::ContextNotSatisfied,
+                    Status::NoEffectOpportunity,
+                    Status::Predicted,
+                ],
+            );
+
+        let right =
+            profile(
+                &[
+                    Status::NoEffectOpportunity,
+                    Status::Predicted,
+                    Status::Predicted,
+                    Status::ContextNotSatisfied,
+                ],
+            );
+
+        assert_eq!(
+            left,
+            right,
+        );
+    }
+}
+
+
+#[cfg(test)]
+mod p4g_c3h_c16d_realization_conditioned_transfer_evidence_tests {
+    use super::*;
+
+    #[test]
+    fn historical_progress_class_distinguishes_reduction_neutrality_and_increase() {
+        assert_eq!(
+            GroundedRealizationConditionedTransferEvidence::
+                classify_historical_progress(
+                    5,
+                    0,
+                ),
+            Some(
+                GroundedHistoricalEpistemicProgressClass::
+                    ReductionObserved,
+            ),
+        );
+
+        assert_eq!(
+            GroundedRealizationConditionedTransferEvidence::
+                classify_historical_progress(
+                    0,
+                    0,
+                ),
+            Some(
+                GroundedHistoricalEpistemicProgressClass::
+                    NeutralObserved,
+            ),
+        );
+
+        assert_eq!(
+            GroundedRealizationConditionedTransferEvidence::
+                classify_historical_progress(
+                    0,
+                    5,
+                ),
+            Some(
+                GroundedHistoricalEpistemicProgressClass::
+                    IncreaseObserved,
+            ),
+        );
+    }
+
+    #[test]
+    fn impossible_simultaneous_reduction_and_increase_fails_closed() {
+        assert!(
+            GroundedRealizationConditionedTransferEvidence::
+                classify_historical_progress(
+                    1,
+                    1,
+                )
+                .is_none(),
+        );
+    }
+
+    #[test]
+    fn c16d_does_not_define_expected_progress_priority_or_authority_api() {
+        /*
+         * Compile-time contract:
+         * this type exposes empirical ingredients only.
+         *
+         * Positive-value synthesis belongs to a later empirically
+         * justified layer, not C16D.
+         */
+        let _ =
+            std::mem::size_of::<
+                GroundedRealizationConditionedTransferEvidence
+            >();
+
+        let _ =
+            std::mem::size_of::<
+                GroundedRealizationConditionedTransferEvidenceFrontier
+            >();
     }
 }
