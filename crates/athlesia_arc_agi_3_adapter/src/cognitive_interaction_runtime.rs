@@ -656,6 +656,249 @@ impl ArcAgi3CognitiveInteractionRuntime {
         )
     }
 
+    /*
+     * These atoms are transport labels for the exact partial structural
+     * prediction carried into M48's predicted_outcome field.
+     *
+     * They are not observations, confidence, utility, or world facts.
+     */
+    const MODEL_PREDICTION_TAG: u64 = 0x5034_4742_3200_0001;
+    const MODEL_ADDITION_TAG: u64 = 0x5034_4742_3200_0002;
+    const MODEL_REMOVAL_TAG: u64 = 0x5034_4742_3200_0003;
+
+    fn model_prediction_structure(
+        prediction: &athlesia_universal_domain_learning::GroundedStructuralPrediction,
+    ) -> Option<athlesia_mindstone_sparse_cognition::CognitiveStructure> {
+        use athlesia_mindstone_sparse_cognition::CognitiveStructure;
+
+        if !prediction.predicted() {
+            return None;
+        }
+
+        let mut terms = Vec::with_capacity(
+            2_usize
+                .saturating_add(prediction.additions().len())
+                .saturating_add(prediction.removals().len()),
+        );
+
+        terms.push(CognitiveStructure::atom(Self::MODEL_PREDICTION_TAG));
+
+        terms.push(prediction.transformation().clone());
+
+        for fact in prediction.additions() {
+            let effect = CognitiveStructure::ordered(vec![
+                CognitiveStructure::atom(Self::MODEL_ADDITION_TAG),
+                fact.clone(),
+            ])?;
+
+            terms.push(effect);
+        }
+
+        for fact in prediction.removals() {
+            let effect = CognitiveStructure::ordered(vec![
+                CognitiveStructure::atom(Self::MODEL_REMOVAL_TAG),
+                fact.clone(),
+            ])?;
+
+            terms.push(effect);
+        }
+
+        CognitiveStructure::ordered(terms)
+    }
+
+    fn model_prediction_empirical_authority(
+        model: &athlesia_universal_domain_learning::GroundedExecutableWorldModel,
+        prediction: &athlesia_universal_domain_learning::GroundedStructuralPrediction,
+    ) -> Option<(
+        athlesia_mindstone_sparse_cognition::CognitiveSignal,
+        athlesia_mindstone_sparse_cognition::CognitiveSignal,
+    )> {
+        use athlesia_mindstone_sparse_cognition::CognitiveSignal;
+        use athlesia_universal_domain_learning::TransitionEffectKind;
+
+        if !prediction.predicted() {
+            return None;
+        }
+
+        let supporting = model
+            .schemas()
+            .iter()
+            .filter(|schema| {
+                if schema.transformation() != prediction.transformation() {
+                    return false;
+                }
+
+                match schema.effect_kind() {
+                    TransitionEffectKind::Added => prediction.predicts_addition(schema.fact()),
+
+                    TransitionEffectKind::Removed => prediction.predicts_removal(schema.fact()),
+                }
+            })
+            .collect::<Vec<_>>();
+
+        if supporting.is_empty() {
+            return None;
+        }
+
+        /*
+         * Weakest-link authority:
+         *
+         * A multi-effect prediction cannot inherit more confidence or
+         * controllability than its least-supported applicable component.
+         */
+        let evidence_confidence = supporting.iter().map(|schema| schema.precision()).min()?;
+
+        let controllability = supporting
+            .iter()
+            .map(|schema| schema.association_lift())
+            .min()?;
+
+        if evidence_confidence == CognitiveSignal::zero()
+            || controllability == CognitiveSignal::zero()
+        {
+            return None;
+        }
+
+        Some((evidence_confidence, controllability))
+    }
+
+    fn model_grounded_executive_candidate(
+        model: &athlesia_universal_domain_learning::GroundedExecutableWorldModel,
+        state: &athlesia_universal_domain_learning::GroundedStateSnapshot,
+        action: crate::ArcAgi3Action,
+        goal: &athlesia_executive_agency::ExecutiveGoal,
+        goal_alignment: athlesia_mindstone_sparse_cognition::CognitiveSignal,
+        execution_cost: athlesia_mindstone_sparse_cognition::CognitiveSignal,
+    ) -> Option<athlesia_executive_agency::GroundedExecutiveActionCandidate> {
+        use athlesia_mindstone_sparse_cognition::CognitiveSignal;
+
+        let transformation =
+            crate::cognitive_protocol_bridge::ArcAgi3CognitiveProtocolBridge::encode_action(action);
+
+        let prediction = model.predict(state, &transformation);
+
+        if !prediction.predicted() {
+            return None;
+        }
+
+        let predicted_outcome = Self::model_prediction_structure(&prediction)?;
+
+        let (evidence_confidence, controllability) =
+            Self::model_prediction_empirical_authority(model, &prediction)?;
+
+        Some(
+            athlesia_executive_agency::GroundedExecutiveActionCandidate::new(
+                goal.identity().clone(),
+                transformation,
+                predicted_outcome,
+                goal_alignment,
+                controllability,
+                evidence_confidence,
+                /*
+                 * This path exploits a learned causal model.
+                 *
+                 * It is not an epistemic experiment and therefore
+                 * receives no fabricated information-gain signal.
+                 */
+                CognitiveSignal::zero(),
+                execution_cost,
+            ),
+        )
+    }
+
+    pub fn current_model_grounded_action_selection(
+        &self,
+        candidate_actions: &[crate::ArcAgi3Action],
+        goal: &athlesia_executive_agency::ExecutiveGoal,
+        goal_alignment: athlesia_mindstone_sparse_cognition::CognitiveSignal,
+        execution_cost: athlesia_mindstone_sparse_cognition::CognitiveSignal,
+        policy: athlesia_executive_agency::ExecutiveAgencyPolicy,
+    ) -> Option<crate::ArcAgi3Action> {
+        /*
+         * Caller supplies only the finite action opportunity frontier and
+         * explicit executive authorities.
+         *
+         * Learned causal evidence comes exclusively from the retained owner.
+         */
+        let state = self.current_grounded_world_state()?;
+
+        let model = self.current_executable_world_model()?;
+
+        let mut authorized = Vec::new();
+
+        for &action in candidate_actions {
+            let Some(candidate) = Self::model_grounded_executive_candidate(
+                &model,
+                state,
+                action,
+                goal,
+                goal_alignment,
+                execution_cost,
+            ) else {
+                continue;
+            };
+
+            /*
+             * ARC protocol availability remains an independent authority.
+             * An unavailable or RESET action is rejected, never rewritten.
+             */
+            let Ok(grounded) =
+                crate::action_grounding_bridge::
+                    ArcAgi3ActionGroundingBridge::
+                    authorize_executive_candidate(
+                        self.observation(),
+                        &candidate,
+                    )
+            else {
+                continue;
+            };
+
+            /*
+             * Duplicate opportunities cannot manufacture additional
+             * executive evidence.
+             */
+            if authorized.iter().any(
+                |existing: &crate::action_grounding_bridge::ArcAgi3AuthorizedExecutiveCandidate| {
+                    existing.candidate() == grounded.candidate()
+                },
+            ) {
+                continue;
+            }
+
+            authorized.push(grounded);
+        }
+
+        if authorized.is_empty() {
+            return None;
+        }
+
+        let candidates = authorized
+            .iter()
+            .map(|grounded| grounded.candidate().clone())
+            .collect::<Vec<_>>();
+
+        /*
+         * REAL M48 authority.
+         *
+         * There is no local "best predicted action" ranking here.
+         */
+        let executive = athlesia_executive_agency::UniversalExecutiveAgency::evaluate(
+            std::slice::from_ref(goal),
+            &candidates,
+            policy,
+        );
+
+        let selected = executive.selected().first()?;
+
+        authorized
+            .iter()
+            .find(|grounded| {
+                grounded.candidate().action() == selected.action()
+                    && grounded.candidate().predicted_outcome() == selected.predicted_outcome()
+            })
+            .map(|grounded| grounded.action())
+    }
+
     pub fn observation(&self) -> &ArcAgi3Observation {
         self.session.observation()
     }
