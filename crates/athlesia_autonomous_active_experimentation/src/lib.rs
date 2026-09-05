@@ -2537,6 +2537,923 @@ impl UniversalAutonomousEmpiricalEpistemicActionPriority {
     }
 }
 
+// ============================================================================
+// P4G-C3G-A — STRUCTURAL EMPIRICAL TRANSFER IDENTITY
+// ============================================================================
+//
+// Frozen C3E/C3F deliberately required exact source-state identity.
+// Live discovery proved that contract safe but too narrow for autonomous
+// reuse: genuine learning changes the exact current epistemic pattern before
+// that same state can reuse its own empirical history.
+//
+// C3G-A does NOT weaken the exact path.
+//
+// Instead it introduces a separate structural transfer identity for an
+// action-conditioned epistemic problem.
+//
+// Source state is deliberately NOT part of this identity.
+//
+// Everything else that currently constitutes grounded forecast structure IS
+// retained exactly:
+//
+//   * exact action identity;
+//   * exact hypothesis identity;
+//   * exact effect target;
+//   * exact forecast status;
+//   * exact partial predicted outcome, when one exists;
+//   * exact empirical support/opportunity/counterexample counts.
+//
+// Therefore equal aggregate discrimination counts are NOT sufficient for
+// transfer.
+//
+// This layer does not estimate progress, assign priority, dispatch an action,
+// alter M48 authority, fabricate probability, or compute Shannon EIG.
+
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub struct EmpiricalEpistemicTransferIdentityPolicy {
+    max_forecasts: usize,
+}
+
+impl EmpiricalEpistemicTransferIdentityPolicy {
+    pub fn new(max_forecasts: usize) -> Option<Self> {
+        if max_forecasts == 0 {
+            return None;
+        }
+
+        Some(Self { max_forecasts })
+    }
+
+    pub fn max_forecasts(self) -> usize {
+        self.max_forecasts
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct EmpiricalEpistemicTransferForecastIdentity {
+    hypothesis: CognitiveStructure,
+    target: CognitiveStructure,
+    predicted_outcome: Option<CognitiveStructure>,
+    status: EpistemicHypothesisForecastStatus,
+    support_count: u64,
+    opportunity_count: u64,
+    counterexample_count: u64,
+}
+
+impl EmpiricalEpistemicTransferForecastIdentity {
+    fn from_forecast(forecast: &EpistemicHypothesisForecast) -> Self {
+        let evidence = forecast.evidence();
+
+        Self {
+            hypothesis: forecast.hypothesis().clone(),
+            target: forecast.target().clone(),
+            predicted_outcome: forecast.predicted_outcome().cloned(),
+            status: forecast.status(),
+            support_count: evidence.support_count(),
+            opportunity_count: evidence.opportunity_count(),
+            counterexample_count: evidence.counterexample_count(),
+        }
+    }
+
+    pub fn hypothesis(&self) -> &CognitiveStructure {
+        &self.hypothesis
+    }
+
+    pub fn target(&self) -> &CognitiveStructure {
+        &self.target
+    }
+
+    pub fn predicted_outcome(&self) -> Option<&CognitiveStructure> {
+        self.predicted_outcome.as_ref()
+    }
+
+    pub fn status(&self) -> EpistemicHypothesisForecastStatus {
+        self.status
+    }
+
+    pub fn support_count(&self) -> u64 {
+        self.support_count
+    }
+
+    pub fn opportunity_count(&self) -> u64 {
+        self.opportunity_count
+    }
+
+    pub fn counterexample_count(&self) -> u64 {
+        self.counterexample_count
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct EmpiricalEpistemicTransferIdentity {
+    action: CognitiveStructure,
+    forecasts: Vec<EmpiricalEpistemicTransferForecastIdentity>,
+}
+
+impl EmpiricalEpistemicTransferIdentity {
+    pub fn action(&self) -> &CognitiveStructure {
+        &self.action
+    }
+
+    pub fn forecasts(&self) -> &[EmpiricalEpistemicTransferForecastIdentity] {
+        &self.forecasts
+    }
+
+    pub fn forecast_count(&self) -> usize {
+        self.forecasts.len()
+    }
+
+    pub fn structurally_compatible_with(&self, other: &Self) -> bool {
+        self == other
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub enum EmpiricalEpistemicTransferIdentityStatus {
+    Derived,
+    ForecastFrontierExceeded,
+    ConflictingForecastIdentity,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct EmpiricalEpistemicTransferIdentityResult {
+    status: EmpiricalEpistemicTransferIdentityStatus,
+    input_forecast_count: usize,
+    unique_forecast_count: usize,
+    identity: Option<EmpiricalEpistemicTransferIdentity>,
+}
+
+impl EmpiricalEpistemicTransferIdentityResult {
+    fn rejected(
+        status: EmpiricalEpistemicTransferIdentityStatus,
+        input_forecast_count: usize,
+        unique_forecast_count: usize,
+    ) -> Self {
+        Self {
+            status,
+            input_forecast_count,
+            unique_forecast_count,
+            identity: None,
+        }
+    }
+
+    pub fn status(&self) -> EmpiricalEpistemicTransferIdentityStatus {
+        self.status
+    }
+
+    pub fn derived(&self) -> bool {
+        self.status == EmpiricalEpistemicTransferIdentityStatus::Derived
+    }
+
+    pub fn input_forecast_count(&self) -> usize {
+        self.input_forecast_count
+    }
+
+    pub fn unique_forecast_count(&self) -> usize {
+        self.unique_forecast_count
+    }
+
+    pub fn identity(&self) -> Option<&EmpiricalEpistemicTransferIdentity> {
+        self.identity.as_ref()
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct AutonomousEmpiricalEpistemicTransferIdentity;
+
+impl AutonomousEmpiricalEpistemicTransferIdentity {
+    fn canonical_order(
+        left: &EmpiricalEpistemicTransferForecastIdentity,
+        right: &EmpiricalEpistemicTransferForecastIdentity,
+    ) -> std::cmp::Ordering {
+        /*
+         * Debug rendering is used ONLY to obtain a deterministic order.
+         * Semantic equality and conflict detection below use the exact
+         * structured values themselves.
+         */
+        format!("{:?}", left.hypothesis())
+            .cmp(&format!("{:?}", right.hypothesis()))
+            .then_with(|| format!("{left:?}").cmp(&format!("{right:?}")))
+    }
+
+    pub fn derive(
+        possibility: &GroundedEpistemicExperimentPossibility,
+        policy: EmpiricalEpistemicTransferIdentityPolicy,
+    ) -> EmpiricalEpistemicTransferIdentityResult {
+        let input_forecast_count = possibility.forecasts().len();
+
+        if input_forecast_count > policy.max_forecasts() {
+            return EmpiricalEpistemicTransferIdentityResult::rejected(
+                EmpiricalEpistemicTransferIdentityStatus::ForecastFrontierExceeded,
+                input_forecast_count,
+                0,
+            );
+        }
+
+        let mut canonical = possibility
+            .forecasts()
+            .iter()
+            .map(EmpiricalEpistemicTransferForecastIdentity::from_forecast)
+            .collect::<Vec<_>>();
+
+        canonical.sort_by(Self::canonical_order);
+
+        let mut unique: Vec<EmpiricalEpistemicTransferForecastIdentity> = Vec::new();
+
+        for candidate in canonical {
+            if let Some(existing) = unique
+                .iter()
+                .find(|existing| existing.hypothesis() == candidate.hypothesis())
+            {
+                if existing != &candidate {
+                    return EmpiricalEpistemicTransferIdentityResult::rejected(
+                        EmpiricalEpistemicTransferIdentityStatus::ConflictingForecastIdentity,
+                        input_forecast_count,
+                        unique.len(),
+                    );
+                }
+
+                continue;
+            }
+
+            unique.push(candidate);
+        }
+
+        let unique_forecast_count = unique.len();
+
+        EmpiricalEpistemicTransferIdentityResult {
+            status: EmpiricalEpistemicTransferIdentityStatus::Derived,
+            input_forecast_count,
+            unique_forecast_count,
+            identity: Some(EmpiricalEpistemicTransferIdentity {
+                action: possibility.action().clone(),
+                forecasts: unique,
+            }),
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct UniversalAutonomousEmpiricalEpistemicTransferIdentity;
+
+impl UniversalAutonomousEmpiricalEpistemicTransferIdentity {
+    pub fn derive(
+        possibility: &GroundedEpistemicExperimentPossibility,
+        policy: EmpiricalEpistemicTransferIdentityPolicy,
+    ) -> EmpiricalEpistemicTransferIdentityResult {
+        AutonomousEmpiricalEpistemicTransferIdentity::derive(possibility, policy)
+    }
+}
+
+// ============================================================================
+// P4G-C3G-C — EMPIRICAL STRUCTURAL TRANSFER EXPECTATION
+// ============================================================================
+//
+// Frozen C3E estimates only from the exact source-state / action / epistemic
+// pattern.
+//
+// C3G-C is a SEPARATE empirical transfer path.
+//
+// A past progress event qualifies only when:
+//
+//   1. the CURRENT possibility is genuinely epistemically informative;
+//   2. its C3G-A structural transfer identity derives without truncation;
+//   3. the retained event carries exactly the same transfer identity;
+//   4. the retained event came from a DIFFERENT concrete source state;
+//   5. exact evidence identity is unique;
+//   6. all hard evidence frontiers hold.
+//
+// Same-source evidence is deliberately excluded here. It remains the concern
+// of the frozen exact C3E estimator.
+//
+// No probability, confidence, utility, Shannon EIG, priority, or dispatch
+// authority is introduced.
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct GroundedEpistemicTransferProgressEvidence {
+    evidence_identity: CognitiveStructure,
+    transfer_identity:
+        EmpiricalEpistemicTransferIdentity,
+    sample: EpistemicResolutionProgressSample,
+}
+
+impl GroundedEpistemicTransferProgressEvidence {
+    pub fn new(
+        evidence_identity: CognitiveStructure,
+        transfer_identity:
+            EmpiricalEpistemicTransferIdentity,
+        sample: EpistemicResolutionProgressSample,
+    ) -> Self {
+        Self {
+            evidence_identity,
+            transfer_identity,
+            sample,
+        }
+    }
+
+    pub fn evidence_identity(
+        &self,
+    ) -> &CognitiveStructure {
+        &self.evidence_identity
+    }
+
+    pub fn transfer_identity(
+        &self,
+    ) -> &EmpiricalEpistemicTransferIdentity {
+        &self.transfer_identity
+    }
+
+    pub fn sample(
+        &self,
+    ) -> &EpistemicResolutionProgressSample {
+        &self.sample
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub struct EmpiricalExpectedEpistemicTransferProgressPolicy {
+    max_input_evidence: usize,
+    max_matching_evidence: usize,
+    minimum_matching_evidence: usize,
+}
+
+impl EmpiricalExpectedEpistemicTransferProgressPolicy {
+    pub fn new(
+        max_input_evidence: usize,
+        max_matching_evidence: usize,
+        minimum_matching_evidence: usize,
+    ) -> Option<Self> {
+        if max_input_evidence == 0
+            || max_matching_evidence == 0
+            || minimum_matching_evidence == 0
+            || minimum_matching_evidence
+                > max_matching_evidence
+            || max_matching_evidence
+                > max_input_evidence
+        {
+            return None;
+        }
+
+        Some(Self {
+            max_input_evidence,
+            max_matching_evidence,
+            minimum_matching_evidence,
+        })
+    }
+
+    pub fn max_input_evidence(self) -> usize {
+        self.max_input_evidence
+    }
+
+    pub fn max_matching_evidence(self) -> usize {
+        self.max_matching_evidence
+    }
+
+    pub fn minimum_matching_evidence(
+        self,
+    ) -> usize {
+        self.minimum_matching_evidence
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct EmpiricalExpectedEpistemicTransferProgressEstimate {
+    current_source_state: CognitiveStructure,
+    transfer_identity:
+        EmpiricalEpistemicTransferIdentity,
+    qualifying_sample_count: usize,
+    distinct_source_state_count: usize,
+    total_reduction: u128,
+    total_increase: u128,
+    reduction_sample_count: usize,
+    increase_sample_count: usize,
+    unchanged_sample_count: usize,
+    direction: EmpiricalEpistemicProgressDirection,
+}
+
+impl EmpiricalExpectedEpistemicTransferProgressEstimate {
+    pub fn current_source_state(
+        &self,
+    ) -> &CognitiveStructure {
+        &self.current_source_state
+    }
+
+    pub fn transfer_identity(
+        &self,
+    ) -> &EmpiricalEpistemicTransferIdentity {
+        &self.transfer_identity
+    }
+
+    pub fn qualifying_sample_count(
+        &self,
+    ) -> usize {
+        self.qualifying_sample_count
+    }
+
+    pub fn distinct_source_state_count(
+        &self,
+    ) -> usize {
+        self.distinct_source_state_count
+    }
+
+    pub fn expected_reduction_numerator(
+        &self,
+    ) -> u128 {
+        self.total_reduction
+    }
+
+    pub fn expected_reduction_denominator(
+        &self,
+    ) -> usize {
+        self.qualifying_sample_count
+    }
+
+    pub fn expected_increase_numerator(
+        &self,
+    ) -> u128 {
+        self.total_increase
+    }
+
+    pub fn expected_increase_denominator(
+        &self,
+    ) -> usize {
+        self.qualifying_sample_count
+    }
+
+    pub fn reduction_sample_count(
+        &self,
+    ) -> usize {
+        self.reduction_sample_count
+    }
+
+    pub fn increase_sample_count(
+        &self,
+    ) -> usize {
+        self.increase_sample_count
+    }
+
+    pub fn unchanged_sample_count(
+        &self,
+    ) -> usize {
+        self.unchanged_sample_count
+    }
+
+    pub fn direction(
+        &self,
+    ) -> EmpiricalEpistemicProgressDirection {
+        self.direction
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub enum EmpiricalExpectedEpistemicTransferProgressStatus {
+    Estimated,
+    CurrentForecastFrontierTruncated,
+    CurrentNotInformative,
+    CurrentTransferIdentityRejected,
+    InputEvidenceFrontierExceeded,
+    EvidenceActionMismatch,
+    ConflictingEvidenceIdentity,
+    NoMatchingTransferIdentity,
+    NoCrossStateMatchingEvidence,
+    MatchingEvidenceFrontierExceeded,
+    InsufficientMatchingEvidence,
+    ArithmeticOverflow,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct EmpiricalExpectedEpistemicTransferProgressResult {
+    status:
+        EmpiricalExpectedEpistemicTransferProgressStatus,
+    input_evidence_count: usize,
+    matching_identity_evidence_count: usize,
+    cross_state_matching_evidence_count: usize,
+    estimate:
+        Option<
+            EmpiricalExpectedEpistemicTransferProgressEstimate,
+        >,
+}
+
+impl EmpiricalExpectedEpistemicTransferProgressResult {
+    fn rejected(
+        status:
+            EmpiricalExpectedEpistemicTransferProgressStatus,
+        input_evidence_count: usize,
+        matching_identity_evidence_count: usize,
+        cross_state_matching_evidence_count: usize,
+    ) -> Self {
+        Self {
+            status,
+            input_evidence_count,
+            matching_identity_evidence_count,
+            cross_state_matching_evidence_count,
+            estimate: None,
+        }
+    }
+
+    pub fn status(
+        &self,
+    ) -> EmpiricalExpectedEpistemicTransferProgressStatus {
+        self.status
+    }
+
+    pub fn estimated(&self) -> bool {
+        self.status
+            == EmpiricalExpectedEpistemicTransferProgressStatus::
+                Estimated
+    }
+
+    pub fn input_evidence_count(
+        &self,
+    ) -> usize {
+        self.input_evidence_count
+    }
+
+    pub fn matching_identity_evidence_count(
+        &self,
+    ) -> usize {
+        self.matching_identity_evidence_count
+    }
+
+    pub fn cross_state_matching_evidence_count(
+        &self,
+    ) -> usize {
+        self.cross_state_matching_evidence_count
+    }
+
+    pub fn estimate(
+        &self,
+    ) -> Option<
+        &EmpiricalExpectedEpistemicTransferProgressEstimate,
+    > {
+        self.estimate.as_ref()
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct AutonomousEmpiricalExpectedEpistemicTransferProgress;
+
+impl AutonomousEmpiricalExpectedEpistemicTransferProgress {
+    pub fn estimate(
+        current:
+            &GroundedEpistemicExperimentPossibility,
+        history:
+            &[GroundedEpistemicTransferProgressEvidence],
+        identity_policy:
+            EmpiricalEpistemicTransferIdentityPolicy,
+        discrimination_policy:
+            EpistemicForecastDiscriminationPolicy,
+        policy:
+            EmpiricalExpectedEpistemicTransferProgressPolicy,
+    ) -> EmpiricalExpectedEpistemicTransferProgressResult {
+        let input_evidence_count =
+            history.len();
+
+        let discrimination =
+            AutonomousEpistemicForecastDiscrimination::
+                evaluate(
+                    current,
+                    discrimination_policy,
+                );
+
+        if discrimination
+            .forecast_frontier_truncated()
+            || discrimination
+                .target_frontier_truncated()
+        {
+            return
+                EmpiricalExpectedEpistemicTransferProgressResult::
+                    rejected(
+                        EmpiricalExpectedEpistemicTransferProgressStatus::
+                            CurrentForecastFrontierTruncated,
+                        input_evidence_count,
+                        0,
+                        0,
+                    );
+        }
+
+        if !discrimination.informative() {
+            return
+                EmpiricalExpectedEpistemicTransferProgressResult::
+                    rejected(
+                        EmpiricalExpectedEpistemicTransferProgressStatus::
+                            CurrentNotInformative,
+                        input_evidence_count,
+                        0,
+                        0,
+                    );
+        }
+
+        let current_identity_result =
+            AutonomousEmpiricalEpistemicTransferIdentity::
+                derive(
+                    current,
+                    identity_policy,
+                );
+
+        let Some(current_identity) =
+            current_identity_result.identity().cloned()
+        else {
+            return
+                EmpiricalExpectedEpistemicTransferProgressResult::
+                    rejected(
+                        EmpiricalExpectedEpistemicTransferProgressStatus::
+                            CurrentTransferIdentityRejected,
+                        input_evidence_count,
+                        0,
+                        0,
+                    );
+        };
+
+        if input_evidence_count
+            > policy.max_input_evidence()
+        {
+            return
+                EmpiricalExpectedEpistemicTransferProgressResult::
+                    rejected(
+                        EmpiricalExpectedEpistemicTransferProgressStatus::
+                            InputEvidenceFrontierExceeded,
+                        input_evidence_count,
+                        0,
+                        0,
+                    );
+        }
+
+        /*
+         * Exact evidence identity is authoritative.
+         * Exact duplicates deduplicate.
+         * Conflicting reuse fails closed.
+         *
+         * No sorting is needed because all later arithmetic is
+         * commutative and exact structural equality controls identity.
+         */
+        let mut unique:
+            Vec<&GroundedEpistemicTransferProgressEvidence> =
+            Vec::new();
+
+        for evidence in history {
+            if evidence.sample().action()
+                != evidence.transfer_identity().action()
+            {
+                return
+                    EmpiricalExpectedEpistemicTransferProgressResult::
+                        rejected(
+                            EmpiricalExpectedEpistemicTransferProgressStatus::
+                                EvidenceActionMismatch,
+                            input_evidence_count,
+                            0,
+                            0,
+                        );
+            }
+
+            if let Some(existing) =
+                unique.iter().find(|existing| {
+                    existing.evidence_identity()
+                        == evidence.evidence_identity()
+                })
+            {
+                if *existing != evidence {
+                    return
+                        EmpiricalExpectedEpistemicTransferProgressResult::
+                            rejected(
+                                EmpiricalExpectedEpistemicTransferProgressStatus::
+                                    ConflictingEvidenceIdentity,
+                                input_evidence_count,
+                                0,
+                                0,
+                            );
+                }
+
+                continue;
+            }
+
+            unique.push(evidence);
+        }
+
+        let matching_identity = unique
+            .iter()
+            .copied()
+            .filter(|evidence| {
+                evidence.transfer_identity()
+                    == &current_identity
+            })
+            .collect::<Vec<_>>();
+
+        let matching_identity_evidence_count =
+            matching_identity.len();
+
+        if matching_identity_evidence_count == 0 {
+            return
+                EmpiricalExpectedEpistemicTransferProgressResult::
+                    rejected(
+                        EmpiricalExpectedEpistemicTransferProgressStatus::
+                            NoMatchingTransferIdentity,
+                        input_evidence_count,
+                        0,
+                        0,
+                    );
+        }
+
+        /*
+         * This estimator is deliberately TRANSFER-only.
+         * Same-source samples are never admitted here.
+         */
+        let cross_state = matching_identity
+            .into_iter()
+            .filter(|evidence| {
+                evidence.sample().source_state()
+                    != current.source_state()
+            })
+            .collect::<Vec<_>>();
+
+        let cross_state_matching_evidence_count =
+            cross_state.len();
+
+        if cross_state_matching_evidence_count == 0 {
+            return
+                EmpiricalExpectedEpistemicTransferProgressResult::
+                    rejected(
+                        EmpiricalExpectedEpistemicTransferProgressStatus::
+                            NoCrossStateMatchingEvidence,
+                        input_evidence_count,
+                        matching_identity_evidence_count,
+                        0,
+                    );
+        }
+
+        if cross_state_matching_evidence_count
+            > policy.max_matching_evidence()
+        {
+            return
+                EmpiricalExpectedEpistemicTransferProgressResult::
+                    rejected(
+                        EmpiricalExpectedEpistemicTransferProgressStatus::
+                            MatchingEvidenceFrontierExceeded,
+                        input_evidence_count,
+                        matching_identity_evidence_count,
+                        cross_state_matching_evidence_count,
+                    );
+        }
+
+        if cross_state_matching_evidence_count
+            < policy.minimum_matching_evidence()
+        {
+            return
+                EmpiricalExpectedEpistemicTransferProgressResult::
+                    rejected(
+                        EmpiricalExpectedEpistemicTransferProgressStatus::
+                            InsufficientMatchingEvidence,
+                        input_evidence_count,
+                        matching_identity_evidence_count,
+                        cross_state_matching_evidence_count,
+                    );
+        }
+
+        let mut total_reduction = 0_u128;
+        let mut total_increase = 0_u128;
+
+        let mut reduction_sample_count = 0_usize;
+        let mut increase_sample_count = 0_usize;
+        let mut unchanged_sample_count = 0_usize;
+
+        let mut distinct_source_states:
+            Vec<&CognitiveStructure> =
+            Vec::new();
+
+        for evidence in cross_state {
+            let sample = evidence.sample();
+
+            total_reduction = match total_reduction
+                .checked_add(
+                    sample.realized_separation_reduction() as u128,
+                )
+            {
+                Some(value) => value,
+                None => {
+                    return
+                        EmpiricalExpectedEpistemicTransferProgressResult::
+                            rejected(
+                                EmpiricalExpectedEpistemicTransferProgressStatus::
+                                    ArithmeticOverflow,
+                                input_evidence_count,
+                                matching_identity_evidence_count,
+                                cross_state_matching_evidence_count,
+                            );
+                }
+            };
+
+            total_increase = match total_increase
+                .checked_add(
+                    sample.realized_separation_increase() as u128,
+                )
+            {
+                Some(value) => value,
+                None => {
+                    return
+                        EmpiricalExpectedEpistemicTransferProgressResult::
+                            rejected(
+                                EmpiricalExpectedEpistemicTransferProgressStatus::
+                                    ArithmeticOverflow,
+                                input_evidence_count,
+                                matching_identity_evidence_count,
+                                cross_state_matching_evidence_count,
+                            );
+                }
+            };
+
+            if sample.realized_separation_reduction() > 0 {
+                reduction_sample_count += 1;
+            }
+
+            if sample.realized_separation_increase() > 0 {
+                increase_sample_count += 1;
+            }
+
+            if sample.realized_separation_reduction() == 0
+                && sample.realized_separation_increase() == 0
+            {
+                unchanged_sample_count += 1;
+            }
+
+            if !distinct_source_states
+                .iter()
+                .any(|existing| {
+                    *existing
+                        == sample.source_state()
+                })
+            {
+                distinct_source_states
+                    .push(sample.source_state());
+            }
+        }
+
+        let direction =
+            if total_reduction > total_increase {
+                EmpiricalEpistemicProgressDirection::
+                    ReductionDominant
+            } else if total_increase > total_reduction {
+                EmpiricalEpistemicProgressDirection::
+                    IncreaseDominant
+            } else {
+                EmpiricalEpistemicProgressDirection::
+                    Balanced
+            };
+
+        EmpiricalExpectedEpistemicTransferProgressResult {
+            status:
+                EmpiricalExpectedEpistemicTransferProgressStatus::
+                    Estimated,
+            input_evidence_count,
+            matching_identity_evidence_count,
+            cross_state_matching_evidence_count,
+            estimate: Some(
+                EmpiricalExpectedEpistemicTransferProgressEstimate {
+                    current_source_state:
+                        current.source_state().clone(),
+                    transfer_identity:
+                        current_identity,
+                    qualifying_sample_count:
+                        cross_state_matching_evidence_count,
+                    distinct_source_state_count:
+                        distinct_source_states.len(),
+                    total_reduction,
+                    total_increase,
+                    reduction_sample_count,
+                    increase_sample_count,
+                    unchanged_sample_count,
+                    direction,
+                },
+            ),
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub struct UniversalAutonomousEmpiricalExpectedEpistemicTransferProgress;
+
+impl UniversalAutonomousEmpiricalExpectedEpistemicTransferProgress {
+    pub fn estimate(
+        current:
+            &GroundedEpistemicExperimentPossibility,
+        history:
+            &[GroundedEpistemicTransferProgressEvidence],
+        identity_policy:
+            EmpiricalEpistemicTransferIdentityPolicy,
+        discrimination_policy:
+            EpistemicForecastDiscriminationPolicy,
+        policy:
+            EmpiricalExpectedEpistemicTransferProgressPolicy,
+    ) -> EmpiricalExpectedEpistemicTransferProgressResult {
+        AutonomousEmpiricalExpectedEpistemicTransferProgress::
+            estimate(
+                current,
+                history,
+                identity_policy,
+                discrimination_policy,
+                policy,
+            )
+    }
+}
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct HypothesisDiscriminationCandidate {
     experiment: AutonomousExperimentProposal,
@@ -12163,5 +13080,1051 @@ mod p4g_c3f_empirical_epistemic_action_priority_tests {
         assert_eq!(direct, facade);
 
         assert_eq!(EmpiricalEpistemicActionPriorityPolicy::new(0), None,);
+    }
+}
+
+#[cfg(test)]
+mod p4g_c3g_structural_empirical_transfer_identity_tests {
+    use super::*;
+
+    fn a(value: u64) -> CognitiveStructure {
+        CognitiveStructure::atom(value)
+    }
+
+    fn evidence(support: u64, opportunity: u64, counterexample: u64) -> EpistemicForecastEvidence {
+        EpistemicForecastEvidence::new(support, opportunity, counterexample).unwrap()
+    }
+
+    fn predicted(
+        hypothesis: u64,
+        target: u64,
+        outcome: u64,
+        support: u64,
+        opportunity: u64,
+        counterexample: u64,
+    ) -> EpistemicHypothesisForecast {
+        EpistemicHypothesisForecast::predicted(
+            a(hypothesis),
+            a(target),
+            a(outcome),
+            evidence(support, opportunity, counterexample),
+        )
+        .unwrap()
+    }
+
+    fn abstained(
+        hypothesis: u64,
+        target: u64,
+        support: u64,
+        opportunity: u64,
+        counterexample: u64,
+    ) -> EpistemicHypothesisForecast {
+        EpistemicHypothesisForecast::context_abstained(
+            a(hypothesis),
+            a(target),
+            evidence(support, opportunity, counterexample),
+        )
+        .unwrap()
+    }
+
+    fn no_opportunity(
+        hypothesis: u64,
+        target: u64,
+        support: u64,
+        opportunity: u64,
+        counterexample: u64,
+    ) -> EpistemicHypothesisForecast {
+        EpistemicHypothesisForecast::no_effect_opportunity(
+            a(hypothesis),
+            a(target),
+            evidence(support, opportunity, counterexample),
+        )
+        .unwrap()
+    }
+
+    fn possibility(
+        source: u64,
+        action: u64,
+        forecasts: Vec<EpistemicHypothesisForecast>,
+    ) -> GroundedEpistemicExperimentPossibility {
+        GroundedEpistemicExperimentPossibility::new(a(source), a(action), forecasts).unwrap()
+    }
+
+    fn policy(max_forecasts: usize) -> EmpiricalEpistemicTransferIdentityPolicy {
+        EmpiricalEpistemicTransferIdentityPolicy::new(max_forecasts).unwrap()
+    }
+
+    fn derive(
+        possibility: &GroundedEpistemicExperimentPossibility,
+    ) -> EmpiricalEpistemicTransferIdentity {
+        AutonomousEmpiricalEpistemicTransferIdentity::derive(possibility, policy(64))
+            .identity()
+            .expect("test transfer identity must derive")
+            .clone()
+    }
+
+    fn common_forecasts() -> Vec<EpistemicHypothesisForecast> {
+        vec![
+            predicted(100, 500, 900, 2, 2, 0),
+            abstained(101, 500, 2, 2, 0),
+            no_opportunity(102, 600, 1, 1, 0),
+        ]
+    }
+
+    #[test]
+    fn different_exact_source_states_can_share_one_structural_transfer_identity() {
+        let first = possibility(1, 10, common_forecasts());
+
+        let second = possibility(999, 10, common_forecasts());
+
+        assert_ne!(first.source_state(), second.source_state(),);
+
+        let first_identity = derive(&first);
+
+        let second_identity = derive(&second);
+
+        assert_eq!(
+            first_identity, second_identity,
+            "source-state identity is intentionally excluded from structural transfer identity",
+        );
+
+        assert!(first_identity.structurally_compatible_with(&second_identity,),);
+    }
+
+    #[test]
+    fn action_identity_remains_exact_transfer_authority() {
+        let first = possibility(1, 10, common_forecasts());
+
+        let second = possibility(999, 11, common_forecasts());
+
+        assert_ne!(derive(&first), derive(&second),);
+    }
+
+    #[test]
+    fn equal_aggregate_discrimination_shape_cannot_hide_distinct_effect_targets() {
+        let first = possibility(
+            1,
+            10,
+            vec![
+                predicted(100, 500, 900, 2, 2, 0),
+                abstained(101, 500, 2, 2, 0),
+            ],
+        );
+
+        let second = possibility(
+            2,
+            10,
+            vec![
+                predicted(100, 700, 900, 2, 2, 0),
+                abstained(101, 700, 2, 2, 0),
+            ],
+        );
+
+        let discrimination_policy = EpistemicForecastDiscriminationPolicy::new(64, 64).unwrap();
+
+        let first_discrimination =
+            AutonomousEpistemicForecastDiscrimination::evaluate(&first, discrimination_policy);
+
+        let second_discrimination =
+            AutonomousEpistemicForecastDiscrimination::evaluate(&second, discrimination_policy);
+
+        assert_eq!(
+            first_discrimination.pairwise_separation_score(),
+            second_discrimination.pairwise_separation_score(),
+            "fixture must collide under the old aggregate separation signal",
+        );
+
+        assert_ne!(
+            derive(&first),
+            derive(&second),
+            "different exact effect targets must remain structurally distinct",
+        );
+    }
+
+    #[test]
+    fn forecast_status_is_structural_and_context_abstention_cannot_become_no_opportunity() {
+        let context = possibility(
+            1,
+            10,
+            vec![
+                predicted(100, 500, 900, 2, 2, 0),
+                abstained(101, 500, 2, 2, 0),
+            ],
+        );
+
+        let no_effect = possibility(
+            2,
+            10,
+            vec![
+                predicted(100, 500, 900, 2, 2, 0),
+                no_opportunity(101, 500, 2, 2, 0),
+            ],
+        );
+
+        assert_ne!(derive(&context), derive(&no_effect),);
+    }
+
+    #[test]
+    fn predicted_partial_outcome_is_preserved_exactly_in_transfer_identity() {
+        let first = possibility(
+            1,
+            10,
+            vec![
+                predicted(100, 500, 900, 2, 2, 0),
+                abstained(101, 500, 2, 2, 0),
+            ],
+        );
+
+        let second = possibility(
+            2,
+            10,
+            vec![
+                predicted(100, 500, 901, 2, 2, 0),
+                abstained(101, 500, 2, 2, 0),
+            ],
+        );
+
+        assert_ne!(derive(&first), derive(&second),);
+    }
+
+    #[test]
+    fn empirical_evidence_counts_are_part_of_transfer_identity() {
+        let mature = possibility(
+            1,
+            10,
+            vec![
+                predicted(100, 500, 900, 4, 4, 0),
+                abstained(101, 500, 4, 4, 0),
+            ],
+        );
+
+        let weak = possibility(
+            2,
+            10,
+            vec![
+                predicted(100, 500, 900, 1, 1, 0),
+                abstained(101, 500, 1, 1, 0),
+            ],
+        );
+
+        assert_ne!(
+            derive(&mature),
+            derive(&weak),
+            "different empirical maturity cannot silently share progress history",
+        );
+    }
+
+    #[test]
+    fn forecast_order_and_exact_duplication_do_not_change_transfer_identity() {
+        let forecasts = common_forecasts();
+
+        let direct = possibility(1, 10, forecasts.clone());
+
+        let reordered = possibility(
+            2,
+            10,
+            vec![
+                forecasts[2].clone(),
+                forecasts[0].clone(),
+                forecasts[1].clone(),
+                forecasts[0].clone(),
+            ],
+        );
+
+        let direct_result =
+            AutonomousEmpiricalEpistemicTransferIdentity::derive(&direct, policy(64));
+
+        let reordered_result =
+            AutonomousEmpiricalEpistemicTransferIdentity::derive(&reordered, policy(64));
+
+        assert!(direct_result.derived());
+        assert!(reordered_result.derived());
+
+        assert_eq!(direct_result.unique_forecast_count(), 3,);
+
+        assert_eq!(reordered_result.input_forecast_count(), 4,);
+
+        assert_eq!(reordered_result.unique_forecast_count(), 3,);
+
+        assert_eq!(direct_result.identity(), reordered_result.identity(),);
+    }
+
+    #[test]
+    fn conflicting_same_hypothesis_forecasts_fail_closed_instead_of_becoming_transfer_evidence() {
+        let conflicting = possibility(
+            1,
+            10,
+            vec![
+                predicted(100, 500, 900, 2, 2, 0),
+                abstained(100, 500, 2, 2, 0),
+            ],
+        );
+
+        let result = AutonomousEmpiricalEpistemicTransferIdentity::derive(&conflicting, policy(64));
+
+        assert_eq!(
+            result.status(),
+            EmpiricalEpistemicTransferIdentityStatus::ConflictingForecastIdentity,
+        );
+
+        assert!(result.identity().is_none());
+    }
+
+    #[test]
+    fn hard_forecast_frontier_fails_closed_before_partial_transfer_identity_exists() {
+        let possibility = possibility(1, 10, common_forecasts());
+
+        let result = AutonomousEmpiricalEpistemicTransferIdentity::derive(&possibility, policy(2));
+
+        assert_eq!(
+            result.status(),
+            EmpiricalEpistemicTransferIdentityStatus::ForecastFrontierExceeded,
+        );
+
+        assert!(result.identity().is_none());
+
+        assert_eq!(EmpiricalEpistemicTransferIdentityPolicy::new(0), None,);
+    }
+
+    #[test]
+    fn derivation_is_non_mutating_deterministic_and_universal_facade_equivalent() {
+        let possibility = possibility(1, 10, common_forecasts());
+
+        let before = possibility.clone();
+
+        let direct = AutonomousEmpiricalEpistemicTransferIdentity::derive(&possibility, policy(64));
+
+        let repeated =
+            AutonomousEmpiricalEpistemicTransferIdentity::derive(&possibility, policy(64));
+
+        let facade =
+            UniversalAutonomousEmpiricalEpistemicTransferIdentity::derive(&possibility, policy(64));
+
+        assert_eq!(direct, repeated);
+        assert_eq!(direct, facade);
+        assert_eq!(possibility, before);
+    }
+}
+
+#[cfg(test)]
+mod p4g_c3g_empirical_transfer_expectation_tests {
+    use super::*;
+
+    fn a(value: u64) -> CognitiveStructure {
+        CognitiveStructure::atom(value)
+    }
+
+    fn evidence_counts(
+    ) -> EpistemicForecastEvidence {
+        EpistemicForecastEvidence::new(
+            2,
+            2,
+            0,
+        )
+        .unwrap()
+    }
+
+    fn possibility(
+        source: u64,
+        action: u64,
+        target: u64,
+    ) -> GroundedEpistemicExperimentPossibility {
+        GroundedEpistemicExperimentPossibility::new(
+            a(source),
+            a(action),
+            vec![
+                EpistemicHypothesisForecast::predicted(
+                    a(100),
+                    a(target),
+                    a(900),
+                    evidence_counts(),
+                )
+                .unwrap(),
+                EpistemicHypothesisForecast::
+                    context_abstained(
+                        a(101),
+                        a(target),
+                        evidence_counts(),
+                    )
+                    .unwrap(),
+            ],
+        )
+        .unwrap()
+    }
+
+    fn reduced_post(
+        source: u64,
+        action: u64,
+        target: u64,
+    ) -> GroundedEpistemicExperimentPossibility {
+        GroundedEpistemicExperimentPossibility::new(
+            a(source),
+            a(action),
+            vec![
+                EpistemicHypothesisForecast::predicted(
+                    a(100),
+                    a(target),
+                    a(900),
+                    evidence_counts(),
+                )
+                .unwrap(),
+                EpistemicHypothesisForecast::predicted(
+                    a(101),
+                    a(target),
+                    a(900),
+                    evidence_counts(),
+                )
+                .unwrap(),
+            ],
+        )
+        .unwrap()
+    }
+
+    fn sample(
+        pre:
+            &GroundedEpistemicExperimentPossibility,
+        post:
+            &GroundedEpistemicExperimentPossibility,
+    ) -> EpistemicResolutionProgressSample {
+        let target =
+            pre.forecasts()[0].target().clone();
+
+        let observation =
+            GroundedEpistemicOutcomeObservation::new(
+                pre.source_state().clone(),
+                pre.action().clone(),
+                vec![
+                    EpistemicTargetObservation::new(
+                        target,
+                        true,
+                    ),
+                ],
+            )
+            .unwrap();
+
+        let outcome =
+            AutonomousEpistemicOutcomeResolution::
+                evaluate(
+                    pre,
+                    &observation,
+                    EpistemicOutcomeResolutionPolicy::
+                        new(
+                            32,
+                            32,
+                        )
+                        .unwrap(),
+                );
+
+        assert!(outcome.resolved());
+
+        AutonomousEpistemicResolutionProgress::
+            measure(
+                pre,
+                &outcome,
+                post,
+                discrimination_policy(),
+            )
+            .sample()
+            .unwrap()
+            .clone()
+    }
+
+    fn identity(
+        possibility:
+            &GroundedEpistemicExperimentPossibility,
+    ) -> EmpiricalEpistemicTransferIdentity {
+        AutonomousEmpiricalEpistemicTransferIdentity::
+            derive(
+                possibility,
+                identity_policy(),
+            )
+            .identity()
+            .unwrap()
+            .clone()
+    }
+
+    fn progress_evidence(
+        id: u64,
+        pre:
+            &GroundedEpistemicExperimentPossibility,
+        post:
+            &GroundedEpistemicExperimentPossibility,
+    ) -> GroundedEpistemicTransferProgressEvidence {
+        GroundedEpistemicTransferProgressEvidence::new(
+            a(id),
+            identity(pre),
+            sample(
+                pre,
+                post,
+            ),
+        )
+    }
+
+    fn identity_policy(
+    ) -> EmpiricalEpistemicTransferIdentityPolicy {
+        EmpiricalEpistemicTransferIdentityPolicy::
+            new(
+                32,
+            )
+            .unwrap()
+    }
+
+    fn discrimination_policy(
+    ) -> EpistemicForecastDiscriminationPolicy {
+        EpistemicForecastDiscriminationPolicy::
+            new(
+                32,
+                32,
+            )
+            .unwrap()
+    }
+
+    fn policy(
+        minimum: usize,
+    ) -> EmpiricalExpectedEpistemicTransferProgressPolicy {
+        EmpiricalExpectedEpistemicTransferProgressPolicy::
+            new(
+                32,
+                32,
+                minimum,
+            )
+            .unwrap()
+    }
+
+    fn estimate(
+        current:
+            &GroundedEpistemicExperimentPossibility,
+        history:
+            &[GroundedEpistemicTransferProgressEvidence],
+        minimum: usize,
+    ) -> EmpiricalExpectedEpistemicTransferProgressResult {
+        AutonomousEmpiricalExpectedEpistemicTransferProgress::
+            estimate(
+                current,
+                history,
+                identity_policy(),
+                discrimination_policy(),
+                policy(minimum),
+            )
+    }
+
+    #[test]
+    fn structurally_identical_different_source_state_progress_can_estimate_transfer() {
+        let historical =
+            possibility(
+                1,
+                10,
+                500,
+            );
+
+        let historical_post =
+            reduced_post(
+                1,
+                10,
+                500,
+            );
+
+        let current =
+            possibility(
+                999,
+                10,
+                500,
+            );
+
+        assert_ne!(
+            historical.source_state(),
+            current.source_state(),
+        );
+
+        assert_eq!(
+            identity(&historical),
+            identity(&current),
+        );
+
+        let result = estimate(
+            &current,
+            &[
+                progress_evidence(
+                    1000,
+                    &historical,
+                    &historical_post,
+                ),
+            ],
+            1,
+        );
+
+        assert!(result.estimated());
+
+        assert_eq!(
+            result.matching_identity_evidence_count(),
+            1,
+        );
+
+        assert_eq!(
+            result.cross_state_matching_evidence_count(),
+            1,
+        );
+
+        let estimate =
+            result.estimate().unwrap();
+
+        assert_eq!(
+            estimate.qualifying_sample_count(),
+            1,
+        );
+
+        assert_eq!(
+            estimate.distinct_source_state_count(),
+            1,
+        );
+
+        assert_eq!(
+            estimate.expected_reduction_numerator(),
+            1,
+        );
+
+        assert_eq!(
+            estimate.expected_reduction_denominator(),
+            1,
+        );
+
+        assert_eq!(
+            estimate.direction(),
+            EmpiricalEpistemicProgressDirection::
+                ReductionDominant,
+        );
+    }
+
+    #[test]
+    fn same_source_history_is_deliberately_excluded_from_transfer_estimator() {
+        let current =
+            possibility(
+                1,
+                10,
+                500,
+            );
+
+        let post =
+            reduced_post(
+                1,
+                10,
+                500,
+            );
+
+        let result = estimate(
+            &current,
+            &[
+                progress_evidence(
+                    1000,
+                    &current,
+                    &post,
+                ),
+            ],
+            1,
+        );
+
+        assert_eq!(
+            result.status(),
+            EmpiricalExpectedEpistemicTransferProgressStatus::
+                NoCrossStateMatchingEvidence,
+        );
+
+        assert!(result.estimate().is_none());
+    }
+
+    #[test]
+    fn equal_aggregate_shape_with_different_exact_transfer_identity_cannot_transfer() {
+        let historical =
+            possibility(
+                1,
+                10,
+                500,
+            );
+
+        let historical_post =
+            reduced_post(
+                1,
+                10,
+                500,
+            );
+
+        let current =
+            possibility(
+                999,
+                10,
+                700,
+            );
+
+        assert_ne!(
+            identity(&historical),
+            identity(&current),
+        );
+
+        let result = estimate(
+            &current,
+            &[
+                progress_evidence(
+                    1000,
+                    &historical,
+                    &historical_post,
+                ),
+            ],
+            1,
+        );
+
+        assert_eq!(
+            result.status(),
+            EmpiricalExpectedEpistemicTransferProgressStatus::
+                NoMatchingTransferIdentity,
+        );
+    }
+
+    #[test]
+    fn insufficient_cross_state_history_abstains_instead_of_inventing_transfer_value() {
+        let historical =
+            possibility(
+                1,
+                10,
+                500,
+            );
+
+        let current =
+            possibility(
+                999,
+                10,
+                500,
+            );
+
+        let result = estimate(
+            &current,
+            &[
+                progress_evidence(
+                    1000,
+                    &historical,
+                    &reduced_post(
+                        1,
+                        10,
+                        500,
+                    ),
+                ),
+            ],
+            2,
+        );
+
+        assert_eq!(
+            result.status(),
+            EmpiricalExpectedEpistemicTransferProgressStatus::
+                InsufficientMatchingEvidence,
+        );
+
+        assert!(result.estimate().is_none());
+    }
+
+    #[test]
+    fn exact_duplicate_evidence_identity_deduplicates_but_conflicting_reuse_fails_closed() {
+        let historical =
+            possibility(
+                1,
+                10,
+                500,
+            );
+
+        let current =
+            possibility(
+                999,
+                10,
+                500,
+            );
+
+        let one =
+            progress_evidence(
+                1000,
+                &historical,
+                &reduced_post(
+                    1,
+                    10,
+                    500,
+                ),
+            );
+
+        let duplicate_result = estimate(
+            &current,
+            &[
+                one.clone(),
+                one.clone(),
+            ],
+            1,
+        );
+
+        assert!(duplicate_result.estimated());
+
+        assert_eq!(
+            duplicate_result
+                .cross_state_matching_evidence_count(),
+            1,
+        );
+
+        let unchanged =
+            GroundedEpistemicTransferProgressEvidence::
+                new(
+                    a(1000),
+                    identity(&historical),
+                    sample(
+                        &historical,
+                        &historical,
+                    ),
+                );
+
+        let conflicting = estimate(
+            &current,
+            &[
+                one,
+                unchanged,
+            ],
+            1,
+        );
+
+        assert_eq!(
+            conflicting.status(),
+            EmpiricalExpectedEpistemicTransferProgressStatus::
+                ConflictingEvidenceIdentity,
+        );
+    }
+
+    #[test]
+    fn current_resolved_epistemic_problem_cannot_import_historical_transfer_value() {
+        let historical =
+            possibility(
+                1,
+                10,
+                500,
+            );
+
+        let resolved =
+            reduced_post(
+                999,
+                10,
+                500,
+            );
+
+        let result = estimate(
+            &resolved,
+            &[
+                progress_evidence(
+                    1000,
+                    &historical,
+                    &reduced_post(
+                        1,
+                        10,
+                        500,
+                    ),
+                ),
+            ],
+            1,
+        );
+
+        assert_eq!(
+            result.status(),
+            EmpiricalExpectedEpistemicTransferProgressStatus::
+                CurrentNotInformative,
+        );
+    }
+
+    #[test]
+    fn hard_frontiers_and_evidence_action_mismatch_fail_closed() {
+        let historical =
+            possibility(
+                1,
+                10,
+                500,
+            );
+
+        let current =
+            possibility(
+                999,
+                10,
+                500,
+            );
+
+        let valid =
+            progress_evidence(
+                1000,
+                &historical,
+                &reduced_post(
+                    1,
+                    10,
+                    500,
+                ),
+            );
+
+        let input_overflow =
+            AutonomousEmpiricalExpectedEpistemicTransferProgress::
+                estimate(
+                    &current,
+                    &[
+                        valid.clone(),
+                        GroundedEpistemicTransferProgressEvidence::
+                            new(
+                                a(1001),
+                                identity(&historical),
+                                valid.sample().clone(),
+                            ),
+                    ],
+                    identity_policy(),
+                    discrimination_policy(),
+                    EmpiricalExpectedEpistemicTransferProgressPolicy::
+                        new(
+                            1,
+                            1,
+                            1,
+                        )
+                        .unwrap(),
+                );
+
+        assert_eq!(
+            input_overflow.status(),
+            EmpiricalExpectedEpistemicTransferProgressStatus::
+                InputEvidenceFrontierExceeded,
+        );
+
+        let wrong_identity_action =
+            EmpiricalEpistemicTransferIdentity {
+                action: a(11),
+                forecasts:
+                    identity(&historical)
+                        .forecasts()
+                        .to_vec(),
+            };
+
+        let action_mismatch = estimate(
+            &current,
+            &[
+                GroundedEpistemicTransferProgressEvidence::
+                    new(
+                        a(2000),
+                        wrong_identity_action,
+                        valid.sample().clone(),
+                    ),
+            ],
+            1,
+        );
+
+        assert_eq!(
+            action_mismatch.status(),
+            EmpiricalExpectedEpistemicTransferProgressStatus::
+                EvidenceActionMismatch,
+        );
+
+        assert_eq!(
+            EmpiricalExpectedEpistemicTransferProgressPolicy::
+                new(
+                    0,
+                    1,
+                    1,
+                ),
+            None,
+        );
+    }
+
+    #[test]
+    fn transfer_estimation_is_order_invariant_non_mutating_and_facade_equivalent() {
+        let first =
+            possibility(
+                1,
+                10,
+                500,
+            );
+
+        let second =
+            possibility(
+                2,
+                10,
+                500,
+            );
+
+        let current =
+            possibility(
+                999,
+                10,
+                500,
+            );
+
+        let history = vec![
+            progress_evidence(
+                1000,
+                &first,
+                &reduced_post(
+                    1,
+                    10,
+                    500,
+                ),
+            ),
+            progress_evidence(
+                1001,
+                &second,
+                &reduced_post(
+                    2,
+                    10,
+                    500,
+                ),
+            ),
+        ];
+
+        let before_current =
+            current.clone();
+
+        let before_history =
+            history.clone();
+
+        let direct =
+            AutonomousEmpiricalExpectedEpistemicTransferProgress::
+                estimate(
+                    &current,
+                    &history,
+                    identity_policy(),
+                    discrimination_policy(),
+                    policy(1),
+                );
+
+        let reversed =
+            AutonomousEmpiricalExpectedEpistemicTransferProgress::
+                estimate(
+                    &current,
+                    &[
+                        history[1].clone(),
+                        history[0].clone(),
+                    ],
+                    identity_policy(),
+                    discrimination_policy(),
+                    policy(1),
+                );
+
+        let facade =
+            UniversalAutonomousEmpiricalExpectedEpistemicTransferProgress::
+                estimate(
+                    &current,
+                    &history,
+                    identity_policy(),
+                    discrimination_policy(),
+                    policy(1),
+                );
+
+        assert_eq!(direct, reversed);
+        assert_eq!(direct, facade);
+        assert_eq!(current, before_current);
+        assert_eq!(history, before_history);
+
+        let estimate =
+            direct.estimate().unwrap();
+
+        assert_eq!(
+            estimate.qualifying_sample_count(),
+            2,
+        );
+
+        assert_eq!(
+            estimate.distinct_source_state_count(),
+            2,
+        );
     }
 }

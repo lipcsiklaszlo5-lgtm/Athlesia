@@ -1421,3 +1421,375 @@ fn live_progress_history_from_other_source_state_cannot_prioritize_new_current_s
         "epistemic priority remains non-authoritative for transport",
     );
 }
+
+#[test]
+fn live_real_c3d_event_retains_pre_learning_structural_transfer_identity_with_same_event_provenance()
+ {
+    let game = "p4gc3g-live-transfer-retention";
+
+    let action_one = action(ArcAgi3ActionId::Action1);
+
+    let action_two = action(ArcAgi3ActionId::Action2);
+
+    let mut runtime = live_runtime(game, 430_000);
+
+    mature_runtime(&mut runtime, game);
+
+    real_training_turn(&mut runtime, game, action_two, 7_u8);
+
+    let current = runtime
+        .cognitive_runtime()
+        .current_grounded_world_state()
+        .expect("holdout state 7 must be grounded")
+        .clone();
+
+    let cognitive_action = ArcAgi3CognitiveProtocolBridge::encode_action(action_one);
+
+    let pre_learning = runtime
+        .cognitive_runtime()
+        .cognition()
+        .current_m50_epistemic_possibility(
+            &current,
+            &cognitive_action,
+            athlesia_universal_domain_learning::GroundedExplanatoryVersionSpacePolicy::new(
+                1, 64, 512, 256,
+            )
+            .unwrap(),
+        )
+        .expect("state7 Action1 must expose pre-learning epistemic possibility");
+
+    let discrimination =
+        athlesia_autonomous_active_experimentation::
+            AutonomousEpistemicForecastDiscrimination::
+                evaluate(
+                    &pre_learning,
+                    athlesia_autonomous_active_experimentation::
+                        EpistemicForecastDiscriminationPolicy::
+                            new(
+                                512,
+                                512,
+                            )
+                            .unwrap(),
+                );
+
+    assert!(discrimination.informative());
+
+    let expected_identity =
+        athlesia_autonomous_active_experimentation::
+            AutonomousEmpiricalEpistemicTransferIdentity::
+                derive(
+                    &pre_learning,
+                    athlesia_autonomous_active_experimentation::
+                        EmpiricalEpistemicTransferIdentityPolicy::
+                            new(
+                                512,
+                            )
+                            .unwrap(),
+                )
+                .identity()
+                .expect(
+                    "pre-learning transfer identity must derive",
+                )
+                .clone();
+
+    let exact_before = runtime
+        .cognitive_runtime()
+        .cognition()
+        .epistemic_progress_event_count();
+
+    let transfer_before = runtime
+        .cognitive_runtime()
+        .cognition()
+        .epistemic_transfer_progress_event_count();
+
+    real_training_turn(&mut runtime, game, action_one, 6_u8);
+
+    let cognition = runtime.cognitive_runtime().cognition();
+
+    assert_eq!(cognition.epistemic_progress_event_count(), exact_before + 1,);
+
+    assert_eq!(
+        cognition.epistemic_transfer_progress_event_count(),
+        transfer_before + 1,
+    );
+
+    let exact = cognition.epistemic_progress_history().last().unwrap();
+
+    let transfer = cognition
+        .epistemic_transfer_progress_history()
+        .last()
+        .unwrap();
+
+    assert_eq!(
+        transfer.event_index(),
+        exact.event_index(),
+        "both histories must share exact completed-turn provenance",
+    );
+
+    assert_eq!(
+        transfer.sample(),
+        exact.sample(),
+        "transfer sidecar must retain the exact same C3D sample",
+    );
+
+    assert_eq!(
+        transfer.transfer_identity(),
+        &expected_identity,
+        "identity must come from the live PRE-learning possibility",
+    );
+
+    assert_eq!(
+        transfer.sample().source_state(),
+        pre_learning.source_state(),
+    );
+
+    assert_eq!(transfer.sample().action(), pre_learning.action(),);
+}
+
+#[test]
+fn live_noninformative_turn_cannot_manufacture_transfer_progress_history() {
+    let game = "p4gc3g-live-no-fake-transfer";
+
+    let action_one = action(ArcAgi3ActionId::Action1);
+
+    let mut runtime = live_runtime(game, 440_000);
+
+    mature_runtime(&mut runtime, game);
+
+    let current = runtime
+        .cognitive_runtime()
+        .current_grounded_world_state()
+        .expect("mature current state must be grounded")
+        .clone();
+
+    let cognitive_action = ArcAgi3CognitiveProtocolBridge::encode_action(action_one);
+
+    let possibility = runtime
+        .cognitive_runtime()
+        .cognition()
+        .current_m50_epistemic_possibility(
+            &current,
+            &cognitive_action,
+            athlesia_universal_domain_learning::GroundedExplanatoryVersionSpacePolicy::new(
+                1, 64, 512, 256,
+            )
+            .unwrap(),
+        )
+        .expect("known action may remain modeled");
+
+    let discrimination =
+        athlesia_autonomous_active_experimentation::
+            AutonomousEpistemicForecastDiscrimination::
+                evaluate(
+                    &possibility,
+                    athlesia_autonomous_active_experimentation::
+                        EpistemicForecastDiscriminationPolicy::
+                            new(
+                                512,
+                                512,
+                            )
+                            .unwrap(),
+                );
+
+    assert!(
+        !discrimination.informative(),
+        "negative control must begin epistemically resolved",
+    );
+
+    let exact_before = runtime
+        .cognitive_runtime()
+        .cognition()
+        .epistemic_progress_event_count();
+
+    let transfer_before = runtime
+        .cognitive_runtime()
+        .cognition()
+        .epistemic_transfer_progress_event_count();
+
+    real_training_turn(&mut runtime, game, action_one, 6_u8);
+
+    assert_eq!(
+        runtime
+            .cognitive_runtime()
+            .cognition()
+            .epistemic_progress_event_count(),
+        exact_before,
+    );
+
+    assert_eq!(
+        runtime
+            .cognitive_runtime()
+            .cognition()
+            .epistemic_transfer_progress_event_count(),
+        transfer_before,
+        "epistemically resolved real turn must not fabricate transfer progress",
+    );
+}
+
+#[test]
+fn live_real_transfer_history_can_estimate_structurally_identical_other_source_query_without_transport()
+ {
+    let game = "p4gc3g-live-transfer-estimate";
+
+    let action_one = action(ArcAgi3ActionId::Action1);
+
+    let action_two = action(ArcAgi3ActionId::Action2);
+
+    let mut runtime = live_runtime(game, 450_000);
+
+    mature_runtime(&mut runtime, game);
+
+    real_training_turn(&mut runtime, game, action_two, 7_u8);
+
+    let current = runtime
+        .cognitive_runtime()
+        .current_grounded_world_state()
+        .unwrap()
+        .clone();
+
+    let cognitive_action = ArcAgi3CognitiveProtocolBridge::encode_action(action_one);
+
+    let pre_learning = runtime
+        .cognitive_runtime()
+        .cognition()
+        .current_m50_epistemic_possibility(
+            &current,
+            &cognitive_action,
+            athlesia_universal_domain_learning::GroundedExplanatoryVersionSpacePolicy::new(
+                1, 64, 512, 256,
+            )
+            .unwrap(),
+        )
+        .expect("state7 Action1 must expose real pre-learning possibility");
+
+    let transfer_before = runtime
+        .cognitive_runtime()
+        .cognition()
+        .epistemic_transfer_progress_event_count();
+
+    real_training_turn(&mut runtime, game, action_one, 6_u8);
+
+    assert_eq!(
+        runtime
+            .cognitive_runtime()
+            .cognition()
+            .epistemic_transfer_progress_event_count(),
+        transfer_before + 1,
+        "fixture must contain one genuinely retained live C3D transfer event",
+    );
+
+    /*
+     * C3G-C functional transfer contract:
+     *
+     * Keep exact action + complete forecasts, change ONLY the concrete
+     * source-state identity.
+     *
+     * This is deliberately a counterfactual transfer query, not yet a
+     * claim that the live environment has endogenously entered such a
+     * second state. C3G-D will test that stronger condition.
+     */
+    let counterfactual_source = pre_learning.action().clone();
+
+    assert_ne!(&counterfactual_source, pre_learning.source_state(),);
+
+    let other_source =
+        athlesia_autonomous_active_experimentation::GroundedEpistemicExperimentPossibility::new(
+            counterfactual_source,
+            pre_learning.action().clone(),
+            pre_learning.forecasts().to_vec(),
+        )
+        .expect("structurally identical counterfactual possibility");
+
+    let expected_identity =
+        athlesia_autonomous_active_experimentation::
+            AutonomousEmpiricalEpistemicTransferIdentity::
+                derive(
+                    &pre_learning,
+                    athlesia_autonomous_active_experimentation::
+                        EmpiricalEpistemicTransferIdentityPolicy::
+                            new(
+                                512,
+                            )
+                            .unwrap(),
+                )
+                .identity()
+                .unwrap()
+                .clone();
+
+    let other_identity =
+        athlesia_autonomous_active_experimentation::
+            AutonomousEmpiricalEpistemicTransferIdentity::
+                derive(
+                    &other_source,
+                    athlesia_autonomous_active_experimentation::
+                        EmpiricalEpistemicTransferIdentityPolicy::
+                            new(
+                                512,
+                            )
+                            .unwrap(),
+                )
+                .identity()
+                .unwrap()
+                .clone();
+
+    assert_eq!(
+        expected_identity, other_identity,
+        "only concrete source identity may differ in the transfer-positive fixture",
+    );
+
+    let transport_before = runtime.transport().execute_count();
+
+    let history_before = runtime
+        .cognitive_runtime()
+        .cognition()
+        .epistemic_transfer_progress_event_count();
+
+    let result = runtime
+        .cognitive_runtime()
+        .cognition()
+        .current_empirical_expected_epistemic_transfer_progress(
+            &other_source,
+            athlesia_autonomous_active_experimentation::
+                EmpiricalEpistemicTransferIdentityPolicy::
+                    new(
+                        512,
+                    )
+                    .unwrap(),
+            athlesia_autonomous_active_experimentation::
+                EpistemicForecastDiscriminationPolicy::
+                    new(
+                        512,
+                        512,
+                    )
+                    .unwrap(),
+            athlesia_autonomous_active_experimentation::
+                EmpiricalExpectedEpistemicTransferProgressPolicy::
+                    new(
+                        256,
+                        256,
+                        1,
+                    )
+                    .unwrap(),
+        );
+
+    assert!(result.estimated());
+
+    assert_eq!(result.cross_state_matching_evidence_count(), 1,);
+
+    assert_eq!(result.estimate().unwrap().qualifying_sample_count(), 1,);
+
+    assert_eq!(
+        runtime
+            .cognitive_runtime()
+            .cognition()
+            .epistemic_transfer_progress_event_count(),
+        history_before,
+        "transfer estimation query must not mutate retained history",
+    );
+
+    assert_eq!(
+        runtime.transport().execute_count(),
+        transport_before,
+        "transfer estimator has zero transport authority",
+    );
+}

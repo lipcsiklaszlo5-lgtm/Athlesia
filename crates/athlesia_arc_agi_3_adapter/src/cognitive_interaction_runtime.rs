@@ -1472,6 +1472,25 @@ impl ArcAgi3CognitiveInteractionRuntime {
                                                 progress.sample().cloned()
                                             {
                                                 next_cognition
+                                                    .retain_epistemic_transfer_progress_event(
+                                                        completed_turn.event_index(),
+                                                        pre_learning,
+                                                        sample.clone(),
+                                                        athlesia_autonomous_active_experimentation::
+                                                            EmpiricalEpistemicTransferIdentityPolicy::
+                                                                new(512)
+                                                                .expect(
+                                                                    "positive live transfer identity frontier",
+                                                                ),
+                                                        athlesia_integrated_cognitive_agent::
+                                                            RetainedEpistemicTransferProgressHistoryPolicy::
+                                                                new(256)
+                                                                .expect(
+                                                                    "positive live transfer history frontier",
+                                                                ),
+                                                    );
+
+                                                next_cognition
                                                     .retain_epistemic_progress_event(
                                                         completed_turn.event_index(),
                                                         sample,
