@@ -365,6 +365,185 @@ impl ArcAgi3CognitiveInteractionRuntime {
         hypotheses
     }
 
+    fn live_scene_grounding_policy()
+    -> athlesia_core_knowledge_perceptual_grounding::PerceptualGroundingPolicy {
+        /*
+         * This is a bounded runtime resource policy, not semantic evidence.
+         *
+         * Upstream live grouping already bounds provisional object hypotheses.
+         * Scene search then remains finite while still allowing multiple
+         * mutually incompatible explanations to compete.
+         */
+        athlesia_core_knowledge_perceptual_grounding::PerceptualGroundingPolicy::new(64, 32)
+            .expect("live scene grounding bounds are positive")
+    }
+
+    fn provisional_object_scene_support(
+        hypothesis: &athlesia_core_knowledge_perceptual_grounding::ObjectHypothesis,
+    ) -> Option<athlesia_mindstone_sparse_cognition::CognitiveSignal> {
+        let evidence = hypothesis.evidence();
+        let zero = athlesia_mindstone_sparse_cognition::CognitiveSignal::zero();
+
+        [
+            evidence.cohesion(),
+            evidence.persistence(),
+            evidence.common_change(),
+            evidence.boundary(),
+            evidence.containment(),
+            evidence.topology(),
+        ]
+        .into_iter()
+        .filter(|signal| *signal > zero)
+        .min()
+    }
+
+    fn hypotheses_overlap(
+        left: &athlesia_core_knowledge_perceptual_grounding::ObjectHypothesis,
+        right: &athlesia_core_knowledge_perceptual_grounding::ObjectHypothesis,
+    ) -> bool {
+        left.members()
+            .iter()
+            .copied()
+            .any(|member| right.contains(member))
+    }
+
+    fn scene_explanatory_support(
+        &self,
+        hypotheses: &[athlesia_core_knowledge_perceptual_grounding::ObjectHypothesis],
+    ) -> Option<athlesia_mindstone_sparse_cognition::CognitiveSignal> {
+        use athlesia_core_knowledge_perceptual_grounding::EmpiricalObjecthoodSignalCalibration;
+
+        if hypotheses.is_empty() {
+            return None;
+        }
+
+        let reliability_floor = hypotheses
+            .iter()
+            .map(Self::provisional_object_scene_support)
+            .collect::<Option<Vec<_>>>()?
+            .into_iter()
+            .min()?;
+
+        let frame = self.perception.latest_frame();
+
+        let perceptual_cell_count = frame
+            .elements()
+            .iter()
+            .filter(|element| {
+                ArcAgi3PerceptualIngestionBridge::decode_handle_coordinate(element.handle())
+                    .is_some()
+            })
+            .count();
+
+        if perceptual_cell_count == 0 {
+            return None;
+        }
+
+        let mut covered = std::collections::BTreeSet::new();
+
+        for hypothesis in hypotheses {
+            for &member in hypothesis.members() {
+                if ArcAgi3PerceptualIngestionBridge::decode_handle_coordinate(member).is_some() {
+                    covered.insert(member);
+                }
+            }
+        }
+
+        let coverage = EmpiricalObjecthoodSignalCalibration::from_counts(
+            covered.len(),
+            perceptual_cell_count,
+        )?;
+
+        Some(reliability_floor.min(coverage))
+    }
+
+    fn current_scene_candidates(
+        &self,
+    ) -> Vec<athlesia_core_knowledge_perceptual_grounding::SceneInterpretation> {
+        use athlesia_core_knowledge_perceptual_grounding::SceneInterpretation;
+
+        let hypotheses = self.current_provisional_object_hypotheses();
+
+        if hypotheses.is_empty() {
+            return Vec::new();
+        }
+
+        let policy = Self::live_scene_grounding_policy();
+
+        /*
+         * Each provisional object seeds one alternative maximal,
+         * non-overlapping explanation.
+         *
+         * This gives overlapping object hypotheses a chance to produce
+         * genuinely competing scenes rather than silently merging them.
+         *
+         * The upstream object frontier is already bounded, and M46 applies
+         * the final scene frontier.
+         */
+        let mut candidates = Vec::new();
+
+        for seed_index in 0..hypotheses.len() {
+            let mut scene_hypotheses = vec![hypotheses[seed_index].clone()];
+
+            for (candidate_index, candidate) in hypotheses.iter().enumerate() {
+                if candidate_index == seed_index {
+                    continue;
+                }
+
+                if scene_hypotheses.len() >= policy.max_object_hypotheses_per_scene() {
+                    break;
+                }
+
+                let overlaps_existing = scene_hypotheses
+                    .iter()
+                    .any(|existing| Self::hypotheses_overlap(existing, candidate));
+
+                if !overlaps_existing {
+                    scene_hypotheses.push(candidate.clone());
+                }
+            }
+
+            let Some(explanatory_support) = self.scene_explanatory_support(&scene_hypotheses)
+            else {
+                continue;
+            };
+
+            let Some(scene) = SceneInterpretation::new(scene_hypotheses, explanatory_support)
+            else {
+                continue;
+            };
+
+            if scene.contains_overlapping_hypotheses() {
+                continue;
+            }
+
+            candidates.push(scene);
+        }
+
+        candidates
+    }
+
+    pub fn current_competing_scene_interpretations(
+        &self,
+    ) -> athlesia_core_knowledge_perceptual_grounding::SceneCompetitionResult {
+        let candidates = self.current_scene_candidates();
+
+        athlesia_core_knowledge_perceptual_grounding::CoreKnowledgePerceptualGrounding::evaluate(
+            self.perception.latest_frame(),
+            &candidates,
+            Self::live_scene_grounding_policy(),
+        )
+    }
+
+    pub fn current_best_scene_interpretation(
+        &self,
+    ) -> Option<athlesia_core_knowledge_perceptual_grounding::SceneInterpretation> {
+        self.current_competing_scene_interpretations()
+            .selected()
+            .first()
+            .cloned()
+    }
+
     pub fn observation(&self) -> &ArcAgi3Observation {
         self.session.observation()
     }
