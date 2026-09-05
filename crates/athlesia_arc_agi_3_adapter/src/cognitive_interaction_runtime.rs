@@ -116,6 +116,29 @@ impl ArcAgi3CognitiveInteractionRuntime {
         &self.cognition
     }
 
+    fn live_temporal_grouping_policy()
+    -> athlesia_core_knowledge_perceptual_grounding::PerceptualProposalTemporalEvidencePolicy {
+        athlesia_core_knowledge_perceptual_grounding::PerceptualProposalTemporalEvidencePolicy::new(
+            2,
+        )
+        .expect("live temporal support threshold is positive")
+    }
+
+    fn live_grouping_generation_policy()
+    -> athlesia_core_knowledge_perceptual_grounding::PerceptualGroupingGenerationPolicy {
+        athlesia_core_knowledge_perceptual_grounding::PerceptualGroupingGenerationPolicy::new(
+            256, 256,
+        )
+        .expect("live grouping frontier bounds are positive")
+    }
+
+    fn live_grouping_behavior_retention_policy()
+    -> athlesia_core_knowledge_perceptual_grounding::PerceptualGroupingBehaviorRetentionPolicy {
+        athlesia_core_knowledge_perceptual_grounding::
+            PerceptualGroupingBehaviorRetentionPolicy::new(2, 2)
+            .expect("live grouping behavior thresholds are positive")
+    }
+
     pub fn current_perceptual_grouping_frontier(
         &self,
         temporal_policy:
@@ -129,6 +152,26 @@ impl ArcAgi3CognitiveInteractionRuntime {
             temporal_policy,
             grouping_policy,
         )
+    }
+
+    pub fn current_empirically_coherent_groupings(
+        &self,
+    ) -> Vec<athlesia_core_knowledge_perceptual_grounding::PerceptualGroupingCandidate> {
+        let policy = Self::live_grouping_behavior_retention_policy();
+
+        let mut candidates = self
+            .cognition
+            .perceptual_grouping_behavior_evidence()
+            .supported_records(policy)
+            .into_iter()
+            .map(|record| record.candidate().clone())
+            .filter(|candidate| candidate.is_grounded_in(self.perception.latest_frame()))
+            .collect::<Vec<_>>();
+
+        candidates.sort();
+        candidates.dedup();
+
+        candidates
     }
 
     pub fn observation(&self) -> &ArcAgi3Observation {
@@ -241,6 +284,37 @@ impl ArcAgi3CognitiveInteractionRuntime {
                         max_proposals_per_frame,
                     )
                 {
+                    /*
+                     * Epistemic anti-self-confirmation rule:
+                     *
+                     * Grouping candidates are derived from temporal evidence
+                     * retained BEFORE this environment consequence.
+                     *
+                     * The newly observed consequence may then validate or
+                     * contradict those already-eligible candidates.
+                     *
+                     * Only after behavior evidence is retained do we admit
+                     * this transition into atomic temporal history.
+                     */
+                    let grouping_frontier =
+                        ArcAgi3PerceptualIngestionBridge::
+                            temporally_supported_grid_grouping_candidates(
+                                next_cognition
+                                    .perceptual_temporal_evidence(),
+                                causal_transition.current_frame(),
+                                Self::live_temporal_grouping_policy(),
+                                Self::live_grouping_generation_policy(),
+                            );
+
+                    let grouping_behavior =
+                        athlesia_core_knowledge_perceptual_grounding::
+                            PerceptualGroupingBehaviorObservation::observe(
+                                grouping_frontier.candidates(),
+                                &observation_result,
+                            );
+
+                    next_cognition.retain_perceptual_grouping_behavior_result(&grouping_behavior);
+
                     next_cognition.retain_perceptual_observation_result(&observation_result);
                 }
             }

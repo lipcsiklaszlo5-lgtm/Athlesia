@@ -323,26 +323,37 @@ impl ArcAgi3PerceptualIngestionBridge {
         supported_cells.sort_by_key(|(handle, _, _)| *handle);
         supported_cells.dedup_by_key(|(handle, _, _)| *handle);
 
+        let supported_by_coordinate = supported_cells
+            .iter()
+            .map(|(handle, x, y)| ((*x, *y), *handle))
+            .collect::<std::collections::BTreeMap<_, _>>();
+
+        let relation_probe_limit = grouping_policy.max_relations().saturating_add(1);
+
         let mut relations = Vec::new();
 
-        for left_index in 0..supported_cells.len() {
-            let (left_handle, left_x, left_y) = supported_cells[left_index];
+        'coordinates: for (&(x, y), &left_handle) in &supported_by_coordinate {
+            let neighbor_coordinates = [
+                x.checked_add(1).map(|right_x| (right_x, y)),
+                y.checked_add(1).map(|down_y| (x, down_y)),
+            ];
 
-            for &(right_handle, right_x, right_y) in &supported_cells[(left_index + 1)..] {
-                let distance = u16::from(left_x.abs_diff(right_x))
-                    .saturating_add(u16::from(left_y.abs_diff(right_y)));
-
-                if distance != 1 {
+            for coordinate in neighbor_coordinates.into_iter().flatten() {
+                let Some(&right_handle) = supported_by_coordinate.get(&coordinate) else {
                     continue;
-                }
+                };
 
                 relations.push(
                     athlesia_core_knowledge_perceptual_grounding::PerceptualGroupingRelation::new(
                         left_handle,
                         right_handle,
                     )
-                    .expect("distinct grid cells form a valid structural relation"),
+                    .expect("distinct orthogonal grid cells form a valid structural relation"),
                 );
+
+                if relations.len() >= relation_probe_limit {
+                    break 'coordinates;
+                }
             }
         }
 

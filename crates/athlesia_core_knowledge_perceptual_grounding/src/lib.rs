@@ -1335,6 +1335,858 @@ impl UniversalPerceptualGroupingFrontierGeneration {
     }
 }
 
+// -----------------------------------------------------------------------------
+// Exact grouping behavior evidence
+// -----------------------------------------------------------------------------
+//
+// A grouping candidate is still only a structural proposal.
+//
+// This layer asks a narrower empirical question:
+//
+//     did the candidate's grounded members behave coherently
+//     across this exact observed transition?
+//
+// Uniform change is evidence of common change.
+// Uniform stability is recorded separately.
+// Mixed member behavior is explicit disagreement.
+// Appearance/disappearance is an observed boundary interruption.
+//
+// None of these outcomes promotes the grouping into ObjectHypothesis and none
+// fabricates ObjecthoodEvidence.
+
+#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+pub enum PerceptualGroupingBehaviorStatus {
+    UniformStable,
+    UniformChanged,
+    BoundaryInterrupted,
+    Mixed,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct PerceptualGroupingBehaviorEvidence {
+    candidate: PerceptualGroupingCandidate,
+    status: PerceptualGroupingBehaviorStatus,
+    stable_member_count: usize,
+    changed_member_count: usize,
+    boundary_member_count: usize,
+    mixed_member_count: usize,
+}
+
+impl PerceptualGroupingBehaviorEvidence {
+    pub fn candidate(&self) -> &PerceptualGroupingCandidate {
+        &self.candidate
+    }
+
+    pub fn status(&self) -> PerceptualGroupingBehaviorStatus {
+        self.status
+    }
+
+    pub fn stable_member_count(&self) -> usize {
+        self.stable_member_count
+    }
+
+    pub fn changed_member_count(&self) -> usize {
+        self.changed_member_count
+    }
+
+    pub fn boundary_member_count(&self) -> usize {
+        self.boundary_member_count
+    }
+
+    pub fn mixed_member_count(&self) -> usize {
+        self.mixed_member_count
+    }
+
+    pub fn member_count(&self) -> usize {
+        self.candidate.member_count()
+    }
+
+    pub fn is_uniform_change(&self) -> bool {
+        self.status == PerceptualGroupingBehaviorStatus::UniformChanged
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct PerceptualGroupingBehaviorObservationResult {
+    input_candidate_count: usize,
+    evaluated_candidate_count: usize,
+    skipped_incomplete_atomic_evidence_count: usize,
+    uniform_stable_count: usize,
+    uniform_changed_count: usize,
+    boundary_interrupted_count: usize,
+    mixed_count: usize,
+    evidence: Vec<PerceptualGroupingBehaviorEvidence>,
+}
+
+impl PerceptualGroupingBehaviorObservationResult {
+    pub fn input_candidate_count(&self) -> usize {
+        self.input_candidate_count
+    }
+
+    pub fn evaluated_candidate_count(&self) -> usize {
+        self.evaluated_candidate_count
+    }
+
+    pub fn skipped_incomplete_atomic_evidence_count(&self) -> usize {
+        self.skipped_incomplete_atomic_evidence_count
+    }
+
+    pub fn uniform_stable_count(&self) -> usize {
+        self.uniform_stable_count
+    }
+
+    pub fn uniform_changed_count(&self) -> usize {
+        self.uniform_changed_count
+    }
+
+    pub fn boundary_interrupted_count(&self) -> usize {
+        self.boundary_interrupted_count
+    }
+
+    pub fn mixed_count(&self) -> usize {
+        self.mixed_count
+    }
+
+    pub fn evidence(&self) -> &[PerceptualGroupingBehaviorEvidence] {
+        &self.evidence
+    }
+
+    pub fn evidence_count(&self) -> usize {
+        self.evidence.len()
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, Hash, Ord, PartialEq, PartialOrd)]
+pub struct PerceptualGroupingBehaviorObservation;
+
+impl PerceptualGroupingBehaviorObservation {
+    pub fn observe(
+        candidates: &[PerceptualGroupingCandidate],
+        atomic_observation: &PerceptualProposalObservationResult,
+    ) -> PerceptualGroupingBehaviorObservationResult {
+        let input_candidate_count = candidates.len();
+
+        let mut evidence = Vec::with_capacity(candidates.len());
+        let mut skipped_incomplete_atomic_evidence_count = 0_usize;
+
+        for candidate in candidates {
+            let mut stable_member_count = 0_usize;
+            let mut changed_member_count = 0_usize;
+            let mut boundary_member_count = 0_usize;
+            let mut mixed_member_count = 0_usize;
+            let mut complete = true;
+
+            for handle in candidate.members() {
+                let atomic_proposal = PerceptualObjectProposal::new(vec![*handle])
+                    .expect("one exact member always forms a valid atomic proposal");
+
+                let Some(member_evidence) = atomic_observation
+                    .evidence()
+                    .iter()
+                    .find(|item| item.proposal() == &atomic_proposal)
+                else {
+                    complete = false;
+                    break;
+                };
+
+                match member_evidence.status() {
+                    PerceptualProposalObservationStatus::Stable => {
+                        stable_member_count = stable_member_count.saturating_add(1);
+                    }
+                    PerceptualProposalObservationStatus::Changed => {
+                        changed_member_count = changed_member_count.saturating_add(1);
+                    }
+                    PerceptualProposalObservationStatus::Appeared
+                    | PerceptualProposalObservationStatus::Disappeared => {
+                        boundary_member_count = boundary_member_count.saturating_add(1);
+                    }
+                    PerceptualProposalObservationStatus::Mixed => {
+                        mixed_member_count = mixed_member_count.saturating_add(1);
+                    }
+                }
+            }
+
+            if !complete {
+                skipped_incomplete_atomic_evidence_count =
+                    skipped_incomplete_atomic_evidence_count.saturating_add(1);
+                continue;
+            }
+
+            let member_count = candidate.member_count();
+
+            let status = if changed_member_count == member_count {
+                PerceptualGroupingBehaviorStatus::UniformChanged
+            } else if stable_member_count == member_count {
+                PerceptualGroupingBehaviorStatus::UniformStable
+            } else if boundary_member_count > 0 {
+                PerceptualGroupingBehaviorStatus::BoundaryInterrupted
+            } else {
+                PerceptualGroupingBehaviorStatus::Mixed
+            };
+
+            evidence.push(PerceptualGroupingBehaviorEvidence {
+                candidate: candidate.clone(),
+                status,
+                stable_member_count,
+                changed_member_count,
+                boundary_member_count,
+                mixed_member_count,
+            });
+        }
+
+        let uniform_stable_count = evidence
+            .iter()
+            .filter(|item| item.status() == PerceptualGroupingBehaviorStatus::UniformStable)
+            .count();
+
+        let uniform_changed_count = evidence
+            .iter()
+            .filter(|item| item.status() == PerceptualGroupingBehaviorStatus::UniformChanged)
+            .count();
+
+        let boundary_interrupted_count = evidence
+            .iter()
+            .filter(|item| item.status() == PerceptualGroupingBehaviorStatus::BoundaryInterrupted)
+            .count();
+
+        let mixed_count = evidence
+            .iter()
+            .filter(|item| item.status() == PerceptualGroupingBehaviorStatus::Mixed)
+            .count();
+
+        PerceptualGroupingBehaviorObservationResult {
+            input_candidate_count,
+            evaluated_candidate_count: evidence.len(),
+            skipped_incomplete_atomic_evidence_count,
+            uniform_stable_count,
+            uniform_changed_count,
+            boundary_interrupted_count,
+            mixed_count,
+            evidence,
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, Hash, Ord, PartialEq, PartialOrd)]
+pub struct UniversalPerceptualGroupingBehaviorObservation;
+
+impl UniversalPerceptualGroupingBehaviorObservation {
+    pub fn evaluate(
+        candidates: &[PerceptualGroupingCandidate],
+        atomic_observation: &PerceptualProposalObservationResult,
+    ) -> PerceptualGroupingBehaviorObservationResult {
+        PerceptualGroupingBehaviorObservation::observe(candidates, atomic_observation)
+    }
+}
+
+#[cfg(test)]
+mod perceptual_grouping_behavior_observation_tests {
+    use super::*;
+
+    fn atom(value: u64) -> CognitiveStructure {
+        CognitiveStructure::atom(value)
+    }
+
+    fn frame(observation_index: u64, elements: &[(u64, u64)]) -> PerceptualFrame {
+        PerceptualFrame::new(
+            observation_index,
+            elements
+                .iter()
+                .map(|(handle, signature)| {
+                    PerceptualElement::new(PerceptualElementHandle::new(*handle), atom(*signature))
+                })
+                .collect(),
+        )
+        .expect("test frame is valid")
+    }
+
+    fn atomic(handle: u64) -> PerceptualObjectProposal {
+        PerceptualObjectProposal::new(vec![PerceptualElementHandle::new(handle)])
+            .expect("atomic proposal is valid")
+    }
+
+    fn grouping(handles: &[u64]) -> PerceptualGroupingCandidate {
+        PerceptualGroupingCandidate::new(
+            handles
+                .iter()
+                .copied()
+                .map(PerceptualElementHandle::new)
+                .collect(),
+            PerceptualGroupingCandidateKind::PairwiseRelation,
+        )
+        .expect("grouping candidate is valid")
+    }
+
+    #[test]
+    fn grouping_behavior_distinguishes_uniform_change_from_mixed_behavior() {
+        let previous = frame(1, &[(1, 10), (2, 20), (3, 30)]);
+
+        let current = frame(2, &[(1, 11), (2, 21), (3, 30)]);
+
+        let atomic_observation = PerceptualProposalObservation::observe(
+            &previous,
+            &current,
+            &[atomic(1), atomic(2), atomic(3)],
+        );
+
+        let uniformly_changed = grouping(&[1, 2]);
+        let mixed = grouping(&[1, 3]);
+
+        let result = PerceptualGroupingBehaviorObservation::observe(
+            &[uniformly_changed.clone(), mixed.clone()],
+            &atomic_observation,
+        );
+
+        assert_eq!(result.input_candidate_count(), 2);
+        assert_eq!(result.evaluated_candidate_count(), 2);
+        assert_eq!(result.skipped_incomplete_atomic_evidence_count(), 0);
+
+        assert_eq!(result.uniform_changed_count(), 1);
+        assert_eq!(result.uniform_stable_count(), 0);
+        assert_eq!(result.boundary_interrupted_count(), 0);
+        assert_eq!(result.mixed_count(), 1);
+
+        let changed_evidence = result
+            .evidence()
+            .iter()
+            .find(|item| item.candidate() == &uniformly_changed)
+            .expect("uniformly changed candidate must be evaluated");
+
+        assert_eq!(
+            changed_evidence.status(),
+            PerceptualGroupingBehaviorStatus::UniformChanged
+        );
+        assert_eq!(changed_evidence.changed_member_count(), 2);
+        assert_eq!(changed_evidence.stable_member_count(), 0);
+        assert!(changed_evidence.is_uniform_change());
+
+        let mixed_evidence = result
+            .evidence()
+            .iter()
+            .find(|item| item.candidate() == &mixed)
+            .expect("mixed candidate must be evaluated");
+
+        assert_eq!(
+            mixed_evidence.status(),
+            PerceptualGroupingBehaviorStatus::Mixed
+        );
+        assert_eq!(mixed_evidence.changed_member_count(), 1);
+        assert_eq!(mixed_evidence.stable_member_count(), 1);
+    }
+
+    #[test]
+    fn grouping_behavior_records_uniform_stability_without_claiming_common_change() {
+        let previous = frame(10, &[(1, 10), (2, 20)]);
+
+        let current = frame(11, &[(1, 10), (2, 20)]);
+
+        let atomic_observation =
+            PerceptualProposalObservation::observe(&previous, &current, &[atomic(1), atomic(2)]);
+
+        let candidate = grouping(&[1, 2]);
+
+        let result = PerceptualGroupingBehaviorObservation::observe(
+            &[candidate.clone()],
+            &atomic_observation,
+        );
+
+        assert_eq!(result.uniform_stable_count(), 1);
+        assert_eq!(result.uniform_changed_count(), 0);
+
+        let item = &result.evidence()[0];
+
+        assert_eq!(item.candidate(), &candidate);
+        assert_eq!(
+            item.status(),
+            PerceptualGroupingBehaviorStatus::UniformStable
+        );
+        assert_eq!(item.stable_member_count(), 2);
+        assert!(!item.is_uniform_change());
+    }
+
+    #[test]
+    fn grouping_behavior_skips_candidate_when_atomic_evidence_is_incomplete() {
+        let previous = frame(20, &[(1, 10), (2, 20)]);
+
+        let current = frame(21, &[(1, 11), (2, 21)]);
+
+        /*
+         * Only member 1 is supplied to the atomic evidence frontier.
+         * Group [1,2] therefore cannot receive fabricated group evidence.
+         */
+        let atomic_observation =
+            PerceptualProposalObservation::observe(&previous, &current, &[atomic(1)]);
+
+        let result = PerceptualGroupingBehaviorObservation::observe(
+            &[grouping(&[1, 2])],
+            &atomic_observation,
+        );
+
+        assert_eq!(result.input_candidate_count(), 1);
+        assert_eq!(result.evaluated_candidate_count(), 0);
+        assert_eq!(result.evidence_count(), 0);
+        assert_eq!(result.skipped_incomplete_atomic_evidence_count(), 1);
+    }
+}
+
+// -----------------------------------------------------------------------------
+// Retained grouping behavior evidence
+// -----------------------------------------------------------------------------
+//
+// This state remembers repeated empirical behavior of structural grouping
+// candidates.
+//
+// UniformChanged is positive evidence for common change.
+// Mixed is contradictory evidence.
+// UniformStable is neutral with respect to common change.
+// BoundaryInterrupted prevents current support while the grouping is not
+// jointly grounded.
+//
+// Support requires:
+// - a minimum number of observed common-change events; and
+// - a minimum advantage of common-change evidence over mixed evidence.
+//
+// Therefore an isolated contradiction can weaken a candidate without
+// permanently destroying stronger accumulated evidence, while ties and weak
+// majorities remain epistemically unresolved.
+//
+// This layer still does NOT construct ObjecthoodEvidence or ObjectHypothesis.
+
+#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+pub enum PerceptualGroupingBehaviorSupportStatus {
+    Unknown,
+    InsufficientCommonChangeEvidence,
+    Supported,
+    Conflicted,
+    BoundaryInterrupted,
+}
+
+#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+pub struct PerceptualGroupingBehaviorRetentionPolicy {
+    minimum_common_change_observations: usize,
+    minimum_common_change_advantage_over_mixed: usize,
+}
+
+impl PerceptualGroupingBehaviorRetentionPolicy {
+    pub fn new(
+        minimum_common_change_observations: usize,
+        minimum_common_change_advantage_over_mixed: usize,
+    ) -> Option<Self> {
+        if minimum_common_change_observations == 0
+            || minimum_common_change_advantage_over_mixed == 0
+        {
+            return None;
+        }
+
+        Some(Self {
+            minimum_common_change_observations,
+            minimum_common_change_advantage_over_mixed,
+        })
+    }
+
+    pub fn minimum_common_change_observations(self) -> usize {
+        self.minimum_common_change_observations
+    }
+
+    pub fn minimum_common_change_advantage_over_mixed(self) -> usize {
+        self.minimum_common_change_advantage_over_mixed
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct PerceptualGroupingBehaviorEvidenceRecord {
+    candidate: PerceptualGroupingCandidate,
+    observation_count: usize,
+    uniform_stable_count: usize,
+    uniform_changed_count: usize,
+    boundary_interrupted_count: usize,
+    mixed_count: usize,
+    last_status: PerceptualGroupingBehaviorStatus,
+}
+
+impl PerceptualGroupingBehaviorEvidenceRecord {
+    fn new(
+        candidate: PerceptualGroupingCandidate,
+        status: PerceptualGroupingBehaviorStatus,
+    ) -> Self {
+        let mut record = Self {
+            candidate,
+            observation_count: 0,
+            uniform_stable_count: 0,
+            uniform_changed_count: 0,
+            boundary_interrupted_count: 0,
+            mixed_count: 0,
+            last_status: status,
+        };
+
+        record.observe(status);
+
+        record
+    }
+
+    fn observe(&mut self, status: PerceptualGroupingBehaviorStatus) {
+        self.observation_count = self.observation_count.saturating_add(1);
+
+        match status {
+            PerceptualGroupingBehaviorStatus::UniformStable => {
+                self.uniform_stable_count = self.uniform_stable_count.saturating_add(1);
+            }
+            PerceptualGroupingBehaviorStatus::UniformChanged => {
+                self.uniform_changed_count = self.uniform_changed_count.saturating_add(1);
+            }
+            PerceptualGroupingBehaviorStatus::BoundaryInterrupted => {
+                self.boundary_interrupted_count = self.boundary_interrupted_count.saturating_add(1);
+            }
+            PerceptualGroupingBehaviorStatus::Mixed => {
+                self.mixed_count = self.mixed_count.saturating_add(1);
+            }
+        }
+
+        self.last_status = status;
+    }
+
+    pub fn candidate(&self) -> &PerceptualGroupingCandidate {
+        &self.candidate
+    }
+
+    pub fn observation_count(&self) -> usize {
+        self.observation_count
+    }
+
+    pub fn uniform_stable_count(&self) -> usize {
+        self.uniform_stable_count
+    }
+
+    pub fn uniform_changed_count(&self) -> usize {
+        self.uniform_changed_count
+    }
+
+    pub fn boundary_interrupted_count(&self) -> usize {
+        self.boundary_interrupted_count
+    }
+
+    pub fn mixed_count(&self) -> usize {
+        self.mixed_count
+    }
+
+    pub fn last_status(&self) -> PerceptualGroupingBehaviorStatus {
+        self.last_status
+    }
+
+    pub fn common_change_advantage_over_mixed(&self) -> usize {
+        self.uniform_changed_count.saturating_sub(self.mixed_count)
+    }
+}
+
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
+pub struct PerceptualGroupingBehaviorEvidenceState {
+    records: Vec<PerceptualGroupingBehaviorEvidenceRecord>,
+}
+
+impl PerceptualGroupingBehaviorEvidenceState {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    pub fn records(&self) -> &[PerceptualGroupingBehaviorEvidenceRecord] {
+        &self.records
+    }
+
+    pub fn record_count(&self) -> usize {
+        self.records.len()
+    }
+
+    pub fn record(
+        &self,
+        candidate: &PerceptualGroupingCandidate,
+    ) -> Option<&PerceptualGroupingBehaviorEvidenceRecord> {
+        self.records
+            .binary_search_by(|record| record.candidate().cmp(candidate))
+            .ok()
+            .map(|index| &self.records[index])
+    }
+
+    pub fn observe(&mut self, result: &PerceptualGroupingBehaviorObservationResult) {
+        for evidence in result.evidence() {
+            match self
+                .records
+                .binary_search_by(|record| record.candidate().cmp(evidence.candidate()))
+            {
+                Ok(index) => {
+                    self.records[index].observe(evidence.status());
+                }
+                Err(index) => {
+                    self.records.insert(
+                        index,
+                        PerceptualGroupingBehaviorEvidenceRecord::new(
+                            evidence.candidate().clone(),
+                            evidence.status(),
+                        ),
+                    );
+                }
+            }
+        }
+    }
+
+    pub fn support_status(
+        &self,
+        candidate: &PerceptualGroupingCandidate,
+        policy: PerceptualGroupingBehaviorRetentionPolicy,
+    ) -> PerceptualGroupingBehaviorSupportStatus {
+        let Some(record) = self.record(candidate) else {
+            return PerceptualGroupingBehaviorSupportStatus::Unknown;
+        };
+
+        if record.last_status() == PerceptualGroupingBehaviorStatus::BoundaryInterrupted {
+            return PerceptualGroupingBehaviorSupportStatus::BoundaryInterrupted;
+        }
+
+        if record.uniform_changed_count() < policy.minimum_common_change_observations() {
+            return PerceptualGroupingBehaviorSupportStatus::InsufficientCommonChangeEvidence;
+        }
+
+        let required_common_change = record
+            .mixed_count()
+            .saturating_add(policy.minimum_common_change_advantage_over_mixed());
+
+        if record.uniform_changed_count() >= required_common_change {
+            PerceptualGroupingBehaviorSupportStatus::Supported
+        } else {
+            PerceptualGroupingBehaviorSupportStatus::Conflicted
+        }
+    }
+
+    pub fn supported_records(
+        &self,
+        policy: PerceptualGroupingBehaviorRetentionPolicy,
+    ) -> Vec<&PerceptualGroupingBehaviorEvidenceRecord> {
+        self.records
+            .iter()
+            .filter(|record| {
+                self.support_status(record.candidate(), policy)
+                    == PerceptualGroupingBehaviorSupportStatus::Supported
+            })
+            .collect()
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, Hash, Ord, PartialEq, PartialOrd)]
+pub struct UniversalPerceptualGroupingBehaviorEvidence;
+
+impl UniversalPerceptualGroupingBehaviorEvidence {
+    pub fn observe(
+        state: &mut PerceptualGroupingBehaviorEvidenceState,
+        result: &PerceptualGroupingBehaviorObservationResult,
+    ) {
+        state.observe(result);
+    }
+
+    pub fn support_status(
+        state: &PerceptualGroupingBehaviorEvidenceState,
+        candidate: &PerceptualGroupingCandidate,
+        policy: PerceptualGroupingBehaviorRetentionPolicy,
+    ) -> PerceptualGroupingBehaviorSupportStatus {
+        state.support_status(candidate, policy)
+    }
+}
+
+#[cfg(test)]
+mod retained_perceptual_grouping_behavior_evidence_tests {
+    use super::*;
+
+    fn atom(value: u64) -> CognitiveStructure {
+        CognitiveStructure::atom(value)
+    }
+
+    fn frame(observation_index: u64, elements: &[(u64, u64)]) -> PerceptualFrame {
+        PerceptualFrame::new(
+            observation_index,
+            elements
+                .iter()
+                .map(|(handle, signature)| {
+                    PerceptualElement::new(PerceptualElementHandle::new(*handle), atom(*signature))
+                })
+                .collect(),
+        )
+        .expect("test frame is valid")
+    }
+
+    fn atomic(handle: u64) -> PerceptualObjectProposal {
+        PerceptualObjectProposal::new(vec![PerceptualElementHandle::new(handle)])
+            .expect("atomic proposal is valid")
+    }
+
+    fn candidate() -> PerceptualGroupingCandidate {
+        PerceptualGroupingCandidate::new(
+            vec![
+                PerceptualElementHandle::new(1),
+                PerceptualElementHandle::new(2),
+            ],
+            PerceptualGroupingCandidateKind::PairwiseRelation,
+        )
+        .expect("test grouping is valid")
+    }
+
+    fn behavior(
+        previous: &PerceptualFrame,
+        current: &PerceptualFrame,
+        candidate: &PerceptualGroupingCandidate,
+    ) -> PerceptualGroupingBehaviorObservationResult {
+        let atomic_observation =
+            PerceptualProposalObservation::observe(previous, current, &[atomic(1), atomic(2)]);
+
+        PerceptualGroupingBehaviorObservation::observe(&[candidate.clone()], &atomic_observation)
+    }
+
+    #[test]
+    fn repeated_common_change_becomes_retained_support() {
+        let grouping = candidate();
+
+        let policy = PerceptualGroupingBehaviorRetentionPolicy::new(2, 1).unwrap();
+
+        let f1 = frame(1, &[(1, 10), (2, 20)]);
+        let f2 = frame(2, &[(1, 11), (2, 21)]);
+        let f3 = frame(3, &[(1, 12), (2, 22)]);
+
+        let mut state = PerceptualGroupingBehaviorEvidenceState::new();
+
+        state.observe(&behavior(&f1, &f2, &grouping));
+
+        assert_eq!(
+            state.support_status(&grouping, policy),
+            PerceptualGroupingBehaviorSupportStatus::InsufficientCommonChangeEvidence
+        );
+
+        state.observe(&behavior(&f2, &f3, &grouping));
+
+        assert_eq!(
+            state.support_status(&grouping, policy),
+            PerceptualGroupingBehaviorSupportStatus::Supported
+        );
+
+        let record = state
+            .record(&grouping)
+            .expect("grouping behavior record must exist");
+
+        assert_eq!(record.observation_count(), 2);
+        assert_eq!(record.uniform_changed_count(), 2);
+        assert_eq!(record.mixed_count(), 0);
+        assert_eq!(record.common_change_advantage_over_mixed(), 2);
+
+        assert_eq!(state.supported_records(policy).len(), 1);
+    }
+
+    #[test]
+    fn mixed_evidence_can_conflict_and_later_common_change_can_recover_support() {
+        let grouping = candidate();
+
+        /*
+         * Require a two-observation advantage over mixed evidence.
+         *
+         * 2 changed / 0 mixed -> supported
+         * 2 changed / 1 mixed -> conflicted
+         * 3 changed / 1 mixed -> supported again
+         */
+        let policy = PerceptualGroupingBehaviorRetentionPolicy::new(2, 2).unwrap();
+
+        let f1 = frame(1, &[(1, 10), (2, 20)]);
+        let f2 = frame(2, &[(1, 11), (2, 21)]);
+        let f3 = frame(3, &[(1, 12), (2, 22)]);
+
+        let mixed_current = frame(4, &[(1, 13), (2, 22)]);
+
+        let recovered_current = frame(5, &[(1, 14), (2, 23)]);
+
+        let mut state = PerceptualGroupingBehaviorEvidenceState::new();
+
+        state.observe(&behavior(&f1, &f2, &grouping));
+        state.observe(&behavior(&f2, &f3, &grouping));
+
+        assert_eq!(
+            state.support_status(&grouping, policy),
+            PerceptualGroupingBehaviorSupportStatus::Supported
+        );
+
+        state.observe(&behavior(&f3, &mixed_current, &grouping));
+
+        assert_eq!(
+            state.support_status(&grouping, policy),
+            PerceptualGroupingBehaviorSupportStatus::Conflicted
+        );
+
+        let conflicted = state.record(&grouping).unwrap();
+
+        assert_eq!(conflicted.uniform_changed_count(), 2);
+        assert_eq!(conflicted.mixed_count(), 1);
+        assert_eq!(conflicted.common_change_advantage_over_mixed(), 1);
+
+        state.observe(&behavior(&mixed_current, &recovered_current, &grouping));
+
+        assert_eq!(
+            state.support_status(&grouping, policy),
+            PerceptualGroupingBehaviorSupportStatus::Supported,
+            "later coherent evidence must be able to recover from isolated mixed evidence"
+        );
+
+        let recovered = state.record(&grouping).unwrap();
+
+        assert_eq!(recovered.uniform_changed_count(), 3);
+        assert_eq!(recovered.mixed_count(), 1);
+        assert_eq!(recovered.common_change_advantage_over_mixed(), 2);
+    }
+
+    #[test]
+    fn boundary_interruption_blocks_current_grouping_support_without_erasing_history() {
+        let grouping = candidate();
+
+        let policy = PerceptualGroupingBehaviorRetentionPolicy::new(2, 1).unwrap();
+
+        let f1 = frame(1, &[(1, 10), (2, 20)]);
+        let f2 = frame(2, &[(1, 11), (2, 21)]);
+        let f3 = frame(3, &[(1, 12), (2, 22)]);
+        let boundary = frame(4, &[(1, 13)]);
+
+        let mut state = PerceptualGroupingBehaviorEvidenceState::new();
+
+        state.observe(&behavior(&f1, &f2, &grouping));
+        state.observe(&behavior(&f2, &f3, &grouping));
+
+        assert_eq!(
+            state.support_status(&grouping, policy),
+            PerceptualGroupingBehaviorSupportStatus::Supported
+        );
+
+        state.observe(&behavior(&f3, &boundary, &grouping));
+
+        assert_eq!(
+            state.support_status(&grouping, policy),
+            PerceptualGroupingBehaviorSupportStatus::BoundaryInterrupted
+        );
+
+        let record = state.record(&grouping).unwrap();
+
+        assert_eq!(record.uniform_changed_count(), 2);
+        assert_eq!(record.boundary_interrupted_count(), 1);
+        assert_eq!(
+            record.common_change_advantage_over_mixed(),
+            2,
+            "historical common-change evidence must survive the boundary interruption"
+        );
+    }
+
+    #[test]
+    fn unseen_grouping_remains_unknown() {
+        let state = PerceptualGroupingBehaviorEvidenceState::new();
+
+        let policy = PerceptualGroupingBehaviorRetentionPolicy::new(2, 1).unwrap();
+
+        assert_eq!(
+            state.support_status(&candidate(), policy),
+            PerceptualGroupingBehaviorSupportStatus::Unknown
+        );
+    }
+}
+
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub struct ObjecthoodEvidence {
     cohesion: CognitiveSignal,

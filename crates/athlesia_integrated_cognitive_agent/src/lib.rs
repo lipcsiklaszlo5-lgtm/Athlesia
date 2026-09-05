@@ -9583,6 +9583,8 @@ pub struct OnlinePersistentCognitiveState {
     transition_schema_learning: EndogenousTransitionSchemaLearningState,
     perceptual_temporal_evidence:
         athlesia_core_knowledge_perceptual_grounding::PerceptualProposalTemporalEvidenceState,
+    perceptual_grouping_behavior_evidence:
+        athlesia_core_knowledge_perceptual_grounding::PerceptualGroupingBehaviorEvidenceState,
 }
 
 impl OnlinePersistentCognitiveState {
@@ -9616,6 +9618,24 @@ impl OnlinePersistentCognitiveState {
         self.perceptual_temporal_evidence.observe(result);
     }
 
+    pub fn perceptual_grouping_behavior_evidence(
+        &self,
+    ) -> &athlesia_core_knowledge_perceptual_grounding::PerceptualGroupingBehaviorEvidenceState
+    {
+        &self.perceptual_grouping_behavior_evidence
+    }
+
+    pub fn perceptual_grouping_behavior_record_count(&self) -> usize {
+        self.perceptual_grouping_behavior_evidence.record_count()
+    }
+
+    pub fn retain_perceptual_grouping_behavior_result(
+        &mut self,
+        result: &athlesia_core_knowledge_perceptual_grounding::PerceptualGroupingBehaviorObservationResult,
+    ) {
+        self.perceptual_grouping_behavior_evidence.observe(result);
+    }
+
     pub fn observe_environment_transition(
         &mut self,
         input: &athlesia_core_knowledge_perceptual_grounding::IntegratedPerceptualWorldInput,
@@ -9634,6 +9654,107 @@ impl OnlinePersistentCognitiveState {
         self.transition_schema_learning = result.state().clone();
 
         result
+    }
+}
+
+#[cfg(test)]
+mod retained_grouping_behavior_owner_tests {
+    use super::*;
+
+    use athlesia_core_knowledge_perceptual_grounding::{
+        PerceptualElement, PerceptualElementHandle, PerceptualFrame,
+        PerceptualGroupingBehaviorObservation, PerceptualGroupingBehaviorRetentionPolicy,
+        PerceptualGroupingBehaviorSupportStatus, PerceptualGroupingCandidate,
+        PerceptualGroupingCandidateKind, PerceptualObjectProposal, PerceptualProposalObservation,
+    };
+
+    fn frame(observation_index: u64, values: &[(u64, u64)]) -> PerceptualFrame {
+        PerceptualFrame::new(
+            observation_index,
+            values
+                .iter()
+                .map(|(handle, signature)| {
+                    PerceptualElement::new(
+                        PerceptualElementHandle::new(*handle),
+                        CognitiveStructure::atom(*signature),
+                    )
+                })
+                .collect(),
+        )
+        .expect("test frame is valid")
+    }
+
+    fn atomic(handle: u64) -> PerceptualObjectProposal {
+        PerceptualObjectProposal::new(vec![PerceptualElementHandle::new(handle)])
+            .expect("atomic proposal is valid")
+    }
+
+    fn grouping() -> PerceptualGroupingCandidate {
+        PerceptualGroupingCandidate::new(
+            vec![
+                PerceptualElementHandle::new(1),
+                PerceptualElementHandle::new(2),
+            ],
+            PerceptualGroupingCandidateKind::PairwiseRelation,
+        )
+        .expect("grouping candidate is valid")
+    }
+
+    fn result(
+        previous: &PerceptualFrame,
+        current: &PerceptualFrame,
+        grouping: &PerceptualGroupingCandidate,
+    ) -> athlesia_core_knowledge_perceptual_grounding::PerceptualGroupingBehaviorObservationResult
+    {
+        let atomic_result =
+            PerceptualProposalObservation::observe(previous, current, &[atomic(1), atomic(2)]);
+
+        PerceptualGroupingBehaviorObservation::observe(&[grouping.clone()], &atomic_result)
+    }
+
+    #[test]
+    fn persistent_cognitive_state_retains_grouping_behavior_across_later_observations() {
+        let grouping = grouping();
+
+        let policy = PerceptualGroupingBehaviorRetentionPolicy::new(2, 1).unwrap();
+
+        let f1 = frame(1, &[(1, 10), (2, 20)]);
+        let f2 = frame(2, &[(1, 11), (2, 21)]);
+        let f3 = frame(3, &[(1, 12), (2, 22)]);
+
+        let mut state = OnlinePersistentCognitiveState::new();
+
+        assert_eq!(state.perceptual_grouping_behavior_record_count(), 0);
+
+        state.retain_perceptual_grouping_behavior_result(&result(&f1, &f2, &grouping));
+
+        assert_eq!(state.perceptual_grouping_behavior_record_count(), 1);
+
+        assert_eq!(
+            state
+                .perceptual_grouping_behavior_evidence()
+                .support_status(&grouping, policy),
+            PerceptualGroupingBehaviorSupportStatus::InsufficientCommonChangeEvidence
+        );
+
+        state.retain_perceptual_grouping_behavior_result(&result(&f2, &f3, &grouping));
+
+        assert_eq!(
+            state
+                .perceptual_grouping_behavior_evidence()
+                .support_status(&grouping, policy),
+            PerceptualGroupingBehaviorSupportStatus::Supported,
+            "later observation must change grouping support through the same M51 persistent owner"
+        );
+
+        let record = state
+            .perceptual_grouping_behavior_evidence()
+            .record(&grouping)
+            .expect("retained grouping record must exist");
+
+        assert_eq!(record.observation_count(), 2);
+        assert_eq!(record.uniform_changed_count(), 2);
+        assert_eq!(record.mixed_count(), 0);
     }
 }
 
