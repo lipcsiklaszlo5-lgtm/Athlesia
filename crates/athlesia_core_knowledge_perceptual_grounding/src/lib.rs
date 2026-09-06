@@ -5179,7 +5179,7 @@ impl GroundedPerceptualStateProjectionResult {
 pub struct GroundedPerceptualStateProjector;
 
 impl GroundedPerceptualStateProjector {
-    fn scene_facts(
+    pub fn scene_facts(
         frame: &PerceptualFrame,
         scene: &SceneInterpretation,
     ) -> Option<Vec<CognitiveStructure>> {
@@ -5483,6 +5483,52 @@ mod grounded_perceptual_state_projection_tests {
         );
 
         assert!(result.projection().is_none());
+    }
+
+    #[test]
+    fn single_scene_facts_project_exact_grounded_current_scene() {
+        let current = frame(
+            41,
+            &[(1001, 10), (1002, 20)],
+        );
+        let current_scene = scene(&[vec![1001, 1002]]);
+
+        let facts =
+            GroundedPerceptualStateProjector::scene_facts(
+                &current,
+                &current_scene,
+            )
+            .expect("grounded current scene must project exact perceptual facts");
+
+        assert!(facts.contains(&a(10)));
+        assert!(facts.contains(&a(20)));
+
+        let object_fact =
+            CognitiveStructure::unordered(vec![a(10), a(20)])
+                .expect("grounded object fact is valid");
+
+        assert!(
+            facts.contains(&object_fact),
+            "single-scene projection must preserve canonical object facts",
+        );
+    }
+
+    #[test]
+    fn single_scene_facts_reject_scene_not_grounded_in_current_frame() {
+        let current = frame(
+            51,
+            &[(1001, 10)],
+        );
+        let stale_scene = scene(&[vec![1001, 1002]]);
+
+        assert!(
+            GroundedPerceptualStateProjector::scene_facts(
+                &current,
+                &stale_scene,
+            )
+            .is_none(),
+            "historical or stale scene must not become current grounded state",
+        );
     }
 
     #[test]

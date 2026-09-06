@@ -75,7 +75,7 @@ fn real_live_holdout_context_endogenously_creates_epistemic_action_frontier() {
     let frontier = cognitive
         .cognition()
         .current_factorized_action_discrimination(
-            current_state,
+            &current_state,
             &candidate_actions,
             athlesia_universal_domain_learning::GroundedExplanatoryVersionSpacePolicy::new(
                 1, 64, 512, 256,
@@ -148,7 +148,7 @@ fn matured_known_context_does_not_fabricate_epistemic_disagreement() {
     let frontier = cognitive
         .cognition()
         .current_factorized_action_discrimination(
-            current_state,
+            &current_state,
             &candidate_actions,
             athlesia_universal_domain_learning::GroundedExplanatoryVersionSpacePolicy::new(
                 1, 64, 512, 256,
@@ -256,7 +256,7 @@ fn live_holdout_m47_m50_bridge_preserves_exact_epistemic_separation_without_tran
     let m47 = cognitive_runtime
         .cognition()
         .current_factorized_action_discrimination(
-            current_state,
+            &current_state,
             std::slice::from_ref(&cognitive_action),
             version_policy,
             athlesia_universal_domain_learning::GroundedFactorizedDiscriminationPolicy::new(8)
@@ -275,7 +275,7 @@ fn live_holdout_m47_m50_bridge_preserves_exact_epistemic_separation_without_tran
 
     let m50_possibility = cognitive_runtime
         .cognition()
-        .current_m50_epistemic_possibility(current_state, &cognitive_action, version_policy)
+        .current_m50_epistemic_possibility(&current_state, &cognitive_action, version_policy)
         .expect("live retained M47 evidence must materialize an M50 epistemic possibility");
 
     assert_eq!(
@@ -385,7 +385,7 @@ fn live_resolved_context_remains_noninformative_after_m47_m50_bridge() {
     let m47 = cognitive_runtime
         .cognition()
         .current_factorized_action_discrimination(
-            current_state,
+            &current_state,
             std::slice::from_ref(&cognitive_action),
             version_policy,
             athlesia_universal_domain_learning::GroundedFactorizedDiscriminationPolicy::new(8)
@@ -400,7 +400,7 @@ fn live_resolved_context_remains_noninformative_after_m47_m50_bridge() {
 
     let m50_possibility = cognitive_runtime
         .cognition()
-        .current_m50_epistemic_possibility(current_state, &cognitive_action, version_policy)
+        .current_m50_epistemic_possibility(&current_state, &cognitive_action, version_policy)
         .expect("resolved context may retain grounded explanatory forecasts");
 
     let m50 =
@@ -1351,16 +1351,21 @@ fn live_progress_history_from_other_source_state_cannot_prioritize_new_current_s
     );
 
     /*
-     * Enter a NEW state 8.  Existing retained progress evidence has a
-     * different exact source-state identity and therefore must not transfer.
+     * The real progress event above has exact source state 7 and reaches
+     * the genuinely grounded current state 6.
+     *
+     * Query from that post-progress state.  Its exact source-state identity
+     * differs from the retained progress event's source and therefore the
+     * history must not become fake current-state priority.
+     *
+     * Do not inject a one-off unseen state merely to manufacture identity
+     * difference: current-state authority requires an actually selected
+     * grounded scene.
      */
-    real_training_turn(&mut runtime, game, action_two, 8_u8);
-
     let current = runtime
         .cognitive_runtime()
         .current_grounded_world_state()
-        .expect("new current state 8 must be grounded")
-        .clone();
+        .expect("post-progress current state 6 must remain grounded");
 
     let actions = [
         ArcAgi3CognitiveProtocolBridge::encode_action(action_one),
@@ -4605,5 +4610,305 @@ fn live_c3h_c16d_combines_structural_current_and_measured_history_without_fabric
          PRIORITY_CREATED=0 \
          M48_AUTHORITY_CREATED=0 \
          TRANSPORT_CREATED=0"
+    );
+}
+
+
+#[test]
+fn live_reset_cannot_expose_retained_transition_after_as_current_state() {
+    let game = "c16hb0-reset-current-authority";
+
+    let action_two = action(ArcAgi3ActionId::Action2);
+
+    let mut runtime = live_runtime(game, 610_000);
+
+    /*
+     * Build genuine retained perception + transition evidence first.
+     * The test is intentionally non-vacuous: stale history must exist
+     * before RESET is allowed to challenge current-state authority.
+     */
+    mature_runtime(&mut runtime, game);
+    real_training_turn(&mut runtime, game, action_two, 7_u8);
+
+    let pre_reset_current = runtime
+        .cognitive_runtime()
+        .current_grounded_world_state()
+        .expect("pre-reset runtime must have a genuinely grounded current state");
+
+    let episode_count_before_reset = runtime
+        .cognitive_runtime()
+        .cognition()
+        .transition_episode_count();
+
+    assert!(
+        episode_count_before_reset > 0,
+        "RESET authority test requires real retained transition history",
+    );
+
+    let historical_after = runtime
+        .cognitive_runtime()
+        .cognition()
+        .transition_schema_learning()
+        .episodes()
+        .last()
+        .expect("fixture must retain a historical transition episode")
+        .after()
+        .clone();
+
+    /*
+     * Use an observation that is deliberately outside the mature 5/6/7
+     * fixture. RESET itself carries no causal cognitive feedback.
+     */
+    runtime.transport().push(Ok(normal_observation(
+        game,
+        8_u8,
+        Some(ArcAgi3Action::reset()),
+    )));
+
+    let completion = runtime
+        .reset(signal(900))
+        .expect("protocol RESET must complete");
+
+    assert!(
+        !completion.has_cognitive_feedback(),
+        "RESET must remain non-causal for cognitive learning",
+    );
+
+    assert_eq!(
+        runtime
+            .cognitive_runtime()
+            .cognition()
+            .transition_episode_count(),
+        episode_count_before_reset,
+        "RESET must not append a transition-learning episode",
+    );
+
+    /*
+     * Derive the ONLY legitimate current state from current perception.
+     * No retained episode participates in this expected value.
+     */
+    let expected_current = runtime
+        .cognitive_runtime()
+        .current_best_scene_interpretation()
+        .and_then(|scene| {
+            athlesia_core_knowledge_perceptual_grounding::
+                GroundedPerceptualStateProjector::scene_facts(
+                    runtime.cognitive_runtime().perception().latest_frame(),
+                    &scene,
+                )
+        })
+        .and_then(
+            athlesia_universal_domain_learning::
+                GroundedStateSnapshot::new,
+        );
+
+    let actual_current = runtime
+        .cognitive_runtime()
+        .current_grounded_world_state();
+
+    assert_eq!(
+        actual_current,
+        expected_current,
+        "post-reset current state must be derived exclusively from current perception",
+    );
+
+    assert_ne!(
+        actual_current,
+        Some(historical_after),
+        "retained transition history must never masquerade as post-reset current state",
+    );
+
+    assert_ne!(
+        actual_current,
+        Some(pre_reset_current),
+        "RESET to a distinct observation must not silently preserve pre-reset current state",
+    );
+
+    /*
+     * Anti-vacuity: perception really advanced to the RESET response.
+     */
+    assert_eq!(
+        runtime
+            .cognitive_runtime()
+            .observation()
+            .last_action(),
+        Some(ArcAgi3Action::reset()),
+    );
+}
+#[test]
+fn successful_ungrounded_response_fails_closed_instead_of_exposing_stale_current_state() {
+    let game = "c16hb0-failed-grounding-authority";
+
+    let action_one = action(ArcAgi3ActionId::Action1);
+    let action_two = action(ArcAgi3ActionId::Action2);
+
+    let mut runtime = live_runtime(game, 640_000);
+
+    /*
+     * Reproduce the already-proven C3/C16 grounded trajectory:
+     *
+     * mature state
+     *   -> ACTION2 -> 7
+     *   -> ACTION1 -> 6
+     *
+     * State 6 must be both the actual live current state and the final
+     * retained causal `after`, creating the exact stale-history hazard
+     * that the old current-state accessor would have exposed.
+     */
+    mature_runtime(&mut runtime, game);
+
+    real_training_turn(
+        &mut runtime,
+        game,
+        action_two,
+        7_u8,
+    );
+
+    real_training_turn(
+        &mut runtime,
+        game,
+        action_one,
+        6_u8,
+    );
+
+    let pre_ungrounded_current = runtime
+        .cognitive_runtime()
+        .current_grounded_world_state()
+        .expect(
+            "precondition: state 6 must be genuinely grounded before the adversarial turn",
+        );
+
+    let episode_count_before = runtime
+        .cognitive_runtime()
+        .cognition()
+        .transition_episode_count();
+
+    assert!(
+        episode_count_before > 0,
+        "failed-grounding test requires real retained transition history",
+    );
+
+    let historical_last_before = runtime
+        .cognitive_runtime()
+        .cognition()
+        .transition_schema_learning()
+        .episodes()
+        .last()
+        .expect("precondition requires retained transition history")
+        .clone();
+
+    assert_eq!(
+        historical_last_before.after(),
+        &pre_ungrounded_current,
+        "anti-vacuity: retained historical `after` must equal the old live state before grounding fails",
+    );
+
+    let observation_index_before = runtime
+        .cognitive_runtime()
+        .perception()
+        .latest_frame()
+        .observation_index();
+
+    /*
+     * This is the exact formerly-vacuous state-8 intervention that exposed
+     * the stale-history bug during B0-B1 diagnosis.
+     *
+     * The environment turn itself is valid and completes, but the latest
+     * perceptual state has no selected grounded scene.
+     */
+    real_training_turn(
+        &mut runtime,
+        game,
+        action_two,
+        8_u8,
+    );
+
+    let observation_index_after = runtime
+        .cognitive_runtime()
+        .perception()
+        .latest_frame()
+        .observation_index();
+
+    assert!(
+        observation_index_after > observation_index_before,
+        "environment/perception must genuinely advance on the ungrounded response",
+    );
+
+    assert_eq!(
+        runtime
+            .cognitive_runtime()
+            .observation()
+            .last_action(),
+        Some(action_two),
+        "anti-vacuity: ACTION2 -> 8 must complete as a real environment turn",
+    );
+
+    /*
+     * Grounding failure is semantic, not a transport rollback:
+     * the new observation is current, but it has no grounded scene.
+     */
+    let competition = runtime
+        .cognitive_runtime()
+        .current_competing_scene_interpretations();
+
+    assert_eq!(
+        competition.selected_count(),
+        0,
+        "adversarial state 8 must have no selected grounded current scene",
+    );
+
+    assert!(
+        runtime
+            .cognitive_runtime()
+            .current_best_scene_interpretation()
+            .is_none(),
+        "failed current grounding must expose no best scene",
+    );
+
+    /*
+     * Fail closed.
+     *
+     * Returning historical_last_before.after() here would recreate the
+     * exact stale-current-state defect fixed by B0-B1.
+     */
+    assert!(
+        runtime
+            .cognitive_runtime()
+            .current_grounded_world_state()
+            .is_none(),
+        "missing current grounding must produce Unknown/None, never stale historical state",
+    );
+
+    /*
+     * The ungroundable response must not fabricate a new grounded
+     * transformation episode either.
+     */
+    assert_eq!(
+        runtime
+            .cognitive_runtime()
+            .cognition()
+            .transition_episode_count(),
+        episode_count_before,
+        "ungrounded current response must not append a fabricated grounded transition episode",
+    );
+
+    let historical_last_after = runtime
+        .cognitive_runtime()
+        .cognition()
+        .transition_schema_learning()
+        .episodes()
+        .last()
+        .expect("pre-existing transition history remains retained");
+
+    assert_eq!(
+        historical_last_after,
+        &historical_last_before,
+        "failed grounding must leave prior transition history intact rather than rewrite it",
+    );
+
+    assert_eq!(
+        historical_last_after.after(),
+        &pre_ungrounded_current,
+        "stale historical state must still physically exist so the fail-closed assertion is non-vacuous",
     );
 }

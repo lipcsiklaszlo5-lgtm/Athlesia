@@ -1,5 +1,4 @@
 use crate::{
-    ArcAgi3Observation,
     interactive_session_runtime::{
         ArcAgi3CompletedTurn, ArcAgi3InteractiveSession, ArcAgi3InteractiveSessionError,
         ArcAgi3SessionCommand,
@@ -7,6 +6,7 @@ use crate::{
     perceptual_ingestion_bridge::{
         ArcAgi3PerceptualBridgeError, ArcAgi3PerceptualIngestionBridge, ArcAgi3PerceptualProjection,
     },
+    ArcAgi3Observation,
 };
 use athlesia_integrated_cognitive_agent::{
     CognitiveCycleStateTransitionRequest, EnvironmentActionDispatch,
@@ -188,31 +188,33 @@ impl ArcAgi3CognitiveInteractionRuntime {
         &self.cognition
     }
 
-    fn live_temporal_grouping_policy()
-    -> athlesia_core_knowledge_perceptual_grounding::PerceptualProposalTemporalEvidencePolicy {
+    fn live_temporal_grouping_policy(
+    ) -> athlesia_core_knowledge_perceptual_grounding::PerceptualProposalTemporalEvidencePolicy
+    {
         athlesia_core_knowledge_perceptual_grounding::PerceptualProposalTemporalEvidencePolicy::new(
             2,
         )
         .expect("live temporal support threshold is positive")
     }
 
-    fn live_grouping_generation_policy()
-    -> athlesia_core_knowledge_perceptual_grounding::PerceptualGroupingGenerationPolicy {
+    fn live_grouping_generation_policy(
+    ) -> athlesia_core_knowledge_perceptual_grounding::PerceptualGroupingGenerationPolicy {
         athlesia_core_knowledge_perceptual_grounding::PerceptualGroupingGenerationPolicy::new(
             256, 256,
         )
         .expect("live grouping frontier bounds are positive")
     }
 
-    fn live_grouping_behavior_retention_policy()
-    -> athlesia_core_knowledge_perceptual_grounding::PerceptualGroupingBehaviorRetentionPolicy {
+    fn live_grouping_behavior_retention_policy(
+    ) -> athlesia_core_knowledge_perceptual_grounding::PerceptualGroupingBehaviorRetentionPolicy
+    {
         athlesia_core_knowledge_perceptual_grounding::
             PerceptualGroupingBehaviorRetentionPolicy::new(2, 2)
             .expect("live grouping behavior thresholds are positive")
     }
 
-    fn live_grouping_appearance_retention_policy()
-    -> athlesia_core_knowledge_perceptual_grounding::PerceptualGroupingAppearanceRetentionPolicy
+    fn live_grouping_appearance_retention_policy(
+    ) -> athlesia_core_knowledge_perceptual_grounding::PerceptualGroupingAppearanceRetentionPolicy
     {
         athlesia_core_knowledge_perceptual_grounding::
             PerceptualGroupingAppearanceRetentionPolicy::new(2)
@@ -437,8 +439,8 @@ impl ArcAgi3CognitiveInteractionRuntime {
         hypotheses
     }
 
-    fn live_scene_grounding_policy()
-    -> athlesia_core_knowledge_perceptual_grounding::PerceptualGroundingPolicy {
+    fn live_scene_grounding_policy(
+    ) -> athlesia_core_knowledge_perceptual_grounding::PerceptualGroundingPolicy {
         /*
          * This is a bounded runtime resource policy, not semantic evidence.
          *
@@ -634,8 +636,8 @@ impl ArcAgi3CognitiveInteractionRuntime {
         .expect("live transition-schema policy has positive bounded frontiers")
     }
 
-    fn live_transition_schema_learning_policy()
-    -> athlesia_integrated_cognitive_agent::EndogenousTransitionSchemaLearningPolicy {
+    fn live_transition_schema_learning_policy(
+    ) -> athlesia_integrated_cognitive_agent::EndogenousTransitionSchemaLearningPolicy {
         athlesia_integrated_cognitive_agent::EndogenousTransitionSchemaLearningPolicy::new(
             256,
             Self::live_transition_schema_policy(),
@@ -643,8 +645,8 @@ impl ArcAgi3CognitiveInteractionRuntime {
         .expect("live transition learning has a positive evidence frontier")
     }
 
-    fn live_perceptual_world_context()
-    -> athlesia_core_knowledge_perceptual_grounding::IntegratedPerceptualWorldContext {
+    fn live_perceptual_world_context(
+    ) -> athlesia_core_knowledge_perceptual_grounding::IntegratedPerceptualWorldContext {
         use athlesia_core_knowledge_perceptual_grounding::{
             ActionConsequencePolicy, IntegratedPerceptualWorldContext, PerceptualChangePolicy,
             PersistenceTrackingPolicy, TopologicalRelationPolicy,
@@ -661,20 +663,25 @@ impl ArcAgi3CognitiveInteractionRuntime {
         )
     }
 
-    fn live_executable_world_model_policy()
-    -> athlesia_universal_domain_learning::GroundedExecutableWorldModelPolicy {
+    fn live_executable_world_model_policy(
+    ) -> athlesia_universal_domain_learning::GroundedExecutableWorldModelPolicy {
         athlesia_universal_domain_learning::GroundedExecutableWorldModelPolicy::new(64)
             .expect("live executable world-model schema frontier is positive")
     }
 
     pub fn current_grounded_world_state(
         &self,
-    ) -> Option<&athlesia_universal_domain_learning::GroundedStateSnapshot> {
-        self.cognition
-            .transition_schema_learning()
-            .episodes()
-            .last()
-            .map(athlesia_universal_domain_learning::GroundedTransformationEpisode::after)
+    ) -> Option<athlesia_universal_domain_learning::GroundedStateSnapshot> {
+        let current_scene = self.current_best_scene_interpretation()?;
+
+        let current_facts =
+            athlesia_core_knowledge_perceptual_grounding::
+                GroundedPerceptualStateProjector::scene_facts(
+                    self.perception.latest_frame(),
+                    &current_scene,
+                )?;
+
+        athlesia_universal_domain_learning::GroundedStateSnapshot::new(current_facts)
     }
 
     pub fn current_executable_world_model(
@@ -721,7 +728,7 @@ impl ArcAgi3CognitiveInteractionRuntime {
 
         Some(
             athlesia_universal_domain_learning::UniversalGroundedExecutableWorldModel::predict(
-                state,
+                &state,
                 &transformation,
                 &model,
             ),
@@ -898,7 +905,7 @@ impl ArcAgi3CognitiveInteractionRuntime {
         for &action in candidate_actions {
             let Some(candidate) = Self::model_grounded_executive_candidate(
                 &model,
-                state,
+                &state,
                 action,
                 goal,
                 goal_alignment,

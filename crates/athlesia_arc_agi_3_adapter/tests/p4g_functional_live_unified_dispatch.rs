@@ -616,3 +616,410 @@ athlesia_arc_agi_3_adapter::
         );
     }
 }
+
+#[test]
+fn multiframe_first_response_is_causal_but_latest_response_is_current_state() {
+    let game = "c16hb0-multiframe-authority";
+
+    let mut runtime = live_runtime(game, 620_000);
+
+    /*
+     * Reuse the canonical P4G maturity path.
+     *
+     * No duplicate grounding fixture is introduced here.
+     */
+    mature_runtime(&mut runtime, game);
+
+    let pre_action_current = runtime
+        .cognitive_runtime()
+        .current_grounded_world_state()
+        .expect(
+            "canonical mature P4G runtime must expose a grounded current state",
+        );
+
+    let episode_count_before = runtime
+        .cognitive_runtime()
+        .cognition()
+        .transition_episode_count();
+
+    assert!(
+        episode_count_before > 0,
+        "canonical mature runtime must retain causal transition evidence",
+    );
+
+    let action_one = action(ArcAgi3ActionId::Action1);
+
+    /*
+     * Build each frame through the existing normal_observation fixture,
+     * then combine only their already-valid grids into one multiframe
+     * environment response.
+     */
+    let causal_template =
+        normal_observation(game, 6_u8, Some(action_one));
+
+    let latest_template =
+        normal_observation(game, 7_u8, Some(action_one));
+
+    let causal_grid =
+        causal_template.frames().latest().clone();
+
+    let latest_grid =
+        latest_template.frames().latest().clone();
+
+    let multiframe = ArcAgi3Observation::new(
+        causal_template.game_id().clone(),
+        causal_template.state(),
+        ArcAgi3FrameSequence::new(vec![
+            causal_grid,
+            latest_grid,
+        ])
+        .expect("two canonical grids form a valid multiframe response"),
+        causal_template.levels_completed(),
+        causal_template.win_levels(),
+        causal_template.available_actions().clone(),
+        Some(action_one),
+    );
+
+    runtime
+        .transport()
+        .push(Ok(multiframe));
+
+    let cognitive_action =
+        ArcAgi3CognitiveProtocolBridge::encode_action(action_one);
+
+    let completed = runtime
+        .execute_with(signal(900), |cognitive| {
+            m51_fixture::begin_arc(
+                cognitive,
+                cognitive_action,
+            )
+        })
+        .expect("grounded multiframe ACTION1 turn must execute");
+
+    assert!(
+        completed.completion().has_cognitive_feedback(),
+        "real ACTION1 must retain causal feedback",
+    );
+
+    assert_eq!(
+        completed.completion().perception().frame_count(),
+        2,
+        "response must retain exactly two perceptual frames",
+    );
+
+    assert_eq!(
+        runtime
+            .cognitive_runtime()
+            .cognition()
+            .transition_episode_count(),
+        episode_count_before + 1,
+        "one real action must create exactly one new direct causal episode",
+    );
+
+    let frames =
+        completed.completion().perception().frames();
+
+    let causal_frame = &frames[0];
+    let latest_frame = &frames[1];
+
+    assert!(
+        causal_frame.observation_index()
+            < latest_frame.observation_index(),
+        "first and latest response frames must have ordered observation indices",
+    );
+
+    /*
+     * Current scene authority is evaluated against the latest frame.
+     *
+     * Project it through the canonical M46 single-scene projector for both
+     * frames. If it cannot ground the first frame, the test fails rather than
+     * manufacturing a separate scene or state encoder.
+     */
+    let scene = runtime
+        .cognitive_runtime()
+        .current_best_scene_interpretation()
+        .expect(
+            "latest multiframe response must expose a grounded current scene",
+        );
+
+    let causal_state =
+        athlesia_core_knowledge_perceptual_grounding::
+            GroundedPerceptualStateProjector::scene_facts(
+                causal_frame,
+                &scene,
+            )
+            .and_then(
+                athlesia_universal_domain_learning::
+                    GroundedStateSnapshot::new,
+            )
+            .expect(
+                "canonical current scene must remain grounded in causal response frame",
+            );
+
+    let latest_state =
+        athlesia_core_knowledge_perceptual_grounding::
+            GroundedPerceptualStateProjector::scene_facts(
+                latest_frame,
+                &scene,
+            )
+            .and_then(
+                athlesia_universal_domain_learning::
+                    GroundedStateSnapshot::new,
+            )
+            .expect(
+                "canonical current scene must project latest response frame",
+            );
+
+    assert_ne!(
+        causal_state,
+        latest_state,
+        "causal response state and latest response state must be observably distinct",
+    );
+
+    assert_ne!(
+        pre_action_current,
+        latest_state,
+        "multiframe response must genuinely advance the represented current state",
+    );
+
+    /*
+     * M47 causal evidence authority is first response frame.
+     */
+    let retained_after = runtime
+        .cognitive_runtime()
+        .cognition()
+        .transition_schema_learning()
+        .episodes()
+        .last()
+        .expect("new causal episode must be retained")
+        .after();
+
+    assert_eq!(
+        retained_after,
+        &causal_state,
+        "retained direct action consequence must terminate at FIRST response frame",
+    );
+
+    /*
+     * Live current state authority is latest response frame.
+     */
+    let live_current = runtime
+        .cognitive_runtime()
+        .current_grounded_world_state()
+        .expect(
+            "latest multiframe response must expose current grounded state",
+        );
+
+    assert_eq!(
+        live_current,
+        latest_state,
+        "live current state must represent LATEST response frame",
+    );
+
+    assert_ne!(
+        live_current,
+        causal_state,
+        "FIRST causal response cannot masquerade as latest live state",
+    );
+
+    assert_ne!(
+        &live_current,
+        retained_after,
+        "retained transition history cannot alias live current-state authority",
+    );
+}
+#[test]
+fn transition_capacity_saturation_does_not_freeze_live_current_grounded_state() {
+    const LIVE_TRANSITION_EPISODE_CAP: usize = 256;
+
+    let game = "c16hb0-transition-capacity";
+
+    let mut runtime = live_runtime(game, 630_000);
+
+    /*
+     * Establish the canonical grounded P4G state first.
+     */
+    mature_runtime(&mut runtime, game);
+
+    let action_one = action(ArcAgi3ActionId::Action1);
+    let action_two = action(ArcAgi3ActionId::Action2);
+
+    let initial_count = runtime
+        .cognitive_runtime()
+        .cognition()
+        .transition_episode_count();
+
+    assert!(
+        initial_count > 0
+            && initial_count < LIVE_TRANSITION_EPISODE_CAP,
+        "fixture must begin with real evidence below the live frontier",
+    );
+
+    assert!(
+        runtime
+            .cognitive_runtime()
+            .current_grounded_world_state()
+            .is_some(),
+        "fixture must begin from a genuinely grounded live state",
+    );
+
+    /*
+     * mature_runtime ends on the familiar grounded value 5.
+     *
+     * Repeated ACTION2 -> 5 self-loops are already part of the canonical
+     * maturity evidence class. Fill the real M51 store to its exact live
+     * frontier, checking every admission so a rejected turn cannot produce
+     * a false saturation result.
+     */
+    let remaining =
+        LIVE_TRANSITION_EPISODE_CAP - initial_count;
+
+    for index in 0..remaining {
+        let before = runtime
+            .cognitive_runtime()
+            .cognition()
+            .transition_episode_count();
+
+        real_training_turn(
+            &mut runtime,
+            game,
+            action_two,
+            5_u8,
+        );
+
+        let after = runtime
+            .cognitive_runtime()
+            .cognition()
+            .transition_episode_count();
+
+        assert_eq!(
+            after,
+            before + 1,
+            "every pre-frontier controlled turn must be admitted; failure at fill index {index}",
+        );
+    }
+
+    assert_eq!(
+        runtime
+            .cognitive_runtime()
+            .cognition()
+            .transition_episode_count(),
+        LIVE_TRANSITION_EPISODE_CAP,
+        "fixture must reach the exact production evidence frontier",
+    );
+
+    let pre_saturation_current = runtime
+        .cognitive_runtime()
+        .current_grounded_world_state()
+        .expect(
+            "full transition memory must still expose a grounded current state",
+        );
+
+    let historical_last_before = runtime
+        .cognitive_runtime()
+        .cognition()
+        .transition_schema_learning()
+        .episodes()
+        .last()
+        .expect("full transition memory must have a final retained episode")
+        .clone();
+
+    /*
+     * Now execute one MORE genuine controlled action.
+     *
+     * ACTION1 -> 6 is a familiar grounded transition from the canonical
+     * mature fixture. M51 cannot retain episode 257, but perception and
+     * current-state authority must still advance.
+     */
+    real_training_turn(
+        &mut runtime,
+        game,
+        action_one,
+        6_u8,
+    );
+
+    assert_eq!(
+        runtime
+            .cognitive_runtime()
+            .cognition()
+            .transition_episode_count(),
+        LIVE_TRANSITION_EPISODE_CAP,
+        "transition evidence memory must remain bounded at 256",
+    );
+
+    let historical_last_after = runtime
+        .cognitive_runtime()
+        .cognition()
+        .transition_schema_learning()
+        .episodes()
+        .last()
+        .expect("bounded history remains nonempty");
+
+    assert_eq!(
+        historical_last_after,
+        &historical_last_before,
+        "frontier-exceeded turn must not overwrite or fabricate retained transition history",
+    );
+
+    /*
+     * Derive expected live state solely from the LATEST perception using
+     * the canonical M46 scene->facts authority.
+     */
+    let current_scene = runtime
+        .cognitive_runtime()
+        .current_best_scene_interpretation()
+        .expect(
+            "familiar post-saturation response must retain a grounded current scene",
+        );
+
+    let expected_current =
+        athlesia_core_knowledge_perceptual_grounding::
+            GroundedPerceptualStateProjector::scene_facts(
+                runtime
+                    .cognitive_runtime()
+                    .perception()
+                    .latest_frame(),
+                &current_scene,
+            )
+            .and_then(
+                athlesia_universal_domain_learning::
+                    GroundedStateSnapshot::new,
+            )
+            .expect(
+                "latest perception must project through canonical M46 authority",
+            );
+
+    let live_current = runtime
+        .cognitive_runtime()
+        .current_grounded_world_state()
+        .expect(
+            "transition-memory saturation must not erase live current state",
+        );
+
+    assert_eq!(
+        live_current,
+        expected_current,
+        "current state must continue to follow latest perception after transition-memory saturation",
+    );
+
+    assert_ne!(
+        live_current,
+        pre_saturation_current,
+        "post-frontier ACTION1 -> 6 must genuinely advance current state",
+    );
+
+    assert_ne!(
+        live_current,
+        historical_last_before.after().clone(),
+        "frozen retained transition history must not masquerade as the new live current state",
+    );
+
+    assert_eq!(
+        runtime
+            .cognitive_runtime()
+            .observation()
+            .last_action(),
+        Some(action_one),
+        "anti-vacuity: the post-frontier environment action must actually complete",
+    );
+}
