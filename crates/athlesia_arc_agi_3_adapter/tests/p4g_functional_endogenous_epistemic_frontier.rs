@@ -4912,3 +4912,284 @@ fn successful_ungrounded_response_fails_closed_instead_of_exposing_stale_current
         "stale historical state must still physically exist so the fail-closed assertion is non-vacuous",
     );
 }
+
+
+#[test]
+fn live_current_successor_frequency_query_matches_explicit_b2b_query() {
+    let game =
+        "c16hb2c-live-current-frequency-binding";
+
+    let mut runtime =
+        live_runtime(
+            game,
+            7_100_000,
+        );
+
+    mature_runtime(
+        &mut runtime,
+        game,
+    );
+
+    assert!(
+        runtime
+            .cognitive_runtime()
+            .cognition()
+            .transition_episode_count()
+            > 0,
+        "B2-C live binding test requires genuine retained transition evidence",
+    );
+
+    let current =
+        runtime
+            .cognitive_runtime()
+            .current_grounded_world_state()
+            .expect(
+                "mature live runtime must expose a genuinely grounded current representation",
+            );
+
+    let cognitive_action =
+        ArcAgi3CognitiveProtocolBridge::
+            encode_action(
+                action(
+                    ArcAgi3ActionId::Action1,
+                ),
+            );
+
+    let explicit =
+        runtime
+            .cognitive_runtime()
+            .cognition()
+            .transition_schema_learning()
+            .action_qualified_empirical_successor_frequency(
+                &current,
+                &cognitive_action,
+            );
+
+    let live =
+        runtime
+            .cognitive_runtime()
+            .current_action_qualified_empirical_successor_frequency(
+                &cognitive_action,
+            )
+            .expect(
+                "grounded B0 current state must permit the live B2-C query",
+            );
+
+    assert_eq!(
+        live,
+        explicit,
+        "live B2-C must be exactly B0 current-state binding into the existing B2-B estimator",
+    );
+}
+
+#[test]
+fn live_current_successor_frequency_query_after_reset_cannot_bind_stale_historical_after() {
+    let game =
+        "c16hb2c-live-reset-stale-frequency-guard";
+
+    let action_two =
+        action(
+            ArcAgi3ActionId::Action2,
+        );
+
+    let mut runtime =
+        live_runtime(
+            game,
+            7_200_000,
+        );
+
+    /*
+     * Build genuine retained history first.
+     *
+     * Anti-vacuity: this test is only meaningful if stale historical
+     * successor evidence really exists before RESET.
+     */
+    mature_runtime(
+        &mut runtime,
+        game,
+    );
+
+    real_training_turn(
+        &mut runtime,
+        game,
+        action_two,
+        7_u8,
+    );
+
+    let episode_count_before_reset =
+        runtime
+            .cognitive_runtime()
+            .cognition()
+            .transition_episode_count();
+
+    assert!(
+        episode_count_before_reset > 0,
+        "B2-C RESET guard requires genuine retained transition evidence",
+    );
+
+    let historical_after =
+        runtime
+            .cognitive_runtime()
+            .cognition()
+            .transition_schema_learning()
+            .episodes()
+            .last()
+            .expect(
+                "B2-C RESET guard requires retained historical successor representation",
+            )
+            .after()
+            .clone();
+
+    /*
+     * Reuse the frozen B0 RESET fixture semantics.
+     *
+     * RESET is a protocol operation and contributes no causal cognitive
+     * transition evidence. Its response may or may not be groundable.
+     *
+     * The only legal current-state authority after RESET is current
+     * perception. If current grounding fails, B0 returns None.
+     */
+    runtime
+        .transport()
+        .push(
+            Ok(
+                normal_observation(
+                    game,
+                    8_u8,
+                    Some(
+                        ArcAgi3Action::reset(),
+                    ),
+                ),
+            ),
+        );
+
+    runtime
+        .reset(
+            signal(900),
+        )
+        .expect(
+            "real RESET response must complete",
+        );
+
+    /*
+     * Derive the frozen B0 expected result independently through the
+     * same current perception authority used by the established B0 test.
+     *
+     * IMPORTANT:
+     * expected_current is Option<GroundedStateSnapshot>.
+     * None is a legitimate fail-closed result.
+     */
+    let expected_current =
+        runtime
+            .cognitive_runtime()
+            .current_best_scene_interpretation()
+            .and_then(
+                |scene| {
+                    athlesia_core_knowledge_perceptual_grounding::
+                        GroundedPerceptualStateProjector::scene_facts(
+                            runtime
+                                .cognitive_runtime()
+                                .perception()
+                                .latest_frame(),
+                            &scene,
+                        )
+                },
+            )
+            .and_then(
+                athlesia_universal_domain_learning::
+                    GroundedStateSnapshot::new,
+            );
+
+    let actual_current =
+        runtime
+            .cognitive_runtime()
+            .current_grounded_world_state();
+
+    assert_eq!(
+        actual_current,
+        expected_current,
+        "B2-C must inherit frozen B0 current-perception authority exactly",
+    );
+
+    assert_ne!(
+        actual_current,
+        Some(
+            historical_after.clone(),
+        ),
+        "retained historical successor representation must never masquerade as live current state",
+    );
+
+    assert_eq!(
+        runtime
+            .cognitive_runtime()
+            .observation()
+            .last_action(),
+        Some(
+            ArcAgi3Action::reset(),
+        ),
+        "anti-vacuity: RESET must genuinely complete before the live B2-C query",
+    );
+
+    assert_eq!(
+        runtime
+            .cognitive_runtime()
+            .cognition()
+            .transition_episode_count(),
+        episode_count_before_reset,
+        "RESET must not manufacture a causal transition sample",
+    );
+
+    let cognitive_action =
+        ArcAgi3CognitiveProtocolBridge::
+            encode_action(
+                action(
+                    ArcAgi3ActionId::Action1,
+                ),
+            );
+
+    let live =
+        runtime
+            .cognitive_runtime()
+            .current_action_qualified_empirical_successor_frequency(
+                &cognitive_action,
+            );
+
+    /*
+     * B2-C's outer Option is current-grounding authority.
+     *
+     * If B0 has no grounded current representation, the live successor
+     * query MUST be None. It may not rescue the query using retained
+     * history.
+     *
+     * If B0 does expose a current representation, B2-C must delegate that
+     * exact representation to B2-B.
+     */
+    match actual_current {
+        None => {
+            assert!(
+                live.is_none(),
+                "failed post-RESET current grounding must propagate None instead of falling back to historical successor evidence",
+            );
+        }
+
+        Some(current) => {
+            let explicit_current =
+                runtime
+                    .cognitive_runtime()
+                    .cognition()
+                    .transition_schema_learning()
+                    .action_qualified_empirical_successor_frequency(
+                        &current,
+                        &cognitive_action,
+                    );
+
+            assert_eq!(
+                live,
+                Some(
+                    explicit_current,
+                ),
+                "grounded post-RESET query must bind exactly the frozen B0 current representation",
+            );
+        }
+    }
+}

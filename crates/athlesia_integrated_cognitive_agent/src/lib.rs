@@ -9478,6 +9478,148 @@ pub struct EndogenousTransitionSchemaLearningState {
     event_provenance: Vec<RetainedTransitionEventProvenance>,
 }
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum EmpiricalSuccessorRepresentationQualificationStatus {
+    UnknownNoRetainedEvidence,
+    UnknownRetainedEvidenceInvariantViolation,
+    UnknownNoExactGroundedRepresentationSupport,
+    QualifiedExactGroundedRepresentation,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct EmpiricalSuccessorRepresentationQualification {
+    status: EmpiricalSuccessorRepresentationQualificationStatus,
+    independent_event_count: usize,
+}
+
+impl EmpiricalSuccessorRepresentationQualification {
+    fn unknown(status: EmpiricalSuccessorRepresentationQualificationStatus) -> Self {
+        Self {
+            status,
+            independent_event_count: 0,
+        }
+    }
+
+    fn qualified(independent_event_count: usize) -> Self {
+        Self {
+            status:
+                EmpiricalSuccessorRepresentationQualificationStatus::
+                    QualifiedExactGroundedRepresentation,
+            independent_event_count,
+        }
+    }
+
+    pub fn status(&self) -> EmpiricalSuccessorRepresentationQualificationStatus {
+        self.status
+    }
+
+    pub fn independent_event_count(&self) -> usize {
+        self.independent_event_count
+    }
+
+    pub fn is_qualified(&self) -> bool {
+        self.status
+            == EmpiricalSuccessorRepresentationQualificationStatus::
+                QualifiedExactGroundedRepresentation
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum EmpiricalSuccessorFrequencyStatus {
+    UnknownRepresentation(
+        EmpiricalSuccessorRepresentationQualificationStatus,
+    ),
+    UnknownNoActionQualifiedSamples,
+    QualifiedActionEmpiricalFrequency,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct EmpiricalSuccessorFrequencyEntry {
+    successor_representation:
+        athlesia_universal_domain_learning::GroundedStateSnapshot,
+    independent_event_count: usize,
+}
+
+impl EmpiricalSuccessorFrequencyEntry {
+    fn new(
+        successor_representation:
+            athlesia_universal_domain_learning::GroundedStateSnapshot,
+    ) -> Self {
+        Self {
+            successor_representation,
+            independent_event_count: 1,
+        }
+    }
+
+    pub fn successor_representation(
+        &self,
+    ) -> &athlesia_universal_domain_learning::GroundedStateSnapshot {
+        &self.successor_representation
+    }
+
+    pub fn independent_event_count(&self) -> usize {
+        self.independent_event_count
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ActionQualifiedEmpiricalSuccessorFrequency {
+    status: EmpiricalSuccessorFrequencyStatus,
+    independent_action_event_count: usize,
+    successor_frequencies: Vec<EmpiricalSuccessorFrequencyEntry>,
+}
+
+impl ActionQualifiedEmpiricalSuccessorFrequency {
+    fn unknown(
+        status: EmpiricalSuccessorFrequencyStatus,
+    ) -> Self {
+        Self {
+            status,
+            independent_action_event_count: 0,
+            successor_frequencies: Vec::new(),
+        }
+    }
+
+    fn qualified(
+        independent_action_event_count: usize,
+        successor_frequencies: Vec<EmpiricalSuccessorFrequencyEntry>,
+    ) -> Self {
+        Self {
+            status:
+                EmpiricalSuccessorFrequencyStatus::
+                    QualifiedActionEmpiricalFrequency,
+            independent_action_event_count,
+            successor_frequencies,
+        }
+    }
+
+    pub fn status(&self) -> EmpiricalSuccessorFrequencyStatus {
+        self.status
+    }
+
+    pub fn independent_action_event_count(&self) -> usize {
+        self.independent_action_event_count
+    }
+
+    pub fn successor_frequencies(
+        &self,
+    ) -> &[EmpiricalSuccessorFrequencyEntry] {
+        &self.successor_frequencies
+    }
+
+    pub fn distinct_successor_count(&self) -> usize {
+        self.successor_frequencies.len()
+    }
+
+    pub fn is_qualified(&self) -> bool {
+        self.status
+            == EmpiricalSuccessorFrequencyStatus::
+                QualifiedActionEmpiricalFrequency
+    }
+}
+
+
+
 impl EndogenousTransitionSchemaLearningState {
     pub fn new() -> Self {
         Self::default()
@@ -9497,6 +9639,189 @@ impl EndogenousTransitionSchemaLearningState {
 
     pub fn event_provenance_count(&self) -> usize {
         self.event_provenance.len()
+    }
+
+
+    pub fn empirical_successor_representation_qualification(
+        &self,
+        current_representation:
+            &athlesia_universal_domain_learning::GroundedStateSnapshot,
+    ) -> EmpiricalSuccessorRepresentationQualification {
+        /*
+         * B2-A is deliberately representation-qualified rather than
+         * world-state-qualified.
+         *
+         * GroundedStateSnapshot contains grounded facts known to M47.
+         * It is not evidence that the complete environment state has
+         * been represented.
+         *
+         * Therefore only exact equality of the currently grounded
+         * representation with a retained historical `before`
+         * representation can establish an empirical conditioning class.
+         * No subset, superset, similarity or analogue matching is
+         * promoted to authority here.
+         */
+        if self.episodes.len() != self.event_provenance.len() {
+            return EmpiricalSuccessorRepresentationQualification::unknown(
+                EmpiricalSuccessorRepresentationQualificationStatus::
+                    UnknownRetainedEvidenceInvariantViolation,
+            );
+        }
+
+        if self.episodes.is_empty() {
+            return EmpiricalSuccessorRepresentationQualification::unknown(
+                EmpiricalSuccessorRepresentationQualificationStatus::
+                    UnknownNoRetainedEvidence,
+            );
+        }
+
+        /*
+         * B1 event identity is the independent interaction-sample
+         * authority. Re-check its uniqueness before exposing any count.
+         *
+         * The retained owner is bounded at 256 samples, so this
+         * deliberately simple O(n^2) invariant check is bounded and
+         * avoids introducing a second index/store.
+         */
+        for index in 0..self.event_provenance.len() {
+            let event_index =
+                self.event_provenance[index].event_index;
+
+            if self.event_provenance[..index]
+                .iter()
+                .any(|prior| prior.event_index == event_index)
+            {
+                return EmpiricalSuccessorRepresentationQualification::unknown(
+                    EmpiricalSuccessorRepresentationQualificationStatus::
+                        UnknownRetainedEvidenceInvariantViolation,
+                );
+            }
+        }
+
+        let independent_event_count = self
+            .episodes
+            .iter()
+            .filter(|episode| episode.before() == current_representation)
+            .count();
+
+        if independent_event_count == 0 {
+            return EmpiricalSuccessorRepresentationQualification::unknown(
+                EmpiricalSuccessorRepresentationQualificationStatus::
+                    UnknownNoExactGroundedRepresentationSupport,
+            );
+        }
+
+        /*
+         * "Qualified" means only:
+         *
+         * exact grounded representation + independently retained
+         * real interaction events exist.
+         *
+         * It does NOT mean:
+         * - complete world state,
+         * - successor probability,
+         * - expected epistemic progress,
+         * - action-selection authority.
+         */
+        EmpiricalSuccessorRepresentationQualification::qualified(
+            independent_event_count,
+        )
+    }
+
+
+    pub fn action_qualified_empirical_successor_frequency(
+        &self,
+        current_representation:
+            &athlesia_universal_domain_learning::GroundedStateSnapshot,
+        action: &CognitiveStructure,
+    ) -> ActionQualifiedEmpiricalSuccessorFrequency {
+        /*
+         * Representation authority comes from B2-A.
+         *
+         * If exact grounded source-representation coverage is not
+         * available, successor frequency must abstain rather than
+         * extrapolate from subset/superset/similarity.
+         */
+        let representation_qualification =
+            self.empirical_successor_representation_qualification(
+                current_representation,
+            );
+
+        if !representation_qualification.is_qualified() {
+            return ActionQualifiedEmpiricalSuccessorFrequency::unknown(
+                EmpiricalSuccessorFrequencyStatus::UnknownRepresentation(
+                    representation_qualification.status(),
+                ),
+            );
+        }
+
+        /*
+         * Retained M47 transition semantics are:
+         *
+         * before          = grounded source representation
+         * transformation  = executed action structural identity
+         * after           = grounded successor representation
+         *
+         * B1 guarantees that every retained episode has exactly one
+         * retained provenance entry and that retained event identity is
+         * unique. B2-A re-checks those invariants before qualification.
+         *
+         * Therefore each zipped retained pair below contributes exactly
+         * one independent real interaction sample.
+         *
+         * Counts remain raw empirical frequencies. They are deliberately
+         * not normalized or interpreted as a complete environment model.
+         */
+        let mut independent_action_event_count = 0_usize;
+
+        let mut successor_frequencies:
+            Vec<EmpiricalSuccessorFrequencyEntry> =
+                Vec::new();
+
+        for (episode, _event_provenance) in self
+            .episodes
+            .iter()
+            .zip(self.event_provenance.iter())
+        {
+            if episode.before() != current_representation {
+                continue;
+            }
+
+            if episode.transformation() != action {
+                continue;
+            }
+
+            independent_action_event_count += 1;
+
+            if let Some(existing) =
+                successor_frequencies
+                    .iter_mut()
+                    .find(|entry| {
+                        entry.successor_representation()
+                            == episode.after()
+                    })
+            {
+                existing.independent_event_count += 1;
+            } else {
+                successor_frequencies.push(
+                    EmpiricalSuccessorFrequencyEntry::new(
+                        episode.after().clone(),
+                    ),
+                );
+            }
+        }
+
+        if independent_action_event_count == 0 {
+            return ActionQualifiedEmpiricalSuccessorFrequency::unknown(
+                EmpiricalSuccessorFrequencyStatus::
+                    UnknownNoActionQualifiedSamples,
+            );
+        }
+
+        ActionQualifiedEmpiricalSuccessorFrequency::qualified(
+            independent_action_event_count,
+            successor_frequencies,
+        )
     }
 }
 
@@ -11851,6 +12176,667 @@ mod endogenous_transition_schema_learning_tests {
 
         EndogenousTransitionSchemaLearningPolicy::new(max_evidence_episodes, schema_policy)
             .expect("learning policy is valid")
+    }
+
+
+    fn representation_snapshot(
+        facts: &[u64],
+    ) -> athlesia_universal_domain_learning::GroundedStateSnapshot {
+        athlesia_universal_domain_learning::GroundedStateSnapshot::new(
+            facts
+                .iter()
+                .copied()
+                .map(a)
+                .collect(),
+        )
+        .expect("representation fixture requires at least one grounded fact")
+    }
+
+    fn representation_sample(
+        event_index: u64,
+        before: &[u64],
+        after: &[u64],
+        transformation: u64,
+    ) -> (
+        athlesia_universal_domain_learning::GroundedTransformationEpisode,
+        RetainedTransitionEventProvenance,
+    ) {
+        (
+            athlesia_universal_domain_learning::GroundedTransformationEpisode::new(
+                representation_snapshot(before),
+                representation_snapshot(after),
+                a(transformation),
+            ),
+            RetainedTransitionEventProvenance {
+                event_index,
+                previous_observation_index: event_index + 1_000,
+                current_observation_index: event_index + 2_000,
+            },
+        )
+    }
+
+    #[test]
+    fn empirical_successor_representation_fresh_state_abstains_without_evidence() {
+        let state = EndogenousTransitionSchemaLearningState::new();
+
+        let result =
+            state.empirical_successor_representation_qualification(
+                &representation_snapshot(&[10]),
+            );
+
+        assert_eq!(
+            result.status(),
+            EmpiricalSuccessorRepresentationQualificationStatus::
+                UnknownNoRetainedEvidence,
+        );
+        assert_eq!(result.independent_event_count(), 0);
+        assert!(!result.is_qualified());
+    }
+
+    #[test]
+    fn empirical_successor_representation_exact_before_match_is_qualified() {
+        let (episode, provenance) =
+            representation_sample(
+                10,
+                &[10, 20],
+                &[10, 30],
+                500,
+            );
+
+        let state = EndogenousTransitionSchemaLearningState {
+            episodes: vec![episode],
+            event_provenance: vec![provenance],
+        };
+
+        let result =
+            state.empirical_successor_representation_qualification(
+                &representation_snapshot(&[20, 10]),
+            );
+
+        assert_eq!(
+            result.status(),
+            EmpiricalSuccessorRepresentationQualificationStatus::
+                QualifiedExactGroundedRepresentation,
+        );
+        assert_eq!(result.independent_event_count(), 1);
+        assert!(result.is_qualified());
+    }
+
+    #[test]
+    fn empirical_successor_representation_distinct_events_are_independent_support() {
+        let (episode_one, provenance_one) =
+            representation_sample(
+                10,
+                &[10, 20],
+                &[30],
+                500,
+            );
+
+        let (episode_two, provenance_two) =
+            representation_sample(
+                11,
+                &[20, 10],
+                &[40],
+                501,
+            );
+
+        let state = EndogenousTransitionSchemaLearningState {
+            episodes: vec![
+                episode_one,
+                episode_two,
+            ],
+            event_provenance: vec![
+                provenance_one,
+                provenance_two,
+            ],
+        };
+
+        let result =
+            state.empirical_successor_representation_qualification(
+                &representation_snapshot(&[10, 20]),
+            );
+
+        assert_eq!(
+            result.status(),
+            EmpiricalSuccessorRepresentationQualificationStatus::
+                QualifiedExactGroundedRepresentation,
+        );
+        assert_eq!(
+            result.independent_event_count(),
+            2,
+            "B1 unique event identity, not semantic deduplication, is sample authority",
+        );
+    }
+
+    #[test]
+    fn empirical_successor_representation_partial_subset_cannot_be_promoted_to_exact_support() {
+        let (episode, provenance) =
+            representation_sample(
+                10,
+                &[10, 20],
+                &[30],
+                500,
+            );
+
+        let state = EndogenousTransitionSchemaLearningState {
+            episodes: vec![episode],
+            event_provenance: vec![provenance],
+        };
+
+        let result =
+            state.empirical_successor_representation_qualification(
+                &representation_snapshot(&[10]),
+            );
+
+        assert_eq!(
+            result.status(),
+            EmpiricalSuccessorRepresentationQualificationStatus::
+                UnknownNoExactGroundedRepresentationSupport,
+        );
+        assert_eq!(result.independent_event_count(), 0);
+        assert!(!result.is_qualified());
+    }
+
+    #[test]
+    fn empirical_successor_representation_historical_after_state_cannot_qualify_current_query() {
+        let (episode, provenance) =
+            representation_sample(
+                10,
+                &[10],
+                &[20],
+                500,
+            );
+
+        let state = EndogenousTransitionSchemaLearningState {
+            episodes: vec![episode],
+            event_provenance: vec![provenance],
+        };
+
+        let result =
+            state.empirical_successor_representation_qualification(
+                &representation_snapshot(&[20]),
+            );
+
+        assert_eq!(
+            result.status(),
+            EmpiricalSuccessorRepresentationQualificationStatus::
+                UnknownNoExactGroundedRepresentationSupport,
+            "historical successor state must never masquerade as current conditioning representation",
+        );
+        assert_eq!(result.independent_event_count(), 0);
+    }
+
+    #[test]
+    fn empirical_successor_representation_cardinality_corruption_fails_closed() {
+        let (episode, _provenance) =
+            representation_sample(
+                10,
+                &[10],
+                &[20],
+                500,
+            );
+
+        let malformed = EndogenousTransitionSchemaLearningState {
+            episodes: vec![episode],
+            event_provenance: Vec::new(),
+        };
+
+        let result =
+            malformed.empirical_successor_representation_qualification(
+                &representation_snapshot(&[10]),
+            );
+
+        assert_eq!(
+            result.status(),
+            EmpiricalSuccessorRepresentationQualificationStatus::
+                UnknownRetainedEvidenceInvariantViolation,
+        );
+        assert_eq!(result.independent_event_count(), 0);
+        assert!(!result.is_qualified());
+    }
+
+    #[test]
+    fn empirical_successor_representation_duplicate_event_identity_fails_closed() {
+        let (episode_one, provenance_one) =
+            representation_sample(
+                10,
+                &[10],
+                &[20],
+                500,
+            );
+
+        let (episode_two, mut provenance_two) =
+            representation_sample(
+                11,
+                &[10],
+                &[30],
+                501,
+            );
+
+        /*
+         * Construct an impossible retained state deliberately.
+         * Production B1 admission forbids this; B2 must still fail closed
+         * instead of silently double-counting if the invariant is ever
+         * violated by future code.
+         */
+        provenance_two.event_index =
+            provenance_one.event_index;
+
+        let malformed = EndogenousTransitionSchemaLearningState {
+            episodes: vec![
+                episode_one,
+                episode_two,
+            ],
+            event_provenance: vec![
+                provenance_one,
+                provenance_two,
+            ],
+        };
+
+        let result =
+            malformed.empirical_successor_representation_qualification(
+                &representation_snapshot(&[10]),
+            );
+
+        assert_eq!(
+            result.status(),
+            EmpiricalSuccessorRepresentationQualificationStatus::
+                UnknownRetainedEvidenceInvariantViolation,
+        );
+        assert_eq!(result.independent_event_count(), 0);
+        assert!(!result.is_qualified());
+    }
+
+
+    fn successor_frequency_count(
+        result: &ActionQualifiedEmpiricalSuccessorFrequency,
+        successor_facts: &[u64],
+    ) -> Option<usize> {
+        let successor =
+            representation_snapshot(successor_facts);
+
+        result
+            .successor_frequencies()
+            .iter()
+            .find(|entry| {
+                entry.successor_representation()
+                    == &successor
+            })
+            .map(
+                EmpiricalSuccessorFrequencyEntry::
+                    independent_event_count,
+            )
+    }
+
+    #[test]
+    fn empirical_successor_frequency_fresh_state_abstains_without_representation_support() {
+        let state =
+            EndogenousTransitionSchemaLearningState::new();
+
+        let result =
+            state.action_qualified_empirical_successor_frequency(
+                &representation_snapshot(&[10]),
+                &a(500),
+            );
+
+        assert_eq!(
+            result.status(),
+            EmpiricalSuccessorFrequencyStatus::
+                UnknownRepresentation(
+                    EmpiricalSuccessorRepresentationQualificationStatus::
+                        UnknownNoRetainedEvidence,
+                ),
+        );
+
+        assert_eq!(
+            result.independent_action_event_count(),
+            0,
+        );
+
+        assert_eq!(
+            result.distinct_successor_count(),
+            0,
+        );
+
+        assert!(!result.is_qualified());
+    }
+
+    #[test]
+    fn empirical_successor_frequency_requires_exact_action_support_after_representation_qualification() {
+        let (episode, provenance) =
+            representation_sample(
+                10,
+                &[10],
+                &[20],
+                500,
+            );
+
+        let state =
+            EndogenousTransitionSchemaLearningState {
+                episodes: vec![episode],
+                event_provenance: vec![provenance],
+            };
+
+        let result =
+            state.action_qualified_empirical_successor_frequency(
+                &representation_snapshot(&[10]),
+                &a(600),
+            );
+
+        assert_eq!(
+            result.status(),
+            EmpiricalSuccessorFrequencyStatus::
+                UnknownNoActionQualifiedSamples,
+        );
+
+        assert_eq!(
+            result.independent_action_event_count(),
+            0,
+        );
+
+        assert_eq!(
+            result.distinct_successor_count(),
+            0,
+        );
+
+        assert!(!result.is_qualified());
+    }
+
+    #[test]
+    fn empirical_successor_frequency_counts_distinct_successors_for_exact_state_and_action() {
+        let (episode_one, provenance_one) =
+            representation_sample(
+                10,
+                &[10],
+                &[20],
+                500,
+            );
+
+        let (episode_two, provenance_two) =
+            representation_sample(
+                11,
+                &[10],
+                &[30],
+                500,
+            );
+
+        let state =
+            EndogenousTransitionSchemaLearningState {
+                episodes: vec![
+                    episode_one,
+                    episode_two,
+                ],
+                event_provenance: vec![
+                    provenance_one,
+                    provenance_two,
+                ],
+            };
+
+        let result =
+            state.action_qualified_empirical_successor_frequency(
+                &representation_snapshot(&[10]),
+                &a(500),
+            );
+
+        assert_eq!(
+            result.status(),
+            EmpiricalSuccessorFrequencyStatus::
+                QualifiedActionEmpiricalFrequency,
+        );
+
+        assert_eq!(
+            result.independent_action_event_count(),
+            2,
+        );
+
+        assert_eq!(
+            result.distinct_successor_count(),
+            2,
+        );
+
+        assert_eq!(
+            successor_frequency_count(
+                &result,
+                &[20],
+            ),
+            Some(1),
+        );
+
+        assert_eq!(
+            successor_frequency_count(
+                &result,
+                &[30],
+            ),
+            Some(1),
+        );
+
+        assert!(result.is_qualified());
+    }
+
+    #[test]
+    fn empirical_successor_frequency_identical_successor_from_distinct_events_counts_twice() {
+        let (episode_one, provenance_one) =
+            representation_sample(
+                10,
+                &[10],
+                &[20],
+                500,
+            );
+
+        let (episode_two, provenance_two) =
+            representation_sample(
+                11,
+                &[10],
+                &[20],
+                500,
+            );
+
+        let state =
+            EndogenousTransitionSchemaLearningState {
+                episodes: vec![
+                    episode_one,
+                    episode_two,
+                ],
+                event_provenance: vec![
+                    provenance_one,
+                    provenance_two,
+                ],
+            };
+
+        let result =
+            state.action_qualified_empirical_successor_frequency(
+                &representation_snapshot(&[10]),
+                &a(500),
+            );
+
+        assert_eq!(
+            result.independent_action_event_count(),
+            2,
+            "two B1-unique environment events are two legitimate samples",
+        );
+
+        assert_eq!(
+            result.distinct_successor_count(),
+            1,
+        );
+
+        assert_eq!(
+            successor_frequency_count(
+                &result,
+                &[20],
+            ),
+            Some(2),
+        );
+    }
+
+    #[test]
+    fn empirical_successor_frequency_never_mixes_other_actions_into_requested_action_counts() {
+        let (action_500_episode, action_500_provenance) =
+            representation_sample(
+                10,
+                &[10],
+                &[20],
+                500,
+            );
+
+        let (action_600_episode, action_600_provenance) =
+            representation_sample(
+                11,
+                &[10],
+                &[30],
+                600,
+            );
+
+        let state =
+            EndogenousTransitionSchemaLearningState {
+                episodes: vec![
+                    action_500_episode,
+                    action_600_episode,
+                ],
+                event_provenance: vec![
+                    action_500_provenance,
+                    action_600_provenance,
+                ],
+            };
+
+        let result =
+            state.action_qualified_empirical_successor_frequency(
+                &representation_snapshot(&[10]),
+                &a(500),
+            );
+
+        assert_eq!(
+            result.independent_action_event_count(),
+            1,
+        );
+
+        assert_eq!(
+            result.distinct_successor_count(),
+            1,
+        );
+
+        assert_eq!(
+            successor_frequency_count(
+                &result,
+                &[20],
+            ),
+            Some(1),
+        );
+
+        assert_eq!(
+            successor_frequency_count(
+                &result,
+                &[30],
+            ),
+            None,
+            "successor evidence from another action must remain outside the queried action frequency",
+        );
+    }
+
+    #[test]
+    fn empirical_successor_frequency_partial_representation_cannot_borrow_exact_action_history() {
+        let (episode, provenance) =
+            representation_sample(
+                10,
+                &[10, 20],
+                &[30],
+                500,
+            );
+
+        let state =
+            EndogenousTransitionSchemaLearningState {
+                episodes: vec![episode],
+                event_provenance: vec![provenance],
+            };
+
+        let result =
+            state.action_qualified_empirical_successor_frequency(
+                &representation_snapshot(&[10]),
+                &a(500),
+            );
+
+        assert_eq!(
+            result.status(),
+            EmpiricalSuccessorFrequencyStatus::
+                UnknownRepresentation(
+                    EmpiricalSuccessorRepresentationQualificationStatus::
+                        UnknownNoExactGroundedRepresentationSupport,
+                ),
+        );
+
+        assert_eq!(
+            result.independent_action_event_count(),
+            0,
+        );
+
+        assert_eq!(
+            result.distinct_successor_count(),
+            0,
+        );
+    }
+
+    #[test]
+    fn empirical_successor_frequency_cannot_bypass_b1_duplicate_event_invariant() {
+        let (episode_one, provenance_one) =
+            representation_sample(
+                10,
+                &[10],
+                &[20],
+                500,
+            );
+
+        let (episode_two, mut provenance_two) =
+            representation_sample(
+                11,
+                &[10],
+                &[30],
+                500,
+            );
+
+        provenance_two.event_index =
+            provenance_one.event_index;
+
+        let malformed =
+            EndogenousTransitionSchemaLearningState {
+                episodes: vec![
+                    episode_one,
+                    episode_two,
+                ],
+                event_provenance: vec![
+                    provenance_one,
+                    provenance_two,
+                ],
+            };
+
+        let result =
+            malformed.action_qualified_empirical_successor_frequency(
+                &representation_snapshot(&[10]),
+                &a(500),
+            );
+
+        assert_eq!(
+            result.status(),
+            EmpiricalSuccessorFrequencyStatus::
+                UnknownRepresentation(
+                    EmpiricalSuccessorRepresentationQualificationStatus::
+                        UnknownRetainedEvidenceInvariantViolation,
+                ),
+        );
+
+        assert_eq!(
+            result.independent_action_event_count(),
+            0,
+        );
+
+        assert_eq!(
+            result.distinct_successor_count(),
+            0,
+        );
+
+        assert!(
+            !result.is_qualified(),
+            "invalid B1 event identity may never become empirical frequency evidence",
+        );
     }
 
     #[test]

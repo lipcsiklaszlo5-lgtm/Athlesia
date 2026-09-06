@@ -684,6 +684,40 @@ impl ArcAgi3CognitiveInteractionRuntime {
         athlesia_universal_domain_learning::GroundedStateSnapshot::new(current_facts)
     }
 
+    pub fn current_action_qualified_empirical_successor_frequency(
+        &self,
+        action: &CognitiveStructure,
+    ) -> Option<
+        athlesia_integrated_cognitive_agent::
+            ActionQualifiedEmpiricalSuccessorFrequency,
+    > {
+        /*
+         * C16H-B2-C live query authority.
+         *
+         * The caller supplies only the contemplated action identity.
+         *
+         * The conditioning representation is obtained exclusively from
+         * the frozen B0 current-state authority, which derives from the
+         * latest grounded perception and fails closed when no current
+         * grounding exists.
+         *
+         * Historical transition memory is not inspected here.
+         * Frequency calculation remains exclusively B2-B authority.
+         */
+        let current_representation =
+            self.current_grounded_world_state()?;
+
+        Some(
+            self.cognition()
+                .transition_schema_learning()
+                .action_qualified_empirical_successor_frequency(
+                    &current_representation,
+                    action,
+                ),
+        )
+    }
+
+
     pub fn current_executable_world_model(
         &self,
     ) -> Option<athlesia_universal_domain_learning::GroundedExecutableWorldModel> {
