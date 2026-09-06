@@ -9439,9 +9439,43 @@ impl EndogenousTransitionSchemaLearningPolicy {
     }
 }
 
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub struct RetainedTransitionEventProvenance {
+    event_index: u64,
+    previous_observation_index: u64,
+    current_observation_index: u64,
+}
+
+impl RetainedTransitionEventProvenance {
+    pub fn new(
+        event_index: u64,
+        previous_observation_index: u64,
+        current_observation_index: u64,
+    ) -> Self {
+        Self {
+            event_index,
+            previous_observation_index,
+            current_observation_index,
+        }
+    }
+
+    pub fn event_index(self) -> u64 {
+        self.event_index
+    }
+
+    pub fn previous_observation_index(self) -> u64 {
+        self.previous_observation_index
+    }
+
+    pub fn current_observation_index(self) -> u64 {
+        self.current_observation_index
+    }
+}
+
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct EndogenousTransitionSchemaLearningState {
     episodes: Vec<athlesia_universal_domain_learning::GroundedTransformationEpisode>,
+    event_provenance: Vec<RetainedTransitionEventProvenance>,
 }
 
 impl EndogenousTransitionSchemaLearningState {
@@ -9456,11 +9490,21 @@ impl EndogenousTransitionSchemaLearningState {
     pub fn episode_count(&self) -> usize {
         self.episodes.len()
     }
+
+    pub fn event_provenance(&self) -> &[RetainedTransitionEventProvenance] {
+        &self.event_provenance
+    }
+
+    pub fn event_provenance_count(&self) -> usize {
+        self.event_provenance.len()
+    }
 }
 
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub enum EndogenousTransitionSchemaLearningStatus {
     EvidenceRejected,
+    ExactDuplicateEvent,
+    ConflictingEventIdentity,
     EvidenceFrontierExceeded,
     AccumulatingContrast,
     NoAdmittedHypothesis,
@@ -9537,6 +9581,37 @@ impl EndogenousTransitionSchemaLearningCycle {
             };
         };
 
+        /*
+         * Interaction events and perceptual observations use independent
+         * monotonic clocks.  Retain both identities exactly; do not compare
+         * their numeric values or derive one from the other.
+         */
+        let event_provenance = RetainedTransitionEventProvenance::new(
+            environment_evidence.action_observation().event_index(),
+            input.previous_frame().observation_index(),
+            input.current_frame().observation_index(),
+        );
+
+        if let Some(existing_index) = state
+            .event_provenance
+            .iter()
+            .position(|existing| existing.event_index() == event_provenance.event_index())
+        {
+            let exact_duplicate = state.event_provenance[existing_index] == event_provenance
+                && state.episodes[existing_index] == *controlled_evidence.episode();
+
+            return EndogenousTransitionSchemaLearningResult {
+                status: if exact_duplicate {
+                    EndogenousTransitionSchemaLearningStatus::ExactDuplicateEvent
+                } else {
+                    EndogenousTransitionSchemaLearningStatus::ConflictingEventIdentity
+                },
+                bridge_status,
+                state: state.clone(),
+                induction: None,
+            };
+        }
+
         if state.episode_count() >= policy.max_evidence_episodes() {
             return EndogenousTransitionSchemaLearningResult {
                 status: EndogenousTransitionSchemaLearningStatus::EvidenceFrontierExceeded,
@@ -9551,6 +9626,12 @@ impl EndogenousTransitionSchemaLearningCycle {
         next_state
             .episodes
             .push(controlled_evidence.episode().clone());
+        next_state.event_provenance.push(event_provenance);
+
+        debug_assert_eq!(
+            next_state.episodes.len(),
+            next_state.event_provenance.len(),
+        );
 
         let induction =
             athlesia_universal_domain_learning::UniversalTransitionSchemaInduction::evaluate(
@@ -11907,6 +11988,260 @@ mod endogenous_transition_schema_learning_tests {
 
         assert_eq!(induction.transformation_count(), 2);
         assert_eq!(induction.invariant_seeded_fact_count(), 0);
+    }
+
+    #[test]
+    fn exact_replay_of_same_transition_event_is_not_counted_twice() {
+        let initial = EndogenousTransitionSchemaLearningState::new();
+
+        let input = perceptual_input(1, 3, true);
+        let evidence =
+            environment_evidence(42, ActionSource::SelfGenerated, 500, 600);
+
+        let first = EndogenousTransitionSchemaLearningCycle::observe(
+            &initial,
+            &input,
+            context(),
+            &evidence,
+            policy(8),
+        );
+
+        assert_eq!(first.state().episode_count(), 1);
+        assert_eq!(first.state().event_provenance_count(), 1);
+
+        let replay = EndogenousTransitionSchemaLearningCycle::observe(
+            first.state(),
+            &input,
+            context(),
+            &evidence,
+            policy(8),
+        );
+
+        assert_eq!(
+            replay.status(),
+            EndogenousTransitionSchemaLearningStatus::ExactDuplicateEvent,
+        );
+        assert_eq!(replay.state(), first.state());
+        assert_eq!(replay.state().episode_count(), 1);
+        assert_eq!(replay.state().event_provenance_count(), 1);
+        assert!(replay.induction().is_none());
+    }
+
+    #[test]
+    fn same_event_identity_with_different_transition_fails_closed() {
+        let initial = EndogenousTransitionSchemaLearningState::new();
+
+        let first = EndogenousTransitionSchemaLearningCycle::observe(
+            &initial,
+            &perceptual_input(1, 3, true),
+            context(),
+            &environment_evidence(
+                42,
+                ActionSource::SelfGenerated,
+                500,
+                600,
+            ),
+            policy(8),
+        );
+
+        let conflict = EndogenousTransitionSchemaLearningCycle::observe(
+            first.state(),
+            &perceptual_input(4, 6, false),
+            context(),
+            &environment_evidence(
+                42,
+                ActionSource::SelfGenerated,
+                501,
+                601,
+            ),
+            policy(8),
+        );
+
+        assert_eq!(
+            conflict.status(),
+            EndogenousTransitionSchemaLearningStatus::ConflictingEventIdentity,
+        );
+        assert_eq!(conflict.state(), first.state());
+        assert_eq!(conflict.state().episode_count(), 1);
+        assert_eq!(conflict.state().event_provenance_count(), 1);
+        assert!(conflict.induction().is_none());
+    }
+
+    #[test]
+    fn distinct_events_with_identical_transition_semantics_remain_distinct_samples() {
+        let initial = EndogenousTransitionSchemaLearningState::new();
+
+        let input = perceptual_input(1, 3, true);
+
+        let first = EndogenousTransitionSchemaLearningCycle::observe(
+            &initial,
+            &input,
+            context(),
+            &environment_evidence(
+                42,
+                ActionSource::SelfGenerated,
+                500,
+                600,
+            ),
+            policy(8),
+        );
+
+        let second = EndogenousTransitionSchemaLearningCycle::observe(
+            first.state(),
+            &input,
+            context(),
+            &environment_evidence(
+                43,
+                ActionSource::SelfGenerated,
+                500,
+                600,
+            ),
+            policy(8),
+        );
+
+        assert_eq!(second.state().episode_count(), 2);
+        assert_eq!(second.state().event_provenance_count(), 2);
+
+        assert_eq!(
+            second.state().episodes()[0],
+            second.state().episodes()[1],
+            "identical transition semantics may recur as independent observations",
+        );
+
+        let provenance = second.state().event_provenance();
+
+        assert_eq!(provenance[0].event_index(), 42);
+        assert_eq!(provenance[1].event_index(), 43);
+
+        assert_eq!(
+            provenance[0].previous_observation_index(),
+            input.previous_frame().observation_index(),
+        );
+        assert_eq!(
+            provenance[0].current_observation_index(),
+            input.current_frame().observation_index(),
+        );
+
+        assert_eq!(
+            second.state().episode_count(),
+            second.state().event_provenance_count(),
+            "every retained episode must have exactly one provenance record",
+        );
+    }
+
+    #[test]
+    fn full_transition_frontier_preserves_event_identity_semantics_before_capacity_rejection() {
+        const CAP: usize = 8;
+
+        let input = perceptual_input(1, 3, true);
+        let mut state = EndogenousTransitionSchemaLearningState::new();
+
+        /*
+         * Fill the real retained owner with eight independent interaction
+         * events carrying identical transition semantics.
+         */
+        for event_index in 1_u64..=CAP as u64 {
+            let result = EndogenousTransitionSchemaLearningCycle::observe(
+                &state,
+                &input,
+                context(),
+                &environment_evidence(
+                    event_index,
+                    ActionSource::SelfGenerated,
+                    500,
+                    600,
+                ),
+                policy(CAP),
+            );
+
+            assert_eq!(
+                result.state().episode_count(),
+                event_index as usize,
+            );
+            assert_eq!(
+                result.state().event_provenance_count(),
+                event_index as usize,
+            );
+
+            state = result.state().clone();
+        }
+
+        assert_eq!(state.episode_count(), CAP);
+        assert_eq!(state.event_provenance_count(), CAP);
+
+        /*
+         * Exact replay of an already-retained event is identity resolution,
+         * not a ninth sample and not a frontier overflow.
+         */
+        let replay = EndogenousTransitionSchemaLearningCycle::observe(
+            &state,
+            &input,
+            context(),
+            &environment_evidence(
+                4,
+                ActionSource::SelfGenerated,
+                500,
+                600,
+            ),
+            policy(CAP),
+        );
+
+        assert_eq!(
+            replay.status(),
+            EndogenousTransitionSchemaLearningStatus::ExactDuplicateEvent,
+        );
+        assert_eq!(replay.state(), &state);
+        assert!(replay.induction().is_none());
+
+        /*
+         * Reuse of the same event id for different grounded evidence must
+         * remain a provenance conflict even when memory is already full.
+         */
+        let conflict = EndogenousTransitionSchemaLearningCycle::observe(
+            &state,
+            &perceptual_input(4, 6, false),
+            context(),
+            &environment_evidence(
+                4,
+                ActionSource::SelfGenerated,
+                501,
+                601,
+            ),
+            policy(CAP),
+        );
+
+        assert_eq!(
+            conflict.status(),
+            EndogenousTransitionSchemaLearningStatus::ConflictingEventIdentity,
+        );
+        assert_eq!(conflict.state(), &state);
+        assert!(conflict.induction().is_none());
+
+        /*
+         * A genuinely new ninth event is the only case that should hit the
+         * capacity frontier.
+         */
+        let new_event = EndogenousTransitionSchemaLearningCycle::observe(
+            &state,
+            &input,
+            context(),
+            &environment_evidence(
+                9,
+                ActionSource::SelfGenerated,
+                500,
+                600,
+            ),
+            policy(CAP),
+        );
+
+        assert_eq!(
+            new_event.status(),
+            EndogenousTransitionSchemaLearningStatus::EvidenceFrontierExceeded,
+        );
+        assert_eq!(new_event.state(), &state);
+        assert_eq!(new_event.state().episode_count(), CAP);
+        assert_eq!(new_event.state().event_provenance_count(), CAP);
+        assert!(new_event.induction().is_none());
     }
 
     #[test]

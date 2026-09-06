@@ -1023,3 +1023,416 @@ fn transition_capacity_saturation_does_not_freeze_live_current_grounded_state() 
         "anti-vacuity: the post-frontier environment action must actually complete",
     );
 }
+#[test]
+fn live_completed_turn_event_identity_is_bound_one_to_one_to_retained_transition_episode() {
+    let game = "c16hb1-live-transition-provenance";
+
+    let mut runtime = live_runtime(game, 650_000);
+
+    /*
+     * Reuse the canonical P4G maturity trajectory so the next transition
+     * is genuinely grounded and therefore admissible into M47/M51 memory.
+     */
+    mature_runtime(&mut runtime, game);
+
+    let cognition_before =
+        runtime.cognitive_runtime().cognition();
+
+    let episode_count_before =
+        cognition_before.transition_episode_count();
+
+    let provenance_count_before =
+        cognition_before
+            .transition_schema_learning()
+            .event_provenance_count();
+
+    assert!(
+        episode_count_before > 0,
+        "fixture must already contain real retained transition evidence",
+    );
+
+    assert_eq!(
+        episode_count_before,
+        provenance_count_before,
+        "every pre-existing retained episode must already have exactly one provenance record",
+    );
+
+    let action_one =
+        action(ArcAgi3ActionId::Action1);
+
+    let cognitive_action =
+        ArcAgi3CognitiveProtocolBridge::encode_action(
+            action_one,
+        );
+
+    /*
+     * Execute one REAL live environment turn directly instead of using
+     * real_training_turn(), because B1-B must inspect the returned
+     * ArcAgi3CompletedTurn identity itself.
+     */
+    runtime
+        .transport()
+        .push(Ok(normal_observation(
+            game,
+            6_u8,
+            Some(action_one),
+        )));
+
+    let completed = runtime
+        .execute_with(signal(900), |cognitive| {
+            m51_fixture::begin_arc(
+                cognitive,
+                cognitive_action.clone(),
+            )
+        })
+        .expect(
+            "live grounded ACTION1 consequence must execute",
+        );
+
+    assert!(
+        completed.completion().has_cognitive_feedback(),
+        "real live action must produce canonical environment evidence",
+    );
+
+    let completed_turn =
+        completed.completion().turn();
+
+    let completed_event_index =
+        completed_turn.event_index();
+
+    let evidence =
+        completed_turn
+            .evidence()
+            .expect(
+                "real completed action must retain environment interaction evidence",
+            );
+
+    let evidence_event_index =
+        evidence
+            .action_observation()
+            .event_index();
+
+    assert_eq!(
+        evidence_event_index,
+        completed_event_index,
+        "session completed-turn identity must survive unchanged into EnvironmentInteractionEvidence",
+    );
+
+    let causal_transition =
+        completed
+            .completion()
+            .perception()
+            .causal_environment_transition()
+            .expect(
+                "real live action response must expose its direct causal perceptual transition",
+            );
+
+    let cognition_after =
+        runtime.cognitive_runtime().cognition();
+
+    let learning_state =
+        cognition_after.transition_schema_learning();
+
+    assert_eq!(
+        cognition_after.transition_episode_count(),
+        episode_count_before + 1,
+        "one newly admitted real event must add exactly one retained transition episode",
+    );
+
+    assert_eq!(
+        learning_state.event_provenance_count(),
+        provenance_count_before + 1,
+        "one newly admitted real event must add exactly one provenance record",
+    );
+
+    assert_eq!(
+        cognition_after.transition_episode_count(),
+        learning_state.event_provenance_count(),
+        "retained episode and provenance frontiers must remain exactly one-to-one",
+    );
+
+    let retained_episode =
+        learning_state
+            .episodes()
+            .last()
+            .expect(
+                "newly admitted live event must retain its M47 episode",
+            );
+
+    let retained_provenance =
+        learning_state
+            .event_provenance()
+            .last()
+            .expect(
+                "newly admitted live event must retain provenance beside its episode",
+            );
+
+    assert_eq!(
+        retained_provenance.event_index(),
+        completed_event_index,
+        "retained M51 provenance must preserve the exact completed-turn event identity",
+    );
+
+    assert_eq!(
+        retained_provenance.previous_observation_index(),
+        causal_transition
+            .previous_frame()
+            .observation_index(),
+        "retained provenance must bind to the exact causal predecessor frame",
+    );
+
+    assert_eq!(
+        retained_provenance.current_observation_index(),
+        causal_transition
+            .current_frame()
+            .observation_index(),
+        "retained provenance must bind to the exact first causal response frame",
+    );
+
+    assert_eq!(
+        retained_episode.transformation(),
+        &cognitive_action,
+        "the episode paired with this provenance must preserve the exact executed cognitive action",
+    );
+
+    /*
+     * The two clocks are independent authorities.
+     *
+     * This test verifies exact identities independently and intentionally
+     * makes no numeric equality/order assertion between event_index and
+     * perceptual observation_index.
+     */
+    assert_eq!(
+        learning_state
+            .episodes()
+            .len(),
+        learning_state
+            .event_provenance()
+            .len(),
+        "index-aligned episode/provenance storage must remain structurally one-to-one",
+    );
+}
+
+#[test]
+fn live_reset_cannot_append_transition_event_provenance() {
+    let game = "c16hb1-reset-provenance";
+
+    let mut runtime = live_runtime(game, 650_000);
+
+    mature_runtime(&mut runtime, game);
+
+    let action_two = action(ArcAgi3ActionId::Action2);
+
+    real_training_turn(
+        &mut runtime,
+        game,
+        action_two,
+        7_u8,
+    );
+
+    let state_before = runtime
+        .cognitive_runtime()
+        .cognition()
+        .transition_schema_learning();
+
+    let episodes_before = state_before.episode_count();
+    let provenance_before = state_before.event_provenance().to_vec();
+
+    assert!(
+        episodes_before > 0,
+        "RESET provenance test requires retained transition evidence",
+    );
+
+    assert_eq!(
+        episodes_before,
+        provenance_before.len(),
+        "precondition: every retained episode must already have provenance",
+    );
+
+    runtime.transport().push(Ok(normal_observation(
+        game,
+        5_u8,
+        Some(ArcAgi3Action::reset()),
+    )));
+
+    let completion = runtime
+        .reset(signal(900))
+        .expect("live protocol RESET must complete");
+
+    assert!(
+        !completion.has_cognitive_feedback(),
+        "RESET must not become an environment-learning consequence",
+    );
+
+    let state_after = runtime
+        .cognitive_runtime()
+        .cognition()
+        .transition_schema_learning();
+
+    assert_eq!(
+        state_after.episode_count(),
+        episodes_before,
+        "RESET must not append a grounded transformation episode",
+    );
+
+    assert_eq!(
+        state_after.event_provenance(),
+        provenance_before.as_slice(),
+        "RESET must not append, rewrite, or consume transition-event provenance",
+    );
+
+    assert_eq!(
+        state_after.episode_count(),
+        state_after.event_provenance_count(),
+        "episode/provenance cardinality must remain atomic after RESET",
+    );
+}
+
+
+#[test]
+fn live_transition_capacity_saturates_episode_and_provenance_atomically() {
+    const LIVE_TRANSITION_EPISODE_CAP: usize = 256;
+
+    let game = "c16hb1-provenance-capacity";
+
+    let mut runtime = live_runtime(game, 660_000);
+
+    mature_runtime(&mut runtime, game);
+
+    let action_one = action(ArcAgi3ActionId::Action1);
+    let action_two = action(ArcAgi3ActionId::Action2);
+
+    let initial = runtime
+        .cognitive_runtime()
+        .cognition()
+        .transition_schema_learning();
+
+    let initial_episode_count = initial.episode_count();
+
+    assert_eq!(
+        initial_episode_count,
+        initial.event_provenance_count(),
+        "mature live owner must begin with exact episode/provenance cardinality",
+    );
+
+    assert!(
+        initial_episode_count > 0
+            && initial_episode_count < LIVE_TRANSITION_EPISODE_CAP,
+        "fixture must begin below the production transition frontier",
+    );
+
+    let remaining =
+        LIVE_TRANSITION_EPISODE_CAP - initial_episode_count;
+
+    for index in 0..remaining {
+        let before = runtime
+            .cognitive_runtime()
+            .cognition()
+            .transition_schema_learning();
+
+        let before_episodes = before.episode_count();
+        let before_provenance = before.event_provenance_count();
+
+        assert_eq!(
+            before_episodes,
+            before_provenance,
+            "pre-admission owner must remain one-to-one at fill index {index}",
+        );
+
+        real_training_turn(
+            &mut runtime,
+            game,
+            action_two,
+            5_u8,
+        );
+
+        let after = runtime
+            .cognitive_runtime()
+            .cognition()
+            .transition_schema_learning();
+
+        assert_eq!(
+            after.episode_count(),
+            before_episodes + 1,
+            "pre-frontier real event must append one episode at fill index {index}",
+        );
+
+        assert_eq!(
+            after.event_provenance_count(),
+            before_provenance + 1,
+            "pre-frontier real event must append one provenance record at fill index {index}",
+        );
+    }
+
+    let full = runtime
+        .cognitive_runtime()
+        .cognition()
+        .transition_schema_learning();
+
+    assert_eq!(
+        full.episode_count(),
+        LIVE_TRANSITION_EPISODE_CAP,
+    );
+
+    assert_eq!(
+        full.event_provenance_count(),
+        LIVE_TRANSITION_EPISODE_CAP,
+    );
+
+    let last_episode_before = full
+        .episodes()
+        .last()
+        .expect("full transition store must be nonempty")
+        .clone();
+
+    let last_provenance_before = *full
+        .event_provenance()
+        .last()
+        .expect("full provenance store must be nonempty");
+
+    /*
+     * A 257th genuine live event completes in the environment but cannot
+     * partially append either side of the retained transition record.
+     */
+    real_training_turn(
+        &mut runtime,
+        game,
+        action_one,
+        6_u8,
+    );
+
+    let after_frontier = runtime
+        .cognitive_runtime()
+        .cognition()
+        .transition_schema_learning();
+
+    assert_eq!(
+        after_frontier.episode_count(),
+        LIVE_TRANSITION_EPISODE_CAP,
+        "episode owner must remain hard-bounded",
+    );
+
+    assert_eq!(
+        after_frontier.event_provenance_count(),
+        LIVE_TRANSITION_EPISODE_CAP,
+        "provenance owner must freeze atomically with episode owner",
+    );
+
+    assert_eq!(
+        after_frontier.episodes().last(),
+        Some(&last_episode_before),
+        "frontier overflow must not rewrite the last retained episode",
+    );
+
+    assert_eq!(
+        after_frontier.event_provenance().last(),
+        Some(&last_provenance_before),
+        "frontier overflow must not create orphan provenance",
+    );
+
+    assert_eq!(
+        after_frontier.episode_count(),
+        after_frontier.event_provenance_count(),
+        "episode/provenance one-to-one invariant must survive saturation",
+    );
+}
