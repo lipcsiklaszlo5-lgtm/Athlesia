@@ -431,9 +431,11 @@ impl ArcAgi3CognitiveInteractionRuntime {
     pub fn current_best_scene_interpretation(
         &self,
     ) -> Option<athlesia_core_knowledge_perceptual_grounding::SceneInterpretation> {
-        self.current_competing_scene_interpretations()
-            .selected()
-            .first()
+        let competition =
+            self.current_competing_scene_interpretations();
+
+        competition
+            .unique_selected_scene()
             .cloned()
     }
 
@@ -491,16 +493,20 @@ impl ArcAgi3CognitiveInteractionRuntime {
     pub fn current_grounded_world_state(
         &self,
     ) -> Option<athlesia_universal_domain_learning::GroundedStateSnapshot> {
-        let current_scene = self.current_best_scene_interpretation()?;
+        let competition =
+            self.current_competing_scene_interpretations();
 
         let current_facts =
             athlesia_core_knowledge_perceptual_grounding::
-                GroundedPerceptualStateProjector::scene_facts(
-                    self.perception.latest_frame(),
-                    &current_scene,
-                )?;
+                GroundedPerceptualStateProjector::
+                    unique_selected_scene_facts(
+                        self.perception.latest_frame(),
+                        &competition,
+                    )?;
 
-        athlesia_universal_domain_learning::GroundedStateSnapshot::new(current_facts)
+        athlesia_universal_domain_learning::GroundedStateSnapshot::new(
+            current_facts,
+        )
     }
 
     pub fn current_action_qualified_empirical_successor_frequency(

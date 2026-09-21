@@ -3098,6 +3098,22 @@ impl SceneCompetitionResult {
     pub fn selected_count(&self) -> usize {
         self.selected.len()
     }
+
+    /*
+     * Scene competition may preserve several ranked alternatives.
+     *
+     * Ranking order is not equivalent to uniquely established perceptual
+     * truth. Downstream authoritative state therefore exists only when
+     * exactly one scene remains selected.
+     */
+    pub fn unique_selected_scene(
+        &self,
+    ) -> Option<&SceneInterpretation> {
+        match self.selected.as_slice() {
+            [scene] => Some(scene),
+            _ => None,
+        }
+    }
 }
 
 #[derive(Clone, Copy, Debug, Default, Eq, Hash, Ord, PartialEq, PartialOrd)]
@@ -3190,6 +3206,182 @@ impl CoreKnowledgePerceptualGrounding {
         policy: PerceptualGroundingPolicy,
     ) -> SceneCompetitionResult {
         CompetingSceneInterpretations::select(frame, candidates, policy)
+    }
+}
+
+#[cfg(test)]
+mod unique_scene_authority_tests {
+    use super::*;
+
+    fn signal(
+        value: u16,
+    ) -> CognitiveSignal {
+        CognitiveSignal::new(value)
+            .unwrap()
+    }
+
+    fn frame() -> PerceptualFrame {
+        PerceptualFrame::new(
+            1,
+            vec![
+                PerceptualElement::new(
+                    PerceptualElementHandle::new(1),
+                    CognitiveStructure::atom(101),
+                ),
+                PerceptualElement::new(
+                    PerceptualElementHandle::new(2),
+                    CognitiveStructure::atom(202),
+                ),
+            ],
+        )
+        .unwrap()
+    }
+
+    fn hypothesis(
+        handle: u64,
+    ) -> ObjectHypothesis {
+        ObjectHypothesis::new(
+            vec![
+                PerceptualElementHandle::new(handle),
+            ],
+            ObjecthoodEvidence::new(
+                signal(900),
+                signal(900),
+                signal(900),
+                signal(900),
+                CognitiveSignal::zero(),
+                CognitiveSignal::zero(),
+            ),
+        )
+        .unwrap()
+    }
+
+    fn scene(
+        handle: u64,
+    ) -> SceneInterpretation {
+        SceneInterpretation::new(
+            vec![
+                hypothesis(handle),
+            ],
+            signal(900),
+        )
+        .unwrap()
+    }
+
+    fn policy(
+    ) -> PerceptualGroundingPolicy {
+        PerceptualGroundingPolicy::new(
+            8,
+            8,
+        )
+        .unwrap()
+    }
+
+    #[test]
+    fn exactly_one_selected_scene_is_authoritative() {
+        let frame =
+            frame();
+
+        let result =
+            CompetingSceneInterpretations::select(
+                &frame,
+                &[
+                    scene(1),
+                ],
+                policy(),
+            );
+
+        assert_eq!(
+            result.selected_count(),
+            1,
+        );
+
+        assert!(
+            result
+                .unique_selected_scene()
+                .is_some(),
+        );
+
+        assert!(
+            GroundedPerceptualStateProjector::
+                unique_selected_scene_facts(
+                    &frame,
+                    &result,
+                )
+                .is_some(),
+        );
+    }
+
+    #[test]
+    fn multiple_selected_scenes_fail_closed() {
+        let frame =
+            frame();
+
+        let result =
+            CompetingSceneInterpretations::select(
+                &frame,
+                &[
+                    scene(1),
+                    scene(2),
+                ],
+                policy(),
+            );
+
+        assert_eq!(
+            result.selected_count(),
+            2,
+            "fixture must preserve two distinct scene alternatives",
+        );
+
+        assert!(
+            result
+                .unique_selected_scene()
+                .is_none(),
+            "ranking must not silently convert ambiguity into authority",
+        );
+
+        assert!(
+            GroundedPerceptualStateProjector::
+                unique_selected_scene_facts(
+                    &frame,
+                    &result,
+                )
+                .is_none(),
+            "ambiguous scenes must not project authoritative facts",
+        );
+    }
+
+    #[test]
+    fn no_selected_scene_fails_closed() {
+        let frame =
+            frame();
+
+        let result =
+            CompetingSceneInterpretations::select(
+                &frame,
+                &[],
+                policy(),
+            );
+
+        assert_eq!(
+            result.selected_count(),
+            0,
+        );
+
+        assert!(
+            result
+                .unique_selected_scene()
+                .is_none(),
+        );
+
+        assert!(
+            GroundedPerceptualStateProjector::
+                unique_selected_scene_facts(
+                    &frame,
+                    &result,
+                )
+                .is_none(),
+        );
     }
 }
 
@@ -5405,6 +5597,20 @@ impl GroundedPerceptualStateProjectionResult {
 pub struct GroundedPerceptualStateProjector;
 
 impl GroundedPerceptualStateProjector {
+    pub fn unique_selected_scene_facts(
+        frame: &PerceptualFrame,
+        competition: &SceneCompetitionResult,
+    ) -> Option<Vec<CognitiveStructure>> {
+        let scene =
+            competition
+                .unique_selected_scene()?;
+
+        Self::scene_facts(
+            frame,
+            scene,
+        )
+    }
+
     pub fn scene_facts(
         frame: &PerceptualFrame,
         scene: &SceneInterpretation,
