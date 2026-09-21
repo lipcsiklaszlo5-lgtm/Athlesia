@@ -12830,6 +12830,62 @@ impl OnlinePersistentCognitiveState {
 
 
 
+    pub fn current_executable_world_model(
+        &self,
+        schema_policy:
+            athlesia_universal_domain_learning::
+                TransitionSchemaPolicy,
+        model_policy:
+            athlesia_universal_domain_learning::
+                GroundedExecutableWorldModelPolicy,
+    ) -> Option<
+        athlesia_universal_domain_learning::
+            GroundedExecutableWorldModel
+    > {
+        /*
+         * M51 owns retained transition experience.
+         *
+         * Executable world-model authority is therefore derived here.
+         * The protocol adapter must not inspect the retained episode store,
+         * induce schemas, or construct its own causal model.
+         *
+         * One observed transition cannot self-confirm an executable model.
+         */
+        let episodes =
+            self
+                .transition_schema_learning()
+                .episodes();
+
+        if episodes.len() < 2 {
+            return None;
+        }
+
+        let induction =
+            athlesia_universal_domain_learning::
+                UniversalTransitionSchemaInduction::
+                    evaluate(
+                        episodes,
+                        &[],
+                        schema_policy,
+                    );
+
+        if induction
+            .selected()
+            .is_empty()
+        {
+            return None;
+        }
+
+        Some(
+            athlesia_universal_domain_learning::
+                UniversalGroundedExecutableWorldModel::
+                    build(
+                        induction.selected(),
+                        model_policy,
+                    ),
+        )
+    }
+
     pub fn observe_environment_transition(
         &mut self,
         input: &athlesia_core_knowledge_perceptual_grounding::IntegratedPerceptualWorldInput,

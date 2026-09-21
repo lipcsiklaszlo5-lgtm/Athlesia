@@ -545,33 +545,15 @@ impl ArcAgi3CognitiveInteractionRuntime {
 
     pub fn current_executable_world_model(
         &self,
-    ) -> Option<athlesia_universal_domain_learning::GroundedExecutableWorldModel> {
-        let episodes = self.cognition.transition_schema_learning().episodes();
-
-        /*
-         * One transition cannot self-confirm an executable causal model.
-         */
-        if episodes.len() < 2 {
-            return None;
-        }
-
-        let induction =
-            athlesia_universal_domain_learning::UniversalTransitionSchemaInduction::evaluate(
-                episodes,
-                &[],
+    ) -> Option<
+        athlesia_universal_domain_learning::
+            GroundedExecutableWorldModel
+    > {
+        self.cognition
+            .current_executable_world_model(
                 Self::live_transition_schema_policy(),
-            );
-
-        if induction.selected().is_empty() {
-            return None;
-        }
-
-        Some(
-            athlesia_universal_domain_learning::UniversalGroundedExecutableWorldModel::build(
-                induction.selected(),
                 Self::live_executable_world_model_policy(),
-            ),
-        )
+            )
     }
 
     pub fn current_structural_prediction_for_action(
