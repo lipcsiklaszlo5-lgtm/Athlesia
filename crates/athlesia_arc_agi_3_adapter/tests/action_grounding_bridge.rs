@@ -560,3 +560,362 @@ fn bridge_is_compile_time_bound_to_real_m48_and_m50_contracts() {
 
     let _evidence: ExperimentEvidence = evidence();
 }
+
+
+fn c16i_e_native_policy(
+) -> athlesia_autonomous_active_experimentation::
+    BeliefDrivenExperimentProposalPolicy {
+    athlesia_autonomous_active_experimentation::BeliefDrivenExperimentProposalPolicy::new(athlesia_autonomous_active_experimentation::ActiveExperimentPolicy::new(athlesia_autonomous_active_experimentation::ActiveExperimentBounds::new(16, 16, 16).unwrap(), athlesia_autonomous_active_experimentation::ActiveExperimentThresholds::new(signal(500), signal(500), signal(500), signal(500)).unwrap()), athlesia_autonomous_active_experimentation::BeliefDrivenExperimentProposalBounds::new(16, 16, 16, 16).unwrap(), signal(500), signal(500)).unwrap()
+}
+
+fn c16i_e_native_beliefs(
+) -> Vec<
+    athlesia_autonomous_active_experimentation::
+        HypothesisBeliefState
+> {
+    vec![
+        athlesia_autonomous_active_experimentation::HypothesisBeliefState::new(CognitiveStructure::atom(1), signal(820)).unwrap(),
+        athlesia_autonomous_active_experimentation::HypothesisBeliefState::new(CognitiveStructure::atom(2), signal(760)).unwrap(),
+    ]
+}
+
+fn c16i_e_native_possibility(
+    source_state: CognitiveStructure,
+    action: ArcAgi3Action,
+    left_outcome: u64,
+    right_outcome: u64,
+) -> athlesia_autonomous_active_experimentation::
+    GroundedExperimentPossibility {
+    athlesia_autonomous_active_experimentation::GroundedExperimentPossibility::new(source_state, action_structure(action), vec![athlesia_autonomous_active_experimentation::CompetingHypothesisPrediction::new(CognitiveStructure::atom(1), CognitiveStructure::atom(left_outcome), signal(900)).unwrap(), athlesia_autonomous_active_experimentation::CompetingHypothesisPrediction::new(CognitiveStructure::atom(2), CognitiveStructure::atom(right_outcome), signal(900)).unwrap()], signal(850), signal(900), signal(100)).unwrap()
+}
+
+fn c16i_e_native_result(
+    source_state: &CognitiveStructure,
+    first_action: ArcAgi3Action,
+    second_action: ArcAgi3Action,
+) -> athlesia_autonomous_active_experimentation::
+    BeliefDrivenExperimentProposalResult {
+    let beliefs =
+        c16i_e_native_beliefs();
+
+    let possibilities =
+        vec![
+            c16i_e_native_possibility(
+                source_state.clone(),
+                first_action,
+                9101,
+                9102,
+            ),
+            c16i_e_native_possibility(
+                source_state.clone(),
+                second_action,
+                9201,
+                9202,
+            ),
+        ];
+
+    let result =
+        athlesia_autonomous_active_experimentation::
+            AutonomousBeliefDrivenExperimentProposal::
+                generate(
+                    &beliefs,
+                    &possibilities,
+                    c16i_e_native_policy(),
+                );
+
+    assert_eq!(
+        result.generated_count(),
+        2,
+        "C16I-E fixture must contain two real native M50 generated proposals",
+    );
+
+    result
+}
+
+#[test]
+fn c16i_e_native_result_frontier_preserves_native_generated_order_and_exact_existing_grounding(
+) {
+    let observation =
+        observation(
+            ArcAgi3GameState::NotFinished,
+            vec![
+                ArcAgi3ActionId::Action1,
+                ArcAgi3ActionId::Action6,
+            ],
+        );
+
+    let source =
+        CognitiveStructure::atom(0xC16E_0001);
+
+    let goal =
+        ExecutiveGoal::new(
+            CognitiveStructure::atom(0xC16E_1001),
+            signal(900),
+            signal(100),
+        );
+
+    let alignment =
+        signal(640);
+
+    let result =
+        c16i_e_native_result(
+            &source,
+            ArcAgi3Action::discrete(
+                ArcAgi3ActionId::Action1,
+            )
+            .unwrap(),
+            ArcAgi3Action::discrete(
+                ArcAgi3ActionId::Action6,
+            )
+            .unwrap(),
+        );
+
+    let expected =
+        result
+            .generated()
+            .iter()
+            .map(|candidate| {
+                ArcAgi3ActionGroundingBridge::
+                    ground_experiment_for_goal(
+                        &observation,
+                        &source,
+                        &goal,
+                        alignment,
+                        candidate.experiment(),
+                    )
+            })
+            .collect::<Result<Vec<_>, _>>()
+            .unwrap();
+
+    let actual =
+        ArcAgi3ActionGroundingBridge::
+            ground_belief_driven_proposal_frontier_for_goal(
+                &observation,
+                &source,
+                &goal,
+                alignment,
+                &result,
+            )
+            .unwrap();
+
+    assert_eq!(
+        actual,
+        expected,
+        "C16I-E must be exactly equivalent to traversing native M50 generated() in native order through the existing single-proposal grounding authority",
+    );
+
+    assert_eq!(
+        actual.len(),
+        2,
+    );
+
+    for (
+        grounded,
+        generated,
+    ) in actual
+        .iter()
+        .zip(
+            result
+                .generated()
+                .iter(),
+        )
+    {
+        let proposal =
+            generated.experiment();
+
+        let evidence =
+            proposal.evidence();
+
+        assert_eq!(
+            grounded.action(),
+            proposal.action(),
+        );
+
+        assert_eq!(
+            grounded.predicted_outcome(),
+            proposal.predicted_outcome(),
+        );
+
+        assert_eq!(
+            grounded.goal_identity(),
+            goal.identity(),
+        );
+
+        assert_eq!(
+            grounded.goal_alignment(),
+            alignment,
+        );
+
+        assert_eq!(
+            grounded.controllability(),
+            evidence.controllability(),
+        );
+
+        assert_eq!(
+            grounded.evidence_confidence(),
+            evidence.grounding_confidence(),
+        );
+
+        assert_eq!(
+            grounded.information_gain(),
+            evidence.expected_information_gain(),
+        );
+
+        assert_eq!(
+            grounded.execution_cost(),
+            evidence.execution_cost(),
+        );
+    }
+}
+
+#[test]
+fn c16i_e_native_result_frontier_fails_closed_on_any_arc_authorization_error(
+) {
+    let observation =
+        observation(
+            ArcAgi3GameState::NotFinished,
+            vec![
+                ArcAgi3ActionId::Action1,
+            ],
+        );
+
+    let source =
+        CognitiveStructure::atom(0xC16E_0002);
+
+    let goal =
+        ExecutiveGoal::new(
+            CognitiveStructure::atom(0xC16E_1002),
+            signal(900),
+            signal(100),
+        );
+
+    let result =
+        c16i_e_native_result(
+            &source,
+            ArcAgi3Action::discrete(
+                ArcAgi3ActionId::Action1,
+            )
+            .unwrap(),
+            ArcAgi3Action::discrete(
+                ArcAgi3ActionId::Action3,
+            )
+            .unwrap(),
+        );
+
+    assert_eq!(
+        ArcAgi3ActionGroundingBridge::
+            ground_belief_driven_proposal_frontier_for_goal(
+                &observation,
+                &source,
+                &goal,
+                signal(600),
+                &result,
+            ),
+        Err(
+            ArcAgi3ActionGroundingError::
+                ActionUnavailable,
+        ),
+        "frontier grounding must fail closed rather than silently filter an unauthorized generated proposal",
+    );
+}
+
+#[test]
+fn c16i_e_native_result_frontier_preserves_empty_native_m50_abstention_and_universal_facade(
+) {
+    let empty =
+        athlesia_autonomous_active_experimentation::
+            AutonomousBeliefDrivenExperimentProposal::
+                generate(
+                    &[],
+                    &[],
+                    c16i_e_native_policy(),
+                );
+
+    assert!(
+        empty.abstained(),
+    );
+
+    assert_eq!(
+        empty.generated_count(),
+        0,
+    );
+
+    let observation =
+        observation(
+            ArcAgi3GameState::NotFinished,
+            vec![
+                ArcAgi3ActionId::Action1,
+            ],
+        );
+
+    let source =
+        CognitiveStructure::atom(0xC16E_0003);
+
+    let goal =
+        ExecutiveGoal::new(
+            CognitiveStructure::atom(0xC16E_1003),
+            signal(900),
+            signal(100),
+        );
+
+    let direct =
+        ArcAgi3ActionGroundingBridge::
+            ground_belief_driven_proposal_frontier_for_goal(
+                &observation,
+                &source,
+                &goal,
+                signal(500),
+                &empty,
+            );
+
+    let facade =
+        UniversalArcAgi3ActionGroundingBridge::
+            ground_belief_driven_proposal_frontier_for_goal(
+                &observation,
+                &source,
+                &goal,
+                signal(500),
+                &empty,
+            );
+
+    assert_eq!(
+        direct,
+        Ok(Vec::new()),
+        "native M50 abstention must remain an empty grounded frontier",
+    );
+
+    assert_eq!(
+        facade,
+        direct,
+        "universal facade must be exact delegation",
+    );
+
+    let _direct_contract: fn(
+        &ArcAgi3Observation,
+        &CognitiveStructure,
+        &ExecutiveGoal,
+        CognitiveSignal,
+        &athlesia_autonomous_active_experimentation::
+            BeliefDrivenExperimentProposalResult,
+    ) -> Result<
+        Vec<GroundedExecutiveActionCandidate>,
+        ArcAgi3ActionGroundingError,
+    > =
+        ArcAgi3ActionGroundingBridge::
+            ground_belief_driven_proposal_frontier_for_goal;
+
+    let _facade_contract: fn(
+        &ArcAgi3Observation,
+        &CognitiveStructure,
+        &ExecutiveGoal,
+        CognitiveSignal,
+        &athlesia_autonomous_active_experimentation::
+            BeliefDrivenExperimentProposalResult,
+    ) -> Result<
+        Vec<GroundedExecutiveActionCandidate>,
+        ArcAgi3ActionGroundingError,
+    > =
+        UniversalArcAgi3ActionGroundingBridge::
+            ground_belief_driven_proposal_frontier_for_goal;
+}
+

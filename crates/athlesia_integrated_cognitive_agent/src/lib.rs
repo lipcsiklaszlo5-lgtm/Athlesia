@@ -9616,7 +9616,344 @@ impl ActionQualifiedEmpiricalSuccessorFrequency {
             == EmpiricalSuccessorFrequencyStatus::
                 QualifiedActionEmpiricalFrequency
     }
+
+
+    pub fn successor_informed_proposal_eligibility(
+        &self,
+    ) -> SuccessorInformedProposalEligibility {
+        /*
+         * C16I-A is deliberately narrower than proposal construction.
+         *
+         * A B2 successor-frequency result may contribute supplemental
+         * empirical grounding only when its retained-sample accounting is
+         * internally sound.
+         *
+         * This method does NOT:
+         *
+         * - infer a world probability,
+         * - synthesize prediction uncertainty,
+         * - synthesize expected information gain,
+         * - synthesize controllability,
+         * - synthesize grounding confidence,
+         * - synthesize execution cost,
+         * - choose a predicted outcome,
+         * - construct an experiment proposal,
+         * - rank or select an action.
+         *
+         * Those authorities remain with their existing modules.
+         */
+        if !self.is_qualified() {
+            return SuccessorInformedProposalEligibility::ineligible(
+                SuccessorInformedProposalEligibilityStatus::
+                    IneligibleUnqualifiedSuccessorEvidence(
+                        self.status(),
+                    ),
+            );
+        }
+
+        if self.independent_action_event_count == 0
+            || self.successor_frequencies.is_empty()
+        {
+            return SuccessorInformedProposalEligibility::ineligible(
+                SuccessorInformedProposalEligibilityStatus::
+                    IneligibleSuccessorEvidenceInvariantViolation,
+            );
+        }
+
+        let mut counted_event_samples = 0_usize;
+
+        for entry in &self.successor_frequencies {
+            if entry.independent_event_count() == 0 {
+                return SuccessorInformedProposalEligibility::ineligible(
+                    SuccessorInformedProposalEligibilityStatus::
+                        IneligibleSuccessorEvidenceInvariantViolation,
+                );
+            }
+
+            let Some(next_count) =
+                counted_event_samples.checked_add(
+                    entry.independent_event_count(),
+                )
+            else {
+                return SuccessorInformedProposalEligibility::ineligible(
+                    SuccessorInformedProposalEligibilityStatus::
+                        IneligibleSuccessorEvidenceInvariantViolation,
+                );
+            };
+
+            counted_event_samples = next_count;
+        }
+
+        if counted_event_samples
+            != self.independent_action_event_count
+        {
+            return SuccessorInformedProposalEligibility::ineligible(
+                SuccessorInformedProposalEligibilityStatus::
+                    IneligibleSuccessorEvidenceInvariantViolation,
+            );
+        }
+
+        SuccessorInformedProposalEligibility::eligible(
+            self.independent_action_event_count,
+            self.successor_frequencies.len(),
+        )
+    }
 }
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum SuccessorInformedProposalEligibilityStatus {
+    IneligibleUnqualifiedSuccessorEvidence(
+        EmpiricalSuccessorFrequencyStatus,
+    ),
+    IneligibleSuccessorEvidenceInvariantViolation,
+    EligibleSupplementalSuccessorEvidence,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct SuccessorInformedProposalEligibility {
+    status: SuccessorInformedProposalEligibilityStatus,
+    independent_event_count: usize,
+    distinct_successor_count: usize,
+}
+
+impl SuccessorInformedProposalEligibility {
+    fn ineligible(
+        status: SuccessorInformedProposalEligibilityStatus,
+    ) -> Self {
+        Self {
+            status,
+            independent_event_count: 0,
+            distinct_successor_count: 0,
+        }
+    }
+
+    fn eligible(
+        independent_event_count: usize,
+        distinct_successor_count: usize,
+    ) -> Self {
+        Self {
+            status:
+                SuccessorInformedProposalEligibilityStatus::
+                    EligibleSupplementalSuccessorEvidence,
+            independent_event_count,
+            distinct_successor_count,
+        }
+    }
+
+    pub fn status(
+        self,
+    ) -> SuccessorInformedProposalEligibilityStatus {
+        self.status
+    }
+
+    pub fn independent_event_count(
+        self,
+    ) -> usize {
+        self.independent_event_count
+    }
+
+    pub fn distinct_successor_count(
+        self,
+    ) -> usize {
+        self.distinct_successor_count
+    }
+
+    pub fn eligible_as_supplemental_evidence(
+        self,
+    ) -> bool {
+        self.status
+            == SuccessorInformedProposalEligibilityStatus::
+                EligibleSupplementalSuccessorEvidence
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct SuccessorInformedEpistemicPriorityBinding {
+    priority_candidate:
+        athlesia_autonomous_active_experimentation::
+            EmpiricalEpistemicActionPriorityCandidate,
+    successor_eligibility:
+        SuccessorInformedProposalEligibility,
+}
+
+impl SuccessorInformedEpistemicPriorityBinding {
+
+    pub fn priority_candidate(
+        &self,
+    ) -> &athlesia_autonomous_active_experimentation::
+        EmpiricalEpistemicActionPriorityCandidate {
+        &self.priority_candidate
+    }
+
+    pub fn successor_eligibility(
+        &self,
+    ) -> SuccessorInformedProposalEligibility {
+        self.successor_eligibility
+    }
+
+    pub fn eligible_as_supplemental_successor_evidence(
+        &self,
+    ) -> bool {
+        self.successor_eligibility
+            .eligible_as_supplemental_evidence()
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct SuccessorInformedEpistemicPriorityBindingFrontier {
+    upstream_priority_status:
+        athlesia_autonomous_active_experimentation::
+            EmpiricalEpistemicActionPriorityStatus,
+    upstream_input_candidate_count: usize,
+    upstream_unique_candidate_count: usize,
+    bindings:
+        Vec<SuccessorInformedEpistemicPriorityBinding>,
+}
+
+impl SuccessorInformedEpistemicPriorityBindingFrontier {
+
+    pub fn upstream_priority_status(
+        &self,
+    ) -> athlesia_autonomous_active_experimentation::
+        EmpiricalEpistemicActionPriorityStatus {
+        self.upstream_priority_status
+    }
+
+    pub fn upstream_input_candidate_count(
+        &self,
+    ) -> usize {
+        self.upstream_input_candidate_count
+    }
+
+    pub fn upstream_unique_candidate_count(
+        &self,
+    ) -> usize {
+        self.upstream_unique_candidate_count
+    }
+
+    pub fn bindings(
+        &self,
+    ) -> &[SuccessorInformedEpistemicPriorityBinding] {
+        &self.bindings
+    }
+
+    pub fn binding_count(
+        &self,
+    ) -> usize {
+        self.bindings.len()
+    }
+
+    pub fn eligible_binding_count(
+        &self,
+    ) -> usize {
+        self.bindings
+            .iter()
+            .filter(
+                |binding| {
+                    binding
+                        .eligible_as_supplemental_successor_evidence()
+                },
+            )
+            .count()
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+
+pub struct SuccessorInformedNativeProposalInputRequest<'a> {
+    pub state:
+        &'a athlesia_universal_domain_learning::
+            GroundedStateSnapshot,
+    pub actions:
+        &'a [CognitiveStructure],
+    pub version_policy:
+        athlesia_universal_domain_learning::
+            GroundedExplanatoryVersionSpacePolicy,
+    pub discrimination_policy:
+        athlesia_autonomous_active_experimentation::
+            EpistemicForecastDiscriminationPolicy,
+    pub expectation_policy:
+        athlesia_autonomous_active_experimentation::
+            EmpiricalExpectedEpistemicProgressPolicy,
+    pub priority_policy:
+        athlesia_autonomous_active_experimentation::
+            EmpiricalEpistemicActionPriorityPolicy,
+    pub native_possibilities:
+        &'a [
+            athlesia_autonomous_active_experimentation::
+                GroundedExperimentPossibility
+        ],
+}
+
+
+pub struct SuccessorInformedNativeM50ProposalDelegationRequest<'a> {
+    pub native_input:
+        SuccessorInformedNativeProposalInputRequest<'a>,
+    pub beliefs:
+        &'a [
+            athlesia_autonomous_active_experimentation::
+                HypothesisBeliefState
+        ],
+    pub proposal_policy:
+        athlesia_autonomous_active_experimentation::
+            BeliefDrivenExperimentProposalPolicy,
+}
+
+pub struct SuccessorInformedNativeProposalInputFrontier {
+    upstream_binding_count: usize,
+    successor_eligible_binding_count: usize,
+    input_native_possibility_count: usize,
+    matched_native_possibilities:
+        Vec<
+            athlesia_autonomous_active_experimentation::
+                GroundedExperimentPossibility,
+        >,
+}
+
+impl SuccessorInformedNativeProposalInputFrontier {
+    pub fn upstream_binding_count(
+        &self,
+    ) -> usize {
+        self.upstream_binding_count
+    }
+
+    pub fn successor_eligible_binding_count(
+        &self,
+    ) -> usize {
+        self.successor_eligible_binding_count
+    }
+
+    pub fn input_native_possibility_count(
+        &self,
+    ) -> usize {
+        self.input_native_possibility_count
+    }
+
+    pub fn matched_native_possibilities(
+        &self,
+    ) -> &[
+        athlesia_autonomous_active_experimentation::
+            GroundedExperimentPossibility
+    ] {
+        &self.matched_native_possibilities
+    }
+
+    pub fn matched_native_possibility_count(
+        &self,
+    ) -> usize {
+        self.matched_native_possibilities.len()
+    }
+
+    pub fn eligible_for_native_m50_delegation(
+        &self,
+    ) -> bool {
+        self.successor_eligible_binding_count > 0
+            && !self.matched_native_possibilities.is_empty()
+    }
+}
+
+
+
 
 
 
@@ -11918,6 +12255,228 @@ impl OnlinePersistentCognitiveState {
         )
     }
 
+    pub fn current_successor_informed_epistemic_priority_binding_frontier(
+        &self,
+        state:
+            &athlesia_universal_domain_learning::
+                GroundedStateSnapshot,
+        actions: &[CognitiveStructure],
+        version_policy:
+            athlesia_universal_domain_learning::
+                GroundedExplanatoryVersionSpacePolicy,
+        discrimination_policy:
+            athlesia_autonomous_active_experimentation::
+                EpistemicForecastDiscriminationPolicy,
+        expectation_policy:
+            athlesia_autonomous_active_experimentation::
+                EmpiricalExpectedEpistemicProgressPolicy,
+        priority_policy:
+            athlesia_autonomous_active_experimentation::
+                EmpiricalEpistemicActionPriorityPolicy,
+    ) -> SuccessorInformedEpistemicPriorityBindingFrontier {
+        /*
+         * C16I-B does not establish a second priority authority.
+         *
+         * The complete C3F frontier is computed first by the existing
+         * endogenous priority pipeline.  Its order and candidate payloads
+         * are then preserved exactly.
+         *
+         * B2/C16I-A contributes only a supplemental empirical-successor
+         * eligibility annotation for each already-ranked exact action.
+         *
+         * No candidate is filtered or re-ranked here.
+         */
+        let priority_frontier =
+            self.current_empirical_epistemic_action_priority_frontier(
+                state,
+                actions,
+                version_policy,
+                discrimination_policy,
+                expectation_policy,
+                priority_policy,
+            );
+
+        let mut bindings =
+            Vec::with_capacity(
+                priority_frontier.ranked().len(),
+            );
+
+        for candidate in priority_frontier.ranked() {
+            let successor_frequency =
+                self.transition_schema_learning
+                    .action_qualified_empirical_successor_frequency(
+                        state,
+                        candidate.action(),
+                    );
+
+            let successor_eligibility =
+                successor_frequency
+                    .successor_informed_proposal_eligibility();
+
+            bindings.push(
+                SuccessorInformedEpistemicPriorityBinding {
+                    priority_candidate:
+                        candidate.clone(),
+                    successor_eligibility,
+                },
+            );
+        }
+
+        SuccessorInformedEpistemicPriorityBindingFrontier {
+            upstream_priority_status:
+                priority_frontier.status(),
+            upstream_input_candidate_count:
+                priority_frontier.input_candidate_count(),
+            upstream_unique_candidate_count:
+                priority_frontier.unique_candidate_count(),
+            bindings,
+        }
+    }
+
+    pub fn current_successor_informed_native_proposal_input_frontier(
+        &self,
+        request:
+            SuccessorInformedNativeProposalInputRequest<'_>,
+    ) -> SuccessorInformedNativeProposalInputFrontier {
+        let SuccessorInformedNativeProposalInputRequest {
+            state,
+            actions,
+            version_policy,
+            discrimination_policy,
+            expectation_policy,
+            priority_policy,
+            native_possibilities,
+        } = request;
+
+        /*
+         * C16I-C3 is an eligibility gate only.
+         *
+         * It does not convert the older
+         * GroundedEpistemicExperimentPossibility representation into the
+         * native belief-driven GroundedExperimentPossibility type.
+         *
+         * Native M50 possibilities must already exist and are supplied by
+         * the caller with their own:
+         *
+         * - competing predictions,
+         * - controllability,
+         * - grounding confidence,
+         * - execution cost.
+         *
+         * The only authority contributed here is:
+         *
+         * existing C3F priority
+         *      +
+         * B2/C16I-A successor eligibility
+         *      +
+         * exact source_state/action identity.
+         *
+         * No proposal, evidence signal, belief confidence, policy threshold,
+         * predicted outcome, EIG, utility or executive choice is synthesized.
+         */
+        let bindings =
+            self.current_successor_informed_epistemic_priority_binding_frontier(
+                state,
+                actions,
+                version_policy,
+                discrimination_policy,
+                expectation_policy,
+                priority_policy,
+            );
+
+        let successor_eligible_binding_count =
+            bindings
+                .bindings()
+                .iter()
+                .filter(
+                    |binding| {
+                        binding
+                            .eligible_as_supplemental_successor_evidence()
+                    },
+                )
+                .count();
+
+        let mut matched_native_possibilities =
+            Vec::new();
+
+        for native in native_possibilities {
+            let matched =
+                bindings
+                    .bindings()
+                    .iter()
+                    .any(
+                        |binding| {
+                            binding
+                                .eligible_as_supplemental_successor_evidence()
+                                && binding
+                                    .priority_candidate()
+                                    .source_state()
+                                    == native.source_state()
+                                && binding
+                                    .priority_candidate()
+                                    .action()
+                                    == native.action()
+                        },
+                    );
+
+            if matched {
+                matched_native_possibilities.push(
+                    native.clone(),
+                );
+            }
+        }
+
+        SuccessorInformedNativeProposalInputFrontier {
+            upstream_binding_count:
+                bindings.binding_count(),
+            successor_eligible_binding_count,
+            input_native_possibility_count:
+                native_possibilities.len(),
+            matched_native_possibilities,
+        }
+    }
+
+    pub fn current_successor_informed_native_m50_proposal_delegation(
+        &self,
+        request:
+            SuccessorInformedNativeM50ProposalDelegationRequest<'_>,
+    ) -> Option<
+        athlesia_autonomous_active_experimentation::
+            BeliefDrivenExperimentProposalResult
+    > {
+        let SuccessorInformedNativeM50ProposalDelegationRequest {
+            native_input,
+            beliefs,
+            proposal_policy,
+        } = request;
+
+        let gated =
+            self
+                .current_successor_informed_native_proposal_input_frontier(
+                    native_input,
+                );
+
+        if !gated
+            .eligible_for_native_m50_delegation()
+        {
+            return None;
+        }
+
+        Some(
+            athlesia_autonomous_active_experimentation::
+                AutonomousBeliefDrivenExperimentProposal::
+                    generate(
+                        beliefs,
+                        gated
+                            .matched_native_possibilities(),
+                        proposal_policy,
+                    ),
+        )
+    }
+
+
+
+
     pub fn observe_environment_transition(
         &mut self,
         input: &athlesia_core_knowledge_perceptual_grounding::IntegratedPerceptualWorldInput,
@@ -12836,6 +13395,244 @@ mod endogenous_transition_schema_learning_tests {
         assert!(
             !result.is_qualified(),
             "invalid B1 event identity may never become empirical frequency evidence",
+        );
+    }
+
+
+    #[test]
+    fn successor_informed_proposal_eligibility_abstains_when_b2_frequency_is_unqualified() {
+        let state =
+            EndogenousTransitionSchemaLearningState::new();
+
+        let frequency =
+            state.action_qualified_empirical_successor_frequency(
+                &representation_snapshot(&[10]),
+                &a(500),
+            );
+
+        let eligibility =
+            frequency.successor_informed_proposal_eligibility();
+
+        assert_eq!(
+            eligibility.status(),
+            SuccessorInformedProposalEligibilityStatus::
+                IneligibleUnqualifiedSuccessorEvidence(
+                    frequency.status(),
+                ),
+        );
+
+        assert_eq!(
+            eligibility.independent_event_count(),
+            0,
+        );
+
+        assert_eq!(
+            eligibility.distinct_successor_count(),
+            0,
+        );
+
+        assert!(
+            !eligibility
+                .eligible_as_supplemental_evidence(),
+        );
+    }
+
+    #[test]
+    fn successor_informed_proposal_eligibility_accepts_one_real_retained_event_without_inventing_a_minimum_sample_threshold() {
+        let (episode, provenance) =
+            representation_sample(
+                10,
+                &[10],
+                &[20],
+                500,
+            );
+
+        let state =
+            EndogenousTransitionSchemaLearningState {
+                episodes: vec![episode],
+                event_provenance: vec![provenance],
+            };
+
+        let frequency =
+            state.action_qualified_empirical_successor_frequency(
+                &representation_snapshot(&[10]),
+                &a(500),
+            );
+
+        let eligibility =
+            frequency.successor_informed_proposal_eligibility();
+
+        assert_eq!(
+            eligibility.status(),
+            SuccessorInformedProposalEligibilityStatus::
+                EligibleSupplementalSuccessorEvidence,
+        );
+
+        assert_eq!(
+            eligibility.independent_event_count(),
+            1,
+        );
+
+        assert_eq!(
+            eligibility.distinct_successor_count(),
+            1,
+        );
+
+        assert!(
+            eligibility
+                .eligible_as_supplemental_evidence(),
+        );
+    }
+
+    #[test]
+    fn successor_informed_proposal_eligibility_preserves_multiple_successors_as_empirical_diversity_without_selecting_one() {
+        let (episode_one, provenance_one) =
+            representation_sample(
+                10,
+                &[10],
+                &[20],
+                500,
+            );
+
+        let (episode_two, provenance_two) =
+            representation_sample(
+                11,
+                &[10],
+                &[30],
+                500,
+            );
+
+        let state =
+            EndogenousTransitionSchemaLearningState {
+                episodes: vec![
+                    episode_one,
+                    episode_two,
+                ],
+                event_provenance: vec![
+                    provenance_one,
+                    provenance_two,
+                ],
+            };
+
+        let frequency =
+            state.action_qualified_empirical_successor_frequency(
+                &representation_snapshot(&[10]),
+                &a(500),
+            );
+
+        let eligibility =
+            frequency.successor_informed_proposal_eligibility();
+
+        assert_eq!(
+            eligibility.status(),
+            SuccessorInformedProposalEligibilityStatus::
+                EligibleSupplementalSuccessorEvidence,
+        );
+
+        assert_eq!(
+            eligibility.independent_event_count(),
+            2,
+        );
+
+        assert_eq!(
+            eligibility.distinct_successor_count(),
+            2,
+            "C16I-A may preserve observed successor diversity but may not collapse it into a chosen predicted outcome",
+        );
+    }
+
+    #[test]
+    fn successor_informed_proposal_eligibility_counts_distinct_events_with_identical_successor_as_two_samples_not_two_outcomes() {
+        let (episode_one, provenance_one) =
+            representation_sample(
+                10,
+                &[10],
+                &[20],
+                500,
+            );
+
+        let (episode_two, provenance_two) =
+            representation_sample(
+                11,
+                &[10],
+                &[20],
+                500,
+            );
+
+        let state =
+            EndogenousTransitionSchemaLearningState {
+                episodes: vec![
+                    episode_one,
+                    episode_two,
+                ],
+                event_provenance: vec![
+                    provenance_one,
+                    provenance_two,
+                ],
+            };
+
+        let frequency =
+            state.action_qualified_empirical_successor_frequency(
+                &representation_snapshot(&[10]),
+                &a(500),
+            );
+
+        let eligibility =
+            frequency.successor_informed_proposal_eligibility();
+
+        assert_eq!(
+            eligibility.independent_event_count(),
+            2,
+            "B1 unique event identity remains sample-count authority",
+        );
+
+        assert_eq!(
+            eligibility.distinct_successor_count(),
+            1,
+            "identical grounded successor representations remain one distinct successor class",
+        );
+    }
+
+    #[test]
+    fn successor_informed_proposal_eligibility_fails_closed_on_internal_frequency_accounting_corruption() {
+        let malformed =
+            ActionQualifiedEmpiricalSuccessorFrequency {
+                status:
+                    EmpiricalSuccessorFrequencyStatus::
+                        QualifiedActionEmpiricalFrequency,
+                independent_action_event_count: 2,
+                successor_frequencies: vec![
+                    EmpiricalSuccessorFrequencyEntry {
+                        successor_representation:
+                            representation_snapshot(&[20]),
+                        independent_event_count: 1,
+                    },
+                ],
+            };
+
+        let eligibility =
+            malformed
+                .successor_informed_proposal_eligibility();
+
+        assert_eq!(
+            eligibility.status(),
+            SuccessorInformedProposalEligibilityStatus::
+                IneligibleSuccessorEvidenceInvariantViolation,
+        );
+
+        assert_eq!(
+            eligibility.independent_event_count(),
+            0,
+        );
+
+        assert_eq!(
+            eligibility.distinct_successor_count(),
+            0,
+        );
+
+        assert!(
+            !eligibility
+                .eligible_as_supplemental_evidence(),
         );
     }
 
@@ -14479,6 +15276,60 @@ mod p4g_c3f_endogenous_priority_frontier_bridge_tests {
         owner
     }
 
+    fn c16i_b1_valid_owner(
+    ) -> OnlinePersistentCognitiveState {
+        let mut owner =
+            owner();
+
+        assert_eq!(
+            owner
+                .transition_schema_learning
+                .episodes
+                .len(),
+            2,
+            "C16I B1-valid fixture authority assumes the two frozen explanatory baseline episodes",
+        );
+
+        assert!(
+            owner
+                .transition_schema_learning
+                .event_provenance
+                .is_empty(),
+            "legacy C3F owner fixture intentionally has no B1 sidecar; C16I must add it explicitly rather than silently rely on an invariant violation",
+        );
+
+        owner
+            .transition_schema_learning
+            .event_provenance =
+            vec![
+                RetainedTransitionEventProvenance {
+                    event_index: 880,
+                    previous_observation_index: 1760,
+                    current_observation_index: 1761,
+                },
+                RetainedTransitionEventProvenance {
+                    event_index: 881,
+                    previous_observation_index: 1762,
+                    current_observation_index: 1763,
+                },
+            ];
+
+        assert_eq!(
+            owner
+                .transition_schema_learning
+                .episodes
+                .len(),
+            owner
+                .transition_schema_learning
+                .event_provenance
+                .len(),
+            "B1 requires one retained provenance record per retained transition episode",
+        );
+
+        owner
+    }
+
+
     fn version_policy() -> GroundedExplanatoryVersionSpacePolicy {
         GroundedExplanatoryVersionSpacePolicy::new(1, 16, 128, 64)
             .expect("positive explanatory bounds")
@@ -14734,6 +15585,1293 @@ mod p4g_c3f_endogenous_priority_frontier_bridge_tests {
         );
 
         assert_eq!(direct, reversed);
+    }
+
+
+    #[test]
+    fn successor_informed_priority_binding_cannot_create_candidates_without_existing_c3f_priority() {
+        let owner = owner();
+        let current = state(&[1]);
+
+        let upstream =
+            owner
+                .current_empirical_epistemic_action_priority_frontier(
+                    &current,
+                    &[a(100)],
+                    version_policy(),
+                    discrimination_policy(),
+                    expectation_policy(),
+                    priority_policy(),
+                );
+
+        let bound =
+            owner
+                .current_successor_informed_epistemic_priority_binding_frontier(
+                    &current,
+                    &[a(100)],
+                    version_policy(),
+                    discrimination_policy(),
+                    expectation_policy(),
+                    priority_policy(),
+                );
+
+        assert_eq!(
+            upstream.status(),
+            EmpiricalEpistemicActionPriorityStatus::
+                NoPositiveEmpiricalPriority,
+        );
+
+        assert_eq!(
+            bound.upstream_priority_status(),
+            upstream.status(),
+        );
+
+        assert_eq!(
+            bound.binding_count(),
+            0,
+            "successor evidence binding cannot manufacture a priority candidate when C3F supplied none",
+        );
+
+        assert_eq!(
+            bound.eligible_binding_count(),
+            0,
+        );
+    }
+
+    #[test]
+    fn successor_informed_priority_binding_preserves_every_upstream_candidate_exactly_and_only_adds_b2_eligibility() {
+        let mut owner = owner();
+        let current = state(&[1]);
+        let action = a(100);
+
+        let possibility =
+            owner
+                .current_m50_epistemic_possibility(
+                    &current,
+                    &action,
+                    version_policy(),
+                )
+                .expect(
+                    "fixture action must be epistemically grounded",
+                );
+
+        owner.retain_epistemic_progress_event(
+            810,
+            reduction_sample(&possibility),
+            RetainedEpistemicProgressHistoryPolicy::
+                new(8)
+                .unwrap(),
+        );
+
+        let actions =
+            [a(200), action.clone()];
+
+        let upstream =
+            owner
+                .current_empirical_epistemic_action_priority_frontier(
+                    &current,
+                    &actions,
+                    version_policy(),
+                    discrimination_policy(),
+                    expectation_policy(),
+                    priority_policy(),
+                );
+
+        let bound =
+            owner
+                .current_successor_informed_epistemic_priority_binding_frontier(
+                    &current,
+                    &actions,
+                    version_policy(),
+                    discrimination_policy(),
+                    expectation_policy(),
+                    priority_policy(),
+                );
+
+        assert!(
+            upstream.ranked_successfully(),
+            "fixture must produce genuine existing C3F priority",
+        );
+
+        assert_eq!(
+            bound.upstream_priority_status(),
+            upstream.status(),
+        );
+
+        assert_eq!(
+            bound.upstream_input_candidate_count(),
+            upstream.input_candidate_count(),
+        );
+
+        assert_eq!(
+            bound.upstream_unique_candidate_count(),
+            upstream.unique_candidate_count(),
+        );
+
+        assert_eq!(
+            bound.binding_count(),
+            upstream.ranked().len(),
+            "C16I-B must neither filter nor manufacture ranked candidates",
+        );
+
+        for (binding, candidate) in
+            bound
+                .bindings()
+                .iter()
+                .zip(upstream.ranked())
+        {
+            assert_eq!(
+                binding.priority_candidate(),
+                candidate,
+                "the exact upstream C3F candidate payload must survive unchanged",
+            );
+
+            let explicit_frequency =
+                owner
+                    .transition_schema_learning()
+                    .action_qualified_empirical_successor_frequency(
+                        &current,
+                        candidate.action(),
+                    );
+
+            let explicit_eligibility =
+                explicit_frequency
+                    .successor_informed_proposal_eligibility();
+
+            assert_eq!(
+                binding.successor_eligibility(),
+                explicit_eligibility,
+                "the annotation must be exactly B2 successor evidence passed through C16I-A",
+            );
+        }
+    }
+
+    #[test]
+    fn successor_informed_priority_binding_preserves_existing_rank_order_under_action_input_permutation() {
+        let mut owner = owner();
+        let current = state(&[1]);
+        let action = a(100);
+
+        let possibility =
+            owner
+                .current_m50_epistemic_possibility(
+                    &current,
+                    &action,
+                    version_policy(),
+                )
+                .unwrap();
+
+        owner.retain_epistemic_progress_event(
+            811,
+            reduction_sample(&possibility),
+            RetainedEpistemicProgressHistoryPolicy::
+                new(8)
+                .unwrap(),
+        );
+
+        let direct =
+            owner
+                .current_successor_informed_epistemic_priority_binding_frontier(
+                    &current,
+                    &[a(200), action.clone()],
+                    version_policy(),
+                    discrimination_policy(),
+                    expectation_policy(),
+                    priority_policy(),
+                );
+
+        let reversed =
+            owner
+                .current_successor_informed_epistemic_priority_binding_frontier(
+                    &current,
+                    &[action, a(200)],
+                    version_policy(),
+                    discrimination_policy(),
+                    expectation_policy(),
+                    priority_policy(),
+                );
+
+        assert_eq!(
+            direct,
+            reversed,
+            "C16I-B may annotate the existing C3F ranking but cannot create input-order-sensitive reranking",
+        );
+    }
+
+    #[test]
+    fn successor_informed_priority_binding_is_read_only_for_both_progress_and_transition_evidence() {
+        let mut owner = owner();
+        let current = state(&[1]);
+        let action = a(100);
+
+        let possibility =
+            owner
+                .current_m50_epistemic_possibility(
+                    &current,
+                    &action,
+                    version_policy(),
+                )
+                .unwrap();
+
+        owner.retain_epistemic_progress_event(
+            812,
+            reduction_sample(&possibility),
+            RetainedEpistemicProgressHistoryPolicy::
+                new(8)
+                .unwrap(),
+        );
+
+        let progress_before =
+            owner.epistemic_progress_event_count();
+
+        let transition_before =
+            owner.transition_episode_count();
+
+        let provenance_before =
+            owner
+                .transition_schema_learning()
+                .event_provenance_count();
+
+        let _ =
+            owner
+                .current_successor_informed_epistemic_priority_binding_frontier(
+                    &current,
+                    &[a(200), action],
+                    version_policy(),
+                    discrimination_policy(),
+                    expectation_policy(),
+                    priority_policy(),
+                );
+
+        assert_eq!(
+            owner.epistemic_progress_event_count(),
+            progress_before,
+            "C16I-B query cannot manufacture empirical progress history",
+        );
+
+        assert_eq!(
+            owner.transition_episode_count(),
+            transition_before,
+            "C16I-B query cannot append transition evidence",
+        );
+
+        assert_eq!(
+            owner
+                .transition_schema_learning()
+                .event_provenance_count(),
+            provenance_before,
+            "C16I-B query cannot append event provenance",
+        );
+    }
+
+
+
+    fn c16i_native_signal(
+        value: u16,
+    ) -> CognitiveSignal {
+        CognitiveSignal::new(value)
+            .expect("positive bounded C16I native signal")
+    }
+
+    fn c16i_native_possibility(
+        source_state: CognitiveStructure,
+        action: CognitiveStructure,
+        first_outcome: u64,
+    ) -> athlesia_autonomous_active_experimentation::
+        GroundedExperimentPossibility {
+        use athlesia_autonomous_active_experimentation::{
+            CompetingHypothesisPrediction,
+            GroundedExperimentPossibility,
+        };
+
+        let confidence =
+            c16i_native_signal(900);
+
+        GroundedExperimentPossibility::new(
+            source_state,
+            action,
+            vec![
+                CompetingHypothesisPrediction::new(
+                    a(100),
+                    a(first_outcome),
+                    confidence,
+                )
+                .expect("first native prediction"),
+                CompetingHypothesisPrediction::new(
+                    a(101),
+                    a(first_outcome + 1),
+                    confidence,
+                )
+                .expect("second native prediction"),
+            ],
+            c16i_native_signal(900),
+            c16i_native_signal(900),
+            c16i_native_signal(100),
+        )
+        .expect("native grounded experiment possibility")
+    }
+
+    fn c16i_retain_b2_sample(
+        owner: &mut OnlinePersistentCognitiveState,
+        event_index: u64,
+        current: &GroundedStateSnapshot,
+        action: &CognitiveStructure,
+    ) {
+        owner
+            .transition_schema_learning
+            .episodes
+            .push(
+                GroundedTransformationEpisode::new(
+                    current.clone(),
+                    state(&[1, 900]),
+                    action.clone(),
+                ),
+            );
+
+        owner
+            .transition_schema_learning
+            .event_provenance
+            .push(
+                RetainedTransitionEventProvenance {
+                    event_index,
+                    previous_observation_index:
+                        event_index.saturating_mul(2),
+                    current_observation_index:
+                        event_index
+                            .saturating_mul(2)
+                            .saturating_add(1),
+                },
+            );
+    }
+
+    fn c16i_current_pattern_reduction_sample(
+        possibility:
+            &GroundedEpistemicExperimentPossibility,
+    ) -> athlesia_autonomous_active_experimentation::
+        EpistemicResolutionProgressSample {
+        let current_discrimination =
+            athlesia_autonomous_active_experimentation::
+                AutonomousEpistemicForecastDiscrimination::
+                    evaluate(
+                        possibility,
+                        discrimination_policy(),
+                    );
+
+        assert!(
+            current_discrimination.informative(),
+            "post-B2 current fixture must remain genuinely epistemically informative before C3F progress can exist",
+        );
+
+        let mut observed_targets =
+            Vec::new();
+
+        for forecast in possibility.forecasts() {
+            if !observed_targets
+                .iter()
+                .any(
+                    |existing: &EpistemicTargetObservation| {
+                        existing.target()
+                            == forecast.target()
+                    },
+                )
+            {
+                observed_targets.push(
+                    EpistemicTargetObservation::new(
+                        forecast.target().clone(),
+                        true,
+                    ),
+                );
+            }
+        }
+
+        let observation =
+            GroundedEpistemicOutcomeObservation::new(
+                possibility.source_state().clone(),
+                possibility.action().clone(),
+                observed_targets,
+            )
+            .expect(
+                "C16I current-pattern fixture observation must be grounded",
+            );
+
+        let outcome =
+            AutonomousEpistemicOutcomeResolution::
+                evaluate(
+                    possibility,
+                    &observation,
+                    EpistemicOutcomeResolutionPolicy::
+                        new(32, 32)
+                        .unwrap(),
+                );
+
+        let post_forecasts =
+            possibility
+                .forecasts()
+                .iter()
+                .map(
+                    |forecast| {
+                        let canonical_outcome =
+                            possibility
+                                .forecasts()
+                                .iter()
+                                .find(
+                                    |candidate| {
+                                        candidate.target()
+                                            == forecast.target()
+                                            && candidate
+                                                .predicted_outcome()
+                                                .is_some()
+                                    },
+                                )
+                                .and_then(
+                                    |candidate| {
+                                        candidate
+                                            .predicted_outcome()
+                                    },
+                                )
+                                .cloned()
+                                .unwrap_or_else(
+                                    || {
+                                        CognitiveStructure::
+                                            Ordered(
+                                                vec![
+                                                    a(
+                                                        0x4331_3649_4333_504f,
+                                                    ),
+                                                    forecast
+                                                        .target()
+                                                        .clone(),
+                                                ],
+                                            )
+                                    },
+                                );
+
+                        if forecast
+                            .predicted_outcome()
+                            .is_some()
+                            || forecast.status()
+                                == EpistemicHypothesisForecastStatus::
+                                    ContextAbstained
+                        {
+                            EpistemicHypothesisForecast::
+                                predicted(
+                                    forecast
+                                        .hypothesis()
+                                        .clone(),
+                                    forecast
+                                        .target()
+                                        .clone(),
+                                    canonical_outcome,
+                                    forecast.evidence(),
+                                )
+                                .expect(
+                                    "C16I converged post-model prediction",
+                                )
+                        } else {
+                            forecast.clone()
+                        }
+                    },
+                )
+                .collect::<Vec<_>>();
+
+        let post =
+            GroundedEpistemicExperimentPossibility::
+                new(
+                    possibility
+                        .source_state()
+                        .clone(),
+                    possibility
+                        .action()
+                        .clone(),
+                    post_forecasts,
+                )
+                .expect(
+                    "C16I current-pattern post possibility",
+                );
+
+        let progress =
+            AutonomousEpistemicResolutionProgress::
+                measure(
+                    possibility,
+                    &outcome,
+                    &post,
+                    discrimination_policy(),
+                );
+
+        let sample =
+            progress
+                .sample()
+                .expect(
+                    "C16I current-pattern fixture must produce measured progress",
+                )
+                .clone();
+
+        assert!(
+            sample.realized_separation_reduction() > 0,
+            "post-B2 fixture must demonstrate actual measured separation reduction; C16I may not fabricate positive empirical priority",
+        );
+
+        sample
+    }
+
+
+    fn c16i_authorize_priority(
+        owner: &mut OnlinePersistentCognitiveState,
+        event_index: u64,
+        current: &GroundedStateSnapshot,
+        action: &CognitiveStructure,
+    ) {
+        let possibility =
+            owner
+                .current_m50_epistemic_possibility(
+                    current,
+                    action,
+                    version_policy(),
+                )
+                .expect(
+                    "fixture action must have existing M50 epistemic possibility",
+                );
+
+        owner.retain_epistemic_progress_event(
+            event_index,
+            c16i_current_pattern_reduction_sample(&possibility),
+            RetainedEpistemicProgressHistoryPolicy::
+                new(8)
+                .unwrap(),
+        );
+    }
+
+    #[test]
+    fn successor_informed_native_input_gate_cannot_create_native_inputs_without_existing_c3f_priority() {
+        let owner = c16i_b1_valid_owner();
+        let current = state(&[1]);
+
+        let native =
+            c16i_native_possibility(
+                a(1),
+                a(100),
+                700,
+            );
+
+        let result =
+            owner
+                .current_successor_informed_native_proposal_input_frontier(
+                    SuccessorInformedNativeProposalInputRequest {
+                        state: &current,
+                        actions: &[a(100)],
+                        version_policy: version_policy(),
+                        discrimination_policy: discrimination_policy(),
+                        expectation_policy: expectation_policy(),
+                        priority_policy: priority_policy(),
+                        native_possibilities: &[native],
+                    }
+                );
+
+        assert_eq!(
+            result.upstream_binding_count(),
+            0,
+        );
+
+        assert_eq!(
+            result.successor_eligible_binding_count(),
+            0,
+        );
+
+        assert_eq!(
+            result.matched_native_possibility_count(),
+            0,
+        );
+
+        assert!(
+            !result.eligible_for_native_m50_delegation(),
+        );
+    }
+
+    #[test]
+    fn successor_informed_native_input_gate_requires_b2_successor_eligibility_after_c3f_priority() {
+        let mut owner = c16i_b1_valid_owner();
+        let current = state(&[3]);
+        let action = a(100);
+
+        c16i_authorize_priority(
+            &mut owner,
+            900,
+            &current,
+            &action,
+        );
+
+        let binding =
+            owner
+                .current_successor_informed_epistemic_priority_binding_frontier(
+                    &current,
+                    std::slice::from_ref(&action),
+                    version_policy(),
+                    discrimination_policy(),
+                    expectation_policy(),
+                    priority_policy(),
+                );
+
+        assert_eq!(
+            binding.binding_count(),
+            1,
+        );
+
+        assert_eq!(
+            binding.eligible_binding_count(),
+            0,
+            "C3F priority alone cannot authorize native proposal input without B2 successor support",
+        );
+
+        let priority =
+            binding.bindings()[0]
+                .priority_candidate();
+
+        let native =
+            c16i_native_possibility(
+                priority.source_state().clone(),
+                priority.action().clone(),
+                700,
+            );
+
+        let result =
+            owner
+                .current_successor_informed_native_proposal_input_frontier(
+                    SuccessorInformedNativeProposalInputRequest {
+                        state: &current,
+                        actions: std::slice::from_ref(&action),
+                        version_policy: version_policy(),
+                        discrimination_policy: discrimination_policy(),
+                        expectation_policy: expectation_policy(),
+                        priority_policy: priority_policy(),
+                        native_possibilities: &[native],
+                    }
+                );
+
+        assert_eq!(
+            result.upstream_binding_count(),
+            1,
+        );
+
+        assert_eq!(
+            result.successor_eligible_binding_count(),
+            0,
+        );
+
+        assert_eq!(
+            result.matched_native_possibility_count(),
+            0,
+        );
+    }
+
+    #[test]
+    fn successor_informed_native_input_gate_requires_exact_source_state_and_action_identity() {
+        let mut owner = c16i_b1_valid_owner();
+        let current = state(&[1]);
+        let action = a(100);
+
+        c16i_retain_b2_sample(
+            &mut owner,
+            902,
+            &current,
+            &action,
+        );
+        c16i_authorize_priority(
+            &mut owner,
+            901,
+            &current,
+            &action,
+        );
+
+        let binding =
+            owner
+                .current_successor_informed_epistemic_priority_binding_frontier(
+                    &current,
+                    std::slice::from_ref(&action),
+                    version_policy(),
+                    discrimination_policy(),
+                    expectation_policy(),
+                    priority_policy(),
+                );
+
+        assert_eq!(
+            binding.eligible_binding_count(),
+            1,
+        );
+
+        let priority =
+            binding.bindings()[0]
+                .priority_candidate();
+
+        let wrong_source =
+            c16i_native_possibility(
+                a(0xC16C_0001),
+                priority.action().clone(),
+                710,
+            );
+
+        let wrong_action =
+            c16i_native_possibility(
+                priority.source_state().clone(),
+                a(0xC16C_0002),
+                720,
+            );
+
+        let exact =
+            c16i_native_possibility(
+                priority.source_state().clone(),
+                priority.action().clone(),
+                730,
+            );
+
+        let result =
+            owner
+                .current_successor_informed_native_proposal_input_frontier(
+                    SuccessorInformedNativeProposalInputRequest {
+                        state: &current,
+                        actions: std::slice::from_ref(&action),
+                        version_policy: version_policy(),
+                        discrimination_policy: discrimination_policy(),
+                        expectation_policy: expectation_policy(),
+                        priority_policy: priority_policy(),
+                        native_possibilities: &[ wrong_source, exact.clone(), wrong_action, ],
+                    }
+                );
+
+        assert_eq!(
+            result.successor_eligible_binding_count(),
+            1,
+        );
+
+        assert_eq!(
+            result.input_native_possibility_count(),
+            3,
+        );
+
+        assert_eq!(
+            result.matched_native_possibilities(),
+            std::slice::from_ref(&exact),
+            "only exact existing M50 source_state + action identity may cross the C16I gate",
+        );
+
+        assert!(
+            result.eligible_for_native_m50_delegation(),
+        );
+    }
+
+    #[test]
+    fn successor_informed_native_input_gate_preserves_caller_native_order_and_payload_without_rewriting_m50_signals() {
+        let mut owner = c16i_b1_valid_owner();
+        let current = state(&[1]);
+        let action = a(100);
+
+        c16i_retain_b2_sample(
+            &mut owner,
+            904,
+            &current,
+            &action,
+        );
+        c16i_authorize_priority(
+            &mut owner,
+            903,
+            &current,
+            &action,
+        );
+
+        let binding =
+            owner
+                .current_successor_informed_epistemic_priority_binding_frontier(
+                    &current,
+                    std::slice::from_ref(&action),
+                    version_policy(),
+                    discrimination_policy(),
+                    expectation_policy(),
+                    priority_policy(),
+                );
+
+        let priority =
+            binding.bindings()[0]
+                .priority_candidate();
+
+        let first =
+            c16i_native_possibility(
+                priority.source_state().clone(),
+                priority.action().clone(),
+                740,
+            );
+
+        let second =
+            c16i_native_possibility(
+                priority.source_state().clone(),
+                priority.action().clone(),
+                750,
+            );
+
+        let before_progress =
+            owner.epistemic_progress_event_count();
+
+        let before_transitions =
+            owner.transition_episode_count();
+
+        let result =
+            owner
+                .current_successor_informed_native_proposal_input_frontier(
+                    SuccessorInformedNativeProposalInputRequest {
+                        state: &current,
+                        actions: std::slice::from_ref(&action),
+                        version_policy: version_policy(),
+                        discrimination_policy: discrimination_policy(),
+                        expectation_policy: expectation_policy(),
+                        priority_policy: priority_policy(),
+                        native_possibilities: &[ first.clone(), second.clone(), ],
+                    }
+                );
+
+        assert_eq!(
+            result.matched_native_possibilities(),
+            &[
+                first,
+                second,
+            ],
+            "C16I-C3 may gate native M50 possibilities but may not sort, deduplicate or rewrite their native payload",
+        );
+
+        assert_eq!(
+            owner.epistemic_progress_event_count(),
+            before_progress,
+        );
+
+        assert_eq!(
+            owner.transition_episode_count(),
+            before_transitions,
+        );
+    }
+
+
+
+    fn c16i_native_beliefs(
+        possibility:
+            &athlesia_autonomous_active_experimentation::
+                GroundedExperimentPossibility,
+    ) -> Vec<
+        athlesia_autonomous_active_experimentation::
+            HypothesisBeliefState
+    > {
+        possibility
+            .predictions()
+            .iter()
+            .map(|prediction| {
+                athlesia_autonomous_active_experimentation::
+                    HypothesisBeliefState::new(
+                        prediction
+                            .hypothesis()
+                            .clone(),
+                        c16i_native_signal(800),
+                    )
+                    .expect(
+                        "caller-native C16I-D belief fixture",
+                    )
+            })
+            .collect()
+    }
+
+    fn c16i_native_proposal_policy(
+    ) -> athlesia_autonomous_active_experimentation::
+        BeliefDrivenExperimentProposalPolicy {
+        athlesia_autonomous_active_experimentation::BeliefDrivenExperimentProposalPolicy::new(athlesia_autonomous_active_experimentation::ActiveExperimentPolicy::new(athlesia_autonomous_active_experimentation::ActiveExperimentBounds::new(16, 16, 16).unwrap(), athlesia_autonomous_active_experimentation::ActiveExperimentThresholds::new(c16i_native_signal(500), c16i_native_signal(500), c16i_native_signal(500), c16i_native_signal(500)).unwrap()), athlesia_autonomous_active_experimentation::BeliefDrivenExperimentProposalBounds::new(16, 16, 16, 16).unwrap(), c16i_native_signal(500), c16i_native_signal(500)).unwrap()
+    }
+
+    #[test]
+    fn successor_informed_native_m50_delegation_abstains_before_builder_when_c16i_gate_is_empty(
+    ) {
+        let owner =
+            c16i_b1_valid_owner();
+
+        let current =
+            state(&[1]);
+
+        let action =
+            a(100);
+
+        let native =
+            c16i_native_possibility(
+                a(1),
+                action.clone(),
+                760,
+            );
+
+        let beliefs =
+            c16i_native_beliefs(
+                &native,
+            );
+
+        let native_inputs =
+            [native];
+
+        let result =
+            owner
+                .current_successor_informed_native_m50_proposal_delegation(
+                    SuccessorInformedNativeM50ProposalDelegationRequest {
+                        native_input:
+                            SuccessorInformedNativeProposalInputRequest {
+                                state:
+                                    &current,
+                                actions:
+                                    std::slice::from_ref(
+                                        &action,
+                                    ),
+                                version_policy:
+                                    version_policy(),
+                                discrimination_policy:
+                                    discrimination_policy(),
+                                expectation_policy:
+                                    expectation_policy(),
+                                priority_policy:
+                                    priority_policy(),
+                                native_possibilities:
+                                    &native_inputs,
+                            },
+                        beliefs:
+                            &beliefs,
+                        proposal_policy:
+                            c16i_native_proposal_policy(),
+                    },
+                );
+
+        assert!(
+            result.is_none(),
+            "C16I-D must abstain before invoking M50 when C3F+B2 gating yields no native input",
+        );
+    }
+
+    #[test]
+    fn successor_informed_native_m50_delegation_is_exactly_equal_to_direct_native_builder_on_gated_inputs(
+    ) {
+        let mut owner =
+            c16i_b1_valid_owner();
+
+        let current =
+            state(&[1]);
+
+        let action =
+            a(100);
+
+        c16i_retain_b2_sample(
+            &mut owner,
+            920,
+            &current,
+            &action,
+        );
+
+        c16i_authorize_priority(
+            &mut owner,
+            921,
+            &current,
+            &action,
+        );
+
+        let binding =
+            owner
+                .current_successor_informed_epistemic_priority_binding_frontier(
+                    &current,
+                    std::slice::from_ref(
+                        &action,
+                    ),
+                    version_policy(),
+                    discrimination_policy(),
+                    expectation_policy(),
+                    priority_policy(),
+                );
+
+        assert_eq!(
+            binding.eligible_binding_count(),
+            1,
+        );
+
+        let priority =
+            binding
+                .bindings()[0]
+                .priority_candidate();
+
+        let native =
+            c16i_native_possibility(
+                priority
+                    .source_state()
+                    .clone(),
+                priority
+                    .action()
+                    .clone(),
+                770,
+            );
+
+        let beliefs =
+            c16i_native_beliefs(
+                &native,
+            );
+
+        let native_inputs =
+            [native];
+
+        let gated =
+            owner
+                .current_successor_informed_native_proposal_input_frontier(
+                    SuccessorInformedNativeProposalInputRequest {
+                        state:
+                            &current,
+                        actions:
+                            std::slice::from_ref(
+                                &action,
+                            ),
+                        version_policy:
+                            version_policy(),
+                        discrimination_policy:
+                            discrimination_policy(),
+                        expectation_policy:
+                            expectation_policy(),
+                        priority_policy:
+                            priority_policy(),
+                        native_possibilities:
+                            &native_inputs,
+                    },
+                );
+
+        assert!(
+            gated
+                .eligible_for_native_m50_delegation(),
+        );
+
+        let direct =
+            athlesia_autonomous_active_experimentation::
+                AutonomousBeliefDrivenExperimentProposal::
+                    generate(
+                        &beliefs,
+                        gated
+                            .matched_native_possibilities(),
+                        c16i_native_proposal_policy(),
+                    );
+
+        let progress_before =
+            owner
+                .epistemic_progress_event_count();
+
+        let transitions_before =
+            owner
+                .transition_episode_count();
+
+        let provenance_before =
+            owner
+                .transition_schema_learning()
+                .event_provenance_count();
+
+        let delegated =
+            owner
+                .current_successor_informed_native_m50_proposal_delegation(
+                    SuccessorInformedNativeM50ProposalDelegationRequest {
+                        native_input:
+                            SuccessorInformedNativeProposalInputRequest {
+                                state:
+                                    &current,
+                                actions:
+                                    std::slice::from_ref(
+                                        &action,
+                                    ),
+                                version_policy:
+                                    version_policy(),
+                                discrimination_policy:
+                                    discrimination_policy(),
+                                expectation_policy:
+                                    expectation_policy(),
+                                priority_policy:
+                                    priority_policy(),
+                                native_possibilities:
+                                    &native_inputs,
+                            },
+                        beliefs:
+                            &beliefs,
+                        proposal_policy:
+                            c16i_native_proposal_policy(),
+                    },
+                )
+                .expect(
+                    "eligible C16I gate must delegate to native M50 builder",
+                );
+
+        assert_eq!(
+            delegated,
+            direct,
+            "C16I-D must return the exact native M50 builder result without reinterpretation",
+        );
+
+        assert_eq!(
+            owner
+                .epistemic_progress_event_count(),
+            progress_before,
+        );
+
+        assert_eq!(
+            owner
+                .transition_episode_count(),
+            transitions_before,
+        );
+
+        assert_eq!(
+            owner
+                .transition_schema_learning()
+                .event_provenance_count(),
+            provenance_before,
+        );
+    }
+
+    #[test]
+    fn successor_informed_native_m50_delegation_preserves_native_builder_abstention_as_a_real_builder_result(
+    ) {
+        let mut owner =
+            c16i_b1_valid_owner();
+
+        let current =
+            state(&[1]);
+
+        let action =
+            a(100);
+
+        c16i_retain_b2_sample(
+            &mut owner,
+            922,
+            &current,
+            &action,
+        );
+
+        c16i_authorize_priority(
+            &mut owner,
+            923,
+            &current,
+            &action,
+        );
+
+        let binding =
+            owner
+                .current_successor_informed_epistemic_priority_binding_frontier(
+                    &current,
+                    std::slice::from_ref(
+                        &action,
+                    ),
+                    version_policy(),
+                    discrimination_policy(),
+                    expectation_policy(),
+                    priority_policy(),
+                );
+
+        let priority =
+            binding
+                .bindings()[0]
+                .priority_candidate();
+
+        let native =
+            c16i_native_possibility(
+                priority
+                    .source_state()
+                    .clone(),
+                priority
+                    .action()
+                    .clone(),
+                780,
+            );
+
+        let all_beliefs =
+            c16i_native_beliefs(
+                &native,
+            );
+
+        assert!(
+            all_beliefs.len() >= 2,
+            "native fixture must expose genuine competing predictions",
+        );
+
+        let single_belief =
+            vec![
+                all_beliefs[0]
+                    .clone()
+            ];
+
+        let native_inputs =
+            [native];
+
+        let gated =
+            owner
+                .current_successor_informed_native_proposal_input_frontier(
+                    SuccessorInformedNativeProposalInputRequest {
+                        state:
+                            &current,
+                        actions:
+                            std::slice::from_ref(
+                                &action,
+                            ),
+                        version_policy:
+                            version_policy(),
+                        discrimination_policy:
+                            discrimination_policy(),
+                        expectation_policy:
+                            expectation_policy(),
+                        priority_policy:
+                            priority_policy(),
+                        native_possibilities:
+                            &native_inputs,
+                    },
+                );
+
+        assert!(
+            gated
+                .eligible_for_native_m50_delegation(),
+            "C16I gate must be eligible independently of downstream belief competition",
+        );
+
+        let direct =
+            athlesia_autonomous_active_experimentation::
+                AutonomousBeliefDrivenExperimentProposal::
+                    generate(
+                        &single_belief,
+                        gated
+                            .matched_native_possibilities(),
+                        c16i_native_proposal_policy(),
+                    );
+
+        let delegated =
+            owner
+                .current_successor_informed_native_m50_proposal_delegation(
+                    SuccessorInformedNativeM50ProposalDelegationRequest {
+                        native_input:
+                            SuccessorInformedNativeProposalInputRequest {
+                                state:
+                                    &current,
+                                actions:
+                                    std::slice::from_ref(
+                                        &action,
+                                    ),
+                                version_policy:
+                                    version_policy(),
+                                discrimination_policy:
+                                    discrimination_policy(),
+                                expectation_policy:
+                                    expectation_policy(),
+                                priority_policy:
+                                    priority_policy(),
+                                native_possibilities:
+                                    &native_inputs,
+                            },
+                        beliefs:
+                            &single_belief,
+                        proposal_policy:
+                            c16i_native_proposal_policy(),
+                    },
+                )
+                .expect(
+                    "eligible gate must preserve even an abstaining native M50 builder result as Some(result)",
+                );
+
+        assert_eq!(
+            delegated,
+            direct,
+            "C16I must not convert native M50 abstention into its own proposal decision",
+        );
     }
 }
 

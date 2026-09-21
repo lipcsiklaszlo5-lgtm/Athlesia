@@ -147,6 +147,34 @@ impl ArcAgi3ActionGroundingBridge {
             evidence.execution_cost(),
         ))
     }
+
+    pub fn ground_belief_driven_proposal_frontier_for_goal(
+        observation: &ArcAgi3Observation,
+        expected_source_state: &CognitiveStructure,
+        goal: &ExecutiveGoal,
+        goal_alignment: CognitiveSignal,
+        result:
+            &athlesia_autonomous_active_experimentation::
+                BeliefDrivenExperimentProposalResult,
+    ) -> Result<
+        Vec<GroundedExecutiveActionCandidate>,
+        ArcAgi3ActionGroundingError,
+    > {
+        result
+            .generated()
+            .iter()
+            .map(|candidate| {
+                Self::ground_experiment_for_goal(
+                    observation,
+                    expected_source_state,
+                    goal,
+                    goal_alignment,
+                    candidate.experiment(),
+                )
+            })
+            .collect::<Result<Vec<_>, _>>()
+    }
+
 }
 
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
@@ -175,4 +203,27 @@ impl UniversalArcAgi3ActionGroundingBridge {
             proposal,
         )
     }
+
+    pub fn ground_belief_driven_proposal_frontier_for_goal(
+        observation: &ArcAgi3Observation,
+        expected_source_state: &CognitiveStructure,
+        goal: &ExecutiveGoal,
+        goal_alignment: CognitiveSignal,
+        result:
+            &athlesia_autonomous_active_experimentation::
+                BeliefDrivenExperimentProposalResult,
+    ) -> Result<
+        Vec<GroundedExecutiveActionCandidate>,
+        ArcAgi3ActionGroundingError,
+    > {
+        ArcAgi3ActionGroundingBridge::
+            ground_belief_driven_proposal_frontier_for_goal(
+                observation,
+                expected_source_state,
+                goal,
+                goal_alignment,
+                result,
+            )
+    }
+
 }

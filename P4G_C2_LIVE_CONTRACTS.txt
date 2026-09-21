@@ -1,0 +1,4554 @@
+=== P4G-C2 EXACT LIVE EXECUTION CONTRACTS ===
+
+=== HEAD / STATUS ===
+8f51b2a20a36f3b6fe3f7176f74cafbb4fd0803f
+8f51b2a feat(cognition): unify exploitation and experimentation dispatch authority
+?? ATHLESIA_CODEX_ARCHITECTURE_AUDIT.txt
+?? crates/athlesia_integrated_cognitive_agent/tests/t2d_progressive_transfer_under_transient_noise.rs
+
+================================================================================
+=== LIVE ENVIRONMENT RUNTIME — FULL CURRENT PRODUCTION SOURCE ===
+FILE=crates/athlesia_arc_agi_3_adapter/src/live_environment_runtime.rs
+================================================================================
+     1	use crate::cognitive_interaction_runtime::{
+     2	    ArcAgi3CognitiveInteractionCompletion, ArcAgi3CognitiveInteractionError,
+     3	    ArcAgi3CognitiveInteractionRuntime, ArcAgi3CognitiveInteractionStep,
+     4	};
+     5	use crate::environment_transport_boundary::{
+     6	    ArcAgi3EnvironmentTransport, ArcAgi3EnvironmentTransportBoundary, ArcAgi3TransportError,
+     7	    ArcAgi3TransportFailureDisposition,
+     8	};
+     9	use crate::interactive_session_runtime::ArcAgi3InteractiveSessionError;
+    10	use crate::{ArcAgi3GameId, ArcAgi3GameState};
+    11	use athlesia_integrated_cognitive_agent::{
+    12	    CognitiveCycleStateTransitionRequest, IntegratedAgentPolicy, OnlineCognitiveOrchestrationInput,
+    13	};
+    14	use athlesia_mindstone_sparse_cognition::{CognitiveSignal, CognitiveStructure};
+    15	
+    16	#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+    17	pub enum ArcAgi3LiveEnvironmentStatus {
+    18	    NotStarted,
+    19	    Active,
+    20	    Won,
+    21	    GameOver,
+    22	    FaultedPending,
+    23	}
+    24	
+    25	#[derive(Debug, Eq, PartialEq)]
+    26	pub enum ArcAgi3LiveEnvironmentError {
+    27	    GameNotActive,
+    28	    FaultedPending(Option<ArcAgi3TransportFailureDisposition>),
+    29	    Cognitive(ArcAgi3CognitiveInteractionError),
+    30	    Session(ArcAgi3InteractiveSessionError),
+    31	    Transport(ArcAgi3TransportError),
+    32	    CognitiveStepCounterOverflow,
+    33	    ResetCounterOverflow,
+    34	}
+    35	
+    36	impl From<ArcAgi3CognitiveInteractionError> for ArcAgi3LiveEnvironmentError {
+    37	    fn from(error: ArcAgi3CognitiveInteractionError) -> Self {
+    38	        Self::Cognitive(error)
+    39	    }
+    40	}
+    41	
+    42	impl From<ArcAgi3InteractiveSessionError> for ArcAgi3LiveEnvironmentError {
+    43	    fn from(error: ArcAgi3InteractiveSessionError) -> Self {
+    44	        Self::Session(error)
+    45	    }
+    46	}
+    47	
+    48	#[derive(Clone, Debug, Eq, PartialEq)]
+    49	pub struct ArcAgi3LiveCognitiveStep {
+    50	    cognitive_step: ArcAgi3CognitiveInteractionStep,
+    51	    completion: ArcAgi3CognitiveInteractionCompletion,
+    52	    completed_cognitive_step_count: u64,
+    53	}
+    54	
+    55	impl ArcAgi3LiveCognitiveStep {
+    56	    pub fn cognitive_step(&self) -> &ArcAgi3CognitiveInteractionStep {
+    57	        &self.cognitive_step
+    58	    }
+    59	
+    60	    pub fn completion(&self) -> &ArcAgi3CognitiveInteractionCompletion {
+    61	        &self.completion
+    62	    }
+    63	
+    64	    pub fn completed_cognitive_step_count(&self) -> u64 {
+    65	        self.completed_cognitive_step_count
+    66	    }
+    67	}
+    68	
+    69	pub struct ArcAgi3LiveEnvironmentRuntime<T>
+    70	where
+    71	    T: ArcAgi3EnvironmentTransport,
+    72	{
+    73	    transport: T,
+    74	    cognitive_runtime: ArcAgi3CognitiveInteractionRuntime,
+    75	    completed_cognitive_step_count: u64,
+    76	    completed_reset_count: u64,
+    77	    faulted_pending: bool,
+    78	    fault_disposition: Option<ArcAgi3TransportFailureDisposition>,
+    79	}
+    80	
+    81	impl<T> ArcAgi3LiveEnvironmentRuntime<T>
+    82	where
+    83	    T: ArcAgi3EnvironmentTransport,
+    84	{
+    85	    pub fn start(
+    86	        mut transport: T,
+    87	        game_id: &ArcAgi3GameId,
+    88	        card_id: &str,
+    89	        first_perceptual_observation_index: u64,
+    90	    ) -> Result<Self, ArcAgi3LiveEnvironmentError> {
+    91	        let cognitive_runtime = ArcAgi3EnvironmentTransportBoundary::start_runtime(
+    92	            &mut transport,
+    93	            game_id,
+    94	            card_id,
+    95	            first_perceptual_observation_index,
+    96	        )
+    97	        .map_err(ArcAgi3LiveEnvironmentError::Transport)?;
+    98	
+    99	        Ok(Self {
+   100	            transport,
+   101	            cognitive_runtime,
+   102	            completed_cognitive_step_count: 0,
+   103	            completed_reset_count: 0,
+   104	            faulted_pending: false,
+   105	            fault_disposition: None,
+   106	        })
+   107	    }
+   108	
+   109	    pub fn transport(&self) -> &T {
+   110	        &self.transport
+   111	    }
+   112	
+   113	    pub fn cognitive_runtime(&self) -> &ArcAgi3CognitiveInteractionRuntime {
+   114	        &self.cognitive_runtime
+   115	    }
+   116	
+   117	    pub fn completed_cognitive_step_count(&self) -> u64 {
+   118	        self.completed_cognitive_step_count
+   119	    }
+   120	
+   121	    pub fn completed_reset_count(&self) -> u64 {
+   122	        self.completed_reset_count
+   123	    }
+   124	
+   125	    pub fn fault_disposition(&self) -> Option<ArcAgi3TransportFailureDisposition> {
+   126	        self.fault_disposition
+   127	    }
+   128	
+   129	    pub fn status(&self) -> ArcAgi3LiveEnvironmentStatus {
+   130	        if self.faulted_pending {
+   131	            return ArcAgi3LiveEnvironmentStatus::FaultedPending;
+   132	        }
+   133	
+   134	        match self.cognitive_runtime.observation().state() {
+   135	            ArcAgi3GameState::NotPlayed => ArcAgi3LiveEnvironmentStatus::NotStarted,
+   136	            ArcAgi3GameState::NotFinished => ArcAgi3LiveEnvironmentStatus::Active,
+   137	            ArcAgi3GameState::Win => ArcAgi3LiveEnvironmentStatus::Won,
+   138	            ArcAgi3GameState::GameOver => ArcAgi3LiveEnvironmentStatus::GameOver,
+   139	        }
+   140	    }
+   141	
+   142	    pub fn into_parts(self) -> (T, ArcAgi3CognitiveInteractionRuntime) {
+   143	        (self.transport, self.cognitive_runtime)
+   144	    }
+   145	
+   146	    fn transport_failure_disposition(
+   147	        error: &ArcAgi3TransportError,
+   148	    ) -> Option<ArcAgi3TransportFailureDisposition> {
+   149	        match error {
+   150	            ArcAgi3TransportError::HttpTransport { disposition, .. }
+   151	            | ArcAgi3TransportError::HttpStatus { disposition, .. }
+   152	            | ArcAgi3TransportError::InvalidRemoteResponse { disposition, .. }
+   153	            | ArcAgi3TransportError::SessionIdentityMismatch { disposition, .. }
+   154	            | ArcAgi3TransportError::CognitiveInitializationRejected { disposition, .. }
+   155	            | ArcAgi3TransportError::CognitiveCompletionRejected { disposition, .. } => {
+   156	                Some(*disposition)
+   157	            }
+   158	
+   159	            ArcAgi3TransportError::InvalidBaseUrl
+   160	            | ArcAgi3TransportError::EmptyApiKey
+   161	            | ArcAgi3TransportError::InvalidCardId
+   162	            | ArcAgi3TransportError::InvalidGuid
+   163	            | ArcAgi3TransportError::ActiveSessionExists
+   164	            | ArcAgi3TransportError::NoActiveSession
+   165	            | ArcAgi3TransportError::PendingCommandMismatch => None,
+   166	        }
+   167	    }
+   168	
+   169	    fn ensure_not_faulted(&self) -> Result<(), ArcAgi3LiveEnvironmentError> {
+   170	        if self.faulted_pending {
+   171	            Err(ArcAgi3LiveEnvironmentError::FaultedPending(
+   172	                self.fault_disposition,
+   173	            ))
+   174	        } else {
+   175	            Ok(())
+   176	        }
+   177	    }
+   178	
+   179	    fn ensure_active(&self) -> Result<(), ArcAgi3LiveEnvironmentError> {
+   180	        self.ensure_not_faulted()?;
+   181	
+   182	        if self.status() != ArcAgi3LiveEnvironmentStatus::Active {
+   183	            return Err(ArcAgi3LiveEnvironmentError::GameNotActive);
+   184	        }
+   185	
+   186	        Ok(())
+   187	    }
+   188	
+   189	    fn mark_transport_failure(&mut self, error: &ArcAgi3TransportError) {
+   190	        self.faulted_pending = true;
+   191	        self.fault_disposition = Self::transport_failure_disposition(error);
+   192	    }
+   193	
+   194	    fn complete_cognitive_step(
+   195	        &mut self,
+   196	        cognitive_step: ArcAgi3CognitiveInteractionStep,
+   197	        confidence: CognitiveSignal,
+   198	        next_completed_step_count: u64,
+   199	    ) -> Result<ArcAgi3LiveCognitiveStep, ArcAgi3LiveEnvironmentError> {
+   200	        let completion = ArcAgi3EnvironmentTransportBoundary::complete_pending(
+   201	            &mut self.transport,
+   202	            &mut self.cognitive_runtime,
+   203	            cognitive_step.command(),
+   204	            confidence,
+   205	        );
+   206	
+   207	        let completion = match completion {
+   208	            Ok(completion) => completion,
+   209	
+   210	            Err(error) => {
+   211	                self.mark_transport_failure(&error);
+   212	
+   213	                return Err(ArcAgi3LiveEnvironmentError::Transport(error));
+   214	            }
+   215	        };
+   216	
+   217	        self.completed_cognitive_step_count = next_completed_step_count;
+   218	
+   219	        Ok(ArcAgi3LiveCognitiveStep {
+   220	            cognitive_step,
+   221	            completion,
+   222	            completed_cognitive_step_count: next_completed_step_count,
+   223	        })
+   224	    }
+   225	
+   226	    pub fn execute_with<F>(
+   227	        &mut self,
+   228	        confidence: CognitiveSignal,
+   229	        begin: F,
+   230	    ) -> Result<ArcAgi3LiveCognitiveStep, ArcAgi3LiveEnvironmentError>
+   231	    where
+   232	        F: FnOnce(
+   233	            &mut ArcAgi3CognitiveInteractionRuntime,
+   234	        )
+   235	            -> Result<ArcAgi3CognitiveInteractionStep, ArcAgi3CognitiveInteractionError>,
+   236	    {
+   237	        self.ensure_active()?;
+   238	
+   239	        let next_completed_step_count = self
+   240	            .completed_cognitive_step_count
+   241	            .checked_add(1)
+   242	            .ok_or(ArcAgi3LiveEnvironmentError::CognitiveStepCounterOverflow)?;
+   243	
+   244	        let cognitive_step = begin(&mut self.cognitive_runtime)?;
+   245	
+   246	        self.complete_cognitive_step(cognitive_step, confidence, next_completed_step_count)
+   247	    }
+   248	
+   249	    pub fn execute_step<'a>(
+   250	        &mut self,
+   251	        anchor_state: &CognitiveStructure,
+   252	        input: OnlineCognitiveOrchestrationInput<'a>,
+   253	        cycle_policy: IntegratedAgentPolicy,
+   254	        transition_request: &CognitiveCycleStateTransitionRequest,
+   255	        confidence: CognitiveSignal,
+   256	    ) -> Result<ArcAgi3LiveCognitiveStep, ArcAgi3LiveEnvironmentError> {
+   257	        self.execute_with(confidence, |runtime| {
+   258	            runtime.run_and_begin(anchor_state, input, cycle_policy, transition_request)
+   259	        })
+   260	    }
+   261	
+   262	    pub fn reset(
+   263	        &mut self,
+   264	        confidence: CognitiveSignal,
+   265	    ) -> Result<ArcAgi3CognitiveInteractionCompletion, ArcAgi3LiveEnvironmentError> {
+   266	        self.ensure_not_faulted()?;
+   267	
+   268	        let next_reset_count = self
+   269	            .completed_reset_count
+   270	            .checked_add(1)
+   271	            .ok_or(ArcAgi3LiveEnvironmentError::ResetCounterOverflow)?;
+   272	
+   273	        let command = self.cognitive_runtime.begin_reset()?;
+   274	
+   275	        let completion = ArcAgi3EnvironmentTransportBoundary::complete_pending(
+   276	            &mut self.transport,
+   277	            &mut self.cognitive_runtime,
+   278	            &command,
+   279	            confidence,
+   280	        );
+   281	
+   282	        let completion = match completion {
+   283	            Ok(completion) => completion,
+   284	
+   285	            Err(error) => {
+   286	                self.mark_transport_failure(&error);
+   287	
+   288	                return Err(ArcAgi3LiveEnvironmentError::Transport(error));
+   289	            }
+   290	        };
+   291	
+   292	        self.completed_reset_count = next_reset_count;
+   293	
+   294	        Ok(completion)
+   295	    }
+   296	}
+   297	
+   298	#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+   299	pub struct UniversalArcAgi3LiveEnvironmentRuntime;
+   300	
+   301	impl UniversalArcAgi3LiveEnvironmentRuntime {
+   302	    pub fn start<T>(
+   303	        transport: T,
+   304	        game_id: &ArcAgi3GameId,
+   305	        card_id: &str,
+   306	        first_perceptual_observation_index: u64,
+   307	    ) -> Result<ArcAgi3LiveEnvironmentRuntime<T>, ArcAgi3LiveEnvironmentError>
+   308	    where
+   309	        T: ArcAgi3EnvironmentTransport,
+   310	    {
+   311	        ArcAgi3LiveEnvironmentRuntime::start(
+   312	            transport,
+   313	            game_id,
+   314	            card_id,
+   315	            first_perceptual_observation_index,
+   316	        )
+   317	    }
+   318	
+   319	    pub fn reset<T>(
+   320	        runtime: &mut ArcAgi3LiveEnvironmentRuntime<T>,
+   321	        confidence: CognitiveSignal,
+   322	    ) -> Result<ArcAgi3CognitiveInteractionCompletion, ArcAgi3LiveEnvironmentError>
+   323	    where
+   324	        T: ArcAgi3EnvironmentTransport,
+   325	    {
+   326	        runtime.reset(confidence)
+   327	    }
+   328	}
+
+================================================================================
+=== LIVE ENVIRONMENT RUNTIME — FULL CURRENT TEST CONTRACT ===
+FILE=crates/athlesia_arc_agi_3_adapter/tests/live_environment_runtime.rs
+================================================================================
+     1	use std::cell::{Cell, RefCell};
+     2	use std::collections::VecDeque;
+     3	
+     4	use athlesia_arc_agi_3_adapter::cognitive_protocol_bridge::ArcAgi3CognitiveProtocolBridge;
+     5	use athlesia_arc_agi_3_adapter::environment_transport_boundary::{
+     6	    ArcAgi3EnvironmentTransport, ArcAgi3TransportError, ArcAgi3TransportFailureDisposition,
+     7	};
+     8	use athlesia_arc_agi_3_adapter::live_environment_runtime::*;
+     9	use athlesia_arc_agi_3_adapter::*;
+    10	use athlesia_mindstone_sparse_cognition::CognitiveSignal;
+    11	
+    12	mod m51_fixture {
+    13	    include!("support/m51_online_orchestration_fixture.rs");
+    14	}
+    15	
+    16	fn signal(value: u16) -> CognitiveSignal {
+    17	    CognitiveSignal::new(value).unwrap()
+    18	}
+    19	
+    20	fn grid(value: u8) -> ArcAgi3Grid {
+    21	    ArcAgi3Grid::from_rows(vec![vec![value, value], vec![value, value]]).unwrap()
+    22	}
+    23	
+    24	fn observation(
+    25	    game_id: &str,
+    26	    state: ArcAgi3GameState,
+    27	    values: &[u8],
+    28	    last_action: Option<ArcAgi3Action>,
+    29	) -> ArcAgi3Observation {
+    30	    ArcAgi3Observation::new(
+    31	        ArcAgi3GameId::new(game_id.to_string()).unwrap(),
+    32	        state,
+    33	        ArcAgi3FrameSequence::new(values.iter().copied().map(grid).collect()).unwrap(),
+    34	        0,
+    35	        3,
+    36	        ArcAgi3AvailableActions::new(vec![
+    37	            ArcAgi3ActionId::Action1,
+    38	            ArcAgi3ActionId::Action6,
+    39	            ArcAgi3ActionId::Action7,
+    40	        ])
+    41	        .unwrap(),
+    42	        last_action,
+    43	    )
+    44	}
+    45	
+    46	#[derive(Debug)]
+    47	struct ScriptedTransport {
+    48	    initial: Option<Result<ArcAgi3Observation, ArcAgi3TransportError>>,
+    49	    responses: RefCell<VecDeque<Result<ArcAgi3Observation, ArcAgi3TransportError>>>,
+    50	    start_count: Cell<usize>,
+    51	    execute_count: Cell<usize>,
+    52	}
+    53	
+    54	impl ScriptedTransport {
+    55	    fn new(initial: ArcAgi3Observation) -> Self {
+    56	        Self {
+    57	            initial: Some(Ok(initial)),
+    58	            responses: RefCell::new(VecDeque::new()),
+    59	            start_count: Cell::new(0),
+    60	            execute_count: Cell::new(0),
+    61	        }
+    62	    }
+    63	
+    64	    fn push(&self, response: Result<ArcAgi3Observation, ArcAgi3TransportError>) {
+    65	        self.responses.borrow_mut().push_back(response);
+    66	    }
+    67	
+    68	    fn start_count(&self) -> usize {
+    69	        self.start_count.get()
+    70	    }
+    71	
+    72	    fn execute_count(&self) -> usize {
+    73	        self.execute_count.get()
+    74	    }
+    75	}
+    76	
+    77	impl ArcAgi3EnvironmentTransport for ScriptedTransport {
+    78	    fn start_game(
+    79	        &mut self,
+    80	        _game_id: &ArcAgi3GameId,
+    81	        _card_id: &str,
+    82	    ) -> Result<ArcAgi3Observation, ArcAgi3TransportError> {
+    83	        self.start_count.set(
+    84	            self.start_count
+    85	                .get()
+    86	                .checked_add(1)
+    87	                .expect("scripted start counter remains bounded"),
+    88	        );
+    89	
+    90	        self.initial
+    91	            .take()
+    92	            .unwrap_or(Err(ArcAgi3TransportError::ActiveSessionExists))
+    93	    }
+    94	
+    95	    fn execute(
+    96	        &mut self,
+    97	        _command: &athlesia_arc_agi_3_adapter::interactive_session_runtime::ArcAgi3SessionCommand,
+    98	    ) -> Result<ArcAgi3Observation, ArcAgi3TransportError> {
+    99	        self.execute_count.set(
+   100	            self.execute_count
+   101	                .get()
+   102	                .checked_add(1)
+   103	                .expect("scripted execute counter remains bounded"),
+   104	        );
+   105	
+   106	        self.responses
+   107	            .borrow_mut()
+   108	            .pop_front()
+   109	            .unwrap_or(Err(ArcAgi3TransportError::NoActiveSession))
+   110	    }
+   111	}
+   112	
+   113	fn active_runtime(
+   114	    game_id: &str,
+   115	    first_index: u64,
+   116	) -> ArcAgi3LiveEnvironmentRuntime<ScriptedTransport> {
+   117	    let initial = observation(
+   118	        game_id,
+   119	        ArcAgi3GameState::NotFinished,
+   120	        &[1],
+   121	        Some(ArcAgi3Action::reset()),
+   122	    );
+   123	
+   124	    let transport = ScriptedTransport::new(initial);
+   125	
+   126	    ArcAgi3LiveEnvironmentRuntime::start(
+   127	        transport,
+   128	        &ArcAgi3GameId::new("requested".to_string()).unwrap(),
+   129	        "card-live",
+   130	        first_index,
+   131	    )
+   132	    .unwrap()
+   133	}
+   134	
+   135	fn begin_action1(
+   136	    runtime:
+   137	        &mut athlesia_arc_agi_3_adapter::
+   138	            cognitive_interaction_runtime::
+   139	            ArcAgi3CognitiveInteractionRuntime,
+   140	) -> Result<
+   141	    athlesia_arc_agi_3_adapter::cognitive_interaction_runtime::ArcAgi3CognitiveInteractionStep,
+   142	    athlesia_arc_agi_3_adapter::cognitive_interaction_runtime::ArcAgi3CognitiveInteractionError,
+   143	> {
+   144	    let action = ArcAgi3Action::discrete(ArcAgi3ActionId::Action1).unwrap();
+   145	
+   146	    let cognitive_action = ArcAgi3CognitiveProtocolBridge::encode_action(action);
+   147	
+   148	    m51_fixture::begin_arc(runtime, cognitive_action)
+   149	}
+   150	
+   151	#[test]
+   152	fn live_runtime_starts_from_exact_transport_observation() {
+   153	    let initial = observation(
+   154	        "live-start",
+   155	        ArcAgi3GameState::NotFinished,
+   156	        &[2, 3],
+   157	        Some(ArcAgi3Action::reset()),
+   158	    );
+   159	
+   160	    let transport = ScriptedTransport::new(initial.clone());
+   161	
+   162	    let runtime = ArcAgi3LiveEnvironmentRuntime::start(
+   163	        transport,
+   164	        &ArcAgi3GameId::new("requested".to_string()).unwrap(),
+   165	        "card-start",
+   166	        100,
+   167	    )
+   168	    .unwrap();
+   169	
+   170	    assert_eq!(runtime.status(), ArcAgi3LiveEnvironmentStatus::Active,);
+   171	
+   172	    assert_eq!(runtime.cognitive_runtime().observation(), &initial,);
+   173	
+   174	    assert_eq!(runtime.cognitive_runtime().perception().frame_count(), 2,);
+   175	
+   176	    assert_eq!(
+   177	        runtime
+   178	            .cognitive_runtime()
+   179	            .next_perceptual_observation_index(),
+   180	        102,
+   181	    );
+   182	
+   183	    assert_eq!(runtime.transport().start_count(), 1,);
+   184	
+   185	    assert_eq!(runtime.completed_cognitive_step_count(), 0,);
+   186	
+   187	    assert_eq!(runtime.completed_reset_count(), 0,);
+   188	}
+   189	
+   190	#[test]
+   191	fn real_m51_step_executes_through_transport_and_binds_feedback() {
+   192	    let mut runtime = active_runtime("live-e2e", 200);
+   193	
+   194	    let action = ArcAgi3Action::discrete(ArcAgi3ActionId::Action1).unwrap();
+   195	
+   196	    runtime.transport().push(Ok(observation(
+   197	        "live-e2e",
+   198	        ArcAgi3GameState::NotFinished,
+   199	        &[4, 5],
+   200	        Some(action),
+   201	    )));
+   202	
+   203	    let result = runtime.execute_with(signal(900), begin_action1).unwrap();
+   204	
+   205	    assert_eq!(result.cognitive_step().command().action(), action,);
+   206	
+   207	    assert!(result.completion().has_cognitive_feedback());
+   208	
+   209	    let evidence = result.completion().turn().evidence().unwrap();
+   210	
+   211	    let cognitive_action = ArcAgi3CognitiveProtocolBridge::encode_action(action);
+   212	
+   213	    assert_eq!(
+   214	        evidence.action_observation().descriptor(),
+   215	        &cognitive_action,
+   216	    );
+   217	
+   218	    assert_eq!(
+   219	        evidence.execution_observation().observed_action(),
+   220	        &cognitive_action,
+   221	    );
+   222	
+   223	    assert_eq!(
+   224	        evidence.experiment_observation().action(),
+   225	        &cognitive_action,
+   226	    );
+   227	
+   228	    assert_eq!(runtime.completed_cognitive_step_count(), 1,);
+   229	
+   230	    assert_eq!(runtime.transport().execute_count(), 1,);
+   231	}
+   232	
+   233	#[test]
+   234	fn live_step_preserves_complete_multiframe_environment_response() {
+   235	    let mut runtime = active_runtime("live-frames", 300);
+   236	
+   237	    let action = ArcAgi3Action::discrete(ArcAgi3ActionId::Action1).unwrap();
+   238	
+   239	    runtime.transport().push(Ok(observation(
+   240	        "live-frames",
+   241	        ArcAgi3GameState::NotFinished,
+   242	        &[5, 6, 7],
+   243	        Some(action),
+   244	    )));
+   245	
+   246	    let result = runtime.execute_with(signal(900), begin_action1).unwrap();
+   247	
+   248	    assert_eq!(result.completion().perception().frame_count(), 3,);
+   249	
+   250	    assert_eq!(result.completion().perception().transition_count(), 3,);
+   251	
+   252	    assert_eq!(
+   253	        runtime
+   254	            .cognitive_runtime()
+   255	            .next_perceptual_observation_index(),
+   256	        304,
+   257	    );
+   258	}
+   259	
+   260	#[test]
+   261	fn protocol_reset_is_live_transport_control_without_cognitive_feedback() {
+   262	    let mut runtime = active_runtime("live-reset", 400);
+   263	
+   264	    runtime.transport().push(Ok(observation(
+   265	        "live-reset",
+   266	        ArcAgi3GameState::NotFinished,
+   267	        &[8, 9],
+   268	        Some(ArcAgi3Action::reset()),
+   269	    )));
+   270	
+   271	    let completion = runtime.reset(signal(900)).unwrap();
+   272	
+   273	    assert!(!completion.has_cognitive_feedback());
+   274	
+   275	    assert_eq!(runtime.completed_reset_count(), 1,);
+   276	
+   277	    assert_eq!(runtime.completed_cognitive_step_count(), 0,);
+   278	
+   279	    assert_eq!(
+   280	        runtime
+   281	            .cognitive_runtime()
+   282	            .session()
+   283	            .completed_reset_count(),
+   284	        1,
+   285	    );
+   286	
+   287	    assert_eq!(runtime.transport().execute_count(), 1,);
+   288	}
+   289	
+   290	#[test]
+   291	fn successful_cognitive_steps_increment_only_after_environment_completion() {
+   292	    let mut runtime = active_runtime("live-count", 500);
+   293	
+   294	    let action = ArcAgi3Action::discrete(ArcAgi3ActionId::Action1).unwrap();
+   295	
+   296	    runtime.transport().push(Ok(observation(
+   297	        "live-count",
+   298	        ArcAgi3GameState::NotFinished,
+   299	        &[2],
+   300	        Some(action),
+   301	    )));
+   302	
+   303	    let result = runtime.execute_with(signal(800), begin_action1).unwrap();
+   304	
+   305	    assert_eq!(result.completed_cognitive_step_count(), 1,);
+   306	
+   307	    assert_eq!(runtime.completed_cognitive_step_count(), 1,);
+   308	
+   309	    assert_eq!(runtime.completed_reset_count(), 0,);
+   310	}
+   311	
+   312	#[test]
+   313	fn transport_failure_preserves_pending_cognitive_runtime_and_faults_live_loop() {
+   314	    let mut runtime = active_runtime("live-fault", 600);
+   315	
+   316	    let before_observation = runtime.cognitive_runtime().observation().clone();
+   317	
+   318	    runtime
+   319	        .transport()
+   320	        .push(Err(ArcAgi3TransportError::HttpTransport {
+   321	            message: "connection lost".to_string(),
+   322	            disposition: ArcAgi3TransportFailureDisposition::DispatchIndeterminate,
+   323	        }));
+   324	
+   325	    let result = runtime.execute_with(signal(900), begin_action1);
+   326	
+   327	    assert!(matches!(
+   328	        result,
+   329	        Err(ArcAgi3LiveEnvironmentError::Transport(
+   330	            ArcAgi3TransportError::HttpTransport {
+   331	                disposition: ArcAgi3TransportFailureDisposition::DispatchIndeterminate,
+   332	                ..
+   333	            }
+   334	        )),
+   335	    ));
+   336	
+   337	    assert_eq!(
+   338	        runtime.status(),
+   339	        ArcAgi3LiveEnvironmentStatus::FaultedPending,
+   340	    );
+   341	
+   342	    assert_eq!(
+   343	        runtime.fault_disposition(),
+   344	        Some(ArcAgi3TransportFailureDisposition::DispatchIndeterminate,),
+   345	    );
+   346	
+   347	    assert!(runtime.cognitive_runtime().session().has_pending_command());
+   348	
+   349	    assert_eq!(
+   350	        runtime.cognitive_runtime().observation(),
+   351	        &before_observation,
+   352	    );
+   353	
+   354	    assert_eq!(runtime.completed_cognitive_step_count(), 0,);
+   355	}
+   356	
+   357	#[test]
+   358	fn faulted_runtime_never_automatically_retries_indeterminate_action() {
+   359	    let mut runtime = active_runtime("live-no-retry", 700);
+   360	
+   361	    runtime
+   362	        .transport()
+   363	        .push(Err(ArcAgi3TransportError::HttpTransport {
+   364	            message: "timeout".to_string(),
+   365	            disposition: ArcAgi3TransportFailureDisposition::DispatchIndeterminate,
+   366	        }));
+   367	
+   368	    let first = runtime.execute_with(signal(900), begin_action1);
+   369	
+   370	    assert!(first.is_err());
+   371	
+   372	    assert_eq!(runtime.transport().execute_count(), 1,);
+   373	
+   374	    let mut begin_calls = 0usize;
+   375	
+   376	    let second = runtime.execute_with(signal(900), |cognitive| {
+   377	        begin_calls += 1;
+   378	        begin_action1(cognitive)
+   379	    });
+   380	
+   381	    assert_eq!(
+   382	        second,
+   383	        Err(ArcAgi3LiveEnvironmentError::FaultedPending(Some(
+   384	            ArcAgi3TransportFailureDisposition::DispatchIndeterminate,
+   385	        ),),),
+   386	    );
+   387	
+   388	    assert_eq!(begin_calls, 0,);
+   389	
+   390	    assert_eq!(runtime.transport().execute_count(), 1,);
+   391	}
+   392	
+   393	#[test]
+   394	fn rejected_environment_response_never_causes_hidden_retry() {
+   395	    let mut runtime = active_runtime("live-rejected", 800);
+   396	
+   397	    runtime
+   398	        .transport()
+   399	        .push(Err(ArcAgi3TransportError::HttpStatus {
+   400	            status: 400,
+   401	            body: "rejected".to_string(),
+   402	            disposition: ArcAgi3TransportFailureDisposition::RejectedByEnvironment,
+   403	        }));
+   404	
+   405	    let result = runtime.execute_with(signal(900), begin_action1);
+   406	
+   407	    assert!(result.is_err());
+   408	
+   409	    assert_eq!(
+   410	        runtime.status(),
+   411	        ArcAgi3LiveEnvironmentStatus::FaultedPending,
+   412	    );
+   413	
+   414	    assert_eq!(
+   415	        runtime.fault_disposition(),
+   416	        Some(ArcAgi3TransportFailureDisposition::RejectedByEnvironment,),
+   417	    );
+   418	
+   419	    assert_eq!(runtime.transport().execute_count(), 1,);
+   420	}
+   421	
+   422	#[test]
+   423	fn cognitively_invalid_post_dispatch_response_faults_without_committing_observation() {
+   424	    let mut runtime = active_runtime("live-atomic", 900);
+   425	
+   426	    let before = runtime.cognitive_runtime().clone();
+   427	
+   428	    let action = ArcAgi3Action::discrete(ArcAgi3ActionId::Action1).unwrap();
+   429	
+   430	    runtime.transport().push(Ok(observation(
+   431	        "wrong-game",
+   432	        ArcAgi3GameState::NotFinished,
+   433	        &[9],
+   434	        Some(action),
+   435	    )));
+   436	
+   437	    let result = runtime.execute_with(signal(900), begin_action1);
+   438	
+   439	    assert!(matches!(
+   440	        result,
+   441	        Err(ArcAgi3LiveEnvironmentError::Transport(
+   442	            ArcAgi3TransportError::CognitiveCompletionRejected {
+   443	                disposition: ArcAgi3TransportFailureDisposition::DispatchIndeterminate,
+   444	                ..
+   445	            }
+   446	        )),
+   447	    ));
+   448	
+   449	    assert_eq!(
+   450	        runtime.status(),
+   451	        ArcAgi3LiveEnvironmentStatus::FaultedPending,
+   452	    );
+   453	
+   454	    assert_eq!(
+   455	        runtime.cognitive_runtime().observation(),
+   456	        before.observation(),
+   457	    );
+   458	
+   459	    assert_eq!(runtime.completed_cognitive_step_count(), 0,);
+   460	}
+   461	
+   462	#[test]
+   463	fn terminal_win_blocks_next_cognitive_begin_before_transport_execution() {
+   464	    let initial = observation(
+   465	        "live-win",
+   466	        ArcAgi3GameState::Win,
+   467	        &[3],
+   468	        Some(ArcAgi3Action::discrete(ArcAgi3ActionId::Action1).unwrap()),
+   469	    );
+   470	
+   471	    let transport = ScriptedTransport::new(initial);
+   472	
+   473	    let mut runtime = ArcAgi3LiveEnvironmentRuntime::start(
+   474	        transport,
+   475	        &ArcAgi3GameId::new("requested".to_string()).unwrap(),
+   476	        "card-win",
+   477	        1000,
+   478	    )
+   479	    .unwrap();
+   480	
+   481	    assert_eq!(runtime.status(), ArcAgi3LiveEnvironmentStatus::Won,);
+   482	
+   483	    let mut begin_calls = 0usize;
+   484	
+   485	    let result = runtime.execute_with(signal(900), |cognitive| {
+   486	        begin_calls += 1;
+   487	        begin_action1(cognitive)
+   488	    });
+   489	
+   490	    assert_eq!(result, Err(ArcAgi3LiveEnvironmentError::GameNotActive,),);
+   491	
+   492	    assert_eq!(begin_calls, 0,);
+   493	
+   494	    assert_eq!(runtime.transport().execute_count(), 0,);
+   495	}
+   496	
+   497	#[test]
+   498	fn terminal_game_over_blocks_next_cognitive_begin_before_transport_execution() {
+   499	    let initial = observation("live-over", ArcAgi3GameState::GameOver, &[3], None);
+   500	
+   501	    let transport = ScriptedTransport::new(initial);
+   502	
+   503	    let mut runtime = ArcAgi3LiveEnvironmentRuntime::start(
+   504	        transport,
+   505	        &ArcAgi3GameId::new("requested".to_string()).unwrap(),
+   506	        "card-over",
+   507	        1100,
+   508	    )
+   509	    .unwrap();
+   510	
+   511	    assert_eq!(runtime.status(), ArcAgi3LiveEnvironmentStatus::GameOver,);
+   512	
+   513	    let mut begin_calls = 0usize;
+   514	
+   515	    let result = runtime.execute_with(signal(900), |cognitive| {
+   516	        begin_calls += 1;
+   517	        begin_action1(cognitive)
+   518	    });
+   519	
+   520	    assert_eq!(result, Err(ArcAgi3LiveEnvironmentError::GameNotActive,),);
+   521	
+   522	    assert_eq!(begin_calls, 0,);
+   523	
+   524	    assert_eq!(runtime.transport().execute_count(), 0,);
+   525	}
+   526	
+   527	#[test]
+   528	fn reset_remains_available_after_terminal_state() {
+   529	    let initial = observation(
+   530	        "live-terminal-reset",
+   531	        ArcAgi3GameState::GameOver,
+   532	        &[2],
+   533	        None,
+   534	    );
+   535	
+   536	    let transport = ScriptedTransport::new(initial);
+   537	
+   538	    let mut runtime = ArcAgi3LiveEnvironmentRuntime::start(
+   539	        transport,
+   540	        &ArcAgi3GameId::new("requested".to_string()).unwrap(),
+   541	        "card-terminal-reset",
+   542	        1200,
+   543	    )
+   544	    .unwrap();
+   545	
+   546	    runtime.transport().push(Ok(observation(
+   547	        "live-terminal-reset",
+   548	        ArcAgi3GameState::NotFinished,
+   549	        &[4],
+   550	        Some(ArcAgi3Action::reset()),
+   551	    )));
+   552	
+   553	    let completion = runtime.reset(signal(900)).unwrap();
+   554	
+   555	    assert!(!completion.has_cognitive_feedback());
+   556	
+   557	    assert_eq!(runtime.status(), ArcAgi3LiveEnvironmentStatus::Active,);
+   558	
+   559	    assert_eq!(runtime.completed_reset_count(), 1,);
+   560	}
+   561	
+   562	#[test]
+   563	fn faulted_runtime_blocks_protocol_reset_without_second_transport_call() {
+   564	    let mut runtime = active_runtime("live-fault-reset", 1300);
+   565	
+   566	    runtime
+   567	        .transport()
+   568	        .push(Err(ArcAgi3TransportError::HttpTransport {
+   569	            message: "ambiguous failure".to_string(),
+   570	            disposition: ArcAgi3TransportFailureDisposition::DispatchIndeterminate,
+   571	        }));
+   572	
+   573	    assert!(runtime.execute_with(signal(900), begin_action1,).is_err());
+   574	
+   575	    assert_eq!(runtime.transport().execute_count(), 1,);
+   576	
+   577	    let reset = runtime.reset(signal(900));
+   578	
+   579	    assert_eq!(
+   580	        reset,
+   581	        Err(ArcAgi3LiveEnvironmentError::FaultedPending(Some(
+   582	            ArcAgi3TransportFailureDisposition::DispatchIndeterminate,
+   583	        ),),),
+   584	    );
+   585	
+   586	    assert_eq!(runtime.transport().execute_count(), 1,);
+   587	}
+   588	
+   589	#[test]
+   590	fn universal_facade_matches_direct_live_runtime_start() {
+   591	    let initial = observation("live-universal", ArcAgi3GameState::NotFinished, &[5], None);
+   592	
+   593	    let direct_transport = ScriptedTransport::new(initial.clone());
+   594	
+   595	    let facade_transport = ScriptedTransport::new(initial);
+   596	
+   597	    let requested = ArcAgi3GameId::new("requested".to_string()).unwrap();
+   598	
+   599	    let direct =
+   600	        ArcAgi3LiveEnvironmentRuntime::start(direct_transport, &requested, "card-universal", 1400)
+   601	            .unwrap();
+   602	
+   603	    let facade = UniversalArcAgi3LiveEnvironmentRuntime::start(
+   604	        facade_transport,
+   605	        &requested,
+   606	        "card-universal",
+   607	        1400,
+   608	    )
+   609	    .unwrap();
+   610	
+   611	    assert_eq!(direct.status(), facade.status(),);
+   612	
+   613	    assert_eq!(
+   614	        direct.cognitive_runtime().observation(),
+   615	        facade.cognitive_runtime().observation(),
+   616	    );
+   617	
+   618	    assert_eq!(
+   619	        direct
+   620	            .cognitive_runtime()
+   621	            .next_perceptual_observation_index(),
+   622	        facade
+   623	            .cognitive_runtime()
+   624	            .next_perceptual_observation_index(),
+   625	    );
+   626	}
+   627	
+   628	#[test]
+   629	fn live_runtime_does_not_rewrite_exact_m51_action_identity() {
+   630	    let mut runtime = active_runtime("live-identity", 1500);
+   631	
+   632	    let arc_action = ArcAgi3Action::discrete(ArcAgi3ActionId::Action1).unwrap();
+   633	
+   634	    let cognitive_action = ArcAgi3CognitiveProtocolBridge::encode_action(arc_action);
+   635	
+   636	    runtime.transport().push(Ok(observation(
+   637	        "live-identity",
+   638	        ArcAgi3GameState::NotFinished,
+   639	        &[6],
+   640	        Some(arc_action),
+   641	    )));
+   642	
+   643	    let result = runtime
+   644	        .execute_with(signal(900), |cognitive| {
+   645	            m51_fixture::begin_arc(cognitive, cognitive_action.clone())
+   646	        })
+   647	        .unwrap();
+   648	
+   649	    assert_eq!(
+   650	        result.cognitive_step().dispatch().action(),
+   651	        &cognitive_action,
+   652	    );
+   653	
+   654	    assert_eq!(result.cognitive_step().command().action(), arc_action,);
+   655	
+   656	    assert_eq!(result.completion().turn().action(), arc_action,);
+   657	}
+   658	
+   659	#[test]
+   660	fn live_runtime_into_parts_preserves_transport_and_cognitive_state_exactly() {
+   661	    let runtime = active_runtime("live-parts", 1600);
+   662	
+   663	    let expected_observation = runtime.cognitive_runtime().observation().clone();
+   664	
+   665	    let expected_index = runtime
+   666	        .cognitive_runtime()
+   667	        .next_perceptual_observation_index();
+   668	
+   669	    let (transport, cognitive) = runtime.into_parts();
+   670	
+   671	    assert_eq!(transport.start_count(), 1,);
+   672	
+   673	    assert_eq!(transport.execute_count(), 0,);
+   674	
+   675	    assert_eq!(cognitive.observation(), &expected_observation,);
+   676	
+   677	    assert_eq!(
+   678	        cognitive.next_perceptual_observation_index(),
+   679	        expected_index,
+   680	    );
+   681	}
+
+================================================================================
+=== BOUNDED EPISODE RUNTIME — FULL CURRENT PRODUCTION SOURCE ===
+FILE=crates/athlesia_arc_agi_3_adapter/src/bounded_episode_runtime.rs
+================================================================================
+     1	use crate::environment_transport_boundary::{
+     2	    ArcAgi3EnvironmentTransport, ArcAgi3TransportFailureDisposition,
+     3	};
+     4	use crate::live_environment_runtime::{
+     5	    ArcAgi3LiveCognitiveStep, ArcAgi3LiveEnvironmentError, ArcAgi3LiveEnvironmentRuntime,
+     6	    ArcAgi3LiveEnvironmentStatus,
+     7	};
+     8	
+     9	#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+    10	pub struct ArcAgi3BoundedEpisodePolicy {
+    11	    max_cognitive_steps: usize,
+    12	}
+    13	
+    14	impl ArcAgi3BoundedEpisodePolicy {
+    15	    pub fn new(max_cognitive_steps: usize) -> Option<Self> {
+    16	        if max_cognitive_steps == 0 {
+    17	            return None;
+    18	        }
+    19	
+    20	        Some(Self {
+    21	            max_cognitive_steps,
+    22	        })
+    23	    }
+    24	
+    25	    pub fn max_cognitive_steps(self) -> usize {
+    26	        self.max_cognitive_steps
+    27	    }
+    28	}
+    29	
+    30	#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+    31	pub enum ArcAgi3BoundedEpisodeTermination {
+    32	    Won,
+    33	    GameOver,
+    34	    StepBudgetExhausted,
+    35	}
+    36	
+    37	impl ArcAgi3BoundedEpisodeTermination {
+    38	    pub fn is_terminal_environment_state(self) -> bool {
+    39	        matches!(self, Self::Won | Self::GameOver)
+    40	    }
+    41	}
+    42	
+    43	#[derive(Clone, Debug, Eq, PartialEq)]
+    44	pub struct ArcAgi3BoundedEpisodeResult {
+    45	    termination: ArcAgi3BoundedEpisodeTermination,
+    46	    steps: Vec<ArcAgi3LiveCognitiveStep>,
+    47	    starting_completed_cognitive_step_count: u64,
+    48	    ending_completed_cognitive_step_count: u64,
+    49	    final_status: ArcAgi3LiveEnvironmentStatus,
+    50	}
+    51	
+    52	impl ArcAgi3BoundedEpisodeResult {
+    53	    pub fn termination(&self) -> ArcAgi3BoundedEpisodeTermination {
+    54	        self.termination
+    55	    }
+    56	
+    57	    pub fn steps(&self) -> &[ArcAgi3LiveCognitiveStep] {
+    58	        &self.steps
+    59	    }
+    60	
+    61	    pub fn completed_steps_in_episode(&self) -> usize {
+    62	        self.steps.len()
+    63	    }
+    64	
+    65	    pub fn starting_completed_cognitive_step_count(&self) -> u64 {
+    66	        self.starting_completed_cognitive_step_count
+    67	    }
+    68	
+    69	    pub fn ending_completed_cognitive_step_count(&self) -> u64 {
+    70	        self.ending_completed_cognitive_step_count
+    71	    }
+    72	
+    73	    pub fn final_status(&self) -> ArcAgi3LiveEnvironmentStatus {
+    74	        self.final_status
+    75	    }
+    76	}
+    77	
+    78	#[derive(Debug, Eq, PartialEq)]
+    79	pub enum ArcAgi3BoundedEpisodeError {
+    80	    RuntimeNotRunnable(ArcAgi3LiveEnvironmentStatus),
+    81	    RuntimeFaultedPending(Option<ArcAgi3TransportFailureDisposition>),
+    82	    StepFailed {
+    83	        completed_steps_in_episode: usize,
+    84	        error: ArcAgi3LiveEnvironmentError,
+    85	    },
+    86	    StepHistoryLengthOverflow,
+    87	    ExpectedStepCounterOverflow,
+    88	    StepCounterMismatch {
+    89	        expected: u64,
+    90	        actual: u64,
+    91	    },
+    92	    UnexpectedPostStepStatus(ArcAgi3LiveEnvironmentStatus),
+    93	}
+    94	
+    95	#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+    96	pub struct ArcAgi3BoundedEpisodeRuntime;
+    97	
+    98	impl ArcAgi3BoundedEpisodeRuntime {
+    99	    fn terminal_result(
+   100	        runtime_status: ArcAgi3LiveEnvironmentStatus,
+   101	        starting_completed_cognitive_step_count: u64,
+   102	        steps: Vec<ArcAgi3LiveCognitiveStep>,
+   103	        ending_completed_cognitive_step_count: u64,
+   104	    ) -> Option<ArcAgi3BoundedEpisodeResult> {
+   105	        let termination = match runtime_status {
+   106	            ArcAgi3LiveEnvironmentStatus::Won => ArcAgi3BoundedEpisodeTermination::Won,
+   107	            ArcAgi3LiveEnvironmentStatus::GameOver => ArcAgi3BoundedEpisodeTermination::GameOver,
+   108	            ArcAgi3LiveEnvironmentStatus::NotStarted
+   109	            | ArcAgi3LiveEnvironmentStatus::Active
+   110	            | ArcAgi3LiveEnvironmentStatus::FaultedPending => {
+   111	                return None;
+   112	            }
+   113	        };
+   114	
+   115	        Some(ArcAgi3BoundedEpisodeResult {
+   116	            termination,
+   117	            steps,
+   118	            starting_completed_cognitive_step_count,
+   119	            ending_completed_cognitive_step_count,
+   120	            final_status: runtime_status,
+   121	        })
+   122	    }
+   123	
+   124	    fn verify_episode_step_counter<T>(
+   125	        runtime: &ArcAgi3LiveEnvironmentRuntime<T>,
+   126	        starting_completed_cognitive_step_count: u64,
+   127	        completed_steps_in_episode: usize,
+   128	    ) -> Result<(), ArcAgi3BoundedEpisodeError>
+   129	    where
+   130	        T: ArcAgi3EnvironmentTransport,
+   131	    {
+   132	        let completed_steps_in_episode = u64::try_from(completed_steps_in_episode)
+   133	            .map_err(|_| ArcAgi3BoundedEpisodeError::StepHistoryLengthOverflow)?;
+   134	
+   135	        let expected = starting_completed_cognitive_step_count
+   136	            .checked_add(completed_steps_in_episode)
+   137	            .ok_or(ArcAgi3BoundedEpisodeError::ExpectedStepCounterOverflow)?;
+   138	
+   139	        let actual = runtime.completed_cognitive_step_count();
+   140	
+   141	        if actual != expected {
+   142	            return Err(ArcAgi3BoundedEpisodeError::StepCounterMismatch { expected, actual });
+   143	        }
+   144	
+   145	        Ok(())
+   146	    }
+   147	
+   148	    pub fn run_with<T, F>(
+   149	        runtime: &mut ArcAgi3LiveEnvironmentRuntime<T>,
+   150	        policy: ArcAgi3BoundedEpisodePolicy,
+   151	        mut execute_step: F,
+   152	    ) -> Result<ArcAgi3BoundedEpisodeResult, ArcAgi3BoundedEpisodeError>
+   153	    where
+   154	        T: ArcAgi3EnvironmentTransport,
+   155	        F: FnMut(
+   156	            &mut ArcAgi3LiveEnvironmentRuntime<T>,
+   157	        ) -> Result<ArcAgi3LiveCognitiveStep, ArcAgi3LiveEnvironmentError>,
+   158	    {
+   159	        let starting_completed_cognitive_step_count = runtime.completed_cognitive_step_count();
+   160	
+   161	        match runtime.status() {
+   162	            ArcAgi3LiveEnvironmentStatus::Won | ArcAgi3LiveEnvironmentStatus::GameOver => {
+   163	                return Ok(Self::terminal_result(
+   164	                    runtime.status(),
+   165	                    starting_completed_cognitive_step_count,
+   166	                    Vec::new(),
+   167	                    runtime.completed_cognitive_step_count(),
+   168	                )
+   169	                .expect("terminal status has terminal result"));
+   170	            }
+   171	
+   172	            ArcAgi3LiveEnvironmentStatus::NotStarted => {
+   173	                return Err(ArcAgi3BoundedEpisodeError::RuntimeNotRunnable(
+   174	                    ArcAgi3LiveEnvironmentStatus::NotStarted,
+   175	                ));
+   176	            }
+   177	
+   178	            ArcAgi3LiveEnvironmentStatus::FaultedPending => {
+   179	                return Err(ArcAgi3BoundedEpisodeError::RuntimeFaultedPending(
+   180	                    runtime.fault_disposition(),
+   181	                ));
+   182	            }
+   183	
+   184	            ArcAgi3LiveEnvironmentStatus::Active => {}
+   185	        }
+   186	
+   187	        let mut steps = Vec::with_capacity(policy.max_cognitive_steps());
+   188	
+   189	        while steps.len() < policy.max_cognitive_steps() {
+   190	            let status_before_step = runtime.status();
+   191	
+   192	            match status_before_step {
+   193	                ArcAgi3LiveEnvironmentStatus::Won | ArcAgi3LiveEnvironmentStatus::GameOver => {
+   194	                    return Ok(Self::terminal_result(
+   195	                        status_before_step,
+   196	                        starting_completed_cognitive_step_count,
+   197	                        steps,
+   198	                        runtime.completed_cognitive_step_count(),
+   199	                    )
+   200	                    .expect("terminal status has terminal result"));
+   201	                }
+   202	
+   203	                ArcAgi3LiveEnvironmentStatus::FaultedPending => {
+   204	                    return Err(ArcAgi3BoundedEpisodeError::RuntimeFaultedPending(
+   205	                        runtime.fault_disposition(),
+   206	                    ));
+   207	                }
+   208	
+   209	                ArcAgi3LiveEnvironmentStatus::NotStarted => {
+   210	                    return Err(ArcAgi3BoundedEpisodeError::RuntimeNotRunnable(
+   211	                        ArcAgi3LiveEnvironmentStatus::NotStarted,
+   212	                    ));
+   213	                }
+   214	
+   215	                ArcAgi3LiveEnvironmentStatus::Active => {}
+   216	            }
+   217	
+   218	            let completed_before_failure = steps.len();
+   219	
+   220	            let step =
+   221	                execute_step(runtime).map_err(|error| ArcAgi3BoundedEpisodeError::StepFailed {
+   222	                    completed_steps_in_episode: completed_before_failure,
+   223	                    error,
+   224	                })?;
+   225	
+   226	            steps.push(step);
+   227	
+   228	            Self::verify_episode_step_counter(
+   229	                runtime,
+   230	                starting_completed_cognitive_step_count,
+   231	                steps.len(),
+   232	            )?;
+   233	
+   234	            match runtime.status() {
+   235	                ArcAgi3LiveEnvironmentStatus::Won | ArcAgi3LiveEnvironmentStatus::GameOver => {
+   236	                    return Ok(Self::terminal_result(
+   237	                        runtime.status(),
+   238	                        starting_completed_cognitive_step_count,
+   239	                        steps,
+   240	                        runtime.completed_cognitive_step_count(),
+   241	                    )
+   242	                    .expect("terminal status has terminal result"));
+   243	                }
+   244	
+   245	                ArcAgi3LiveEnvironmentStatus::Active => {}
+   246	
+   247	                ArcAgi3LiveEnvironmentStatus::NotStarted
+   248	                | ArcAgi3LiveEnvironmentStatus::FaultedPending => {
+   249	                    return Err(ArcAgi3BoundedEpisodeError::UnexpectedPostStepStatus(
+   250	                        runtime.status(),
+   251	                    ));
+   252	                }
+   253	            }
+   254	        }
+   255	
+   256	        Ok(ArcAgi3BoundedEpisodeResult {
+   257	            termination: ArcAgi3BoundedEpisodeTermination::StepBudgetExhausted,
+   258	            steps,
+   259	            starting_completed_cognitive_step_count,
+   260	            ending_completed_cognitive_step_count: runtime.completed_cognitive_step_count(),
+   261	            final_status: runtime.status(),
+   262	        })
+   263	    }
+   264	}
+   265	
+   266	#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+   267	pub struct UniversalArcAgi3BoundedEpisodeRuntime;
+   268	
+   269	impl UniversalArcAgi3BoundedEpisodeRuntime {
+   270	    pub fn run_with<T, F>(
+   271	        runtime: &mut ArcAgi3LiveEnvironmentRuntime<T>,
+   272	        policy: ArcAgi3BoundedEpisodePolicy,
+   273	        execute_step: F,
+   274	    ) -> Result<ArcAgi3BoundedEpisodeResult, ArcAgi3BoundedEpisodeError>
+   275	    where
+   276	        T: ArcAgi3EnvironmentTransport,
+   277	        F: FnMut(
+   278	            &mut ArcAgi3LiveEnvironmentRuntime<T>,
+   279	        ) -> Result<ArcAgi3LiveCognitiveStep, ArcAgi3LiveEnvironmentError>,
+   280	    {
+   281	        ArcAgi3BoundedEpisodeRuntime::run_with(runtime, policy, execute_step)
+   282	    }
+   283	}
+
+================================================================================
+=== BOUNDED EPISODE RUNTIME — FULL CURRENT TEST CONTRACT ===
+FILE=crates/athlesia_arc_agi_3_adapter/tests/bounded_episode_runtime.rs
+================================================================================
+     1	use std::cell::Cell;
+     2	use std::collections::VecDeque;
+     3	
+     4	use athlesia_arc_agi_3_adapter::bounded_episode_runtime::*;
+     5	use athlesia_arc_agi_3_adapter::cognitive_protocol_bridge::ArcAgi3CognitiveProtocolBridge;
+     6	use athlesia_arc_agi_3_adapter::environment_transport_boundary::{
+     7	    ArcAgi3EnvironmentTransport, ArcAgi3TransportError, ArcAgi3TransportFailureDisposition,
+     8	};
+     9	use athlesia_arc_agi_3_adapter::live_environment_runtime::{
+    10	    ArcAgi3LiveCognitiveStep, ArcAgi3LiveEnvironmentError, ArcAgi3LiveEnvironmentRuntime,
+    11	    ArcAgi3LiveEnvironmentStatus,
+    12	};
+    13	use athlesia_arc_agi_3_adapter::*;
+    14	use athlesia_mindstone_sparse_cognition::CognitiveSignal;
+    15	
+    16	mod m51_fixture {
+    17	    include!("support/m51_online_orchestration_fixture.rs");
+    18	}
+    19	
+    20	fn signal(value: u16) -> CognitiveSignal {
+    21	    CognitiveSignal::new(value).unwrap()
+    22	}
+    23	
+    24	fn grid(value: u8) -> ArcAgi3Grid {
+    25	    ArcAgi3Grid::from_rows(vec![vec![value, value], vec![value, value]]).unwrap()
+    26	}
+    27	
+    28	fn observation(
+    29	    game_id: &str,
+    30	    state: ArcAgi3GameState,
+    31	    value: u8,
+    32	    last_action: Option<ArcAgi3Action>,
+    33	) -> ArcAgi3Observation {
+    34	    ArcAgi3Observation::new(
+    35	        ArcAgi3GameId::new(game_id.to_string()).unwrap(),
+    36	        state,
+    37	        ArcAgi3FrameSequence::new(vec![grid(value)]).unwrap(),
+    38	        0,
+    39	        3,
+    40	        ArcAgi3AvailableActions::new(vec![
+    41	            ArcAgi3ActionId::Action1,
+    42	            ArcAgi3ActionId::Action6,
+    43	            ArcAgi3ActionId::Action7,
+    44	        ])
+    45	        .unwrap(),
+    46	        last_action,
+    47	    )
+    48	}
+    49	
+    50	#[derive(Debug)]
+    51	struct ScriptedTransport {
+    52	    initial: Option<Result<ArcAgi3Observation, ArcAgi3TransportError>>,
+    53	    responses: VecDeque<Result<ArcAgi3Observation, ArcAgi3TransportError>>,
+    54	    start_count: Cell<usize>,
+    55	    execute_count: Cell<usize>,
+    56	}
+    57	
+    58	impl ScriptedTransport {
+    59	    fn new(
+    60	        initial: ArcAgi3Observation,
+    61	        responses: Vec<Result<ArcAgi3Observation, ArcAgi3TransportError>>,
+    62	    ) -> Self {
+    63	        Self {
+    64	            initial: Some(Ok(initial)),
+    65	            responses: responses.into_iter().collect(),
+    66	            start_count: Cell::new(0),
+    67	            execute_count: Cell::new(0),
+    68	        }
+    69	    }
+    70	
+    71	    fn execute_count(&self) -> usize {
+    72	        self.execute_count.get()
+    73	    }
+    74	}
+    75	
+    76	impl ArcAgi3EnvironmentTransport for ScriptedTransport {
+    77	    fn start_game(
+    78	        &mut self,
+    79	        _game_id: &ArcAgi3GameId,
+    80	        _card_id: &str,
+    81	    ) -> Result<ArcAgi3Observation, ArcAgi3TransportError> {
+    82	        self.start_count.set(
+    83	            self.start_count
+    84	                .get()
+    85	                .checked_add(1)
+    86	                .expect("scripted start counter remains bounded"),
+    87	        );
+    88	
+    89	        self.initial
+    90	            .take()
+    91	            .unwrap_or(Err(ArcAgi3TransportError::ActiveSessionExists))
+    92	    }
+    93	
+    94	    fn execute(
+    95	        &mut self,
+    96	        _command: &athlesia_arc_agi_3_adapter::interactive_session_runtime::ArcAgi3SessionCommand,
+    97	    ) -> Result<ArcAgi3Observation, ArcAgi3TransportError> {
+    98	        self.execute_count.set(
+    99	            self.execute_count
+   100	                .get()
+   101	                .checked_add(1)
+   102	                .expect("scripted execute counter remains bounded"),
+   103	        );
+   104	
+   105	        self.responses
+   106	            .pop_front()
+   107	            .unwrap_or(Err(ArcAgi3TransportError::NoActiveSession))
+   108	    }
+   109	}
+   110	
+   111	fn action1() -> ArcAgi3Action {
+   112	    ArcAgi3Action::discrete(ArcAgi3ActionId::Action1).unwrap()
+   113	}
+   114	
+   115	fn runtime(
+   116	    game_id: &str,
+   117	    initial_state: ArcAgi3GameState,
+   118	    responses: Vec<Result<ArcAgi3Observation, ArcAgi3TransportError>>,
+   119	) -> ArcAgi3LiveEnvironmentRuntime<ScriptedTransport> {
+   120	    let initial = observation(game_id, initial_state, 1, None);
+   121	
+   122	    ArcAgi3LiveEnvironmentRuntime::start(
+   123	        ScriptedTransport::new(initial, responses),
+   124	        &ArcAgi3GameId::new("requested".to_string()).unwrap(),
+   125	        "episode-card",
+   126	        100,
+   127	    )
+   128	    .unwrap()
+   129	}
+   130	
+   131	fn execute_action1(
+   132	    live: &mut ArcAgi3LiveEnvironmentRuntime<ScriptedTransport>,
+   133	) -> Result<ArcAgi3LiveCognitiveStep, ArcAgi3LiveEnvironmentError> {
+   134	    let cognitive_action = ArcAgi3CognitiveProtocolBridge::encode_action(action1());
+   135	
+   136	    live.execute_with(signal(900), |cognitive| {
+   137	        m51_fixture::begin_arc(cognitive, cognitive_action)
+   138	    })
+   139	}
+   140	
+   141	#[test]
+   142	fn bounded_episode_policy_rejects_zero_and_preserves_exact_limit() {
+   143	    assert_eq!(ArcAgi3BoundedEpisodePolicy::new(0), None,);
+   144	
+   145	    let policy = ArcAgi3BoundedEpisodePolicy::new(17).unwrap();
+   146	
+   147	    assert_eq!(policy.max_cognitive_steps(), 17,);
+   148	}
+   149	
+   150	#[test]
+   151	fn episode_terminates_immediately_on_existing_win_without_executing_action() {
+   152	    let mut live = runtime("episode-initial-win", ArcAgi3GameState::Win, Vec::new());
+   153	
+   154	    let mut calls = 0usize;
+   155	
+   156	    let result = ArcAgi3BoundedEpisodeRuntime::run_with(
+   157	        &mut live,
+   158	        ArcAgi3BoundedEpisodePolicy::new(5).unwrap(),
+   159	        |_runtime| {
+   160	            calls += 1;
+   161	            unreachable!()
+   162	        },
+   163	    )
+   164	    .unwrap();
+   165	
+   166	    assert_eq!(result.termination(), ArcAgi3BoundedEpisodeTermination::Won,);
+   167	
+   168	    assert_eq!(result.completed_steps_in_episode(), 0,);
+   169	
+   170	    assert_eq!(calls, 0);
+   171	
+   172	    assert_eq!(live.transport().execute_count(), 0,);
+   173	}
+   174	
+   175	#[test]
+   176	fn episode_terminates_immediately_on_existing_game_over_without_auto_reset() {
+   177	    let mut live = runtime(
+   178	        "episode-initial-over",
+   179	        ArcAgi3GameState::GameOver,
+   180	        Vec::new(),
+   181	    );
+   182	
+   183	    let result = ArcAgi3BoundedEpisodeRuntime::run_with(
+   184	        &mut live,
+   185	        ArcAgi3BoundedEpisodePolicy::new(3).unwrap(),
+   186	        |_runtime| unreachable!(),
+   187	    )
+   188	    .unwrap();
+   189	
+   190	    assert_eq!(
+   191	        result.termination(),
+   192	        ArcAgi3BoundedEpisodeTermination::GameOver,
+   193	    );
+   194	
+   195	    assert_eq!(result.completed_steps_in_episode(), 0,);
+   196	
+   197	    assert_eq!(live.completed_reset_count(), 0,);
+   198	
+   199	    assert_eq!(live.transport().execute_count(), 0,);
+   200	}
+   201	
+   202	#[test]
+   203	fn not_started_runtime_is_rejected_before_step_execution() {
+   204	    let mut live = runtime(
+   205	        "episode-not-started",
+   206	        ArcAgi3GameState::NotPlayed,
+   207	        Vec::new(),
+   208	    );
+   209	
+   210	    let mut calls = 0usize;
+   211	
+   212	    let result = ArcAgi3BoundedEpisodeRuntime::run_with(
+   213	        &mut live,
+   214	        ArcAgi3BoundedEpisodePolicy::new(2).unwrap(),
+   215	        |_runtime| {
+   216	            calls += 1;
+   217	            unreachable!()
+   218	        },
+   219	    );
+   220	
+   221	    assert_eq!(
+   222	        result,
+   223	        Err(ArcAgi3BoundedEpisodeError::RuntimeNotRunnable(
+   224	            ArcAgi3LiveEnvironmentStatus::NotStarted,
+   225	        ),),
+   226	    );
+   227	
+   228	    assert_eq!(calls, 0);
+   229	}
+   230	
+   231	#[test]
+   232	fn real_m51_episode_runs_until_environment_win_and_preserves_step_history() {
+   233	    let action = action1();
+   234	
+   235	    let mut live = runtime(
+   236	        "episode-win",
+   237	        ArcAgi3GameState::NotFinished,
+   238	        vec![
+   239	            Ok(observation(
+   240	                "episode-win",
+   241	                ArcAgi3GameState::NotFinished,
+   242	                2,
+   243	                Some(action),
+   244	            )),
+   245	            Ok(observation(
+   246	                "episode-win",
+   247	                ArcAgi3GameState::Win,
+   248	                3,
+   249	                Some(action),
+   250	            )),
+   251	        ],
+   252	    );
+   253	
+   254	    let result = ArcAgi3BoundedEpisodeRuntime::run_with(
+   255	        &mut live,
+   256	        ArcAgi3BoundedEpisodePolicy::new(5).unwrap(),
+   257	        execute_action1,
+   258	    )
+   259	    .unwrap();
+   260	
+   261	    assert_eq!(result.termination(), ArcAgi3BoundedEpisodeTermination::Won,);
+   262	
+   263	    assert_eq!(result.final_status(), ArcAgi3LiveEnvironmentStatus::Won,);
+   264	
+   265	    assert_eq!(result.completed_steps_in_episode(), 2,);
+   266	
+   267	    assert_eq!(result.starting_completed_cognitive_step_count(), 0,);
+   268	
+   269	    assert_eq!(result.ending_completed_cognitive_step_count(), 2,);
+   270	
+   271	    assert_eq!(live.transport().execute_count(), 2,);
+   272	
+   273	    assert_eq!(
+   274	        result.steps()[0].cognitive_step().command().action(),
+   275	        action,
+   276	    );
+   277	
+   278	    assert_eq!(
+   279	        result.steps()[1].completion().turn().observation().state(),
+   280	        ArcAgi3GameState::Win,
+   281	    );
+   282	}
+   283	
+   284	#[test]
+   285	fn episode_stops_on_game_over_without_hidden_reset() {
+   286	    let action = action1();
+   287	
+   288	    let mut live = runtime(
+   289	        "episode-over",
+   290	        ArcAgi3GameState::NotFinished,
+   291	        vec![Ok(observation(
+   292	            "episode-over",
+   293	            ArcAgi3GameState::GameOver,
+   294	            2,
+   295	            Some(action),
+   296	        ))],
+   297	    );
+   298	
+   299	    let result = ArcAgi3BoundedEpisodeRuntime::run_with(
+   300	        &mut live,
+   301	        ArcAgi3BoundedEpisodePolicy::new(4).unwrap(),
+   302	        execute_action1,
+   303	    )
+   304	    .unwrap();
+   305	
+   306	    assert_eq!(
+   307	        result.termination(),
+   308	        ArcAgi3BoundedEpisodeTermination::GameOver,
+   309	    );
+   310	
+   311	    assert_eq!(result.completed_steps_in_episode(), 1,);
+   312	
+   313	    assert_eq!(live.completed_reset_count(), 0,);
+   314	
+   315	    assert_eq!(live.transport().execute_count(), 1,);
+   316	}
+   317	
+   318	#[test]
+   319	fn episode_step_budget_is_hard_upper_bound_with_no_extra_transport_call() {
+   320	    let action = action1();
+   321	
+   322	    let mut live = runtime(
+   323	        "episode-budget",
+   324	        ArcAgi3GameState::NotFinished,
+   325	        vec![
+   326	            Ok(observation(
+   327	                "episode-budget",
+   328	                ArcAgi3GameState::NotFinished,
+   329	                2,
+   330	                Some(action),
+   331	            )),
+   332	            Ok(observation(
+   333	                "episode-budget",
+   334	                ArcAgi3GameState::NotFinished,
+   335	                3,
+   336	                Some(action),
+   337	            )),
+   338	            Ok(observation(
+   339	                "episode-budget",
+   340	                ArcAgi3GameState::Win,
+   341	                4,
+   342	                Some(action),
+   343	            )),
+   344	        ],
+   345	    );
+   346	
+   347	    let result = ArcAgi3BoundedEpisodeRuntime::run_with(
+   348	        &mut live,
+   349	        ArcAgi3BoundedEpisodePolicy::new(2).unwrap(),
+   350	        execute_action1,
+   351	    )
+   352	    .unwrap();
+   353	
+   354	    assert_eq!(
+   355	        result.termination(),
+   356	        ArcAgi3BoundedEpisodeTermination::StepBudgetExhausted,
+   357	    );
+   358	
+   359	    assert_eq!(result.final_status(), ArcAgi3LiveEnvironmentStatus::Active,);
+   360	
+   361	    assert_eq!(result.completed_steps_in_episode(), 2,);
+   362	
+   363	    assert_eq!(live.transport().execute_count(), 2,);
+   364	
+   365	    assert_eq!(live.completed_cognitive_step_count(), 2,);
+   366	}
+   367	
+   368	#[test]
+   369	fn transport_failure_aborts_episode_at_exact_completed_step_count() {
+   370	    let action = action1();
+   371	
+   372	    let mut live = runtime(
+   373	        "episode-failure",
+   374	        ArcAgi3GameState::NotFinished,
+   375	        vec![
+   376	            Ok(observation(
+   377	                "episode-failure",
+   378	                ArcAgi3GameState::NotFinished,
+   379	                2,
+   380	                Some(action),
+   381	            )),
+   382	            Err(ArcAgi3TransportError::HttpTransport {
+   383	                message: "ambiguous timeout".to_string(),
+   384	                disposition: ArcAgi3TransportFailureDisposition::DispatchIndeterminate,
+   385	            }),
+   386	        ],
+   387	    );
+   388	
+   389	    let result = ArcAgi3BoundedEpisodeRuntime::run_with(
+   390	        &mut live,
+   391	        ArcAgi3BoundedEpisodePolicy::new(5).unwrap(),
+   392	        execute_action1,
+   393	    );
+   394	
+   395	    assert!(matches!(
+   396	        result,
+   397	        Err(ArcAgi3BoundedEpisodeError::StepFailed {
+   398	            completed_steps_in_episode: 1,
+   399	            error: ArcAgi3LiveEnvironmentError::Transport(ArcAgi3TransportError::HttpTransport {
+   400	                disposition: ArcAgi3TransportFailureDisposition::DispatchIndeterminate,
+   401	                ..
+   402	            },),
+   403	        },),
+   404	    ));
+   405	
+   406	    assert_eq!(live.status(), ArcAgi3LiveEnvironmentStatus::FaultedPending,);
+   407	
+   408	    assert_eq!(live.completed_cognitive_step_count(), 1,);
+   409	
+   410	    assert_eq!(live.transport().execute_count(), 2,);
+   411	}
+   412	
+   413	#[test]
+   414	fn rerunning_faulted_episode_never_retries_pending_transport_action() {
+   415	    let mut live = runtime(
+   416	        "episode-faulted",
+   417	        ArcAgi3GameState::NotFinished,
+   418	        vec![Err(ArcAgi3TransportError::HttpTransport {
+   419	            message: "timeout".to_string(),
+   420	            disposition: ArcAgi3TransportFailureDisposition::DispatchIndeterminate,
+   421	        })],
+   422	    );
+   423	
+   424	    assert!(ArcAgi3BoundedEpisodeRuntime::run_with(
+   425	        &mut live,
+   426	        ArcAgi3BoundedEpisodePolicy::new(3).unwrap(),
+   427	        execute_action1,
+   428	    )
+   429	    .is_err());
+   430	
+   431	    assert_eq!(live.transport().execute_count(), 1,);
+   432	
+   433	    let mut calls = 0usize;
+   434	
+   435	    let second = ArcAgi3BoundedEpisodeRuntime::run_with(
+   436	        &mut live,
+   437	        ArcAgi3BoundedEpisodePolicy::new(3).unwrap(),
+   438	        |_runtime| {
+   439	            calls += 1;
+   440	            unreachable!()
+   441	        },
+   442	    );
+   443	
+   444	    assert_eq!(
+   445	        second,
+   446	        Err(ArcAgi3BoundedEpisodeError::RuntimeFaultedPending(Some(
+   447	            ArcAgi3TransportFailureDisposition::DispatchIndeterminate,
+   448	        ),),),
+   449	    );
+   450	
+   451	    assert_eq!(calls, 0);
+   452	
+   453	    assert_eq!(live.transport().execute_count(), 1,);
+   454	}
+   455	
+   456	#[test]
+   457	fn episode_accounting_is_relative_to_existing_live_runtime_history() {
+   458	    let action = action1();
+   459	
+   460	    let mut live = runtime(
+   461	        "episode-existing-history",
+   462	        ArcAgi3GameState::NotFinished,
+   463	        vec![
+   464	            Ok(observation(
+   465	                "episode-existing-history",
+   466	                ArcAgi3GameState::NotFinished,
+   467	                2,
+   468	                Some(action),
+   469	            )),
+   470	            Ok(observation(
+   471	                "episode-existing-history",
+   472	                ArcAgi3GameState::Win,
+   473	                3,
+   474	                Some(action),
+   475	            )),
+   476	        ],
+   477	    );
+   478	
+   479	    execute_action1(&mut live).unwrap();
+   480	
+   481	    assert_eq!(live.completed_cognitive_step_count(), 1,);
+   482	
+   483	    let result = ArcAgi3BoundedEpisodeRuntime::run_with(
+   484	        &mut live,
+   485	        ArcAgi3BoundedEpisodePolicy::new(4).unwrap(),
+   486	        execute_action1,
+   487	    )
+   488	    .unwrap();
+   489	
+   490	    assert_eq!(result.starting_completed_cognitive_step_count(), 1,);
+   491	
+   492	    assert_eq!(result.ending_completed_cognitive_step_count(), 2,);
+   493	
+   494	    assert_eq!(result.completed_steps_in_episode(), 1,);
+   495	
+   496	    assert_eq!(result.termination(), ArcAgi3BoundedEpisodeTermination::Won,);
+   497	}
+   498	
+   499	#[test]
+   500	fn every_completed_episode_step_contains_real_cognitive_feedback() {
+   501	    let action = action1();
+   502	
+   503	    let mut live = runtime(
+   504	        "episode-feedback",
+   505	        ArcAgi3GameState::NotFinished,
+   506	        vec![
+   507	            Ok(observation(
+   508	                "episode-feedback",
+   509	                ArcAgi3GameState::NotFinished,
+   510	                2,
+   511	                Some(action),
+   512	            )),
+   513	            Ok(observation(
+   514	                "episode-feedback",
+   515	                ArcAgi3GameState::Win,
+   516	                3,
+   517	                Some(action),
+   518	            )),
+   519	        ],
+   520	    );
+   521	
+   522	    let result = ArcAgi3BoundedEpisodeRuntime::run_with(
+   523	        &mut live,
+   524	        ArcAgi3BoundedEpisodePolicy::new(4).unwrap(),
+   525	        execute_action1,
+   526	    )
+   527	    .unwrap();
+   528	
+   529	    assert_eq!(result.steps().len(), 2,);
+   530	
+   531	    assert!(result
+   532	        .steps()
+   533	        .iter()
+   534	        .all(|step| step.completion().has_cognitive_feedback()));
+   535	}
+   536	
+   537	#[test]
+   538	fn bounded_episode_runtime_contains_no_arc_action_semantics_or_auto_reset_policy() {
+   539	    let source = include_str!("../src/bounded_episode_runtime.rs");
+   540	
+   541	    for forbidden in [
+   542	        "Action1",
+   543	        "Action2",
+   544	        "Action3",
+   545	        "Action4",
+   546	        "Action5",
+   547	        "Action6",
+   548	        "Action7",
+   549	        "begin_reset",
+   550	        ".reset(",
+   551	        "coordinate",
+   552	    ] {
+   553	        assert!(
+   554	            !source.contains(forbidden),
+   555	            "bounded episode runtime leaked forbidden semantic: {forbidden}",
+   556	        );
+   557	    }
+   558	}
+   559	
+   560	#[test]
+   561	fn universal_facade_matches_direct_bounded_execution() {
+   562	    let action = action1();
+   563	
+   564	    let responses = vec![Ok(observation(
+   565	        "episode-universal",
+   566	        ArcAgi3GameState::Win,
+   567	        2,
+   568	        Some(action),
+   569	    ))];
+   570	
+   571	    let mut direct = runtime(
+   572	        "episode-universal",
+   573	        ArcAgi3GameState::NotFinished,
+   574	        vec![Ok(observation(
+   575	            "episode-universal",
+   576	            ArcAgi3GameState::Win,
+   577	            2,
+   578	            Some(action),
+   579	        ))],
+   580	    );
+   581	
+   582	    let mut facade = runtime(
+   583	        "episode-universal",
+   584	        ArcAgi3GameState::NotFinished,
+   585	        responses,
+   586	    );
+   587	
+   588	    let policy = ArcAgi3BoundedEpisodePolicy::new(3).unwrap();
+   589	
+   590	    let direct_result =
+   591	        ArcAgi3BoundedEpisodeRuntime::run_with(&mut direct, policy, execute_action1).unwrap();
+   592	
+   593	    let facade_result =
+   594	        UniversalArcAgi3BoundedEpisodeRuntime::run_with(&mut facade, policy, execute_action1)
+   595	            .unwrap();
+   596	
+   597	    assert_eq!(direct_result, facade_result,);
+   598	
+   599	    assert_eq!(direct.status(), facade.status(),);
+   600	
+   601	    assert_eq!(
+   602	        direct.completed_cognitive_step_count(),
+   603	        facade.completed_cognitive_step_count(),
+   604	    );
+   605	}
+
+================================================================================
+=== C1 EXPERIMENT AUTHORITY BUNDLE ===
+FILE=crates/athlesia_arc_agi_3_adapter/src/cognitive_interaction_runtime.rs
+PATTERN=pub struct ArcAgi3ExperimentDispatchAuthority
+================================================================================
+LINE=81 RANGE=61-191
+    61	pub struct ArcAgi3CognitiveInteractionCompletion {
+    62	    turn: ArcAgi3CompletedTurn,
+    63	    perception: ArcAgi3PerceptualProjection,
+    64	}
+    65	
+    66	impl ArcAgi3CognitiveInteractionCompletion {
+    67	    pub fn turn(&self) -> &ArcAgi3CompletedTurn {
+    68	        &self.turn
+    69	    }
+    70	
+    71	    pub fn perception(&self) -> &ArcAgi3PerceptualProjection {
+    72	        &self.perception
+    73	    }
+    74	
+    75	    pub fn has_cognitive_feedback(&self) -> bool {
+    76	        self.turn.has_cognitive_feedback()
+    77	    }
+    78	}
+    79	
+    80	#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+    81	pub struct ArcAgi3ExperimentDispatchAuthority<'a> {
+    82	    result:
+    83	        &'a athlesia_autonomous_active_experimentation::IntegratedAutonomousExperimentationResult,
+    84	    expected_source_state: &'a athlesia_mindstone_sparse_cognition::CognitiveStructure,
+    85	}
+    86	
+    87	impl<'a> ArcAgi3ExperimentDispatchAuthority<'a> {
+    88	    pub fn new(
+    89	        result:
+    90	            &'a athlesia_autonomous_active_experimentation::
+    91	                IntegratedAutonomousExperimentationResult,
+    92	        expected_source_state: &'a athlesia_mindstone_sparse_cognition::CognitiveStructure,
+    93	    ) -> Self {
+    94	        Self {
+    95	            result,
+    96	            expected_source_state,
+    97	        }
+    98	    }
+    99	
+   100	    pub fn result(
+   101	        self,
+   102	    ) -> &'a athlesia_autonomous_active_experimentation::IntegratedAutonomousExperimentationResult
+   103	    {
+   104	        self.result
+   105	    }
+   106	
+   107	    pub fn expected_source_state(
+   108	        self,
+   109	    ) -> &'a athlesia_mindstone_sparse_cognition::CognitiveStructure {
+   110	        self.expected_source_state
+   111	    }
+   112	}
+   113	
+   114	#[derive(Clone, Debug, Eq, PartialEq)]
+   115	pub struct ArcAgi3CognitiveInteractionRuntime {
+   116	    session: ArcAgi3InteractiveSession,
+   117	    perception: ArcAgi3PerceptualProjection,
+   118	    cognition: athlesia_integrated_cognitive_agent::OnlinePersistentCognitiveState,
+   119	}
+   120	
+   121	impl ArcAgi3CognitiveInteractionRuntime {
+   122	    pub fn new(
+   123	        initial_observation: ArcAgi3Observation,
+   124	        first_perceptual_observation_index: u64,
+   125	    ) -> Result<Self, ArcAgi3CognitiveInteractionError> {
+   126	        let perception = ArcAgi3PerceptualIngestionBridge::project_observation(
+   127	            &initial_observation,
+   128	            first_perceptual_observation_index,
+   129	            None,
+   130	        )?;
+   131	
+   132	        Ok(Self {
+   133	            session: ArcAgi3InteractiveSession::new(initial_observation),
+   134	            perception,
+   135	            cognition: athlesia_integrated_cognitive_agent::OnlinePersistentCognitiveState::new(),
+   136	        })
+   137	    }
+   138	
+   139	    pub fn session(&self) -> &ArcAgi3InteractiveSession {
+   140	        &self.session
+   141	    }
+   142	
+   143	    pub fn perception(&self) -> &ArcAgi3PerceptualProjection {
+   144	        &self.perception
+   145	    }
+   146	
+   147	    pub fn cognition(
+   148	        &self,
+   149	    ) -> &athlesia_integrated_cognitive_agent::OnlinePersistentCognitiveState {
+   150	        &self.cognition
+   151	    }
+   152	
+   153	    fn live_temporal_grouping_policy()
+   154	    -> athlesia_core_knowledge_perceptual_grounding::PerceptualProposalTemporalEvidencePolicy {
+   155	        athlesia_core_knowledge_perceptual_grounding::PerceptualProposalTemporalEvidencePolicy::new(
+   156	            2,
+   157	        )
+   158	        .expect("live temporal support threshold is positive")
+   159	    }
+   160	
+   161	    fn live_grouping_generation_policy()
+   162	    -> athlesia_core_knowledge_perceptual_grounding::PerceptualGroupingGenerationPolicy {
+   163	        athlesia_core_knowledge_perceptual_grounding::PerceptualGroupingGenerationPolicy::new(
+   164	            256, 256,
+   165	        )
+   166	        .expect("live grouping frontier bounds are positive")
+   167	    }
+   168	
+   169	    fn live_grouping_behavior_retention_policy()
+   170	    -> athlesia_core_knowledge_perceptual_grounding::PerceptualGroupingBehaviorRetentionPolicy {
+   171	        athlesia_core_knowledge_perceptual_grounding::
+   172	            PerceptualGroupingBehaviorRetentionPolicy::new(2, 2)
+   173	            .expect("live grouping behavior thresholds are positive")
+   174	    }
+   175	
+   176	    fn live_grouping_appearance_retention_policy()
+   177	    -> athlesia_core_knowledge_perceptual_grounding::PerceptualGroupingAppearanceRetentionPolicy
+   178	    {
+   179	        athlesia_core_knowledge_perceptual_grounding::
+   180	            PerceptualGroupingAppearanceRetentionPolicy::new(2)
+   181	            .expect(
+   182	                "live appearance evidence requires a positive history threshold",
+   183	            )
+   184	    }
+   185	
+   186	    pub fn current_perceptual_grouping_frontier(
+   187	        &self,
+   188	        temporal_policy:
+   189	            athlesia_core_knowledge_perceptual_grounding::PerceptualProposalTemporalEvidencePolicy,
+   190	        grouping_policy:
+   191	            athlesia_core_knowledge_perceptual_grounding::PerceptualGroupingGenerationPolicy,
+
+================================================================================
+=== C1 UNIFIED M48 ACTION SELECTION ===
+FILE=crates/athlesia_arc_agi_3_adapter/src/cognitive_interaction_runtime.rs
+PATTERN=pub fn current_unified_executive_action_selection
+================================================================================
+LINE=952 RANGE=842-1182
+   842	
+   843	    fn current_model_grounded_authorized_candidates(
+   844	        &self,
+   845	        candidate_actions: &[crate::ArcAgi3Action],
+   846	        goal: &athlesia_executive_agency::ExecutiveGoal,
+   847	        goal_alignment: athlesia_mindstone_sparse_cognition::CognitiveSignal,
+   848	        execution_cost: athlesia_mindstone_sparse_cognition::CognitiveSignal,
+   849	    ) -> Vec<crate::action_grounding_bridge::ArcAgi3AuthorizedExecutiveCandidate> {
+   850	        let Some(state) = self.current_grounded_world_state() else {
+   851	            return Vec::new();
+   852	        };
+   853	
+   854	        let Some(model) = self.current_executable_world_model() else {
+   855	            return Vec::new();
+   856	        };
+   857	
+   858	        let mut authorized = Vec::new();
+   859	
+   860	        for &action in candidate_actions {
+   861	            let Some(candidate) = Self::model_grounded_executive_candidate(
+   862	                &model,
+   863	                state,
+   864	                action,
+   865	                goal,
+   866	                goal_alignment,
+   867	                execution_cost,
+   868	            ) else {
+   869	                continue;
+   870	            };
+   871	
+   872	            let Ok(grounded) =
+   873	                crate::action_grounding_bridge::
+   874	                    ArcAgi3ActionGroundingBridge::
+   875	                    authorize_executive_candidate(
+   876	                        self.observation(),
+   877	                        &candidate,
+   878	                    )
+   879	            else {
+   880	                continue;
+   881	            };
+   882	
+   883	            if authorized.iter().any(
+   884	                |existing: &crate::action_grounding_bridge::ArcAgi3AuthorizedExecutiveCandidate| {
+   885	                    existing.candidate() == grounded.candidate()
+   886	                },
+   887	            ) {
+   888	                continue;
+   889	            }
+   890	
+   891	            authorized.push(grounded);
+   892	        }
+   893	
+   894	        authorized
+   895	    }
+   896	
+   897	    fn select_authorized_executive_candidate(
+   898	        authorized: &[crate::action_grounding_bridge::ArcAgi3AuthorizedExecutiveCandidate],
+   899	        goal: &athlesia_executive_agency::ExecutiveGoal,
+   900	        policy: athlesia_executive_agency::ExecutiveAgencyPolicy,
+   901	    ) -> Option<crate::ArcAgi3Action> {
+   902	        if authorized.is_empty() {
+   903	            return None;
+   904	        }
+   905	
+   906	        let candidates = authorized
+   907	            .iter()
+   908	            .map(|grounded| grounded.candidate().clone())
+   909	            .collect::<Vec<_>>();
+   910	
+   911	        /*
+   912	         * Single final action/value authority.
+   913	         *
+   914	         * Neither the learned world-model path nor M50 performs a local
+   915	         * dispatch ranking here. Both merely contribute grounded candidates.
+   916	         */
+   917	        let executive = athlesia_executive_agency::UniversalExecutiveAgency::evaluate(
+   918	            std::slice::from_ref(goal),
+   919	            &candidates,
+   920	            policy,
+   921	        );
+   922	
+   923	        let selected = executive.selected().first()?;
+   924	
+   925	        authorized
+   926	            .iter()
+   927	            .find(|grounded| {
+   928	                grounded.candidate().action() == selected.action()
+   929	                    && grounded.candidate().predicted_outcome() == selected.predicted_outcome()
+   930	            })
+   931	            .map(|grounded| grounded.action())
+   932	    }
+   933	
+   934	    pub fn current_model_grounded_action_selection(
+   935	        &self,
+   936	        candidate_actions: &[crate::ArcAgi3Action],
+   937	        goal: &athlesia_executive_agency::ExecutiveGoal,
+   938	        goal_alignment: athlesia_mindstone_sparse_cognition::CognitiveSignal,
+   939	        execution_cost: athlesia_mindstone_sparse_cognition::CognitiveSignal,
+   940	        policy: athlesia_executive_agency::ExecutiveAgencyPolicy,
+   941	    ) -> Option<crate::ArcAgi3Action> {
+   942	        let authorized = self.current_model_grounded_authorized_candidates(
+   943	            candidate_actions,
+   944	            goal,
+   945	            goal_alignment,
+   946	            execution_cost,
+   947	        );
+   948	
+   949	        Self::select_authorized_executive_candidate(&authorized, goal, policy)
+   950	    }
+   951	
+   952	    pub fn current_unified_executive_action_selection(
+   953	        &self,
+   954	        exploitation_actions: &[crate::ArcAgi3Action],
+   955	        goal: &athlesia_executive_agency::ExecutiveGoal,
+   956	        goal_alignment: athlesia_mindstone_sparse_cognition::CognitiveSignal,
+   957	        exploitation_execution_cost: athlesia_mindstone_sparse_cognition::CognitiveSignal,
+   958	        experiment_authority: Option<ArcAgi3ExperimentDispatchAuthority<'_>>,
+   959	        policy: athlesia_executive_agency::ExecutiveAgencyPolicy,
+   960	    ) -> Option<crate::ArcAgi3Action> {
+   961	        let mut authorized = self.current_model_grounded_authorized_candidates(
+   962	            exploitation_actions,
+   963	            goal,
+   964	            goal_alignment,
+   965	            exploitation_execution_cost,
+   966	        );
+   967	
+   968	        /*
+   969	         * M50 is an experiment authority, not a dispatch authority.
+   970	         *
+   971	         * Only an explicit ContinueExperimentation result with an actual
+   972	         * next experiment is eligible to enter the common M48 frontier.
+   973	         *
+   974	         * Stop / abstain / malformed continuation fail closed.
+   975	         */
+   976	        if let Some(experiment_authority) =
+   977	            experiment_authority.filter(|authority| authority.result().continuing())
+   978	        {
+   979	            let experimentation = experiment_authority.result();
+   980	
+   981	            let expected_experiment_source_state = experiment_authority.expected_source_state();
+   982	            if let Some(proposal) = experimentation.next_experiment() {
+   983	                /*
+   984	                 * Existing adapter bridge preserves:
+   985	                 * - exact M50 source state,
+   986	                 * - exact M50 evidence,
+   987	                 * - exact ARC action identity,
+   988	                 * - ARC availability authority.
+   989	                 *
+   990	                 * No experiment score is rewritten here.
+   991	                 */
+   992	                if let Ok(candidate) =
+   993	                    crate::action_grounding_bridge::
+   994	                        ArcAgi3ActionGroundingBridge::
+   995	                        ground_experiment_for_goal(
+   996	                            self.observation(),
+   997	                            expected_experiment_source_state,
+   998	                            goal,
+   999	                            goal_alignment,
+  1000	                            proposal,
+  1001	                        )
+  1002	                {
+  1003	                    if let Ok(grounded) =
+  1004	                        crate::action_grounding_bridge::
+  1005	                            ArcAgi3ActionGroundingBridge::
+  1006	                            authorize_executive_candidate(
+  1007	                                self.observation(),
+  1008	                                &candidate,
+  1009	                            )
+  1010	                    {
+  1011	                        if !authorized.iter().any(
+  1012	                            |existing| {
+  1013	                                existing.candidate()
+  1014	                                    == grounded.candidate()
+  1015	                            },
+  1016	                        ) {
+  1017	                            authorized.push(grounded);
+  1018	                        }
+  1019	                    }
+  1020	                }
+  1021	            }
+  1022	        }
+  1023	
+  1024	        /*
+  1025	         * ONE M48 evaluation over BOTH sources.
+  1026	         *
+  1027	         * M50 cannot bypass this call.
+  1028	         * M47 exploitation cannot bypass this call.
+  1029	         */
+  1030	        Self::select_authorized_executive_candidate(&authorized, goal, policy)
+  1031	    }
+  1032	
+  1033	    pub fn observation(&self) -> &ArcAgi3Observation {
+  1034	        self.session.observation()
+  1035	    }
+  1036	
+  1037	    pub fn next_perceptual_observation_index(&self) -> u64 {
+  1038	        self.perception.next_observation_index()
+  1039	    }
+  1040	
+  1041	    pub fn begin_reset(
+  1042	        &mut self,
+  1043	    ) -> Result<ArcAgi3SessionCommand, ArcAgi3CognitiveInteractionError> {
+  1044	        self.session.begin_reset().map_err(Into::into)
+  1045	    }
+  1046	
+  1047	    pub fn begin_from_orchestration_result(
+  1048	        &mut self,
+  1049	        orchestration: OnlineCognitiveOrchestrationResult,
+  1050	    ) -> Result<ArcAgi3CognitiveInteractionStep, ArcAgi3CognitiveInteractionError> {
+  1051	        let dispatch_result = EnvironmentInteractionBoundary::dispatch(&orchestration);
+  1052	
+  1053	        if dispatch_result.status() != EnvironmentActionDispatchStatus::Ready {
+  1054	            return Err(ArcAgi3CognitiveInteractionError::DispatchRejected(
+  1055	                dispatch_result.status(),
+  1056	            ));
+  1057	        }
+  1058	
+  1059	        let dispatch = dispatch_result
+  1060	            .dispatch()
+  1061	            .cloned()
+  1062	            .ok_or(ArcAgi3CognitiveInteractionError::ReadyDispatchMissing)?;
+  1063	
+  1064	        let command = self.session.begin_dispatch(&dispatch)?;
+  1065	
+  1066	        Ok(ArcAgi3CognitiveInteractionStep {
+  1067	            orchestration,
+  1068	            dispatch,
+  1069	            command,
+  1070	        })
+  1071	    }
+  1072	
+  1073	    pub fn run_and_begin(
+  1074	        &mut self,
+  1075	        anchor_state: &CognitiveStructure,
+  1076	        input: OnlineCognitiveOrchestrationInput<'_>,
+  1077	        cycle_policy: IntegratedAgentPolicy,
+  1078	        transition_request: &CognitiveCycleStateTransitionRequest,
+  1079	    ) -> Result<ArcAgi3CognitiveInteractionStep, ArcAgi3CognitiveInteractionError> {
+  1080	        if self.session.has_pending_command() {
+  1081	            return Err(ArcAgi3InteractiveSessionError::PendingCommandExists.into());
+  1082	        }
+  1083	
+  1084	        let orchestration = OnlineCognitiveOrchestration::run(
+  1085	            anchor_state,
+  1086	            input,
+  1087	            cycle_policy,
+  1088	            transition_request,
+  1089	        );
+  1090	
+  1091	        self.begin_from_orchestration_result(orchestration)
+  1092	    }
+  1093	
+  1094	    pub fn complete_environment_turn(
+  1095	        &mut self,
+  1096	        observation: ArcAgi3Observation,
+  1097	        confidence: CognitiveSignal,
+  1098	    ) -> Result<ArcAgi3CognitiveInteractionCompletion, ArcAgi3CognitiveInteractionError> {
+  1099	        /*
+  1100	         * Transactional rule:
+  1101	         *
+  1102	         * 1. clone session;
+  1103	         * 2. validate/bind the real environment response on the clone;
+  1104	         * 3. project the exact perceptual response;
+  1105	         * 4. clone retained cognition;
+  1106	         * 5. bind executive feedback only to the explicit causal
+  1107	         *    previous-frame -> first-response-frame transition;
+  1108	         * 6. update retained perceptual evidence on the cognitive clone;
+  1109	         * 7. only then commit session + perception + cognition together.
+  1110	         *
+  1111	         * Protocol RESET turns carry no executive cognitive feedback and
+  1112	         * therefore do not contaminate retained causal perceptual evidence.
+  1113	         *
+  1114	         * A failed environment response or failed perceptual projection
+  1115	         * cannot partially advance any retained runtime state.
+  1116	         */
+  1117	        let previous_best_scene = self.current_best_scene_interpretation();
+  1118	
+  1119	        let mut next_session = self.session.clone();
+  1120	
+  1121	        let completed_turn = next_session.complete_turn(observation.clone(), confidence)?;
+  1122	
+  1123	        let next_perception = ArcAgi3PerceptualIngestionBridge::project_observation(
+  1124	            &observation,
+  1125	            self.perception.next_observation_index(),
+  1126	            Some(self.perception.latest_frame()),
+  1127	        )?;
+  1128	
+  1129	        let mut next_cognition = self.cognition.clone();
+  1130	
+  1131	        if completed_turn.has_cognitive_feedback() {
+  1132	            if let Some(causal_transition) = next_perception.causal_environment_transition() {
+  1133	                let max_proposals_per_frame = causal_transition
+  1134	                    .previous_frame()
+  1135	                    .element_count()
+  1136	                    .max(causal_transition.current_frame().element_count());
+  1137	
+  1138	                if let Some(observation_result) =
+  1139	                    ArcAgi3PerceptualIngestionBridge::atomic_transition_evidence(
+  1140	                        causal_transition.previous_frame(),
+  1141	                        causal_transition.current_frame(),
+  1142	                        max_proposals_per_frame,
+  1143	                    )
+  1144	                {
+  1145	                    /*
+  1146	                     * Epistemic anti-self-confirmation rule:
+  1147	                     *
+  1148	                     * Grouping candidates are derived from temporal evidence
+  1149	                     * retained BEFORE this environment consequence.
+  1150	                     *
+  1151	                     * The newly observed consequence may then validate or
+  1152	                     * contradict those already-eligible candidates.
+  1153	                     *
+  1154	                     * Only after behavior evidence is retained do we admit
+  1155	                     * this transition into atomic temporal history.
+  1156	                     */
+  1157	                    let grouping_frontier =
+  1158	                        ArcAgi3PerceptualIngestionBridge::
+  1159	                            temporally_supported_grid_grouping_candidates(
+  1160	                                next_cognition
+  1161	                                    .perceptual_temporal_evidence(),
+  1162	                                causal_transition.current_frame(),
+  1163	                                Self::live_temporal_grouping_policy(),
+  1164	                                Self::live_grouping_generation_policy(),
+  1165	                            );
+  1166	
+  1167	                    let grouping_behavior =
+  1168	                        athlesia_core_knowledge_perceptual_grounding::
+  1169	                            PerceptualGroupingBehaviorObservation::observe(
+  1170	                                grouping_frontier.candidates(),
+  1171	                                &observation_result,
+  1172	                            );
+  1173	
+  1174	                    next_cognition.retain_perceptual_grouping_behavior_result(&grouping_behavior);
+  1175	
+  1176	                    let grouping_appearance =
+  1177	                        ArcAgi3PerceptualIngestionBridge::grouping_appearance_observation(
+  1178	                            causal_transition.current_frame(),
+  1179	                            grouping_frontier.candidates(),
+  1180	                        );
+  1181	
+  1182	                    next_cognition
+
+================================================================================
+=== EXISTING COGNITIVE BEGIN / DISPATCH PATH ===
+FILE=crates/athlesia_arc_agi_3_adapter/src/cognitive_interaction_runtime.rs
+PATTERN=pub fn begin_from_orchestration_result
+================================================================================
+LINE=1047 RANGE=1002-1177
+  1002	                {
+  1003	                    if let Ok(grounded) =
+  1004	                        crate::action_grounding_bridge::
+  1005	                            ArcAgi3ActionGroundingBridge::
+  1006	                            authorize_executive_candidate(
+  1007	                                self.observation(),
+  1008	                                &candidate,
+  1009	                            )
+  1010	                    {
+  1011	                        if !authorized.iter().any(
+  1012	                            |existing| {
+  1013	                                existing.candidate()
+  1014	                                    == grounded.candidate()
+  1015	                            },
+  1016	                        ) {
+  1017	                            authorized.push(grounded);
+  1018	                        }
+  1019	                    }
+  1020	                }
+  1021	            }
+  1022	        }
+  1023	
+  1024	        /*
+  1025	         * ONE M48 evaluation over BOTH sources.
+  1026	         *
+  1027	         * M50 cannot bypass this call.
+  1028	         * M47 exploitation cannot bypass this call.
+  1029	         */
+  1030	        Self::select_authorized_executive_candidate(&authorized, goal, policy)
+  1031	    }
+  1032	
+  1033	    pub fn observation(&self) -> &ArcAgi3Observation {
+  1034	        self.session.observation()
+  1035	    }
+  1036	
+  1037	    pub fn next_perceptual_observation_index(&self) -> u64 {
+  1038	        self.perception.next_observation_index()
+  1039	    }
+  1040	
+  1041	    pub fn begin_reset(
+  1042	        &mut self,
+  1043	    ) -> Result<ArcAgi3SessionCommand, ArcAgi3CognitiveInteractionError> {
+  1044	        self.session.begin_reset().map_err(Into::into)
+  1045	    }
+  1046	
+  1047	    pub fn begin_from_orchestration_result(
+  1048	        &mut self,
+  1049	        orchestration: OnlineCognitiveOrchestrationResult,
+  1050	    ) -> Result<ArcAgi3CognitiveInteractionStep, ArcAgi3CognitiveInteractionError> {
+  1051	        let dispatch_result = EnvironmentInteractionBoundary::dispatch(&orchestration);
+  1052	
+  1053	        if dispatch_result.status() != EnvironmentActionDispatchStatus::Ready {
+  1054	            return Err(ArcAgi3CognitiveInteractionError::DispatchRejected(
+  1055	                dispatch_result.status(),
+  1056	            ));
+  1057	        }
+  1058	
+  1059	        let dispatch = dispatch_result
+  1060	            .dispatch()
+  1061	            .cloned()
+  1062	            .ok_or(ArcAgi3CognitiveInteractionError::ReadyDispatchMissing)?;
+  1063	
+  1064	        let command = self.session.begin_dispatch(&dispatch)?;
+  1065	
+  1066	        Ok(ArcAgi3CognitiveInteractionStep {
+  1067	            orchestration,
+  1068	            dispatch,
+  1069	            command,
+  1070	        })
+  1071	    }
+  1072	
+  1073	    pub fn run_and_begin(
+  1074	        &mut self,
+  1075	        anchor_state: &CognitiveStructure,
+  1076	        input: OnlineCognitiveOrchestrationInput<'_>,
+  1077	        cycle_policy: IntegratedAgentPolicy,
+  1078	        transition_request: &CognitiveCycleStateTransitionRequest,
+  1079	    ) -> Result<ArcAgi3CognitiveInteractionStep, ArcAgi3CognitiveInteractionError> {
+  1080	        if self.session.has_pending_command() {
+  1081	            return Err(ArcAgi3InteractiveSessionError::PendingCommandExists.into());
+  1082	        }
+  1083	
+  1084	        let orchestration = OnlineCognitiveOrchestration::run(
+  1085	            anchor_state,
+  1086	            input,
+  1087	            cycle_policy,
+  1088	            transition_request,
+  1089	        );
+  1090	
+  1091	        self.begin_from_orchestration_result(orchestration)
+  1092	    }
+  1093	
+  1094	    pub fn complete_environment_turn(
+  1095	        &mut self,
+  1096	        observation: ArcAgi3Observation,
+  1097	        confidence: CognitiveSignal,
+  1098	    ) -> Result<ArcAgi3CognitiveInteractionCompletion, ArcAgi3CognitiveInteractionError> {
+  1099	        /*
+  1100	         * Transactional rule:
+  1101	         *
+  1102	         * 1. clone session;
+  1103	         * 2. validate/bind the real environment response on the clone;
+  1104	         * 3. project the exact perceptual response;
+  1105	         * 4. clone retained cognition;
+  1106	         * 5. bind executive feedback only to the explicit causal
+  1107	         *    previous-frame -> first-response-frame transition;
+  1108	         * 6. update retained perceptual evidence on the cognitive clone;
+  1109	         * 7. only then commit session + perception + cognition together.
+  1110	         *
+  1111	         * Protocol RESET turns carry no executive cognitive feedback and
+  1112	         * therefore do not contaminate retained causal perceptual evidence.
+  1113	         *
+  1114	         * A failed environment response or failed perceptual projection
+  1115	         * cannot partially advance any retained runtime state.
+  1116	         */
+  1117	        let previous_best_scene = self.current_best_scene_interpretation();
+  1118	
+  1119	        let mut next_session = self.session.clone();
+  1120	
+  1121	        let completed_turn = next_session.complete_turn(observation.clone(), confidence)?;
+  1122	
+  1123	        let next_perception = ArcAgi3PerceptualIngestionBridge::project_observation(
+  1124	            &observation,
+  1125	            self.perception.next_observation_index(),
+  1126	            Some(self.perception.latest_frame()),
+  1127	        )?;
+  1128	
+  1129	        let mut next_cognition = self.cognition.clone();
+  1130	
+  1131	        if completed_turn.has_cognitive_feedback() {
+  1132	            if let Some(causal_transition) = next_perception.causal_environment_transition() {
+  1133	                let max_proposals_per_frame = causal_transition
+  1134	                    .previous_frame()
+  1135	                    .element_count()
+  1136	                    .max(causal_transition.current_frame().element_count());
+  1137	
+  1138	                if let Some(observation_result) =
+  1139	                    ArcAgi3PerceptualIngestionBridge::atomic_transition_evidence(
+  1140	                        causal_transition.previous_frame(),
+  1141	                        causal_transition.current_frame(),
+  1142	                        max_proposals_per_frame,
+  1143	                    )
+  1144	                {
+  1145	                    /*
+  1146	                     * Epistemic anti-self-confirmation rule:
+  1147	                     *
+  1148	                     * Grouping candidates are derived from temporal evidence
+  1149	                     * retained BEFORE this environment consequence.
+  1150	                     *
+  1151	                     * The newly observed consequence may then validate or
+  1152	                     * contradict those already-eligible candidates.
+  1153	                     *
+  1154	                     * Only after behavior evidence is retained do we admit
+  1155	                     * this transition into atomic temporal history.
+  1156	                     */
+  1157	                    let grouping_frontier =
+  1158	                        ArcAgi3PerceptualIngestionBridge::
+  1159	                            temporally_supported_grid_grouping_candidates(
+  1160	                                next_cognition
+  1161	                                    .perceptual_temporal_evidence(),
+  1162	                                causal_transition.current_frame(),
+  1163	                                Self::live_temporal_grouping_policy(),
+  1164	                                Self::live_grouping_generation_policy(),
+  1165	                            );
+  1166	
+  1167	                    let grouping_behavior =
+  1168	                        athlesia_core_knowledge_perceptual_grounding::
+  1169	                            PerceptualGroupingBehaviorObservation::observe(
+  1170	                                grouping_frontier.candidates(),
+  1171	                                &observation_result,
+  1172	                            );
+  1173	
+  1174	                    next_cognition.retain_perceptual_grouping_behavior_result(&grouping_behavior);
+  1175	
+  1176	                    let grouping_appearance =
+  1177	                        ArcAgi3PerceptualIngestionBridge::grouping_appearance_observation(
+
+================================================================================
+=== EXISTING CALLER-SUPPLIED ORCHESTRATION PATH ===
+FILE=crates/athlesia_arc_agi_3_adapter/src/cognitive_interaction_runtime.rs
+PATTERN=pub fn run_and_begin
+================================================================================
+LINE=1073 RANGE=1038-1193
+  1038	        self.perception.next_observation_index()
+  1039	    }
+  1040	
+  1041	    pub fn begin_reset(
+  1042	        &mut self,
+  1043	    ) -> Result<ArcAgi3SessionCommand, ArcAgi3CognitiveInteractionError> {
+  1044	        self.session.begin_reset().map_err(Into::into)
+  1045	    }
+  1046	
+  1047	    pub fn begin_from_orchestration_result(
+  1048	        &mut self,
+  1049	        orchestration: OnlineCognitiveOrchestrationResult,
+  1050	    ) -> Result<ArcAgi3CognitiveInteractionStep, ArcAgi3CognitiveInteractionError> {
+  1051	        let dispatch_result = EnvironmentInteractionBoundary::dispatch(&orchestration);
+  1052	
+  1053	        if dispatch_result.status() != EnvironmentActionDispatchStatus::Ready {
+  1054	            return Err(ArcAgi3CognitiveInteractionError::DispatchRejected(
+  1055	                dispatch_result.status(),
+  1056	            ));
+  1057	        }
+  1058	
+  1059	        let dispatch = dispatch_result
+  1060	            .dispatch()
+  1061	            .cloned()
+  1062	            .ok_or(ArcAgi3CognitiveInteractionError::ReadyDispatchMissing)?;
+  1063	
+  1064	        let command = self.session.begin_dispatch(&dispatch)?;
+  1065	
+  1066	        Ok(ArcAgi3CognitiveInteractionStep {
+  1067	            orchestration,
+  1068	            dispatch,
+  1069	            command,
+  1070	        })
+  1071	    }
+  1072	
+  1073	    pub fn run_and_begin(
+  1074	        &mut self,
+  1075	        anchor_state: &CognitiveStructure,
+  1076	        input: OnlineCognitiveOrchestrationInput<'_>,
+  1077	        cycle_policy: IntegratedAgentPolicy,
+  1078	        transition_request: &CognitiveCycleStateTransitionRequest,
+  1079	    ) -> Result<ArcAgi3CognitiveInteractionStep, ArcAgi3CognitiveInteractionError> {
+  1080	        if self.session.has_pending_command() {
+  1081	            return Err(ArcAgi3InteractiveSessionError::PendingCommandExists.into());
+  1082	        }
+  1083	
+  1084	        let orchestration = OnlineCognitiveOrchestration::run(
+  1085	            anchor_state,
+  1086	            input,
+  1087	            cycle_policy,
+  1088	            transition_request,
+  1089	        );
+  1090	
+  1091	        self.begin_from_orchestration_result(orchestration)
+  1092	    }
+  1093	
+  1094	    pub fn complete_environment_turn(
+  1095	        &mut self,
+  1096	        observation: ArcAgi3Observation,
+  1097	        confidence: CognitiveSignal,
+  1098	    ) -> Result<ArcAgi3CognitiveInteractionCompletion, ArcAgi3CognitiveInteractionError> {
+  1099	        /*
+  1100	         * Transactional rule:
+  1101	         *
+  1102	         * 1. clone session;
+  1103	         * 2. validate/bind the real environment response on the clone;
+  1104	         * 3. project the exact perceptual response;
+  1105	         * 4. clone retained cognition;
+  1106	         * 5. bind executive feedback only to the explicit causal
+  1107	         *    previous-frame -> first-response-frame transition;
+  1108	         * 6. update retained perceptual evidence on the cognitive clone;
+  1109	         * 7. only then commit session + perception + cognition together.
+  1110	         *
+  1111	         * Protocol RESET turns carry no executive cognitive feedback and
+  1112	         * therefore do not contaminate retained causal perceptual evidence.
+  1113	         *
+  1114	         * A failed environment response or failed perceptual projection
+  1115	         * cannot partially advance any retained runtime state.
+  1116	         */
+  1117	        let previous_best_scene = self.current_best_scene_interpretation();
+  1118	
+  1119	        let mut next_session = self.session.clone();
+  1120	
+  1121	        let completed_turn = next_session.complete_turn(observation.clone(), confidence)?;
+  1122	
+  1123	        let next_perception = ArcAgi3PerceptualIngestionBridge::project_observation(
+  1124	            &observation,
+  1125	            self.perception.next_observation_index(),
+  1126	            Some(self.perception.latest_frame()),
+  1127	        )?;
+  1128	
+  1129	        let mut next_cognition = self.cognition.clone();
+  1130	
+  1131	        if completed_turn.has_cognitive_feedback() {
+  1132	            if let Some(causal_transition) = next_perception.causal_environment_transition() {
+  1133	                let max_proposals_per_frame = causal_transition
+  1134	                    .previous_frame()
+  1135	                    .element_count()
+  1136	                    .max(causal_transition.current_frame().element_count());
+  1137	
+  1138	                if let Some(observation_result) =
+  1139	                    ArcAgi3PerceptualIngestionBridge::atomic_transition_evidence(
+  1140	                        causal_transition.previous_frame(),
+  1141	                        causal_transition.current_frame(),
+  1142	                        max_proposals_per_frame,
+  1143	                    )
+  1144	                {
+  1145	                    /*
+  1146	                     * Epistemic anti-self-confirmation rule:
+  1147	                     *
+  1148	                     * Grouping candidates are derived from temporal evidence
+  1149	                     * retained BEFORE this environment consequence.
+  1150	                     *
+  1151	                     * The newly observed consequence may then validate or
+  1152	                     * contradict those already-eligible candidates.
+  1153	                     *
+  1154	                     * Only after behavior evidence is retained do we admit
+  1155	                     * this transition into atomic temporal history.
+  1156	                     */
+  1157	                    let grouping_frontier =
+  1158	                        ArcAgi3PerceptualIngestionBridge::
+  1159	                            temporally_supported_grid_grouping_candidates(
+  1160	                                next_cognition
+  1161	                                    .perceptual_temporal_evidence(),
+  1162	                                causal_transition.current_frame(),
+  1163	                                Self::live_temporal_grouping_policy(),
+  1164	                                Self::live_grouping_generation_policy(),
+  1165	                            );
+  1166	
+  1167	                    let grouping_behavior =
+  1168	                        athlesia_core_knowledge_perceptual_grounding::
+  1169	                            PerceptualGroupingBehaviorObservation::observe(
+  1170	                                grouping_frontier.candidates(),
+  1171	                                &observation_result,
+  1172	                            );
+  1173	
+  1174	                    next_cognition.retain_perceptual_grouping_behavior_result(&grouping_behavior);
+  1175	
+  1176	                    let grouping_appearance =
+  1177	                        ArcAgi3PerceptualIngestionBridge::grouping_appearance_observation(
+  1178	                            causal_transition.current_frame(),
+  1179	                            grouping_frontier.candidates(),
+  1180	                        );
+  1181	
+  1182	                    next_cognition
+  1183	                        .retain_perceptual_grouping_appearance_result(&grouping_appearance);
+  1184	
+  1185	                    next_cognition.retain_perceptual_observation_result(&observation_result);
+  1186	
+  1187	                    /*
+  1188	                     * The current scene is derived from a temporary immutable
+  1189	                     * view of the fully updated cognitive clone.
+  1190	                     *
+  1191	                     * Nothing is committed to self until all projection and
+  1192	                     * learning work succeeds.
+  1193	                     */
+
+================================================================================
+=== TRANSACTIONAL ENVIRONMENT CONSEQUENCE COMMIT ===
+FILE=crates/athlesia_arc_agi_3_adapter/src/cognitive_interaction_runtime.rs
+PATTERN=pub fn complete_environment_turn
+================================================================================
+LINE=1094 RANGE=1049-1414
+  1049	        orchestration: OnlineCognitiveOrchestrationResult,
+  1050	    ) -> Result<ArcAgi3CognitiveInteractionStep, ArcAgi3CognitiveInteractionError> {
+  1051	        let dispatch_result = EnvironmentInteractionBoundary::dispatch(&orchestration);
+  1052	
+  1053	        if dispatch_result.status() != EnvironmentActionDispatchStatus::Ready {
+  1054	            return Err(ArcAgi3CognitiveInteractionError::DispatchRejected(
+  1055	                dispatch_result.status(),
+  1056	            ));
+  1057	        }
+  1058	
+  1059	        let dispatch = dispatch_result
+  1060	            .dispatch()
+  1061	            .cloned()
+  1062	            .ok_or(ArcAgi3CognitiveInteractionError::ReadyDispatchMissing)?;
+  1063	
+  1064	        let command = self.session.begin_dispatch(&dispatch)?;
+  1065	
+  1066	        Ok(ArcAgi3CognitiveInteractionStep {
+  1067	            orchestration,
+  1068	            dispatch,
+  1069	            command,
+  1070	        })
+  1071	    }
+  1072	
+  1073	    pub fn run_and_begin(
+  1074	        &mut self,
+  1075	        anchor_state: &CognitiveStructure,
+  1076	        input: OnlineCognitiveOrchestrationInput<'_>,
+  1077	        cycle_policy: IntegratedAgentPolicy,
+  1078	        transition_request: &CognitiveCycleStateTransitionRequest,
+  1079	    ) -> Result<ArcAgi3CognitiveInteractionStep, ArcAgi3CognitiveInteractionError> {
+  1080	        if self.session.has_pending_command() {
+  1081	            return Err(ArcAgi3InteractiveSessionError::PendingCommandExists.into());
+  1082	        }
+  1083	
+  1084	        let orchestration = OnlineCognitiveOrchestration::run(
+  1085	            anchor_state,
+  1086	            input,
+  1087	            cycle_policy,
+  1088	            transition_request,
+  1089	        );
+  1090	
+  1091	        self.begin_from_orchestration_result(orchestration)
+  1092	    }
+  1093	
+  1094	    pub fn complete_environment_turn(
+  1095	        &mut self,
+  1096	        observation: ArcAgi3Observation,
+  1097	        confidence: CognitiveSignal,
+  1098	    ) -> Result<ArcAgi3CognitiveInteractionCompletion, ArcAgi3CognitiveInteractionError> {
+  1099	        /*
+  1100	         * Transactional rule:
+  1101	         *
+  1102	         * 1. clone session;
+  1103	         * 2. validate/bind the real environment response on the clone;
+  1104	         * 3. project the exact perceptual response;
+  1105	         * 4. clone retained cognition;
+  1106	         * 5. bind executive feedback only to the explicit causal
+  1107	         *    previous-frame -> first-response-frame transition;
+  1108	         * 6. update retained perceptual evidence on the cognitive clone;
+  1109	         * 7. only then commit session + perception + cognition together.
+  1110	         *
+  1111	         * Protocol RESET turns carry no executive cognitive feedback and
+  1112	         * therefore do not contaminate retained causal perceptual evidence.
+  1113	         *
+  1114	         * A failed environment response or failed perceptual projection
+  1115	         * cannot partially advance any retained runtime state.
+  1116	         */
+  1117	        let previous_best_scene = self.current_best_scene_interpretation();
+  1118	
+  1119	        let mut next_session = self.session.clone();
+  1120	
+  1121	        let completed_turn = next_session.complete_turn(observation.clone(), confidence)?;
+  1122	
+  1123	        let next_perception = ArcAgi3PerceptualIngestionBridge::project_observation(
+  1124	            &observation,
+  1125	            self.perception.next_observation_index(),
+  1126	            Some(self.perception.latest_frame()),
+  1127	        )?;
+  1128	
+  1129	        let mut next_cognition = self.cognition.clone();
+  1130	
+  1131	        if completed_turn.has_cognitive_feedback() {
+  1132	            if let Some(causal_transition) = next_perception.causal_environment_transition() {
+  1133	                let max_proposals_per_frame = causal_transition
+  1134	                    .previous_frame()
+  1135	                    .element_count()
+  1136	                    .max(causal_transition.current_frame().element_count());
+  1137	
+  1138	                if let Some(observation_result) =
+  1139	                    ArcAgi3PerceptualIngestionBridge::atomic_transition_evidence(
+  1140	                        causal_transition.previous_frame(),
+  1141	                        causal_transition.current_frame(),
+  1142	                        max_proposals_per_frame,
+  1143	                    )
+  1144	                {
+  1145	                    /*
+  1146	                     * Epistemic anti-self-confirmation rule:
+  1147	                     *
+  1148	                     * Grouping candidates are derived from temporal evidence
+  1149	                     * retained BEFORE this environment consequence.
+  1150	                     *
+  1151	                     * The newly observed consequence may then validate or
+  1152	                     * contradict those already-eligible candidates.
+  1153	                     *
+  1154	                     * Only after behavior evidence is retained do we admit
+  1155	                     * this transition into atomic temporal history.
+  1156	                     */
+  1157	                    let grouping_frontier =
+  1158	                        ArcAgi3PerceptualIngestionBridge::
+  1159	                            temporally_supported_grid_grouping_candidates(
+  1160	                                next_cognition
+  1161	                                    .perceptual_temporal_evidence(),
+  1162	                                causal_transition.current_frame(),
+  1163	                                Self::live_temporal_grouping_policy(),
+  1164	                                Self::live_grouping_generation_policy(),
+  1165	                            );
+  1166	
+  1167	                    let grouping_behavior =
+  1168	                        athlesia_core_knowledge_perceptual_grounding::
+  1169	                            PerceptualGroupingBehaviorObservation::observe(
+  1170	                                grouping_frontier.candidates(),
+  1171	                                &observation_result,
+  1172	                            );
+  1173	
+  1174	                    next_cognition.retain_perceptual_grouping_behavior_result(&grouping_behavior);
+  1175	
+  1176	                    let grouping_appearance =
+  1177	                        ArcAgi3PerceptualIngestionBridge::grouping_appearance_observation(
+  1178	                            causal_transition.current_frame(),
+  1179	                            grouping_frontier.candidates(),
+  1180	                        );
+  1181	
+  1182	                    next_cognition
+  1183	                        .retain_perceptual_grouping_appearance_result(&grouping_appearance);
+  1184	
+  1185	                    next_cognition.retain_perceptual_observation_result(&observation_result);
+  1186	
+  1187	                    /*
+  1188	                     * The current scene is derived from a temporary immutable
+  1189	                     * view of the fully updated cognitive clone.
+  1190	                     *
+  1191	                     * Nothing is committed to self until all projection and
+  1192	                     * learning work succeeds.
+  1193	                     */
+  1194	                    let current_best_scene = {
+  1195	                        let next_runtime_view = Self {
+  1196	                            session: next_session.clone(),
+  1197	                            perception: next_perception.clone(),
+  1198	                            cognition: next_cognition.clone(),
+  1199	                        };
+  1200	
+  1201	                        next_runtime_view.current_best_scene_interpretation()
+  1202	                    };
+  1203	
+  1204	                    if let (Some(previous_scene), Some(current_scene), Some(environment_evidence)) = (
+  1205	                        previous_best_scene.as_ref().cloned(),
+  1206	                        current_best_scene,
+  1207	                        completed_turn.evidence(),
+  1208	                    ) {
+  1209	                        let candidates =
+  1210	                            athlesia_core_knowledge_perceptual_grounding::
+  1211	                                IntegratedPerceptualWorldCandidates::new(
+  1212	                                    vec![previous_scene],
+  1213	                                    vec![current_scene],
+  1214	                                    Vec::new(),
+  1215	                                    Vec::new(),
+  1216	                                    Vec::new(),
+  1217	                                    Vec::new(),
+  1218	                                );
+  1219	
+  1220	                        if let Some(world_input) =
+  1221	                            athlesia_core_knowledge_perceptual_grounding::
+  1222	                                IntegratedPerceptualWorldInput::new(
+  1223	                                    causal_transition
+  1224	                                        .previous_frame()
+  1225	                                        .clone(),
+  1226	                                    causal_transition
+  1227	                                        .current_frame()
+  1228	                                        .clone(),
+  1229	                                    candidates,
+  1230	                                )
+  1231	                        {
+  1232	                            next_cognition
+  1233	                                .observe_environment_transition(
+  1234	                                    &world_input,
+  1235	                                    Self::live_perceptual_world_context(),
+  1236	                                    environment_evidence,
+  1237	                                    Self::live_transition_schema_learning_policy(),
+  1238	                                );
+  1239	                        }
+  1240	                    }
+  1241	                }
+  1242	            }
+  1243	        }
+  1244	
+  1245	        self.session = next_session;
+  1246	        self.perception = next_perception.clone();
+  1247	        self.cognition = next_cognition;
+  1248	
+  1249	        Ok(ArcAgi3CognitiveInteractionCompletion {
+  1250	            turn: completed_turn,
+  1251	            perception: next_perception,
+  1252	        })
+  1253	    }
+  1254	}
+  1255	
+  1256	#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+  1257	pub struct UniversalArcAgi3CognitiveInteractionRuntime;
+  1258	
+  1259	impl UniversalArcAgi3CognitiveInteractionRuntime {
+  1260	    pub fn create_runtime(
+  1261	        initial_observation: ArcAgi3Observation,
+  1262	        first_perceptual_observation_index: u64,
+  1263	    ) -> Result<ArcAgi3CognitiveInteractionRuntime, ArcAgi3CognitiveInteractionError> {
+  1264	        ArcAgi3CognitiveInteractionRuntime::new(
+  1265	            initial_observation,
+  1266	            first_perceptual_observation_index,
+  1267	        )
+  1268	    }
+  1269	
+  1270	    pub fn complete_environment_turn(
+  1271	        runtime: &mut ArcAgi3CognitiveInteractionRuntime,
+  1272	        observation: ArcAgi3Observation,
+  1273	        confidence: CognitiveSignal,
+  1274	    ) -> Result<ArcAgi3CognitiveInteractionCompletion, ArcAgi3CognitiveInteractionError> {
+  1275	        runtime.complete_environment_turn(observation, confidence)
+  1276	    }
+  1277	}
+
+================================================================================
+=== ENVIRONMENT TRANSPORT BOUNDARY — FULL CURRENT SOURCE ===
+FILE=crates/athlesia_arc_agi_3_adapter/src/environment_transport_boundary.rs
+================================================================================
+     1	use crate::cognitive_interaction_runtime::{
+     2	    ArcAgi3CognitiveInteractionCompletion, ArcAgi3CognitiveInteractionError,
+     3	    ArcAgi3CognitiveInteractionRuntime,
+     4	};
+     5	use crate::interactive_session_runtime::ArcAgi3SessionCommand;
+     6	use crate::{
+     7	    ArcAgi3Action, ArcAgi3ActionId, ArcAgi3AvailableActions, ArcAgi3Coordinate,
+     8	    ArcAgi3FrameSequence, ArcAgi3GameId, ArcAgi3GameState, ArcAgi3Grid, ArcAgi3Observation,
+     9	};
+    10	use athlesia_mindstone_sparse_cognition::CognitiveSignal;
+    11	use reqwest::blocking::Client;
+    12	use serde::{Deserialize, Serialize};
+    13	
+    14	#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+    15	pub enum ArcAgi3TransportFailureDisposition {
+    16	    NotDispatched,
+    17	    RejectedByEnvironment,
+    18	    DispatchIndeterminate,
+    19	}
+    20	
+    21	#[derive(Clone, Debug, Eq, PartialEq)]
+    22	pub enum ArcAgi3RestDecodeError {
+    23	    InvalidJson(String),
+    24	    InvalidGameId,
+    25	    InvalidGuid,
+    26	    InvalidState(String),
+    27	    InvalidFrame,
+    28	    InvalidAvailableActions,
+    29	    InvalidActionId(u8),
+    30	    InvalidActionPayload,
+    31	}
+    32	
+    33	#[derive(Debug, Eq, PartialEq)]
+    34	pub enum ArcAgi3TransportError {
+    35	    InvalidBaseUrl,
+    36	    EmptyApiKey,
+    37	    InvalidCardId,
+    38	    InvalidGuid,
+    39	    ActiveSessionExists,
+    40	    NoActiveSession,
+    41	    PendingCommandMismatch,
+    42	    HttpTransport {
+    43	        message: String,
+    44	        disposition: ArcAgi3TransportFailureDisposition,
+    45	    },
+    46	    HttpStatus {
+    47	        status: u16,
+    48	        body: String,
+    49	        disposition: ArcAgi3TransportFailureDisposition,
+    50	    },
+    51	    InvalidRemoteResponse {
+    52	        error: ArcAgi3RestDecodeError,
+    53	        disposition: ArcAgi3TransportFailureDisposition,
+    54	    },
+    55	    SessionIdentityMismatch {
+    56	        expected: String,
+    57	        actual: String,
+    58	        disposition: ArcAgi3TransportFailureDisposition,
+    59	    },
+    60	    CognitiveInitializationRejected {
+    61	        error: ArcAgi3CognitiveInteractionError,
+    62	        disposition: ArcAgi3TransportFailureDisposition,
+    63	    },
+    64	    CognitiveCompletionRejected {
+    65	        error: ArcAgi3CognitiveInteractionError,
+    66	        disposition: ArcAgi3TransportFailureDisposition,
+    67	    },
+    68	}
+    69	
+    70	#[derive(Clone, Debug, Eq, PartialEq)]
+    71	pub struct ArcAgi3RestSession {
+    72	    game_id: ArcAgi3GameId,
+    73	    card_id: String,
+    74	    guid: String,
+    75	}
+    76	
+    77	impl ArcAgi3RestSession {
+    78	    pub fn new(
+    79	        game_id: ArcAgi3GameId,
+    80	        card_id: String,
+    81	        guid: String,
+    82	    ) -> Result<Self, ArcAgi3TransportError> {
+    83	        if card_id.is_empty() || card_id.chars().any(char::is_whitespace) {
+    84	            return Err(ArcAgi3TransportError::InvalidCardId);
+    85	        }
+    86	
+    87	        if guid.is_empty() || guid.chars().any(char::is_whitespace) {
+    88	            return Err(ArcAgi3TransportError::InvalidGuid);
+    89	        }
+    90	
+    91	        Ok(Self {
+    92	            game_id,
+    93	            card_id,
+    94	            guid,
+    95	        })
+    96	    }
+    97	
+    98	    pub fn game_id(&self) -> &ArcAgi3GameId {
+    99	        &self.game_id
+   100	    }
+   101	
+   102	    pub fn card_id(&self) -> &str {
+   103	        &self.card_id
+   104	    }
+   105	
+   106	    pub fn guid(&self) -> &str {
+   107	        &self.guid
+   108	    }
+   109	}
+   110	
+   111	#[derive(Clone, Debug, Eq, PartialEq)]
+   112	pub struct ArcAgi3RestRequest {
+   113	    endpoint: String,
+   114	    game_id: String,
+   115	    card_id: Option<String>,
+   116	    guid: Option<String>,
+   117	    coordinate: Option<ArcAgi3Coordinate>,
+   118	}
+   119	
+   120	impl ArcAgi3RestRequest {
+   121	    pub fn endpoint(&self) -> &str {
+   122	        &self.endpoint
+   123	    }
+   124	
+   125	    pub fn game_id(&self) -> &str {
+   126	        &self.game_id
+   127	    }
+   128	
+   129	    pub fn card_id(&self) -> Option<&str> {
+   130	        self.card_id.as_deref()
+   131	    }
+   132	
+   133	    pub fn guid(&self) -> Option<&str> {
+   134	        self.guid.as_deref()
+   135	    }
+   136	
+   137	    pub fn coordinate(&self) -> Option<ArcAgi3Coordinate> {
+   138	        self.coordinate
+   139	    }
+   140	
+   141	    fn wire_body(&self) -> ArcAgi3RestRequestBody<'_> {
+   142	        let coordinate = self.coordinate.as_ref();
+   143	
+   144	        ArcAgi3RestRequestBody {
+   145	            game_id: &self.game_id,
+   146	            card_id: self.card_id.as_deref(),
+   147	            guid: self.guid.as_deref(),
+   148	            x: coordinate.map(|value| value.x()),
+   149	            y: coordinate.map(|value| value.y()),
+   150	        }
+   151	    }
+   152	}
+   153	
+   154	#[derive(Serialize)]
+   155	struct ArcAgi3RestRequestBody<'a> {
+   156	    game_id: &'a str,
+   157	
+   158	    #[serde(skip_serializing_if = "Option::is_none")]
+   159	    card_id: Option<&'a str>,
+   160	
+   161	    #[serde(skip_serializing_if = "Option::is_none")]
+   162	    guid: Option<&'a str>,
+   163	
+   164	    #[serde(skip_serializing_if = "Option::is_none")]
+   165	    x: Option<u8>,
+   166	
+   167	    #[serde(skip_serializing_if = "Option::is_none")]
+   168	    y: Option<u8>,
+   169	}
+   170	
+   171	#[derive(Clone, Debug, Eq, PartialEq)]
+   172	pub struct ArcAgi3RestObservation {
+   173	    observation: ArcAgi3Observation,
+   174	    guid: String,
+   175	}
+   176	
+   177	impl ArcAgi3RestObservation {
+   178	    pub fn observation(&self) -> &ArcAgi3Observation {
+   179	        &self.observation
+   180	    }
+   181	
+   182	    pub fn guid(&self) -> &str {
+   183	        &self.guid
+   184	    }
+   185	
+   186	    pub fn into_parts(self) -> (ArcAgi3Observation, String) {
+   187	        (self.observation, self.guid)
+   188	    }
+   189	}
+   190	
+   191	#[derive(Deserialize)]
+   192	struct ArcAgi3WireObservation {
+   193	    game_id: String,
+   194	    guid: String,
+   195	    frame: Vec<Vec<Vec<u8>>>,
+   196	    state: String,
+   197	    levels_completed: u64,
+   198	    win_levels: u64,
+   199	
+   200	    #[serde(default)]
+   201	    action_input: Option<ArcAgi3WireActionInput>,
+   202	
+   203	    available_actions: Vec<u8>,
+   204	}
+   205	
+   206	#[derive(Deserialize)]
+   207	struct ArcAgi3WireActionInput {
+   208	    id: u8,
+   209	
+   210	    #[serde(default)]
+   211	    data: Option<ArcAgi3WireActionData>,
+   212	}
+   213	
+   214	#[derive(Deserialize)]
+   215	struct ArcAgi3WireActionData {
+   216	    #[serde(default)]
+   217	    x: Option<u8>,
+   218	
+   219	    #[serde(default)]
+   220	    y: Option<u8>,
+   221	}
+   222	
+   223	#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+   224	pub struct ArcAgi3RestProtocol;
+   225	
+   226	impl ArcAgi3RestProtocol {
+   227	    fn action_id_from_numeric(value: u8) -> Result<ArcAgi3ActionId, ArcAgi3RestDecodeError> {
+   228	        match value {
+   229	            0 => Ok(ArcAgi3ActionId::Reset),
+   230	            1 => Ok(ArcAgi3ActionId::Action1),
+   231	            2 => Ok(ArcAgi3ActionId::Action2),
+   232	            3 => Ok(ArcAgi3ActionId::Action3),
+   233	            4 => Ok(ArcAgi3ActionId::Action4),
+   234	            5 => Ok(ArcAgi3ActionId::Action5),
+   235	            6 => Ok(ArcAgi3ActionId::Action6),
+   236	            7 => Ok(ArcAgi3ActionId::Action7),
+   237	            _ => Err(ArcAgi3RestDecodeError::InvalidActionId(value)),
+   238	        }
+   239	    }
+   240	
+   241	    fn decode_action(
+   242	        action: ArcAgi3WireActionInput,
+   243	    ) -> Result<ArcAgi3Action, ArcAgi3RestDecodeError> {
+   244	        let id = Self::action_id_from_numeric(action.id)?;
+   245	
+   246	        let x = action.data.as_ref().and_then(|data| data.x);
+   247	        let y = action.data.as_ref().and_then(|data| data.y);
+   248	
+   249	        match id {
+   250	            ArcAgi3ActionId::Action6 => {
+   251	                let (Some(x), Some(y)) = (x, y) else {
+   252	                    return Err(ArcAgi3RestDecodeError::InvalidActionPayload);
+   253	                };
+   254	
+   255	                ArcAgi3Action::coordinate(x, y).ok_or(ArcAgi3RestDecodeError::InvalidActionPayload)
+   256	            }
+   257	
+   258	            ArcAgi3ActionId::Reset => {
+   259	                if x.is_some() || y.is_some() {
+   260	                    return Err(ArcAgi3RestDecodeError::InvalidActionPayload);
+   261	                }
+   262	
+   263	                Ok(ArcAgi3Action::reset())
+   264	            }
+   265	
+   266	            _ => {
+   267	                if x.is_some() || y.is_some() {
+   268	                    return Err(ArcAgi3RestDecodeError::InvalidActionPayload);
+   269	                }
+   270	
+   271	                ArcAgi3Action::discrete(id).ok_or(ArcAgi3RestDecodeError::InvalidActionPayload)
+   272	            }
+   273	        }
+   274	    }
+   275	
+   276	    fn decode_state(state: &str) -> Result<ArcAgi3GameState, ArcAgi3RestDecodeError> {
+   277	        match state {
+   278	            "NOT_STARTED" => Ok(ArcAgi3GameState::NotPlayed),
+   279	            "NOT_FINISHED" => Ok(ArcAgi3GameState::NotFinished),
+   280	            "WIN" => Ok(ArcAgi3GameState::Win),
+   281	            "GAME_OVER" => Ok(ArcAgi3GameState::GameOver),
+   282	            _ => Err(ArcAgi3RestDecodeError::InvalidState(state.to_string())),
+   283	        }
+   284	    }
+   285	
+   286	    pub fn start_request(
+   287	        game_id: &ArcAgi3GameId,
+   288	        card_id: &str,
+   289	    ) -> Result<ArcAgi3RestRequest, ArcAgi3TransportError> {
+   290	        if card_id.is_empty() || card_id.chars().any(char::is_whitespace) {
+   291	            return Err(ArcAgi3TransportError::InvalidCardId);
+   292	        }
+   293	
+   294	        Ok(ArcAgi3RestRequest {
+   295	            endpoint: "/api/cmd/RESET".to_string(),
+   296	            game_id: game_id.as_str().to_string(),
+   297	            card_id: Some(card_id.to_string()),
+   298	            guid: None,
+   299	            coordinate: None,
+   300	        })
+   301	    }
+   302	
+   303	    pub fn command_request(
+   304	        session: &ArcAgi3RestSession,
+   305	        command: &ArcAgi3SessionCommand,
+   306	    ) -> Result<ArcAgi3RestRequest, ArcAgi3TransportError> {
+   307	        let action = command.action();
+   308	
+   309	        let coordinate =
+   310	            if action.id() == ArcAgi3ActionId::Action6 {
+   311	                Some(action.coordinate_data().ok_or(
+   312	                    ArcAgi3TransportError::InvalidRemoteResponse {
+   313	                        error: ArcAgi3RestDecodeError::InvalidActionPayload,
+   314	                        disposition: ArcAgi3TransportFailureDisposition::NotDispatched,
+   315	                    },
+   316	                )?)
+   317	            } else {
+   318	                None
+   319	            };
+   320	
+   321	        let card_id = if command.is_reset() {
+   322	            Some(session.card_id().to_string())
+   323	        } else {
+   324	            None
+   325	        };
+   326	
+   327	        Ok(ArcAgi3RestRequest {
+   328	            endpoint: format!("/api/cmd/{}", action.id().protocol_name()),
+   329	            game_id: session.game_id().as_str().to_string(),
+   330	            card_id,
+   331	            guid: Some(session.guid().to_string()),
+   332	            coordinate,
+   333	        })
+   334	    }
+   335	
+   336	    pub fn decode_observation_json(
+   337	        json: &str,
+   338	    ) -> Result<ArcAgi3RestObservation, ArcAgi3RestDecodeError> {
+   339	        let wire: ArcAgi3WireObservation = serde_json::from_str(json)
+   340	            .map_err(|error| ArcAgi3RestDecodeError::InvalidJson(error.to_string()))?;
+   341	
+   342	        let game_id =
+   343	            ArcAgi3GameId::new(wire.game_id).ok_or(ArcAgi3RestDecodeError::InvalidGameId)?;
+   344	
+   345	        if wire.guid.is_empty() || wire.guid.chars().any(char::is_whitespace) {
+   346	            return Err(ArcAgi3RestDecodeError::InvalidGuid);
+   347	        }
+   348	
+   349	        let state = Self::decode_state(&wire.state)?;
+   350	
+   351	        let frames = wire
+   352	            .frame
+   353	            .into_iter()
+   354	            .map(|rows| ArcAgi3Grid::from_rows(rows).ok_or(ArcAgi3RestDecodeError::InvalidFrame))
+   355	            .collect::<Result<Vec<_>, _>>()?;
+   356	
+   357	        let frames =
+   358	            ArcAgi3FrameSequence::new(frames).ok_or(ArcAgi3RestDecodeError::InvalidFrame)?;
+   359	
+   360	        let available_actions = wire
+   361	            .available_actions
+   362	            .into_iter()
+   363	            .map(Self::action_id_from_numeric)
+   364	            .collect::<Result<Vec<_>, _>>()?;
+   365	
+   366	        if available_actions.contains(&ArcAgi3ActionId::Reset) {
+   367	            return Err(ArcAgi3RestDecodeError::InvalidAvailableActions);
+   368	        }
+   369	
+   370	        let available_actions = ArcAgi3AvailableActions::new(available_actions)
+   371	            .ok_or(ArcAgi3RestDecodeError::InvalidAvailableActions)?;
+   372	
+   373	        let last_action = wire.action_input.map(Self::decode_action).transpose()?;
+   374	
+   375	        let levels_completed = wire
+   376	            .levels_completed
+   377	            .try_into()
+   378	            .map_err(|_| ArcAgi3RestDecodeError::InvalidFrame)?;
+   379	
+   380	        let win_levels = wire
+   381	            .win_levels
+   382	            .try_into()
+   383	            .map_err(|_| ArcAgi3RestDecodeError::InvalidFrame)?;
+   384	
+   385	        Ok(ArcAgi3RestObservation {
+   386	            observation: ArcAgi3Observation::new(
+   387	                game_id,
+   388	                state,
+   389	                frames,
+   390	                levels_completed,
+   391	                win_levels,
+   392	                available_actions,
+   393	                last_action,
+   394	            ),
+   395	            guid: wire.guid,
+   396	        })
+   397	    }
+   398	}
+   399	
+   400	pub trait ArcAgi3EnvironmentTransport {
+   401	    fn start_game(
+   402	        &mut self,
+   403	        game_id: &ArcAgi3GameId,
+   404	        card_id: &str,
+   405	    ) -> Result<ArcAgi3Observation, ArcAgi3TransportError>;
+   406	
+   407	    fn execute(
+   408	        &mut self,
+   409	        command: &ArcAgi3SessionCommand,
+   410	    ) -> Result<ArcAgi3Observation, ArcAgi3TransportError>;
+   411	}
+   412	
+   413	pub struct ArcAgi3RestTransport {
+   414	    client: Client,
+   415	    base_url: String,
+   416	    api_key: String,
+   417	    session: Option<ArcAgi3RestSession>,
+   418	}
+   419	
+   420	impl ArcAgi3RestTransport {
+   421	    pub fn new(base_url: String, api_key: String) -> Result<Self, ArcAgi3TransportError> {
+   422	        let parsed =
+   423	            reqwest::Url::parse(&base_url).map_err(|_| ArcAgi3TransportError::InvalidBaseUrl)?;
+   424	
+   425	        if parsed.scheme() != "http" && parsed.scheme() != "https" {
+   426	            return Err(ArcAgi3TransportError::InvalidBaseUrl);
+   427	        }
+   428	
+   429	        if api_key.is_empty() || api_key.chars().any(char::is_whitespace) {
+   430	            return Err(ArcAgi3TransportError::EmptyApiKey);
+   431	        }
+   432	
+   433	        let client = Client::builder()
+   434	            .cookie_store(true)
+   435	            .build()
+   436	            .map_err(|error| ArcAgi3TransportError::HttpTransport {
+   437	                message: error.to_string(),
+   438	                disposition: ArcAgi3TransportFailureDisposition::NotDispatched,
+   439	            })?;
+   440	
+   441	        Ok(Self {
+   442	            client,
+   443	            base_url: base_url.trim_end_matches('/').to_string(),
+   444	            api_key,
+   445	            session: None,
+   446	        })
+   447	    }
+   448	
+   449	    pub fn session(&self) -> Option<&ArcAgi3RestSession> {
+   450	        self.session.as_ref()
+   451	    }
+   452	
+   453	    fn send(
+   454	        &self,
+   455	        request: &ArcAgi3RestRequest,
+   456	    ) -> Result<ArcAgi3RestObservation, ArcAgi3TransportError> {
+   457	        let response = self
+   458	            .client
+   459	            .post(format!("{}{}", self.base_url, request.endpoint()))
+   460	            .header("X-API-Key", &self.api_key)
+   461	            .json(&request.wire_body())
+   462	            .send()
+   463	            .map_err(|error| ArcAgi3TransportError::HttpTransport {
+   464	                message: error.to_string(),
+   465	                disposition: ArcAgi3TransportFailureDisposition::DispatchIndeterminate,
+   466	            })?;
+   467	
+   468	        let status = response.status();
+   469	
+   470	        let body = response
+   471	            .text()
+   472	            .map_err(|error| ArcAgi3TransportError::HttpTransport {
+   473	                message: error.to_string(),
+   474	                disposition: ArcAgi3TransportFailureDisposition::DispatchIndeterminate,
+   475	            })?;
+   476	
+   477	        if !status.is_success() {
+   478	            let disposition = if status.is_client_error() {
+   479	                ArcAgi3TransportFailureDisposition::RejectedByEnvironment
+   480	            } else {
+   481	                ArcAgi3TransportFailureDisposition::DispatchIndeterminate
+   482	            };
+   483	
+   484	            return Err(ArcAgi3TransportError::HttpStatus {
+   485	                status: status.as_u16(),
+   486	                body,
+   487	                disposition,
+   488	            });
+   489	        }
+   490	
+   491	        ArcAgi3RestProtocol::decode_observation_json(&body).map_err(|error| {
+   492	            ArcAgi3TransportError::InvalidRemoteResponse {
+   493	                error,
+   494	                disposition: ArcAgi3TransportFailureDisposition::DispatchIndeterminate,
+   495	            }
+   496	        })
+   497	    }
+   498	}
+   499	
+   500	impl ArcAgi3EnvironmentTransport for ArcAgi3RestTransport {
+   501	    fn start_game(
+   502	        &mut self,
+   503	        game_id: &ArcAgi3GameId,
+   504	        card_id: &str,
+   505	    ) -> Result<ArcAgi3Observation, ArcAgi3TransportError> {
+   506	        if self.session.is_some() {
+   507	            return Err(ArcAgi3TransportError::ActiveSessionExists);
+   508	        }
+   509	
+   510	        let request = ArcAgi3RestProtocol::start_request(game_id, card_id)?;
+   511	
+   512	        let response = self.send(&request)?;
+   513	
+   514	        let (observation, guid) = response.into_parts();
+   515	
+   516	        self.session = Some(ArcAgi3RestSession::new(
+   517	            observation.game_id().clone(),
+   518	            card_id.to_string(),
+   519	            guid,
+   520	        )?);
+   521	
+   522	        Ok(observation)
+   523	    }
+   524	
+   525	    fn execute(
+   526	        &mut self,
+   527	        command: &ArcAgi3SessionCommand,
+   528	    ) -> Result<ArcAgi3Observation, ArcAgi3TransportError> {
+   529	        let session = self
+   530	            .session
+   531	            .clone()
+   532	            .ok_or(ArcAgi3TransportError::NoActiveSession)?;
+   533	
+   534	        let request = ArcAgi3RestProtocol::command_request(&session, command)?;
+   535	
+   536	        let response = self.send(&request)?;
+   537	
+   538	        if response.observation().game_id() != session.game_id() {
+   539	            return Err(ArcAgi3TransportError::SessionIdentityMismatch {
+   540	                expected: session.game_id().as_str().to_string(),
+   541	                actual: response.observation().game_id().as_str().to_string(),
+   542	                disposition: ArcAgi3TransportFailureDisposition::DispatchIndeterminate,
+   543	            });
+   544	        }
+   545	
+   546	        let (observation, guid) = response.into_parts();
+   547	
+   548	        self.session = Some(ArcAgi3RestSession::new(
+   549	            observation.game_id().clone(),
+   550	            session.card_id().to_string(),
+   551	            guid,
+   552	        )?);
+   553	
+   554	        Ok(observation)
+   555	    }
+   556	}
+   557	
+   558	#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+   559	pub struct ArcAgi3EnvironmentTransportBoundary;
+   560	
+   561	impl ArcAgi3EnvironmentTransportBoundary {
+   562	    pub fn start_runtime<T: ArcAgi3EnvironmentTransport>(
+   563	        transport: &mut T,
+   564	        game_id: &ArcAgi3GameId,
+   565	        card_id: &str,
+   566	        first_perceptual_observation_index: u64,
+   567	    ) -> Result<ArcAgi3CognitiveInteractionRuntime, ArcAgi3TransportError> {
+   568	        let observation = transport.start_game(game_id, card_id)?;
+   569	
+   570	        ArcAgi3CognitiveInteractionRuntime::new(observation, first_perceptual_observation_index)
+   571	            .map_err(
+   572	                |error| ArcAgi3TransportError::CognitiveInitializationRejected {
+   573	                    error,
+   574	                    disposition: ArcAgi3TransportFailureDisposition::DispatchIndeterminate,
+   575	                },
+   576	            )
+   577	    }
+   578	
+   579	    pub fn complete_pending<T: ArcAgi3EnvironmentTransport>(
+   580	        transport: &mut T,
+   581	        runtime: &mut ArcAgi3CognitiveInteractionRuntime,
+   582	        command: &ArcAgi3SessionCommand,
+   583	        confidence: CognitiveSignal,
+   584	    ) -> Result<ArcAgi3CognitiveInteractionCompletion, ArcAgi3TransportError> {
+   585	        if runtime.session().pending_action() != Some(command.action()) {
+   586	            return Err(ArcAgi3TransportError::PendingCommandMismatch);
+   587	        }
+   588	
+   589	        let observation = transport.execute(command)?;
+   590	
+   591	        runtime
+   592	            .complete_environment_turn(observation, confidence)
+   593	            .map_err(|error| ArcAgi3TransportError::CognitiveCompletionRejected {
+   594	                error,
+   595	                disposition: ArcAgi3TransportFailureDisposition::DispatchIndeterminate,
+   596	            })
+   597	    }
+   598	}
+   599	
+   600	#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+   601	pub struct UniversalArcAgi3EnvironmentTransportBoundary;
+   602	
+   603	impl UniversalArcAgi3EnvironmentTransportBoundary {
+   604	    pub fn start_runtime<T: ArcAgi3EnvironmentTransport>(
+   605	        transport: &mut T,
+   606	        game_id: &ArcAgi3GameId,
+   607	        card_id: &str,
+   608	        first_perceptual_observation_index: u64,
+   609	    ) -> Result<ArcAgi3CognitiveInteractionRuntime, ArcAgi3TransportError> {
+   610	        ArcAgi3EnvironmentTransportBoundary::start_runtime(
+   611	            transport,
+   612	            game_id,
+   613	            card_id,
+   614	            first_perceptual_observation_index,
+   615	        )
+   616	    }
+   617	
+   618	    pub fn complete_pending<T: ArcAgi3EnvironmentTransport>(
+   619	        transport: &mut T,
+   620	        runtime: &mut ArcAgi3CognitiveInteractionRuntime,
+   621	        command: &ArcAgi3SessionCommand,
+   622	        confidence: CognitiveSignal,
+   623	    ) -> Result<ArcAgi3CognitiveInteractionCompletion, ArcAgi3TransportError> {
+   624	        ArcAgi3EnvironmentTransportBoundary::complete_pending(
+   625	            transport, runtime, command, confidence,
+   626	        )
+   627	    }
+   628	}
+
+================================================================================
+=== ADAPTER LIB EXPORTS ===
+FILE=crates/athlesia_arc_agi_3_adapter/src/lib.rs
+================================================================================
+     1	// ============================================================================
+     2	// ATHLESIA M52 — ARC-AGI-3 ADAPTER FOUNDATION
+     3	// ============================================================================
+     4	
+     5	pub const ARC_AGI_3_MAX_GRID_DIMENSION: usize = 64;
+     6	pub const ARC_AGI_3_MAX_CELL_VALUE: u8 = 15;
+     7	pub const ARC_AGI_3_MAX_COORDINATE: u8 = 63;
+     8	
+     9	#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+    10	pub enum ArcAgi3GameState {
+    11	    NotPlayed,
+    12	    NotFinished,
+    13	    Win,
+    14	    GameOver,
+    15	}
+    16	
+    17	impl ArcAgi3GameState {
+    18	    pub fn is_terminal(self) -> bool {
+    19	        matches!(self, Self::Win | Self::GameOver)
+    20	    }
+    21	
+    22	    pub fn awaiting_action(self) -> bool {
+    23	        self == Self::NotFinished
+    24	    }
+    25	}
+    26	
+    27	#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+    28	pub enum ArcAgi3ActionId {
+    29	    Action1,
+    30	    Action2,
+    31	    Action3,
+    32	    Action4,
+    33	    Action5,
+    34	    Action6,
+    35	    Action7,
+    36	    Reset,
+    37	}
+    38	
+    39	impl ArcAgi3ActionId {
+    40	    pub fn protocol_name(self) -> &'static str {
+    41	        match self {
+    42	            Self::Action1 => "ACTION1",
+    43	            Self::Action2 => "ACTION2",
+    44	            Self::Action3 => "ACTION3",
+    45	            Self::Action4 => "ACTION4",
+    46	            Self::Action5 => "ACTION5",
+    47	            Self::Action6 => "ACTION6",
+    48	            Self::Action7 => "ACTION7",
+    49	            Self::Reset => "RESET",
+    50	        }
+    51	    }
+    52	
+    53	    pub fn from_protocol_name(name: &str) -> Option<Self> {
+    54	        match name {
+    55	            "ACTION1" => Some(Self::Action1),
+    56	            "ACTION2" => Some(Self::Action2),
+    57	            "ACTION3" => Some(Self::Action3),
+    58	            "ACTION4" => Some(Self::Action4),
+    59	            "ACTION5" => Some(Self::Action5),
+    60	            "ACTION6" => Some(Self::Action6),
+    61	            "ACTION7" => Some(Self::Action7),
+    62	            "RESET" => Some(Self::Reset),
+    63	            _ => None,
+    64	        }
+    65	    }
+    66	
+    67	    pub fn numeric_id(self) -> Option<u8> {
+    68	        match self {
+    69	            Self::Action1 => Some(1),
+    70	            Self::Action2 => Some(2),
+    71	            Self::Action3 => Some(3),
+    72	            Self::Action4 => Some(4),
+    73	            Self::Action5 => Some(5),
+    74	            Self::Action6 => Some(6),
+    75	            Self::Action7 => Some(7),
+    76	            Self::Reset => None,
+    77	        }
+    78	    }
+    79	
+    80	    pub fn from_numeric_id(value: u8) -> Option<Self> {
+    81	        match value {
+    82	            1 => Some(Self::Action1),
+    83	            2 => Some(Self::Action2),
+    84	            3 => Some(Self::Action3),
+    85	            4 => Some(Self::Action4),
+    86	            5 => Some(Self::Action5),
+    87	            6 => Some(Self::Action6),
+    88	            7 => Some(Self::Action7),
+    89	            _ => None,
+    90	        }
+    91	    }
+    92	
+    93	    pub fn requires_coordinate(self) -> bool {
+    94	        self == Self::Action6
+    95	    }
+    96	
+    97	    pub fn is_environment_action(self) -> bool {
+    98	        self != Self::Reset
+    99	    }
+   100	}
+   101	
+   102	#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+   103	pub struct ArcAgi3Coordinate {
+   104	    x: u8,
+   105	    y: u8,
+   106	}
+   107	
+   108	impl ArcAgi3Coordinate {
+   109	    pub fn new(x: u8, y: u8) -> Option<Self> {
+   110	        if x > ARC_AGI_3_MAX_COORDINATE || y > ARC_AGI_3_MAX_COORDINATE {
+   111	            return None;
+   112	        }
+   113	
+   114	        Some(Self { x, y })
+   115	    }
+   116	
+   117	    pub fn x(self) -> u8 {
+   118	        self.x
+   119	    }
+   120	
+   121	    pub fn y(self) -> u8 {
+   122	        self.y
+   123	    }
+   124	}
+   125	
+   126	#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+   127	pub enum ArcAgi3ActionPayload {
+   128	    None,
+   129	    Coordinate(ArcAgi3Coordinate),
+   130	}
+   131	
+   132	#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+   133	pub struct ArcAgi3Action {
+   134	    id: ArcAgi3ActionId,
+   135	    payload: ArcAgi3ActionPayload,
+   136	}
+   137	
+   138	impl ArcAgi3Action {
+   139	    pub fn from_parts(id: ArcAgi3ActionId, payload: ArcAgi3ActionPayload) -> Option<Self> {
+   140	        let valid = matches!(
+   141	            (id, payload),
+   142	            (
+   143	                ArcAgi3ActionId::Action6,
+   144	                ArcAgi3ActionPayload::Coordinate(_),
+   145	            ) | (
+   146	                ArcAgi3ActionId::Action1
+   147	                    | ArcAgi3ActionId::Action2
+   148	                    | ArcAgi3ActionId::Action3
+   149	                    | ArcAgi3ActionId::Action4
+   150	                    | ArcAgi3ActionId::Action5
+   151	                    | ArcAgi3ActionId::Action7
+   152	                    | ArcAgi3ActionId::Reset,
+   153	                ArcAgi3ActionPayload::None,
+   154	            )
+   155	        );
+   156	
+   157	        valid.then_some(Self { id, payload })
+   158	    }
+   159	
+   160	    pub fn discrete(id: ArcAgi3ActionId) -> Option<Self> {
+   161	        if !id.is_environment_action() || id.requires_coordinate() {
+   162	            return None;
+   163	        }
+   164	
+   165	        Self::from_parts(id, ArcAgi3ActionPayload::None)
+   166	    }
+   167	
+   168	    pub fn coordinate(x: u8, y: u8) -> Option<Self> {
+   169	        let coordinate = ArcAgi3Coordinate::new(x, y)?;
+   170	
+   171	        Self::from_parts(
+   172	            ArcAgi3ActionId::Action6,
+   173	            ArcAgi3ActionPayload::Coordinate(coordinate),
+   174	        )
+   175	    }
+   176	
+   177	    pub fn reset() -> Self {
+   178	        Self {
+   179	            id: ArcAgi3ActionId::Reset,
+   180	            payload: ArcAgi3ActionPayload::None,
+   181	        }
+   182	    }
+   183	
+   184	    pub fn id(self) -> ArcAgi3ActionId {
+   185	        self.id
+   186	    }
+   187	
+   188	    pub fn payload(self) -> ArcAgi3ActionPayload {
+   189	        self.payload
+   190	    }
+   191	
+   192	    pub fn coordinate_data(self) -> Option<ArcAgi3Coordinate> {
+   193	        match self.payload {
+   194	            ArcAgi3ActionPayload::Coordinate(coordinate) => Some(coordinate),
+   195	            ArcAgi3ActionPayload::None => None,
+   196	        }
+   197	    }
+   198	}
+   199	
+   200	#[derive(Clone, Debug, Eq, PartialEq)]
+   201	pub struct ArcAgi3AvailableActions {
+   202	    actions: Vec<ArcAgi3ActionId>,
+   203	}
+   204	
+   205	impl ArcAgi3AvailableActions {
+   206	    pub fn new(mut actions: Vec<ArcAgi3ActionId>) -> Option<Self> {
+   207	        if actions.contains(&ArcAgi3ActionId::Reset) {
+   208	            return None;
+   209	        }
+   210	
+   211	        actions.sort_unstable();
+   212	
+   213	        if actions.windows(2).any(|pair| pair[0] == pair[1]) {
+   214	            return None;
+   215	        }
+   216	
+   217	        Some(Self { actions })
+   218	    }
+   219	
+   220	    pub fn actions(&self) -> &[ArcAgi3ActionId] {
+   221	        &self.actions
+   222	    }
+   223	
+   224	    pub fn action_count(&self) -> usize {
+   225	        self.actions.len()
+   226	    }
+   227	
+   228	    pub fn contains(&self, action: ArcAgi3ActionId) -> bool {
+   229	        self.actions.binary_search(&action).is_ok()
+   230	    }
+   231	
+   232	    pub fn authorizes(&self, action: ArcAgi3Action) -> bool {
+   233	        action.id().is_environment_action() && self.contains(action.id())
+   234	    }
+   235	}
+   236	
+   237	#[derive(Clone, Debug, Eq, PartialEq)]
+   238	pub struct ArcAgi3Grid {
+   239	    width: usize,
+   240	    height: usize,
+   241	    cells: Vec<u8>,
+   242	}
+   243	
+   244	impl ArcAgi3Grid {
+   245	    pub fn from_rows(rows: Vec<Vec<u8>>) -> Option<Self> {
+   246	        let height = rows.len();
+   247	
+   248	        if height == 0 || height > ARC_AGI_3_MAX_GRID_DIMENSION {
+   249	            return None;
+   250	        }
+   251	
+   252	        let width = rows.first()?.len();
+   253	
+   254	        if width == 0 || width > ARC_AGI_3_MAX_GRID_DIMENSION {
+   255	            return None;
+   256	        }
+   257	
+   258	        if rows.iter().any(|row| row.len() != width) {
+   259	            return None;
+   260	        }
+   261	
+   262	        let mut cells = Vec::with_capacity(width.saturating_mul(height));
+   263	
+   264	        for row in rows {
+   265	            for cell in row {
+   266	                if cell > ARC_AGI_3_MAX_CELL_VALUE {
+   267	                    return None;
+   268	                }
+   269	
+   270	                cells.push(cell);
+   271	            }
+   272	        }
+   273	
+   274	        Some(Self {
+   275	            width,
+   276	            height,
+   277	            cells,
+   278	        })
+   279	    }
+   280	
+   281	    pub fn from_flat(width: usize, height: usize, cells: Vec<u8>) -> Option<Self> {
+   282	        if width == 0
+   283	            || height == 0
+   284	            || width > ARC_AGI_3_MAX_GRID_DIMENSION
+   285	            || height > ARC_AGI_3_MAX_GRID_DIMENSION
+   286	        {
+   287	            return None;
+   288	        }
+   289	
+   290	        if width.checked_mul(height)? != cells.len() {
+   291	            return None;
+   292	        }
+   293	
+   294	        if cells.iter().any(|cell| *cell > ARC_AGI_3_MAX_CELL_VALUE) {
+   295	            return None;
+   296	        }
+   297	
+   298	        Some(Self {
+   299	            width,
+   300	            height,
+   301	            cells,
+   302	        })
+   303	    }
+   304	
+   305	    pub fn width(&self) -> usize {
+   306	        self.width
+   307	    }
+   308	
+   309	    pub fn height(&self) -> usize {
+   310	        self.height
+   311	    }
+   312	
+   313	    pub fn cells(&self) -> &[u8] {
+   314	        &self.cells
+   315	    }
+   316	
+   317	    pub fn cell(&self, x: usize, y: usize) -> Option<u8> {
+   318	        if x >= self.width || y >= self.height {
+   319	            return None;
+   320	        }
+   321	
+   322	        let index = y.checked_mul(self.width)?.checked_add(x)?;
+   323	
+   324	        self.cells.get(index).copied()
+   325	    }
+   326	
+   327	    pub fn row(&self, y: usize) -> Option<&[u8]> {
+   328	        if y >= self.height {
+   329	            return None;
+   330	        }
+   331	
+   332	        let start = y.checked_mul(self.width)?;
+   333	        let end = start.checked_add(self.width)?;
+   334	
+   335	        self.cells.get(start..end)
+   336	    }
+   337	}
+   338	
+   339	#[derive(Clone, Debug, Eq, PartialEq)]
+   340	pub struct ArcAgi3FrameSequence {
+   341	    frames: Vec<ArcAgi3Grid>,
+   342	}
+   343	
+   344	impl ArcAgi3FrameSequence {
+   345	    pub fn new(frames: Vec<ArcAgi3Grid>) -> Option<Self> {
+   346	        if frames.is_empty() {
+   347	            return None;
+   348	        }
+   349	
+   350	        Some(Self { frames })
+   351	    }
+   352	
+   353	    pub fn frames(&self) -> &[ArcAgi3Grid] {
+   354	        &self.frames
+   355	    }
+   356	
+   357	    pub fn frame_count(&self) -> usize {
+   358	        self.frames.len()
+   359	    }
+   360	
+   361	    pub fn latest(&self) -> &ArcAgi3Grid {
+   362	        self.frames
+   363	            .last()
+   364	            .expect("validated ARC-AGI-3 frame sequence is nonempty")
+   365	    }
+   366	}
+   367	
+   368	#[derive(Clone, Debug, Eq, Hash, PartialEq)]
+   369	pub struct ArcAgi3GameId(String);
+   370	
+   371	impl ArcAgi3GameId {
+   372	    pub fn new(value: String) -> Option<Self> {
+   373	        if value.is_empty() || value.chars().any(char::is_whitespace) {
+   374	            return None;
+   375	        }
+   376	
+   377	        Some(Self(value))
+   378	    }
+   379	
+   380	    pub fn as_str(&self) -> &str {
+   381	        &self.0
+   382	    }
+   383	}
+   384	
+   385	#[derive(Clone, Debug, Eq, PartialEq)]
+   386	pub struct ArcAgi3Observation {
+   387	    game_id: ArcAgi3GameId,
+   388	    state: ArcAgi3GameState,
+   389	    frames: ArcAgi3FrameSequence,
+   390	    levels_completed: u32,
+   391	    win_levels: u32,
+   392	    available_actions: ArcAgi3AvailableActions,
+   393	    last_action: Option<ArcAgi3Action>,
+   394	}
+   395	
+   396	impl ArcAgi3Observation {
+   397	    pub fn new(
+   398	        game_id: ArcAgi3GameId,
+   399	        state: ArcAgi3GameState,
+   400	        frames: ArcAgi3FrameSequence,
+   401	        levels_completed: u32,
+   402	        win_levels: u32,
+   403	        available_actions: ArcAgi3AvailableActions,
+   404	        last_action: Option<ArcAgi3Action>,
+   405	    ) -> Self {
+   406	        Self {
+   407	            game_id,
+   408	            state,
+   409	            frames,
+   410	            levels_completed,
+   411	            win_levels,
+   412	            available_actions,
+   413	            last_action,
+   414	        }
+   415	    }
+   416	
+   417	    pub fn game_id(&self) -> &ArcAgi3GameId {
+   418	        &self.game_id
+   419	    }
+   420	
+   421	    pub fn state(&self) -> ArcAgi3GameState {
+   422	        self.state
+   423	    }
+   424	
+   425	    pub fn frames(&self) -> &ArcAgi3FrameSequence {
+   426	        &self.frames
+   427	    }
+   428	
+   429	    pub fn levels_completed(&self) -> u32 {
+   430	        self.levels_completed
+   431	    }
+   432	
+   433	    pub fn win_levels(&self) -> u32 {
+   434	        self.win_levels
+   435	    }
+   436	
+   437	    pub fn available_actions(&self) -> &ArcAgi3AvailableActions {
+   438	        &self.available_actions
+   439	    }
+   440	
+   441	    pub fn last_action(&self) -> Option<ArcAgi3Action> {
+   442	        self.last_action
+   443	    }
+   444	
+   445	    pub fn terminal(&self) -> bool {
+   446	        self.state.is_terminal()
+   447	    }
+   448	
+   449	    pub fn awaiting_action(&self) -> bool {
+   450	        self.state.awaiting_action()
+   451	    }
+   452	}
+   453	
+   454	#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+   455	pub enum ArcAgi3ActionAuthorizationStatus {
+   456	    AuthorizedAction,
+   457	    AuthorizedReset,
+   458	    GameNotActive,
+   459	    ActionUnavailable,
+   460	}
+   461	
+   462	#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+   463	pub struct ArcAgi3ActionAuthorization {
+   464	    status: ArcAgi3ActionAuthorizationStatus,
+   465	}
+   466	
+   467	impl ArcAgi3ActionAuthorization {
+   468	    pub fn status(self) -> ArcAgi3ActionAuthorizationStatus {
+   469	        self.status
+   470	    }
+   471	
+   472	    pub fn authorized(self) -> bool {
+   473	        matches!(
+   474	            self.status,
+   475	            ArcAgi3ActionAuthorizationStatus::AuthorizedAction
+   476	                | ArcAgi3ActionAuthorizationStatus::AuthorizedReset
+   477	        )
+   478	    }
+   479	}
+   480	
+   481	#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+   482	pub struct ArcAgi3Protocol;
+   483	
+   484	impl ArcAgi3Protocol {
+   485	    pub fn authorize_action(
+   486	        observation: &ArcAgi3Observation,
+   487	        action: ArcAgi3Action,
+   488	    ) -> ArcAgi3ActionAuthorization {
+   489	        if action.id() == ArcAgi3ActionId::Reset {
+   490	            return ArcAgi3ActionAuthorization {
+   491	                status: ArcAgi3ActionAuthorizationStatus::AuthorizedReset,
+   492	            };
+   493	        }
+   494	
+   495	        if !observation.awaiting_action() {
+   496	            return ArcAgi3ActionAuthorization {
+   497	                status: ArcAgi3ActionAuthorizationStatus::GameNotActive,
+   498	            };
+   499	        }
+   500	
+   501	        if !observation.available_actions().authorizes(action) {
+   502	            return ArcAgi3ActionAuthorization {
+   503	                status: ArcAgi3ActionAuthorizationStatus::ActionUnavailable,
+   504	            };
+   505	        }
+   506	
+   507	        ArcAgi3ActionAuthorization {
+   508	            status: ArcAgi3ActionAuthorizationStatus::AuthorizedAction,
+   509	        }
+   510	    }
+   511	}
+   512	
+   513	#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+   514	pub struct UniversalArcAgi3Protocol;
+   515	
+   516	impl UniversalArcAgi3Protocol {
+   517	    pub fn authorize_action(
+   518	        observation: &ArcAgi3Observation,
+   519	        action: ArcAgi3Action,
+   520	    ) -> ArcAgi3ActionAuthorization {
+   521	        ArcAgi3Protocol::authorize_action(observation, action)
+   522	    }
+   523	}
+   524	
+   525	pub mod cognitive_protocol_bridge;
+   526	
+   527	pub mod interactive_session_runtime;
+   528	
+   529	pub mod perceptual_ingestion_bridge;
+   530	
+   531	pub mod action_grounding_bridge;
+   532	
+   533	pub mod cognitive_interaction_runtime;
+   534	
+   535	pub mod environment_transport_boundary;
+   536	
+   537	pub mod live_environment_runtime;
+   538	
+   539	pub mod bounded_episode_runtime;
+   540	
+   541	pub mod competition_session_runtime;
+
+================================================================================
+=== LIVE SYMBOL INDEX ===
+================================================================================
+5:use crate::environment_transport_boundary::{
+17:pub enum ArcAgi3LiveEnvironmentStatus {
+26:pub enum ArcAgi3LiveEnvironmentError {
+36:impl From<ArcAgi3CognitiveInteractionError> for ArcAgi3LiveEnvironmentError {
+42:impl From<ArcAgi3InteractiveSessionError> for ArcAgi3LiveEnvironmentError {
+49:pub struct ArcAgi3LiveCognitiveStep {
+50:    cognitive_step: ArcAgi3CognitiveInteractionStep,
+52:    completed_cognitive_step_count: u64,
+55:impl ArcAgi3LiveCognitiveStep {
+56:    pub fn cognitive_step(&self) -> &ArcAgi3CognitiveInteractionStep {
+57:        &self.cognitive_step
+60:    pub fn completion(&self) -> &ArcAgi3CognitiveInteractionCompletion {
+64:    pub fn completed_cognitive_step_count(&self) -> u64 {
+65:        self.completed_cognitive_step_count
+69:pub struct ArcAgi3LiveEnvironmentRuntime<T>
+73:    transport: T,
+75:    completed_cognitive_step_count: u64,
+76:    completed_reset_count: u64,
+77:    faulted_pending: bool,
+78:    fault_disposition: Option<ArcAgi3TransportFailureDisposition>,
+85:    pub fn start(
+86:        mut transport: T,
+92:            &mut transport,
+100:            transport,
+102:            completed_cognitive_step_count: 0,
+103:            completed_reset_count: 0,
+104:            faulted_pending: false,
+105:            fault_disposition: None,
+109:    pub fn transport(&self) -> &T {
+110:        &self.transport
+113:    pub fn cognitive_runtime(&self) -> &ArcAgi3CognitiveInteractionRuntime {
+117:    pub fn completed_cognitive_step_count(&self) -> u64 {
+118:        self.completed_cognitive_step_count
+121:    pub fn completed_reset_count(&self) -> u64 {
+122:        self.completed_reset_count
+125:    pub fn fault_disposition(&self) -> Option<ArcAgi3TransportFailureDisposition> {
+126:        self.fault_disposition
+129:    pub fn status(&self) -> ArcAgi3LiveEnvironmentStatus {
+130:        if self.faulted_pending {
+142:    pub fn into_parts(self) -> (T, ArcAgi3CognitiveInteractionRuntime) {
+143:        (self.transport, self.cognitive_runtime)
+146:    fn transport_failure_disposition(
+169:    fn ensure_not_faulted(&self) -> Result<(), ArcAgi3LiveEnvironmentError> {
+170:        if self.faulted_pending {
+172:                self.fault_disposition,
+180:        self.ensure_not_faulted()?;
+189:    fn mark_transport_failure(&mut self, error: &ArcAgi3TransportError) {
+190:        self.faulted_pending = true;
+191:        self.fault_disposition = Self::transport_failure_disposition(error);
+194:    fn complete_cognitive_step(
+196:        cognitive_step: ArcAgi3CognitiveInteractionStep,
+198:        next_completed_step_count: u64,
+200:        let completion = ArcAgi3EnvironmentTransportBoundary::complete_pending(
+201:            &mut self.transport,
+203:            cognitive_step.command(),
+211:                self.mark_transport_failure(&error);
+217:        self.completed_cognitive_step_count = next_completed_step_count;
+220:            cognitive_step,
+222:            completed_cognitive_step_count: next_completed_step_count,
+226:    pub fn execute_with<F>(
+229:        begin: F,
+239:        let next_completed_step_count = self
+240:            .completed_cognitive_step_count
+244:        let cognitive_step = begin(&mut self.cognitive_runtime)?;
+246:        self.complete_cognitive_step(cognitive_step, confidence, next_completed_step_count)
+249:    pub fn execute_step<'a>(
+257:        self.execute_with(confidence, |runtime| {
+258:            runtime.run_and_begin(anchor_state, input, cycle_policy, transition_request)
+262:    pub fn reset(
+266:        self.ensure_not_faulted()?;
+268:        let next_reset_count = self
+269:            .completed_reset_count
+273:        let command = self.cognitive_runtime.begin_reset()?;
+275:        let completion = ArcAgi3EnvironmentTransportBoundary::complete_pending(
+276:            &mut self.transport,
+286:                self.mark_transport_failure(&error);
+292:        self.completed_reset_count = next_reset_count;
+298:#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+299:pub struct UniversalArcAgi3LiveEnvironmentRuntime;
+301:impl UniversalArcAgi3LiveEnvironmentRuntime {
+302:    pub fn start<T>(
+303:        transport: T,
+312:            transport,
+319:    pub fn reset<T>(
+326:        runtime.reset(confidence)
+
+================================================================================
+=== BOUNDED EPISODE SYMBOL INDEX ===
+================================================================================
+1:use crate::environment_transport_boundary::{
+10:pub struct ArcAgi3BoundedEpisodePolicy {
+11:    max_cognitive_steps: usize,
+15:    pub fn new(max_cognitive_steps: usize) -> Option<Self> {
+16:        if max_cognitive_steps == 0 {
+21:            max_cognitive_steps,
+25:    pub fn max_cognitive_steps(self) -> usize {
+26:        self.max_cognitive_steps
+31:pub enum ArcAgi3BoundedEpisodeTermination {
+38:    pub fn is_terminal_environment_state(self) -> bool {
+44:pub struct ArcAgi3BoundedEpisodeResult {
+46:    steps: Vec<ArcAgi3LiveCognitiveStep>,
+47:    starting_completed_cognitive_step_count: u64,
+48:    ending_completed_cognitive_step_count: u64,
+53:    pub fn termination(&self) -> ArcAgi3BoundedEpisodeTermination {
+57:    pub fn steps(&self) -> &[ArcAgi3LiveCognitiveStep] {
+58:        &self.steps
+61:    pub fn completed_steps_in_episode(&self) -> usize {
+62:        self.steps.len()
+65:    pub fn starting_completed_cognitive_step_count(&self) -> u64 {
+66:        self.starting_completed_cognitive_step_count
+69:    pub fn ending_completed_cognitive_step_count(&self) -> u64 {
+70:        self.ending_completed_cognitive_step_count
+73:    pub fn final_status(&self) -> ArcAgi3LiveEnvironmentStatus {
+79:pub enum ArcAgi3BoundedEpisodeError {
+83:        completed_steps_in_episode: usize,
+95:#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+96:pub struct ArcAgi3BoundedEpisodeRuntime;
+101:        starting_completed_cognitive_step_count: u64,
+102:        steps: Vec<ArcAgi3LiveCognitiveStep>,
+103:        ending_completed_cognitive_step_count: u64,
+117:            steps,
+118:            starting_completed_cognitive_step_count,
+119:            ending_completed_cognitive_step_count,
+124:    fn verify_episode_step_counter<T>(
+126:        starting_completed_cognitive_step_count: u64,
+127:        completed_steps_in_episode: usize,
+132:        let completed_steps_in_episode = u64::try_from(completed_steps_in_episode)
+135:        let expected = starting_completed_cognitive_step_count
+136:            .checked_add(completed_steps_in_episode)
+139:        let actual = runtime.completed_cognitive_step_count();
+148:    pub fn run_with<T, F>(
+151:        mut execute_step: F,
+159:        let starting_completed_cognitive_step_count = runtime.completed_cognitive_step_count();
+165:                    starting_completed_cognitive_step_count,
+167:                    runtime.completed_cognitive_step_count(),
+180:                    runtime.fault_disposition(),
+187:        let mut steps = Vec::with_capacity(policy.max_cognitive_steps());
+189:        while steps.len() < policy.max_cognitive_steps() {
+190:            let status_before_step = runtime.status();
+192:            match status_before_step {
+195:                        status_before_step,
+196:                        starting_completed_cognitive_step_count,
+197:                        steps,
+198:                        runtime.completed_cognitive_step_count(),
+205:                        runtime.fault_disposition(),
+218:            let completed_before_failure = steps.len();
+220:            let step =
+221:                execute_step(runtime).map_err(|error| ArcAgi3BoundedEpisodeError::StepFailed {
+222:                    completed_steps_in_episode: completed_before_failure,
+226:            steps.push(step);
+228:            Self::verify_episode_step_counter(
+230:                starting_completed_cognitive_step_count,
+231:                steps.len(),
+238:                        starting_completed_cognitive_step_count,
+239:                        steps,
+240:                        runtime.completed_cognitive_step_count(),
+258:            steps,
+259:            starting_completed_cognitive_step_count,
+260:            ending_completed_cognitive_step_count: runtime.completed_cognitive_step_count(),
+266:#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+267:pub struct UniversalArcAgi3BoundedEpisodeRuntime;
+270:    pub fn run_with<T, F>(
+273:        execute_step: F,
+281:        ArcAgi3BoundedEpisodeRuntime::run_with(runtime, policy, execute_step)
+
+================================================================================
+=== COGNITIVE RUNTIME C1 / BEGIN SYMBOL INDEX ===
+================================================================================
+3:    interactive_session_runtime::{
+81:pub struct ArcAgi3ExperimentDispatchAuthority<'a> {
+87:impl<'a> ArcAgi3ExperimentDispatchAuthority<'a> {
+116:    session: ArcAgi3InteractiveSession,
+123:        initial_observation: ArcAgi3Observation,
+124:        first_perceptual_observation_index: u64,
+126:        let perception = ArcAgi3PerceptualIngestionBridge::project_observation(
+127:            &initial_observation,
+128:            first_perceptual_observation_index,
+133:            session: ArcAgi3InteractiveSession::new(initial_observation),
+139:    pub fn session(&self) -> &ArcAgi3InteractiveSession {
+140:        &self.session
+324:                appearance_record.observation_count(),
+331:                appearance_record.observation_count(),
+356:                    record.observation_count(),
+697:     * They are not observations, confidence, utility, or world facts.
+876:                        self.observation(),
+934:    pub fn current_model_grounded_action_selection(
+952:    pub fn current_unified_executive_action_selection(
+958:        experiment_authority: Option<ArcAgi3ExperimentDispatchAuthority<'_>>,
+996:                            self.observation(),
+1007:                                self.observation(),
+1033:    pub fn observation(&self) -> &ArcAgi3Observation {
+1034:        self.session.observation()
+1037:    pub fn next_perceptual_observation_index(&self) -> u64 {
+1038:        self.perception.next_observation_index()
+1041:    pub fn begin_reset(
+1044:        self.session.begin_reset().map_err(Into::into)
+1047:    pub fn begin_from_orchestration_result(
+1064:        let command = self.session.begin_dispatch(&dispatch)?;
+1073:    pub fn run_and_begin(
+1080:        if self.session.has_pending_command() {
+1091:        self.begin_from_orchestration_result(orchestration)
+1094:    pub fn complete_environment_turn(
+1096:        observation: ArcAgi3Observation,
+1102:         * 1. clone session;
+1109:         * 7. only then commit session + perception + cognition together.
+1119:        let mut next_session = self.session.clone();
+1121:        let completed_turn = next_session.complete_turn(observation.clone(), confidence)?;
+1123:        let next_perception = ArcAgi3PerceptualIngestionBridge::project_observation(
+1124:            &observation,
+1125:            self.perception.next_observation_index(),
+1138:                if let Some(observation_result) =
+1171:                                &observation_result,
+1177:                        ArcAgi3PerceptualIngestionBridge::grouping_appearance_observation(
+1185:                    next_cognition.retain_perceptual_observation_result(&observation_result);
+1196:                            session: next_session.clone(),
+1245:        self.session = next_session;
+1261:        initial_observation: ArcAgi3Observation,
+1262:        first_perceptual_observation_index: u64,
+1265:            initial_observation,
+1266:            first_perceptual_observation_index,
+1270:    pub fn complete_environment_turn(
+1272:        observation: ArcAgi3Observation,
+1275:        runtime.complete_environment_turn(observation, confidence)
+
+================================================================================
+=== TEST FUNCTION INDEX ===
+================================================================================
+4:use athlesia_arc_agi_3_adapter::cognitive_protocol_bridge::ArcAgi3CognitiveProtocolBridge;
+5:use athlesia_arc_agi_3_adapter::environment_transport_boundary::{
+8:use athlesia_arc_agi_3_adapter::live_environment_runtime::*;
+16:fn signal(value: u16) -> CognitiveSignal {
+20:fn grid(value: u8) -> ArcAgi3Grid {
+24:fn observation(
+113:fn active_runtime(
+121:        Some(ArcAgi3Action::reset()),
+124:    let transport = ScriptedTransport::new(initial);
+127:        transport,
+135:fn begin_action1(
+138:            cognitive_interaction_runtime::
+141:    athlesia_arc_agi_3_adapter::cognitive_interaction_runtime::ArcAgi3CognitiveInteractionStep,
+142:    athlesia_arc_agi_3_adapter::cognitive_interaction_runtime::ArcAgi3CognitiveInteractionError,
+146:    let cognitive_action = ArcAgi3CognitiveProtocolBridge::encode_action(action);
+148:    m51_fixture::begin_arc(runtime, cognitive_action)
+151:#[test]
+152:fn live_runtime_starts_from_exact_transport_observation() {
+157:        Some(ArcAgi3Action::reset()),
+160:    let transport = ScriptedTransport::new(initial.clone());
+163:        transport,
+172:    assert_eq!(runtime.cognitive_runtime().observation(), &initial,);
+174:    assert_eq!(runtime.cognitive_runtime().perception().frame_count(), 2,);
+178:            .cognitive_runtime()
+183:    assert_eq!(runtime.transport().start_count(), 1,);
+185:    assert_eq!(runtime.completed_cognitive_step_count(), 0,);
+187:    assert_eq!(runtime.completed_reset_count(), 0,);
+190:#[test]
+191:fn real_m51_step_executes_through_transport_and_binds_feedback() {
+196:    runtime.transport().push(Ok(observation(
+205:    assert_eq!(result.cognitive_step().command().action(), action,);
+207:    assert!(result.completion().has_cognitive_feedback());
+211:    let cognitive_action = ArcAgi3CognitiveProtocolBridge::encode_action(action);
+215:        &cognitive_action,
+220:        &cognitive_action,
+225:        &cognitive_action,
+228:    assert_eq!(runtime.completed_cognitive_step_count(), 1,);
+230:    assert_eq!(runtime.transport().execute_count(), 1,);
+233:#[test]
+234:fn live_step_preserves_complete_multiframe_environment_response() {
+239:    runtime.transport().push(Ok(observation(
+254:            .cognitive_runtime()
+260:#[test]
+261:fn protocol_reset_is_live_transport_control_without_cognitive_feedback() {
+262:    let mut runtime = active_runtime("live-reset", 400);
+264:    runtime.transport().push(Ok(observation(
+265:        "live-reset",
+268:        Some(ArcAgi3Action::reset()),
+271:    let completion = runtime.reset(signal(900)).unwrap();
+273:    assert!(!completion.has_cognitive_feedback());
+275:    assert_eq!(runtime.completed_reset_count(), 1,);
+277:    assert_eq!(runtime.completed_cognitive_step_count(), 0,);
+281:            .cognitive_runtime()
+283:            .completed_reset_count(),
+287:    assert_eq!(runtime.transport().execute_count(), 1,);
+290:#[test]
+291:fn successful_cognitive_steps_increment_only_after_environment_completion() {
+296:    runtime.transport().push(Ok(observation(
+305:    assert_eq!(result.completed_cognitive_step_count(), 1,);
+307:    assert_eq!(runtime.completed_cognitive_step_count(), 1,);
+309:    assert_eq!(runtime.completed_reset_count(), 0,);
+312:#[test]
+313:fn transport_failure_preserves_pending_cognitive_runtime_and_faults_live_loop() {
+314:    let mut runtime = active_runtime("live-fault", 600);
+316:    let before_observation = runtime.cognitive_runtime().observation().clone();
+319:        .transport()
+343:        runtime.fault_disposition(),
+347:    assert!(runtime.cognitive_runtime().session().has_pending_command());
+350:        runtime.cognitive_runtime().observation(),
+354:    assert_eq!(runtime.completed_cognitive_step_count(), 0,);
+357:#[test]
+358:fn faulted_runtime_never_automatically_retries_indeterminate_action() {
+362:        .transport()
+372:    assert_eq!(runtime.transport().execute_count(), 1,);
+376:    let second = runtime.execute_with(signal(900), |cognitive| {
+378:        begin_action1(cognitive)
+390:    assert_eq!(runtime.transport().execute_count(), 1,);
+393:#[test]
+394:fn rejected_environment_response_never_causes_hidden_retry() {
+398:        .transport()
+415:        runtime.fault_disposition(),
+419:    assert_eq!(runtime.transport().execute_count(), 1,);
+422:#[test]
+423:fn cognitively_invalid_post_dispatch_response_faults_without_committing_observation() {
+426:    let before = runtime.cognitive_runtime().clone();
+430:    runtime.transport().push(Ok(observation(
+455:        runtime.cognitive_runtime().observation(),
+459:    assert_eq!(runtime.completed_cognitive_step_count(), 0,);
+462:#[test]
+463:fn terminal_win_blocks_next_cognitive_begin_before_transport_execution() {
+471:    let transport = ScriptedTransport::new(initial);
+474:        transport,
+485:    let result = runtime.execute_with(signal(900), |cognitive| {
+487:        begin_action1(cognitive)
+494:    assert_eq!(runtime.transport().execute_count(), 0,);
+497:#[test]
+498:fn terminal_game_over_blocks_next_cognitive_begin_before_transport_execution() {
+501:    let transport = ScriptedTransport::new(initial);
+504:        transport,
+515:    let result = runtime.execute_with(signal(900), |cognitive| {
+517:        begin_action1(cognitive)
+524:    assert_eq!(runtime.transport().execute_count(), 0,);
+527:#[test]
+528:fn reset_remains_available_after_terminal_state() {
+530:        "live-terminal-reset",
+536:    let transport = ScriptedTransport::new(initial);
+539:        transport,
+541:        "card-terminal-reset",
+546:    runtime.transport().push(Ok(observation(
+547:        "live-terminal-reset",
+550:        Some(ArcAgi3Action::reset()),
+553:    let completion = runtime.reset(signal(900)).unwrap();
+555:    assert!(!completion.has_cognitive_feedback());
+559:    assert_eq!(runtime.completed_reset_count(), 1,);
+562:#[test]
+563:fn faulted_runtime_blocks_protocol_reset_without_second_transport_call() {
+564:    let mut runtime = active_runtime("live-fault-reset", 1300);
+567:        .transport()
+575:    assert_eq!(runtime.transport().execute_count(), 1,);
+577:    let reset = runtime.reset(signal(900));
+580:        reset,
+586:    assert_eq!(runtime.transport().execute_count(), 1,);
+589:#[test]
+590:fn universal_facade_matches_direct_live_runtime_start() {
+593:    let direct_transport = ScriptedTransport::new(initial.clone());
+595:    let facade_transport = ScriptedTransport::new(initial);
+600:        ArcAgi3LiveEnvironmentRuntime::start(direct_transport, &requested, "card-universal", 1400)
+604:        facade_transport,
+614:        direct.cognitive_runtime().observation(),
+615:        facade.cognitive_runtime().observation(),
+620:            .cognitive_runtime()
+623:            .cognitive_runtime()
+628:#[test]
+629:fn live_runtime_does_not_rewrite_exact_m51_action_identity() {
+634:    let cognitive_action = ArcAgi3CognitiveProtocolBridge::encode_action(arc_action);
+636:    runtime.transport().push(Ok(observation(
+644:        .execute_with(signal(900), |cognitive| {
+645:            m51_fixture::begin_arc(cognitive, cognitive_action.clone())
+650:        result.cognitive_step().dispatch().action(),
+651:        &cognitive_action,
+654:    assert_eq!(result.cognitive_step().command().action(), arc_action,);
+659:#[test]
+660:fn live_runtime_into_parts_preserves_transport_and_cognitive_state_exactly() {
+663:    let expected_observation = runtime.cognitive_runtime().observation().clone();
+666:        .cognitive_runtime()
+669:    let (transport, cognitive) = runtime.into_parts();
+671:    assert_eq!(transport.start_count(), 1,);
+673:    assert_eq!(transport.execute_count(), 0,);
+675:    assert_eq!(cognitive.observation(), &expected_observation,);
+678:        cognitive.next_perceptual_observation_index(),
+
+=== END P4G-C2 EXACT LIVE EXECUTION CONTRACTS ===
