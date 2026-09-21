@@ -13234,6 +13234,91 @@ impl OnlinePersistentCognitiveState {
         )
     }
 
+    pub fn current_selected_executive_candidate(
+        &self,
+        candidates:
+            &[athlesia_executive_agency::
+                GroundedExecutiveActionCandidate],
+        goal:
+            &athlesia_executive_agency::
+                ExecutiveGoal,
+        policy:
+            athlesia_executive_agency::
+                ExecutiveAgencyPolicy,
+    ) -> Option<
+        athlesia_executive_agency::
+            GroundedExecutiveActionCandidate
+    > {
+        if candidates.is_empty() {
+            return None;
+        }
+
+        /*
+         * M48 is the single generic final action/value authority.
+         *
+         * Protocol adapters may constrain which environment actions are
+         * currently executable, but they must not own utility evaluation,
+         * ranking, thresholding, or final cognitive selection.
+         */
+        let executive =
+            athlesia_executive_agency::
+                UniversalExecutiveAgency::
+                    evaluate(
+                        std::slice::from_ref(
+                            goal,
+                        ),
+                        candidates,
+                        policy,
+                    );
+
+        let selected =
+            executive
+                .selected()
+                .first()?;
+
+        /*
+         * Recover the complete selected candidate identity from the M48
+         * intent rather than matching only action + predicted outcome.
+         *
+         * This matters when two candidates share the same action/outcome
+         * identity but differ in evidence, information gain or cost.
+         */
+        let selected_candidate =
+            athlesia_executive_agency::
+                GroundedExecutiveActionCandidate::
+                    new(
+                        selected
+                            .goal_identity()
+                            .clone(),
+                        selected
+                            .action()
+                            .clone(),
+                        selected
+                            .predicted_outcome()
+                            .clone(),
+                        selected
+                            .goal_alignment(),
+                        selected
+                            .controllability(),
+                        selected
+                            .evidence_confidence(),
+                        selected
+                            .information_gain(),
+                        selected
+                            .execution_cost(),
+                    );
+
+        candidates
+            .iter()
+            .find(
+                |candidate| {
+                    *candidate
+                        == &selected_candidate
+                },
+            )
+            .cloned()
+    }
+
     pub fn current_executable_world_model(
         &self,
         schema_policy:
@@ -13310,6 +13395,153 @@ impl OnlinePersistentCognitiveState {
         result
     }
 }
+
+#[cfg(test)]
+mod m48_selection_owner_tests {
+    use super::*;
+
+    use athlesia_executive_agency::{
+        ExecutiveAgencyPolicy,
+        ExecutiveGoal,
+        ExecutiveSelectionThresholds,
+        ExecutiveUtilityWeights,
+        GroundedExecutiveActionCandidate,
+    };
+
+    fn signal(
+        value: u16,
+    ) -> CognitiveSignal {
+        CognitiveSignal::new(
+            value,
+        )
+        .expect(
+            "test signal is valid",
+        )
+    }
+
+    fn atom(
+        value: u64,
+    ) -> CognitiveStructure {
+        CognitiveStructure::atom(
+            value,
+        )
+    }
+
+    #[test]
+    fn same_action_and_outcome_preserve_full_selected_candidate_identity(
+    ) {
+        let state =
+            OnlinePersistentCognitiveState::
+                new();
+
+        let goal =
+            ExecutiveGoal::new(
+                atom(
+                    0x5034_4743_3954_474F,
+                ),
+                signal(900),
+                CognitiveSignal::zero(),
+            );
+
+        let action =
+            atom(
+                0x5034_4743_3941_4354,
+            );
+
+        let predicted_outcome =
+            atom(
+                0x5034_4743_394F_5554,
+            );
+
+        /*
+         * SAME goal/action/outcome/controllability.
+         *
+         * Candidate A: stronger empirical confidence.
+         * Candidate B: stronger information gain.
+         *
+         * An action+outcome-only reverse binding cannot distinguish them.
+         */
+        let evidence_candidate =
+            GroundedExecutiveActionCandidate::
+                new(
+                    goal.identity().clone(),
+                    action.clone(),
+                    predicted_outcome.clone(),
+                    signal(900),
+                    signal(900),
+                    signal(900),
+                    signal(100),
+                    CognitiveSignal::zero(),
+                );
+
+        let information_candidate =
+            GroundedExecutiveActionCandidate::
+                new(
+                    goal.identity().clone(),
+                    action,
+                    predicted_outcome,
+                    signal(900),
+                    signal(900),
+                    signal(600),
+                    signal(900),
+                    CognitiveSignal::zero(),
+                );
+
+        let policy =
+            ExecutiveAgencyPolicy::new(
+                1,
+                8,
+                16,
+                1,
+                ExecutiveUtilityWeights::new(
+                    0,
+                    0,
+                    0,
+                    1000,
+                    0,
+                )
+                .unwrap(),
+                ExecutiveSelectionThresholds::new(
+                    signal(1),
+                    signal(1),
+                    signal(1),
+                    signal(1),
+                    signal(1),
+                )
+                .unwrap(),
+            )
+            .unwrap();
+
+        let selected =
+            state
+                .current_selected_executive_candidate(
+                    &[
+                        evidence_candidate
+                            .clone(),
+                        information_candidate
+                            .clone(),
+                    ],
+                    &goal,
+                    policy,
+                )
+                .expect(
+                    "M48 must select one candidate",
+                );
+
+        assert_eq!(
+            selected,
+            information_candidate,
+            "full M48 candidate identity must survive final selection",
+        );
+
+        assert_ne!(
+            selected,
+            evidence_candidate,
+            "same action/outcome must not collapse distinct authority",
+        );
+    }
+}
+
 
 #[cfg(test)]
 mod retained_grouping_behavior_owner_tests {

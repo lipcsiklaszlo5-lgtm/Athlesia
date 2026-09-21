@@ -704,49 +704,92 @@ impl ArcAgi3CognitiveInteractionRuntime {
     }
 
     fn selected_authorized_executive_candidate(
-        authorized: &[crate::action_grounding_bridge::ArcAgi3AuthorizedExecutiveCandidate],
-        goal: &athlesia_executive_agency::ExecutiveGoal,
-        policy: athlesia_executive_agency::ExecutiveAgencyPolicy,
-    ) -> Option<crate::action_grounding_bridge::ArcAgi3AuthorizedExecutiveCandidate> {
+        &self,
+        authorized:
+            &[crate::action_grounding_bridge::
+                ArcAgi3AuthorizedExecutiveCandidate],
+        goal:
+            &athlesia_executive_agency::
+                ExecutiveGoal,
+        policy:
+            athlesia_executive_agency::
+                ExecutiveAgencyPolicy,
+    ) -> Option<
+        crate::action_grounding_bridge::
+            ArcAgi3AuthorizedExecutiveCandidate
+    > {
         if authorized.is_empty() {
             return None;
         }
 
-        let candidates = authorized
-            .iter()
-            .map(|grounded| grounded.candidate().clone())
-            .collect::<Vec<_>>();
+        /*
+         * ARC protocol grounding has already constrained this frontier to
+         * currently executable environment actions.
+         *
+         * The generic cognitive selection itself belongs exclusively to
+         * M51 -> M48.
+         */
+        let candidates =
+            authorized
+                .iter()
+                .map(
+                    |grounded| {
+                        grounded
+                            .candidate()
+                            .clone()
+                    },
+                )
+                .collect::<Vec<_>>();
+
+        let selected =
+            self.cognition
+                .current_selected_executive_candidate(
+                    &candidates,
+                    goal,
+                    policy,
+                )?;
 
         /*
-         * Single final action/value authority.
+         * Exact full candidate identity is authoritative.
          *
-         * Neither the learned world-model path nor M50 performs a local
-         * dispatch ranking here. Both merely contribute grounded candidates.
+         * Do not collapse by action identity or predicted outcome.
          */
-        let executive = athlesia_executive_agency::UniversalExecutiveAgency::evaluate(
-            std::slice::from_ref(goal),
-            &candidates,
-            policy,
-        );
-
-        let selected = executive.selected().first()?;
-
         authorized
             .iter()
-            .find(|grounded| {
-                grounded.candidate().action() == selected.action()
-                    && grounded.candidate().predicted_outcome() == selected.predicted_outcome()
-            })
+            .find(
+                |grounded| {
+                    grounded
+                        .candidate()
+                        == &selected
+                },
+            )
             .cloned()
     }
 
     fn select_authorized_executive_candidate(
-        authorized: &[crate::action_grounding_bridge::ArcAgi3AuthorizedExecutiveCandidate],
-        goal: &athlesia_executive_agency::ExecutiveGoal,
-        policy: athlesia_executive_agency::ExecutiveAgencyPolicy,
-    ) -> Option<crate::ArcAgi3Action> {
-        Self::selected_authorized_executive_candidate(authorized, goal, policy)
-            .map(|grounded| grounded.action())
+        &self,
+        authorized:
+            &[crate::action_grounding_bridge::
+                ArcAgi3AuthorizedExecutiveCandidate],
+        goal:
+            &athlesia_executive_agency::
+                ExecutiveGoal,
+        policy:
+            athlesia_executive_agency::
+                ExecutiveAgencyPolicy,
+    ) -> Option<
+        crate::ArcAgi3Action
+    > {
+        self.selected_authorized_executive_candidate(
+            authorized,
+            goal,
+            policy,
+        )
+        .map(
+            |grounded| {
+                grounded.action()
+            },
+        )
     }
 
     pub fn current_model_grounded_action_selection(
@@ -764,7 +807,7 @@ impl ArcAgi3CognitiveInteractionRuntime {
             execution_cost,
         );
 
-        Self::select_authorized_executive_candidate(&authorized, goal, policy)
+        self.select_authorized_executive_candidate(&authorized, goal, policy)
     }
 
     pub fn current_successor_informed_unified_executive_authority(
@@ -956,7 +999,7 @@ impl ArcAgi3CognitiveInteractionRuntime {
          * authority in the ARC adapter.
          */
         let selected =
-            Self::selected_authorized_executive_candidate(
+            self.selected_authorized_executive_candidate(
                 &authorized,
                 goal,
                 executive_policy,
@@ -1109,7 +1152,7 @@ impl ArcAgi3CognitiveInteractionRuntime {
          * ONE M48 evaluation over exploitation + experimentation.
          * No live-layer ranking and no protocol-defined utility.
          */
-        let selected = Self::selected_authorized_executive_candidate(&authorized, goal, policy)?;
+        let selected = self.selected_authorized_executive_candidate(&authorized, goal, policy)?;
 
         let source_state = provenance.iter().find_map(|(candidate, source_state)| {
             (candidate == &selected).then(|| source_state.clone())
