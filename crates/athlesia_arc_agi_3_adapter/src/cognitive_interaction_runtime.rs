@@ -310,56 +310,58 @@ impl ArcAgi3CognitiveInteractionRuntime {
 
     pub fn current_objecthood_eligible_groupings(
         &self,
-    ) -> Vec<athlesia_core_knowledge_perceptual_grounding::PerceptualGroupingCandidate> {
-        use athlesia_core_knowledge_perceptual_grounding::{
-            PerceptualObjectPromotionEvidence, PerceptualObjectPromotionGate,
-            PerceptualObjectProposal, PerceptualProposalTemporalSupportStatus,
-        };
+    ) -> Vec<
+        athlesia_core_knowledge_perceptual_grounding::
+            PerceptualGroupingCandidate
+    > {
+        use athlesia_core_knowledge_perceptual_grounding::
+            PerceptualGroupingAppearanceObservationEvidence;
 
-        let frame = self.perception.latest_frame();
+        let frame =
+            self.perception.latest_frame();
 
-        let mut eligible = Vec::new();
+        /*
+         * ARC-specific responsibility ends here:
+         *
+         * decode the current grid and report raw visual observations for
+         * groupings that have already passed the retained behavior frontier.
+         *
+         * No temporal-support interpretation and no object-promotion
+         * decision belongs to the adapter.
+         */
+        let visual_observations =
+            self
+                .current_empirically_coherent_groupings()
+                .into_iter()
+                .filter_map(
+                    |grouping| {
+                        let (
+                            appearance_cohesion,
+                            contrast_boundary,
+                        ) =
+                            ArcAgi3PerceptualIngestionBridge::
+                                grouping_visual_objecthood_evidence(
+                                    frame,
+                                    &grouping,
+                                )?;
 
-        for grouping in self.current_empirically_coherent_groupings() {
-            let temporal_persistence = grouping.members().iter().all(|handle| {
-                let proposal = PerceptualObjectProposal::new(vec![*handle])
-                    .expect("one grouping member forms one valid atomic proposal");
-
-                self.cognition
-                    .perceptual_temporal_evidence()
-                    .support_status(&proposal, Self::live_temporal_grouping_policy())
-                    == PerceptualProposalTemporalSupportStatus::Supported
-            });
-
-            let Some((appearance_cohesion, contrast_boundary)) =
-                ArcAgi3PerceptualIngestionBridge::grouping_visual_objecthood_evidence(
-                    frame, &grouping,
+                        Some(
+                            PerceptualGroupingAppearanceObservationEvidence::
+                                new(
+                                    grouping,
+                                    appearance_cohesion,
+                                    contrast_boundary,
+                                ),
+                        )
+                    },
                 )
-            else {
-                continue;
-            };
+                .collect::<Vec<_>>();
 
-            /*
-             * The source collection is already restricted to retained
-             * empirically coherent groupings. Therefore common_change=true
-             * here is not inferred from appearance or geometry.
-             */
-            let evidence = PerceptualObjectPromotionEvidence::new(
-                temporal_persistence,
-                true,
-                appearance_cohesion,
-                contrast_boundary,
-            );
-
-            if let Some(candidate) = PerceptualObjectPromotionGate::evaluate(grouping, evidence) {
-                eligible.push(candidate.grouping().clone());
-            }
-        }
-
-        eligible.sort();
-        eligible.dedup();
-
-        eligible
+        self.cognition
+            .current_objecthood_eligible_groupings_from_visual_observations(
+                &visual_observations,
+                Self::live_temporal_grouping_policy(),
+            )
     }
 
     pub fn current_provisional_object_hypotheses(

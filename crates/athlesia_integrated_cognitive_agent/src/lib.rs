@@ -11977,6 +11977,99 @@ impl OnlinePersistentCognitiveState {
     ) {
         self.perceptual_grouping_appearance_evidence.observe(result);
     }
+    pub fn current_objecthood_eligible_groupings_from_visual_observations(
+        &self,
+        empirically_coherent_visual_observations:
+            &[athlesia_core_knowledge_perceptual_grounding::
+                PerceptualGroupingAppearanceObservationEvidence],
+        temporal_policy:
+            athlesia_core_knowledge_perceptual_grounding::
+                PerceptualProposalTemporalEvidencePolicy,
+    ) -> Vec<
+        athlesia_core_knowledge_perceptual_grounding::
+            PerceptualGroupingCandidate
+    > {
+        use athlesia_core_knowledge_perceptual_grounding::{
+            PerceptualObjectPromotionEvidence,
+            PerceptualObjectPromotionGate,
+            PerceptualObjectProposal,
+            PerceptualProposalTemporalSupportStatus,
+        };
+
+        let mut eligible = Vec::new();
+
+        /*
+         * Input observations are deliberately restricted by the caller to
+         * groupings already supported by retained empirical common-change
+         * evidence.
+         *
+         * Therefore common_change=true below is derived from that upstream
+         * semantic qualification, not from ARC appearance or geometry.
+         */
+        for observation in
+            empirically_coherent_visual_observations
+        {
+            let grouping =
+                observation.candidate();
+
+            let temporal_persistence =
+                grouping
+                    .members()
+                    .iter()
+                    .all(
+                        |handle| {
+                            let proposal =
+                                PerceptualObjectProposal::
+                                    new(
+                                        vec![*handle],
+                                    )
+                                    .expect(
+                                        "one grouping member forms one valid atomic proposal",
+                                    );
+
+                            self
+                                .perceptual_temporal_evidence()
+                                .support_status(
+                                    &proposal,
+                                    temporal_policy,
+                                )
+                                == PerceptualProposalTemporalSupportStatus::
+                                    Supported
+                        },
+                    );
+
+            let evidence =
+                PerceptualObjectPromotionEvidence::
+                    new(
+                        temporal_persistence,
+                        true,
+                        observation
+                            .appearance_cohesion_supported(),
+                        observation
+                            .contrast_boundary_supported(),
+                    );
+
+            if let Some(candidate) =
+                PerceptualObjectPromotionGate::
+                    evaluate(
+                        grouping.clone(),
+                        evidence,
+                    )
+            {
+                eligible.push(
+                    candidate
+                        .grouping()
+                        .clone(),
+                );
+            }
+        }
+
+        eligible.sort();
+        eligible.dedup();
+
+        eligible
+    }
+
     pub fn current_provisional_object_hypotheses_from_groupings(
         &self,
         frame:
