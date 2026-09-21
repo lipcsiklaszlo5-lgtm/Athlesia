@@ -664,8 +664,9 @@ fn c16i_e_native_result_frontier_preserves_native_generated_order_and_exact_exis
                 ArcAgi3ActionId::Action1,
             )
             .unwrap(),
-            ArcAgi3Action::discrete(
-                ArcAgi3ActionId::Action6,
+            ArcAgi3Action::coordinate(
+                17,
+                42,
             )
             .unwrap(),
         );
