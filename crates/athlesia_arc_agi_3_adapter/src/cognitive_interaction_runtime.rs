@@ -821,7 +821,8 @@ impl ArcAgi3CognitiveInteractionRuntime {
             expectation_policy,
             priority_policy,
             proposal_policy,
-            executive_policy,        } = request;
+            executive_policy,
+        } = request;
 
         /*
          * B0 current-grounding authority is shared by both branches.
