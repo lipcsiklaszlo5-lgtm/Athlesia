@@ -2834,6 +2834,232 @@ impl PerceptualGroundingPolicy {
     }
 }
 
+#[derive(Clone, Copy, Debug, Default, Eq, Hash, Ord, PartialEq, PartialOrd)]
+pub struct SceneInterpretationConstruction;
+
+impl SceneInterpretationConstruction {
+    fn provisional_object_scene_support(
+        hypothesis: &ObjectHypothesis,
+    ) -> Option<CognitiveSignal> {
+        let evidence =
+            hypothesis.evidence();
+
+        let zero =
+            CognitiveSignal::zero();
+
+        [
+            evidence.cohesion(),
+            evidence.persistence(),
+            evidence.common_change(),
+            evidence.boundary(),
+            evidence.containment(),
+            evidence.topology(),
+        ]
+        .into_iter()
+        .filter(
+            |signal| {
+                *signal > zero
+            },
+        )
+        .min()
+    }
+
+    fn hypotheses_overlap(
+        left: &ObjectHypothesis,
+        right: &ObjectHypothesis,
+    ) -> bool {
+        left
+            .members()
+            .iter()
+            .copied()
+            .any(
+                |member| {
+                    right.contains(member)
+                },
+            )
+    }
+
+    fn explanatory_support(
+        frame: &PerceptualFrame,
+        hypotheses: &[ObjectHypothesis],
+        excluded_handles: &[PerceptualElementHandle],
+    ) -> Option<CognitiveSignal> {
+        if hypotheses.is_empty() {
+            return None;
+        }
+
+        let reliability_floor =
+            hypotheses
+                .iter()
+                .map(
+                    Self::provisional_object_scene_support,
+                )
+                .collect::<Option<Vec<_>>>()?
+                .into_iter()
+                .min()?;
+
+        /*
+         * Scene coverage is defined only over explicitly eligible perceptual
+         * elements.
+         *
+         * Domain adapters may exclude protocol/meta elements, but core owns
+         * all interpretation of the resulting coverage ratio.
+         */
+        let mut excluded =
+            excluded_handles.to_vec();
+
+        excluded.sort_unstable();
+        excluded.dedup();
+
+        let mut eligible_handles =
+            frame
+                .elements()
+                .iter()
+                .map(
+                    PerceptualElement::handle,
+                )
+                .filter(
+                    |handle| {
+                        excluded
+                            .binary_search(handle)
+                            .is_err()
+                    },
+                )
+                .collect::<Vec<_>>();
+
+        eligible_handles.sort_unstable();
+        eligible_handles.dedup();
+
+        if eligible_handles.is_empty() {
+            return None;
+        }
+
+        let mut covered =
+            std::collections::BTreeSet::new();
+
+        for hypothesis in hypotheses {
+            for &member in hypothesis.members() {
+                if eligible_handles
+                    .binary_search(&member)
+                    .is_ok()
+                {
+                    covered.insert(member);
+                }
+            }
+        }
+
+        let coverage =
+            EmpiricalObjecthoodSignalCalibration::
+                from_counts(
+                    covered.len(),
+                    eligible_handles.len(),
+                )?;
+
+        Some(
+            reliability_floor.min(
+                coverage,
+            ),
+        )
+    }
+
+    pub fn evaluate_hypotheses(
+        frame: &PerceptualFrame,
+        hypotheses: &[ObjectHypothesis],
+        excluded_handles: &[PerceptualElementHandle],
+        policy: PerceptualGroundingPolicy,
+    ) -> Vec<SceneInterpretation> {
+        if hypotheses.is_empty() {
+            return Vec::new();
+        }
+
+        /*
+         * Each hypothesis seeds one alternative maximal non-overlapping
+         * explanation.
+         *
+         * Competing overlapping object identities therefore remain separate
+         * scene candidates rather than being silently merged.
+         */
+        let mut candidates =
+            Vec::new();
+
+        for seed_index in 0..hypotheses.len() {
+            let mut scene_hypotheses =
+                vec![
+                    hypotheses[seed_index]
+                        .clone(),
+                ];
+
+            for (
+                candidate_index,
+                candidate,
+            ) in hypotheses
+                .iter()
+                .enumerate()
+            {
+                if candidate_index
+                    == seed_index
+                {
+                    continue;
+                }
+
+                if scene_hypotheses.len()
+                    >= policy
+                        .max_object_hypotheses_per_scene()
+                {
+                    break;
+                }
+
+                let overlaps_existing =
+                    scene_hypotheses
+                        .iter()
+                        .any(
+                            |existing| {
+                                Self::hypotheses_overlap(
+                                    existing,
+                                    candidate,
+                                )
+                            },
+                        );
+
+                if !overlaps_existing {
+                    scene_hypotheses.push(
+                        candidate.clone(),
+                    );
+                }
+            }
+
+            let Some(explanatory_support) =
+                Self::explanatory_support(
+                    frame,
+                    &scene_hypotheses,
+                    excluded_handles,
+                )
+            else {
+                continue;
+            };
+
+            let Some(scene) =
+                SceneInterpretation::new(
+                    scene_hypotheses,
+                    explanatory_support,
+                )
+            else {
+                continue;
+            };
+
+            if scene
+                .contains_overlapping_hypotheses()
+            {
+                continue;
+            }
+
+            candidates.push(scene);
+        }
+
+        candidates
+    }
+}
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct SceneCompetitionResult {
     input_scene_count: usize,
