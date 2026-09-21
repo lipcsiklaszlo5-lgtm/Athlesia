@@ -13234,6 +13234,57 @@ impl OnlinePersistentCognitiveState {
         )
     }
 
+    pub fn experiment_proposal_executive_candidate(
+        goal:
+            &athlesia_executive_agency::
+                ExecutiveGoal,
+        goal_alignment:
+            CognitiveSignal,
+        proposal:
+            &athlesia_autonomous_active_experimentation::
+                AutonomousExperimentProposal,
+    ) -> athlesia_executive_agency::
+        GroundedExecutiveActionCandidate {
+        /*
+         * Generic M50 -> M48 semantic translation.
+         *
+         * The experiment proposal already owns the exact:
+         *
+         * - action,
+         * - predicted outcome,
+         * - controllability,
+         * - grounding confidence,
+         * - expected information gain,
+         * - execution cost.
+         *
+         * M51 preserves those values exactly when forming the generic
+         * executive candidate. No protocol adapter may reinterpret them.
+         */
+        let evidence =
+            proposal.evidence();
+
+        athlesia_executive_agency::
+            GroundedExecutiveActionCandidate::
+                new(
+                    goal.identity().clone(),
+                    proposal
+                        .action()
+                        .clone(),
+                    proposal
+                        .predicted_outcome()
+                        .clone(),
+                    goal_alignment,
+                    evidence
+                        .controllability(),
+                    evidence
+                        .grounding_confidence(),
+                    evidence
+                        .expected_information_gain(),
+                    evidence
+                        .execution_cost(),
+                )
+    }
+
     pub fn current_selected_executive_candidate(
         &self,
         candidates:
@@ -13395,6 +13446,135 @@ impl OnlinePersistentCognitiveState {
         result
     }
 }
+
+#[cfg(test)]
+mod m50_to_m48_candidate_grounding_tests {
+    use super::*;
+
+    use athlesia_autonomous_active_experimentation::{
+        AutonomousExperimentProposal,
+        ExperimentEvidence,
+    };
+
+    use athlesia_executive_agency::
+        ExecutiveGoal;
+
+    fn signal(
+        value: u16,
+    ) -> CognitiveSignal {
+        CognitiveSignal::new(
+            value,
+        )
+        .expect(
+            "test signal is valid",
+        )
+    }
+
+    fn atom(
+        value: u64,
+    ) -> CognitiveStructure {
+        CognitiveStructure::atom(
+            value,
+        )
+    }
+
+    #[test]
+    fn exact_m50_evidence_becomes_m48_candidate_without_reinterpretation(
+    ) {
+        let goal =
+            ExecutiveGoal::new(
+                atom(
+                    0x5034_4743_3130_474F,
+                ),
+                signal(900),
+                signal(100),
+            );
+
+        let action =
+            atom(
+                0x5034_4743_3130_4143,
+            );
+
+        let predicted_outcome =
+            atom(
+                0x5034_4743_3130_4F55,
+            );
+
+        let evidence =
+            ExperimentEvidence::new(
+                signal(710),
+                signal(820),
+                signal(730),
+                signal(640),
+                signal(190),
+            )
+            .expect(
+                "explicit evidence is valid",
+            );
+
+        let proposal =
+            AutonomousExperimentProposal::new(
+                atom(
+                    0x5034_4743_3130_5352,
+                ),
+                action.clone(),
+                predicted_outcome.clone(),
+                evidence,
+            );
+
+        let goal_alignment =
+            signal(555);
+
+        let candidate =
+            OnlinePersistentCognitiveState::
+                experiment_proposal_executive_candidate(
+                    &goal,
+                    goal_alignment,
+                    &proposal,
+                );
+
+        assert_eq!(
+            candidate.goal_identity(),
+            goal.identity(),
+        );
+
+        assert_eq!(
+            candidate.action(),
+            &action,
+        );
+
+        assert_eq!(
+            candidate.predicted_outcome(),
+            &predicted_outcome,
+        );
+
+        assert_eq!(
+            candidate.goal_alignment(),
+            goal_alignment,
+        );
+
+        assert_eq!(
+            candidate.controllability(),
+            evidence.controllability(),
+        );
+
+        assert_eq!(
+            candidate.evidence_confidence(),
+            evidence.grounding_confidence(),
+        );
+
+        assert_eq!(
+            candidate.information_gain(),
+            evidence.expected_information_gain(),
+        );
+
+        assert_eq!(
+            candidate.execution_cost(),
+            evidence.execution_cost(),
+        );
+    }
+}
+
 
 #[cfg(test)]
 mod m48_selection_owner_tests {

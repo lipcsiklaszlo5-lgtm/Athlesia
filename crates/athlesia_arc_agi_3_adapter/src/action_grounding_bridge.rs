@@ -3,9 +3,8 @@ use crate::{
     ArcAgi3Action, ArcAgi3ActionAuthorizationStatus, ArcAgi3ActionId, ArcAgi3Observation,
     ArcAgi3Protocol,
 };
-use athlesia_autonomous_active_experimentation::{
-    AutonomousExperimentProposal, ExperimentEvidence,
-};
+use athlesia_autonomous_active_experimentation::
+    AutonomousExperimentProposal;
 use athlesia_executive_agency::{ExecutiveGoal, GroundedExecutiveActionCandidate};
 use athlesia_mindstone_sparse_cognition::{CognitiveSignal, CognitiveStructure};
 
@@ -130,22 +129,37 @@ impl ArcAgi3ActionGroundingBridge {
         goal: &ExecutiveGoal,
         goal_alignment: CognitiveSignal,
         proposal: &AutonomousExperimentProposal,
-    ) -> Result<GroundedExecutiveActionCandidate, ArcAgi3ActionGroundingError> {
+    ) -> Result<
+        GroundedExecutiveActionCandidate,
+        ArcAgi3ActionGroundingError
+    > {
+        /*
+         * ARC-specific authority stops at:
+         *
+         * - exact source-state binding,
+         * - cognitive-action decoding,
+         * - RESET exclusion,
+         * - current ARC action availability.
+         *
+         * M50 evidence interpretation and M48 candidate construction
+         * belong to the integrated cognitive layer.
+         */
         let authorized =
-            Self::authorize_experiment_proposal(observation, expected_source_state, proposal)?;
+            Self::authorize_experiment_proposal(
+                observation,
+                expected_source_state,
+                proposal,
+            )?;
 
-        let evidence: ExperimentEvidence = authorized.proposal().evidence();
-
-        Ok(GroundedExecutiveActionCandidate::new(
-            goal.identity().clone(),
-            authorized.proposal().action().clone(),
-            authorized.proposal().predicted_outcome().clone(),
-            goal_alignment,
-            evidence.controllability(),
-            evidence.grounding_confidence(),
-            evidence.expected_information_gain(),
-            evidence.execution_cost(),
-        ))
+        Ok(
+            athlesia_integrated_cognitive_agent::
+                OnlinePersistentCognitiveState::
+                    experiment_proposal_executive_candidate(
+                        goal,
+                        goal_alignment,
+                        authorized.proposal(),
+                    ),
+        )
     }
 
     pub fn ground_belief_driven_proposal_frontier_for_goal(
