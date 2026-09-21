@@ -9899,6 +9899,31 @@ pub struct SuccessorInformedNativeM50ProposalDelegationRequest<'a> {
             BeliefDrivenExperimentProposalPolicy,
 }
 
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct SuccessorInformedNativeM50ProposalDelegation {
+    source_state:
+        CognitiveStructure,
+    result:
+        athlesia_autonomous_active_experimentation::
+            BeliefDrivenExperimentProposalResult,
+}
+
+impl SuccessorInformedNativeM50ProposalDelegation {
+    pub fn source_state(
+        &self,
+    ) -> &CognitiveStructure {
+        &self.source_state
+    }
+
+    pub fn result(
+        &self,
+    ) -> &athlesia_autonomous_active_experimentation::
+        BeliefDrivenExperimentProposalResult {
+        &self.result
+    }
+}
+
+
 pub struct SuccessorInformedNativeProposalInputFrontier {
     upstream_binding_count: usize,
     successor_eligible_binding_count: usize,
@@ -12945,8 +12970,7 @@ impl OnlinePersistentCognitiveState {
         request:
             SuccessorInformedNativeM50ProposalDelegationRequest<'_>,
     ) -> Option<
-        athlesia_autonomous_active_experimentation::
-            BeliefDrivenExperimentProposalResult
+        SuccessorInformedNativeM50ProposalDelegation
     > {
         let SuccessorInformedNativeM50ProposalDelegationRequest {
             native_input,
@@ -12966,7 +12990,51 @@ impl OnlinePersistentCognitiveState {
             return None;
         }
 
-        Some(
+        /*
+         * Native-M50 causal source authority belongs to M51.
+         *
+         * Only native possibilities that exactly match the M51-derived
+         * C3F source/action frontier survive gating.
+         *
+         * All surviving possibilities must resolve to one exact source
+         * identity. Distinct surviving sources are provenance ambiguity
+         * and therefore fail closed.
+         */
+        let mut source_states =
+            Vec::<CognitiveStructure>::new();
+
+        for possibility in
+            gated
+                .matched_native_possibilities()
+        {
+            if !source_states
+                .iter()
+                .any(
+                    |source_state| {
+                        source_state
+                            == possibility
+                                .source_state()
+                    },
+                )
+            {
+                source_states.push(
+                    possibility
+                        .source_state()
+                        .clone(),
+                );
+            }
+        }
+
+        let source_state =
+            match source_states.as_slice() {
+                [source_state] =>
+                    source_state.clone(),
+
+                _ =>
+                    return None,
+            };
+
+        let result =
             athlesia_autonomous_active_experimentation::
                 AutonomousBeliefDrivenExperimentProposal::
                     generate(
@@ -12974,11 +13042,36 @@ impl OnlinePersistentCognitiveState {
                         gated
                             .matched_native_possibilities(),
                         proposal_policy,
-                    ),
+                    );
+
+        /*
+         * M50 abstention remains legitimate.
+         *
+         * If M50 emits experiments, every emitted experiment must preserve
+         * the exact M51-authoritative causal source identity.
+         */
+        if result
+            .generated()
+            .iter()
+            .any(
+                |candidate| {
+                    candidate
+                        .experiment()
+                        .source_state()
+                        != &source_state
+                },
+            )
+        {
+            return None;
+        }
+
+        Some(
+            SuccessorInformedNativeM50ProposalDelegation {
+                source_state,
+                result,
+            },
         )
     }
-
-
 
 
     /*
@@ -18524,8 +18617,15 @@ mod p4g_c3f_endogenous_priority_frontier_bridge_tests {
                 );
 
         assert_eq!(
-            delegated,
-            direct,
+            delegated.source_state(),
+            native_inputs[0]
+                .source_state(),
+            "M51 delegation must expose the exact gated native source identity as authoritative provenance",
+        );
+
+        assert_eq!(
+            delegated.result(),
+            &direct,
             "C16I-D must return the exact native M50 builder result without reinterpretation",
         );
 
@@ -18696,8 +18796,15 @@ mod p4g_c3f_endogenous_priority_frontier_bridge_tests {
                 );
 
         assert_eq!(
-            delegated,
-            direct,
+            delegated.source_state(),
+            native_inputs[0]
+                .source_state(),
+            "M51 delegation must expose the exact gated native source identity as authoritative provenance",
+        );
+
+        assert_eq!(
+            delegated.result(),
+            &direct,
             "C16I must not convert native M50 abstention into its own proposal decision",
         );
     }

@@ -119,12 +119,6 @@ pub struct ArcAgi3SuccessorInformedUnifiedExecutiveRequest<'a> {
     pub exploitation_execution_cost: CognitiveSignal,
 
     /*
-     * Exact native-M50 source identity expected at the ARC grounding
-     * boundary.  This is intentionally not reconstructed by the adapter.
-     */
-    pub expected_experiment_source_state: &'a CognitiveStructure,
-
-    /*
      * These are caller-native M50 inputs.
      *
      * The adapter does not manufacture competing predictions, beliefs,
@@ -820,7 +814,6 @@ impl ArcAgi3CognitiveInteractionRuntime {
             goal,
             goal_alignment,
             exploitation_execution_cost,
-            expected_experiment_source_state,
             native_possibilities,
             beliefs,
             version_policy,
@@ -828,8 +821,7 @@ impl ArcAgi3CognitiveInteractionRuntime {
             expectation_policy,
             priority_policy,
             proposal_policy,
-            executive_policy,
-        } = request;
+            executive_policy,        } = request;
 
         /*
          * B0 current-grounding authority is shared by both branches.
@@ -917,7 +909,7 @@ impl ArcAgi3CognitiveInteractionRuntime {
                         },
                 );
 
-        if let Some(result) =
+        if let Some(delegation) =
             delegated
         {
             /*
@@ -933,10 +925,10 @@ impl ArcAgi3CognitiveInteractionRuntime {
                     ArcAgi3ActionGroundingBridge::
                         ground_belief_driven_proposal_frontier_for_goal(
                             self.observation(),
-                            expected_experiment_source_state,
+                            delegation.source_state(),
                             goal,
                             goal_alignment,
-                            &result,
+                            delegation.result(),
                         )
                         .ok()?;
 
@@ -968,7 +960,7 @@ impl ArcAgi3CognitiveInteractionRuntime {
                     athlesia_integrated_cognitive_agent::
                         ExecutiveCandidateProvenanceBinding::
                             new(
-                                expected_experiment_source_state
+                                delegation.source_state()
                                     .clone(),
                                 grounded
                                     .candidate()
@@ -2390,7 +2382,7 @@ mod c16i_successor_informed_two_contract_e2e_tests {
                 );
 
         assert!(
-            native_result.generated_count()
+            native_result.result().generated_count()
                 > 0,
             "native M50 must actually generate a proposal before F is exercised",
         );
@@ -2404,66 +2396,6 @@ mod c16i_successor_informed_two_contract_e2e_tests {
             native_possibilities,
             beliefs,
         }
-    }
-
-    #[test]
-    fn mismatched_expected_source_state_fails_closed_before_m48_authority(
-    ) {
-        let fixture =
-            fixture(
-                "c16i-f-source-mismatch",
-                8_100_000,
-            );
-
-        let wrong_source =
-            atom(
-                0xC16F_FFFF_FFFF_FF01,
-            );
-
-        assert_ne!(
-            wrong_source,
-            fixture.native_source,
-        );
-
-        let selected =
-            fixture
-                .runtime
-                .current_successor_informed_unified_executive_authority(
-                    ArcAgi3SuccessorInformedUnifiedExecutiveRequest {
-                        exploitation_actions:
-                            &[],
-                        goal:
-                            &goal(),
-                        goal_alignment:
-                            signal(900),
-                        exploitation_execution_cost:
-                            signal(100),
-                        expected_experiment_source_state:
-                            &wrong_source,
-                        native_possibilities:
-                            &fixture
-                                .native_possibilities,
-                        beliefs:
-                            &fixture.beliefs,
-                        version_policy:
-                            version_policy(),
-                        discrimination_policy:
-                            discrimination_policy(),
-                        expectation_policy:
-                            expectation_policy(),
-                        priority_policy:
-                            priority_policy(),
-                        proposal_policy:
-                            proposal_policy(),
-                        executive_policy:
-                            executive_policy(),
-                    },
-                );
-
-        assert!(
-            selected.is_none(),
-            "exact E-bridge source mismatch must fail closed before any M48 authority can select the experiment",
-        );
     }
 
     #[test]
@@ -2488,8 +2420,6 @@ mod c16i_successor_informed_two_contract_e2e_tests {
                             signal(900),
                         exploitation_execution_cost:
                             signal(100),
-                        expected_experiment_source_state:
-                            &fixture.native_source,
                         native_possibilities:
                             &fixture
                                 .native_possibilities,
