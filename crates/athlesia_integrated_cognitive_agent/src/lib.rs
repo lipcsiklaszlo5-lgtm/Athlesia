@@ -11977,6 +11977,213 @@ impl OnlinePersistentCognitiveState {
     ) {
         self.perceptual_grouping_appearance_evidence.observe(result);
     }
+    pub fn current_provisional_object_hypotheses_from_groupings(
+        &self,
+        frame:
+            &athlesia_core_knowledge_perceptual_grounding::
+                PerceptualFrame,
+        groupings:
+            &[athlesia_core_knowledge_perceptual_grounding::
+                PerceptualGroupingCandidate],
+        appearance_policy:
+            athlesia_core_knowledge_perceptual_grounding::
+                PerceptualGroupingAppearanceRetentionPolicy,
+    ) -> Vec<
+        athlesia_core_knowledge_perceptual_grounding::
+            ObjectHypothesis
+    > {
+        use athlesia_core_knowledge_perceptual_grounding::{
+            EmpiricalObjecthoodSignalCalibration,
+            ObjectHypothesis,
+            ObjecthoodEvidence,
+            PerceptualGroupingAppearanceSupportStatus,
+            PerceptualObjectProposal,
+        };
+
+        let mut hypotheses = Vec::new();
+
+        for grouping in groupings {
+            if self
+                .perceptual_grouping_appearance_evidence()
+                .support_status(
+                    grouping,
+                    appearance_policy,
+                )
+                != PerceptualGroupingAppearanceSupportStatus::Supported
+            {
+                continue;
+            }
+
+            let Some(appearance_record) =
+                self
+                    .perceptual_grouping_appearance_evidence()
+                    .record(grouping)
+            else {
+                continue;
+            };
+
+            let Some(behavior_record) =
+                self
+                    .perceptual_grouping_behavior_evidence()
+                    .record(grouping)
+            else {
+                continue;
+            };
+
+            let behavioral_opportunities =
+                behavior_record
+                    .uniform_changed_count()
+                    .saturating_add(
+                        behavior_record
+                            .mixed_count(),
+                    );
+
+            let Some(common_change) =
+                EmpiricalObjecthoodSignalCalibration::
+                    from_counts(
+                        behavior_record
+                            .uniform_changed_count(),
+                        behavioral_opportunities,
+                    )
+            else {
+                continue;
+            };
+
+            let Some(cohesion) =
+                EmpiricalObjecthoodSignalCalibration::
+                    from_counts(
+                        appearance_record
+                            .appearance_cohesion_support_count(),
+                        appearance_record
+                            .observation_count(),
+                    )
+            else {
+                continue;
+            };
+
+            let Some(boundary) =
+                EmpiricalObjecthoodSignalCalibration::
+                    from_counts(
+                        appearance_record
+                            .contrast_boundary_support_count(),
+                        appearance_record
+                            .observation_count(),
+                    )
+            else {
+                continue;
+            };
+
+            let mut persistence:
+                Option<CognitiveSignal> =
+                None;
+
+            let mut valid_members = true;
+
+            for handle in grouping.members() {
+                let proposal =
+                    PerceptualObjectProposal::new(
+                        vec![*handle],
+                    )
+                    .expect(
+                        "one grouping member is one valid atomic proposal",
+                    );
+
+                let Some(record) =
+                    self
+                        .perceptual_temporal_evidence()
+                        .record(&proposal)
+                else {
+                    valid_members = false;
+                    break;
+                };
+
+                let Some(member_signal) =
+                    EmpiricalObjecthoodSignalCalibration::
+                        from_counts(
+                            record
+                                .cross_frame_presence_count(),
+                            record
+                                .observation_count(),
+                        )
+                else {
+                    valid_members = false;
+                    break;
+                };
+
+                persistence =
+                    Some(
+                        match persistence {
+                            Some(current) =>
+                                current.min(
+                                    member_signal,
+                                ),
+
+                            None =>
+                                member_signal,
+                        },
+                    );
+            }
+
+            if !valid_members {
+                continue;
+            }
+
+            let Some(persistence) =
+                persistence
+            else {
+                continue;
+            };
+
+            let evidence =
+                ObjecthoodEvidence::new(
+                    cohesion,
+                    persistence,
+                    common_change,
+                    boundary,
+                    CognitiveSignal::zero(),
+                    CognitiveSignal::zero(),
+                );
+
+            let Some(hypothesis) =
+                ObjectHypothesis::new(
+                    grouping
+                        .members()
+                        .to_vec(),
+                    evidence,
+                )
+            else {
+                continue;
+            };
+
+            if hypothesis
+                .is_grounded_in(frame)
+            {
+                hypotheses.push(
+                    hypothesis,
+                );
+            }
+        }
+
+        hypotheses.sort_by(
+            |left, right| {
+                left
+                    .members()
+                    .cmp(
+                        right.members(),
+                    )
+            },
+        );
+
+        hypotheses.dedup_by(
+            |left, right| {
+                left.members()
+                    == right.members()
+            },
+        );
+
+        hypotheses
+    }
+
     pub fn current_empirical_expected_epistemic_transfer_progress(
         &self,
         current:
