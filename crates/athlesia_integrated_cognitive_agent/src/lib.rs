@@ -12898,7 +12898,9 @@ impl OnlinePersistentCognitiveState {
          *      +
          * B2/C16I-A successor eligibility
          *      +
-         * exact source_state/action identity.
+         * exact source_state/action identity
+         *      +
+         * exact current M50 hypothesis identity membership.
          *
          * No proposal, evidence signal, belief confidence, policy threshold,
          * predicted outcome, EIG, utility or executive choice is synthesized.
@@ -12929,7 +12931,7 @@ impl OnlinePersistentCognitiveState {
             Vec::new();
 
         for native in native_possibilities {
-            let matched =
+            let binding_matches =
                 bindings
                     .bindings()
                     .iter()
@@ -12948,7 +12950,59 @@ impl OnlinePersistentCognitiveState {
                         },
                     );
 
-            if matched {
+            if !binding_matches {
+                continue;
+            }
+
+            /*
+             * C16J-A:
+             *
+             * Exact current M50 hypothesis identity is cognitive authority.
+             *
+             * A caller-native possibility may still carry legacy
+             * confidence/outcome/control payload at this boundary, but it
+             * may not invent hypothesis identities behind an otherwise
+             * valid source/action pair.
+             */
+            let Some(current_epistemic) =
+                self
+                    .current_m50_epistemic_possibility(
+                        state,
+                        native.action(),
+                        version_policy,
+                    )
+            else {
+                continue;
+            };
+
+            if current_epistemic
+                .source_state()
+                != native.source_state()
+            {
+                continue;
+            }
+
+            let hypotheses_match =
+                native
+                    .predictions()
+                    .iter()
+                    .all(
+                        |prediction| {
+                            current_epistemic
+                                .forecasts()
+                                .iter()
+                                .any(
+                                    |forecast| {
+                                        forecast
+                                            .hypothesis()
+                                            == prediction
+                                                .hypothesis()
+                                    },
+                                )
+                        },
+                    );
+
+            if hypotheses_match {
                 matched_native_possibilities.push(
                     native.clone(),
                 );
@@ -17832,6 +17886,103 @@ mod p4g_c3f_endogenous_priority_frontier_bridge_tests {
         .expect("native grounded experiment possibility")
     }
 
+    fn c16i_grounded_native_possibility(
+        owner:
+            &OnlinePersistentCognitiveState,
+        current:
+            &GroundedStateSnapshot,
+        source_state:
+            CognitiveStructure,
+        action:
+            CognitiveStructure,
+        first_outcome:
+            u64,
+    ) -> athlesia_autonomous_active_experimentation::
+        GroundedExperimentPossibility {
+        let epistemic =
+            owner
+                .current_m50_epistemic_possibility(
+                    current,
+                    &action,
+                    version_policy(),
+                )
+                .expect(
+                    "positive native fixture requires current M50 forecasts",
+                );
+
+        let mut hypotheses =
+            Vec::<CognitiveStructure>::new();
+
+        for forecast in
+            epistemic.forecasts()
+        {
+            if !hypotheses
+                .iter()
+                .any(
+                    |existing| {
+                        existing
+                            == forecast
+                                .hypothesis()
+                    },
+                )
+            {
+                hypotheses.push(
+                    forecast
+                        .hypothesis()
+                        .clone(),
+                );
+            }
+        }
+
+        assert!(
+            hypotheses.len() >= 2,
+            "positive native fixture requires at least two real M50 hypothesis identities",
+        );
+
+        use athlesia_autonomous_active_experimentation::{
+            CompetingHypothesisPrediction,
+            GroundedExperimentPossibility,
+        };
+
+        let confidence =
+            c16i_native_signal(900);
+
+        GroundedExperimentPossibility::new(
+            source_state,
+            action,
+            vec![
+                CompetingHypothesisPrediction::new(
+                    hypotheses[0]
+                        .clone(),
+                    a(first_outcome),
+                    confidence,
+                )
+                .expect(
+                    "first grounded native prediction",
+                ),
+                CompetingHypothesisPrediction::new(
+                    hypotheses[1]
+                        .clone(),
+                    a(
+                        first_outcome
+                            .saturating_add(1),
+                    ),
+                    confidence,
+                )
+                .expect(
+                    "second grounded native prediction",
+                ),
+            ],
+            c16i_native_signal(900),
+            c16i_native_signal(900),
+            c16i_native_signal(100),
+        )
+        .expect(
+            "grounded native experiment possibility",
+        )
+    }
+
+
     fn c16i_retain_b2_sample(
         owner: &mut OnlinePersistentCognitiveState,
         event_index: u64,
@@ -18238,7 +18389,9 @@ mod p4g_c3f_endogenous_priority_frontier_bridge_tests {
             );
 
         let exact =
-            c16i_native_possibility(
+            c16i_grounded_native_possibility(
+                &owner,
+                &current,
                 priority.source_state().clone(),
                 priority.action().clone(),
                 730,
@@ -18280,6 +18433,145 @@ mod p4g_c3f_endogenous_priority_frontier_bridge_tests {
     }
 
     #[test]
+    fn successor_informed_native_input_gate_rejects_foreign_hypothesis_identity_even_when_source_action_match(
+    ) {
+        let mut owner =
+            c16i_b1_valid_owner();
+
+        let current =
+            state(&[1]);
+
+        let action =
+            a(100);
+
+        c16i_retain_b2_sample(
+            &mut owner,
+            904,
+            &current,
+            &action,
+        );
+
+        c16i_authorize_priority(
+            &mut owner,
+            905,
+            &current,
+            &action,
+        );
+
+        let binding =
+            owner
+                .current_successor_informed_epistemic_priority_binding_frontier(
+                    &current,
+                    std::slice::from_ref(
+                        &action,
+                    ),
+                    version_policy(),
+                    discrimination_policy(),
+                    expectation_policy(),
+                    priority_policy(),
+                );
+
+        assert_eq!(
+            binding.eligible_binding_count(),
+            1,
+        );
+
+        let priority =
+            binding
+                .bindings()[0]
+                .priority_candidate();
+
+        /*
+         * Existing legacy helper intentionally carries foreign
+         * a(100)/a(101) hypothesis identities.
+         *
+         * Source and action below are exact and fully eligible, so this
+         * fixture isolates hypothesis identity authority.
+         */
+        let foreign =
+            c16i_native_possibility(
+                priority
+                    .source_state()
+                    .clone(),
+                priority
+                    .action()
+                    .clone(),
+                735,
+            );
+
+        let current_epistemic =
+            owner
+                .current_m50_epistemic_possibility(
+                    &current,
+                    &action,
+                    version_policy(),
+                )
+                .expect(
+                    "current M50 frontier must exist",
+                );
+
+        assert!(
+            foreign
+                .predictions()
+                .iter()
+                .any(
+                    |prediction| {
+                        !current_epistemic
+                            .forecasts()
+                            .iter()
+                            .any(
+                                |forecast| {
+                                    forecast
+                                        .hypothesis()
+                                        == prediction
+                                            .hypothesis()
+                                },
+                            )
+                    },
+                ),
+            "fixture must actually contain a foreign hypothesis identity",
+        );
+
+        let result =
+            owner
+                .current_successor_informed_native_proposal_input_frontier(
+                    SuccessorInformedNativeProposalInputRequest {
+                        state:
+                            &current,
+                        actions:
+                            std::slice::from_ref(
+                                &action,
+                            ),
+                        version_policy:
+                            version_policy(),
+                        discrimination_policy:
+                            discrimination_policy(),
+                        expectation_policy:
+                            expectation_policy(),
+                        priority_policy:
+                            priority_policy(),
+                        native_possibilities:
+                            std::slice::from_ref(
+                                &foreign,
+                            ),
+                    },
+                );
+
+        assert_eq!(
+            result.successor_eligible_binding_count(),
+            1,
+            "source/action C3F+B2 authority must genuinely exist",
+        );
+
+        assert_eq!(
+            result.matched_native_possibility_count(),
+            0,
+            "foreign hypothesis identity must fail closed despite exact source/action",
+        );
+    }
+
+
+    #[test]
     fn successor_informed_native_input_gate_preserves_caller_native_order_and_payload_without_rewriting_m50_signals() {
         let mut owner = c16i_b1_valid_owner();
         let current = state(&[1]);
@@ -18314,14 +18606,18 @@ mod p4g_c3f_endogenous_priority_frontier_bridge_tests {
                 .priority_candidate();
 
         let first =
-            c16i_native_possibility(
+            c16i_grounded_native_possibility(
+                &owner,
+                &current,
                 priority.source_state().clone(),
                 priority.action().clone(),
                 740,
             );
 
         let second =
-            c16i_native_possibility(
+            c16i_grounded_native_possibility(
+                &owner,
+                &current,
                 priority.source_state().clone(),
                 priority.action().clone(),
                 750,
@@ -18514,7 +18810,9 @@ mod p4g_c3f_endogenous_priority_frontier_bridge_tests {
                 .priority_candidate();
 
         let native =
-            c16i_native_possibility(
+            c16i_grounded_native_possibility(
+                &owner,
+                &current,
                 priority
                     .source_state()
                     .clone(),
@@ -18694,7 +18992,9 @@ mod p4g_c3f_endogenous_priority_frontier_bridge_tests {
                 .priority_candidate();
 
         let native =
-            c16i_native_possibility(
+            c16i_grounded_native_possibility(
+                &owner,
+                &current,
                 priority
                     .source_state()
                     .clone(),

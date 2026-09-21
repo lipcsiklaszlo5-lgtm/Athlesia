@@ -2378,15 +2378,44 @@ pub(crate) mod c16i_successor_informed_two_contract_e2e_tests {
                 .source_state()
                 .clone();
 
+        let mut native_hypotheses =
+            Vec::<CognitiveStructure>::new();
+
+        for forecast in
+            current_epistemic
+                .forecasts()
+        {
+            if !native_hypotheses
+                .iter()
+                .any(
+                    |existing| {
+                        existing
+                            == forecast
+                                .hypothesis()
+                    },
+                )
+            {
+                native_hypotheses.push(
+                    forecast
+                        .hypothesis()
+                        .clone(),
+                );
+            }
+        }
+
+        assert!(
+            native_hypotheses.len()
+                >= 2,
+            "C16I native fixture requires at least two exact current M50 hypothesis identities",
+        );
+
         let hypothesis_one =
-            atom(
-                0xC16F_0000_0000_0101,
-            );
+            native_hypotheses[0]
+                .clone();
 
         let hypothesis_two =
-            atom(
-                0xC16F_0000_0000_0102,
-            );
+            native_hypotheses[1]
+                .clone();
 
         let native_possibilities =
             vec![
