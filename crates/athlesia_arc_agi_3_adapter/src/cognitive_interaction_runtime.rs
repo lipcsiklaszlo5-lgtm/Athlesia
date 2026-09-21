@@ -862,14 +862,17 @@ impl ArcAgi3CognitiveInteractionRuntime {
         let mut provenance =
             authorized
                 .iter()
-                .cloned()
                 .map(
                     |candidate| {
-                        (
-                            candidate,
-                            exploitation_source_state
-                                .clone(),
-                        )
+                        athlesia_integrated_cognitive_agent::
+                            ExecutiveCandidateProvenanceBinding::
+                                new(
+                                    exploitation_source_state
+                                        .clone(),
+                                    candidate
+                                        .candidate()
+                                        .clone(),
+                                )
                     },
                 )
                 .collect::<Vec<_>>();
@@ -958,12 +961,30 @@ impl ArcAgi3CognitiveInteractionRuntime {
                             .ok()?;
 
                 /*
-                 * Exact duplicate suppression only.
+                 * Preserve every exact candidate/source provenance binding.
                  *
-                 * No semantic deduplication, no action-only collapse,
-                 * no re-ranking and no re-ordering.
+                 * Candidate identity may be duplicate for M48 purposes,
+                 * but a different source state is NOT disposable metadata.
+                 * M51 resolves or rejects provenance ambiguity later.
                  */
-                if authorized
+                provenance.push(
+                    athlesia_integrated_cognitive_agent::
+                        ExecutiveCandidateProvenanceBinding::
+                            new(
+                                expected_experiment_source_state
+                                    .clone(),
+                                grounded
+                                    .candidate()
+                                    .clone(),
+                            ),
+                );
+
+                /*
+                 * The ARC wrapper frontier needs only one wrapper per exact
+                 * candidate identity because identical candidates decode to
+                 * the same ARC action. Provenance is retained separately.
+                 */
+                if !authorized
                     .iter()
                     .any(
                         |existing| {
@@ -974,62 +995,51 @@ impl ArcAgi3CognitiveInteractionRuntime {
                         },
                     )
                 {
-                    continue;
+                    authorized.push(
+                        grounded,
+                    );
                 }
-
-                provenance.push(
-                    (
-                        grounded.clone(),
-                        expected_experiment_source_state
-                            .clone(),
-                    ),
-                );
-
-                authorized.push(
-                    grounded,
-                );
             }
         }
 
         /*
          * C16I-F final authority:
          *
-         * exploitation + native M50 candidates enter ONE common M48
-         * evaluation.  There is no second selector and no local utility
-         * authority in the ARC adapter.
+         * M51 performs both:
+         *
+         * - the single common M48 selection; and
+         * - exact fail-closed source provenance resolution.
+         *
+         * The ARC adapter only rebinds the selected generic candidate to
+         * its already-authorized protocol wrapper.
          */
-        let selected =
-            self.selected_authorized_executive_candidate(
-                &authorized,
-                goal,
-                executive_policy,
-            )?;
-
-        let source_state =
-            provenance
-                .iter()
-                .find_map(
-                    |(
-                        candidate,
-                        source_state,
-                    )| {
-                        (
-                            candidate
-                                == &selected
-                        )
-                            .then(
-                                || {
-                                    source_state
-                                        .clone()
-                                },
-                            )
-                    },
+        let selected_provenance =
+            self.cognition
+                .current_selected_executive_candidate_with_provenance(
+                    &provenance,
+                    goal,
+                    executive_policy,
                 )?;
+
+        let selected =
+            authorized
+                .iter()
+                .find(
+                    |grounded| {
+                        grounded
+                            .candidate()
+                            == selected_provenance
+                                .candidate()
+                    },
+                )
+                .cloned()?;
 
         Some(
             ArcAgi3UnifiedExecutiveAuthority::
                 new(
-                    source_state,
+                    selected_provenance
+                        .source_state()
+                        .clone(),
                     selected,
                 ),
         )
@@ -1067,10 +1077,11 @@ impl ArcAgi3CognitiveInteractionRuntime {
             exploitation_execution_cost,
         );
 
-        let mut provenance = Vec::<(
-            crate::action_grounding_bridge::ArcAgi3AuthorizedExecutiveCandidate,
-            CognitiveStructure,
-        )>::new();
+        let mut provenance =
+            Vec::<
+                athlesia_integrated_cognitive_agent::
+                    ExecutiveCandidateProvenanceBinding
+            >::new();
 
         /*
          * Exploitation provenance comes from the retained grounded
@@ -1085,8 +1096,19 @@ impl ArcAgi3CognitiveInteractionRuntime {
             provenance.extend(
                 authorized
                     .iter()
-                    .cloned()
-                    .map(|candidate| (candidate, source_state.clone())),
+                    .map(
+                        |candidate| {
+                            athlesia_integrated_cognitive_agent::
+                                ExecutiveCandidateProvenanceBinding::
+                                    new(
+                                        source_state
+                                            .clone(),
+                                        candidate
+                                            .candidate()
+                                            .clone(),
+                                    )
+                        },
+                    ),
             );
         }
 
@@ -1125,18 +1147,24 @@ impl ArcAgi3CognitiveInteractionRuntime {
                                 &candidate,
                             )
                     {
+                        provenance.push(
+                            athlesia_integrated_cognitive_agent::
+                                ExecutiveCandidateProvenanceBinding::
+                                    new(
+                                        expected_experiment_source_state
+                                            .clone(),
+                                        grounded
+                                            .candidate()
+                                            .clone(),
+                                    ),
+                        );
+
                         if !authorized.iter().any(
                             |existing| {
                                 existing.candidate()
                                     == grounded.candidate()
                             },
                         ) {
-                            provenance.push((
-                                grounded.clone(),
-                                expected_experiment_source_state
-                                    .clone(),
-                            ));
-
                             authorized.push(
                                 grounded,
                             );
@@ -1149,19 +1177,39 @@ impl ArcAgi3CognitiveInteractionRuntime {
         /*
          * Frozen C1 authority:
          *
-         * ONE M48 evaluation over exploitation + experimentation.
-         * No live-layer ranking and no protocol-defined utility.
+         * ONE M48 evaluation over exploitation + experimentation, with
+         * exact provenance resolution owned by M51.
          */
-        let selected = self.selected_authorized_executive_candidate(&authorized, goal, policy)?;
+        let selected_provenance =
+            self.cognition
+                .current_selected_executive_candidate_with_provenance(
+                    &provenance,
+                    goal,
+                    policy,
+                )?;
 
-        let source_state = provenance.iter().find_map(|(candidate, source_state)| {
-            (candidate == &selected).then(|| source_state.clone())
-        })?;
+        let selected =
+            authorized
+                .iter()
+                .find(
+                    |grounded| {
+                        grounded
+                            .candidate()
+                            == selected_provenance
+                                .candidate()
+                    },
+                )
+                .cloned()?;
 
-        Some(ArcAgi3UnifiedExecutiveAuthority::new(
-            source_state,
-            selected,
-        ))
+        Some(
+            ArcAgi3UnifiedExecutiveAuthority::
+                new(
+                    selected_provenance
+                        .source_state()
+                        .clone(),
+                    selected,
+                ),
+        )
     }
 
     pub fn current_unified_executive_action_selection(

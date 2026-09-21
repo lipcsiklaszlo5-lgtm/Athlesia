@@ -11565,6 +11565,68 @@ impl EmpiricallyAuthorizedStructuralPrediction {
 }
 
 
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ExecutiveCandidateProvenanceBinding {
+    source_state:
+        CognitiveStructure,
+    candidate:
+        athlesia_executive_agency::
+            GroundedExecutiveActionCandidate,
+}
+
+impl ExecutiveCandidateProvenanceBinding {
+    pub fn new(
+        source_state:
+            CognitiveStructure,
+        candidate:
+            athlesia_executive_agency::
+                GroundedExecutiveActionCandidate,
+    ) -> Self {
+        Self {
+            source_state,
+            candidate,
+        }
+    }
+
+    pub fn source_state(
+        &self,
+    ) -> &CognitiveStructure {
+        &self.source_state
+    }
+
+    pub fn candidate(
+        &self,
+    ) -> &athlesia_executive_agency::
+        GroundedExecutiveActionCandidate {
+        &self.candidate
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct SelectedExecutiveCandidateProvenance {
+    source_state:
+        CognitiveStructure,
+    candidate:
+        athlesia_executive_agency::
+            GroundedExecutiveActionCandidate,
+}
+
+impl SelectedExecutiveCandidateProvenance {
+    pub fn source_state(
+        &self,
+    ) -> &CognitiveStructure {
+        &self.source_state
+    }
+
+    pub fn candidate(
+        &self,
+    ) -> &athlesia_executive_agency::
+        GroundedExecutiveActionCandidate {
+        &self.candidate
+    }
+}
+
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum ExperimentProposalSourceBindingError {
     SourceStateMismatch,
@@ -13320,6 +13382,121 @@ impl OnlinePersistentCognitiveState {
                 )
     }
 
+    pub fn current_selected_executive_candidate_with_provenance(
+        &self,
+        bindings:
+            &[ExecutiveCandidateProvenanceBinding],
+        goal:
+            &athlesia_executive_agency::
+                ExecutiveGoal,
+        policy:
+            athlesia_executive_agency::
+                ExecutiveAgencyPolicy,
+    ) -> Option<
+        SelectedExecutiveCandidateProvenance
+    > {
+        if bindings.is_empty() {
+            return None;
+        }
+
+        /*
+         * M48 evaluates candidate identity exactly once.
+         *
+         * Multiple identical provenance bindings do not create duplicate
+         * cognitive candidates, but distinct source states remain explicit.
+         */
+        let mut candidates =
+            Vec::<
+                athlesia_executive_agency::
+                    GroundedExecutiveActionCandidate
+            >::new();
+
+        for binding in
+            bindings
+        {
+            if !candidates
+                .iter()
+                .any(
+                    |candidate| {
+                        candidate
+                            == binding
+                                .candidate()
+                    },
+                )
+            {
+                candidates.push(
+                    binding
+                        .candidate()
+                        .clone(),
+                );
+            }
+        }
+
+        let selected =
+            self.current_selected_executive_candidate(
+                &candidates,
+                goal,
+                policy,
+            )?;
+
+        /*
+         * Provenance is fail-closed.
+         *
+         * The same candidate may be observed repeatedly from the same
+         * exact source state. That is not ambiguity.
+         *
+         * But if the selected candidate is bound to two distinct source
+         * states, no caller may arbitrarily choose one causal origin.
+         */
+        let mut source_states =
+            Vec::<CognitiveStructure>::new();
+
+        for binding in
+            bindings
+                .iter()
+                .filter(
+                    |binding| {
+                        binding.candidate()
+                            == &selected
+                    },
+                )
+        {
+            if !source_states
+                .iter()
+                .any(
+                    |source_state| {
+                        source_state
+                            == binding
+                                .source_state()
+                    },
+                )
+            {
+                source_states.push(
+                    binding
+                        .source_state()
+                        .clone(),
+                );
+            }
+        }
+
+        let source_state =
+            match source_states.as_slice() {
+                [source_state] =>
+                    source_state.clone(),
+
+                _ =>
+                    return None,
+            };
+
+        Some(
+            SelectedExecutiveCandidateProvenance {
+                source_state,
+                candidate:
+                    selected,
+            },
+        )
+    }
+
     pub fn current_selected_executive_candidate(
         &self,
         candidates:
@@ -13481,6 +13658,199 @@ impl OnlinePersistentCognitiveState {
         result
     }
 }
+
+#[cfg(test)]
+mod executive_candidate_provenance_tests {
+    use super::*;
+
+    use athlesia_executive_agency::{
+        ExecutiveAgencyPolicy,
+        ExecutiveGoal,
+        ExecutiveSelectionThresholds,
+        ExecutiveUtilityWeights,
+        GroundedExecutiveActionCandidate,
+    };
+
+    fn signal(
+        value: u16,
+    ) -> CognitiveSignal {
+        CognitiveSignal::new(
+            value,
+        )
+        .expect(
+            "test signal is valid",
+        )
+    }
+
+    fn atom(
+        value: u64,
+    ) -> CognitiveStructure {
+        CognitiveStructure::atom(
+            value,
+        )
+    }
+
+    fn goal(
+    ) -> ExecutiveGoal {
+        ExecutiveGoal::new(
+            atom(
+                0x5034_4743_3132_474F,
+            ),
+            signal(900),
+            CognitiveSignal::zero(),
+        )
+    }
+
+    fn candidate(
+        goal:
+            &ExecutiveGoal,
+    ) -> GroundedExecutiveActionCandidate {
+        GroundedExecutiveActionCandidate::
+            new(
+                goal.identity().clone(),
+                atom(
+                    0x5034_4743_3132_4143,
+                ),
+                atom(
+                    0x5034_4743_3132_4F55,
+                ),
+                signal(900),
+                signal(800),
+                signal(800),
+                signal(700),
+                CognitiveSignal::zero(),
+            )
+    }
+
+    fn policy(
+    ) -> ExecutiveAgencyPolicy {
+        ExecutiveAgencyPolicy::new(
+            1,
+            8,
+            16,
+            1,
+            ExecutiveUtilityWeights::new(
+                0,
+                0,
+                0,
+                1000,
+                0,
+            )
+            .unwrap(),
+            ExecutiveSelectionThresholds::new(
+                signal(1),
+                signal(1),
+                signal(1),
+                signal(1),
+                signal(1),
+            )
+            .unwrap(),
+        )
+        .unwrap()
+    }
+
+    #[test]
+    fn repeated_same_candidate_same_source_preserves_authority(
+    ) {
+        let owner =
+            OnlinePersistentCognitiveState::
+                new();
+
+        let goal =
+            goal();
+
+        let candidate =
+            candidate(
+                &goal,
+            );
+
+        let source =
+            atom(
+                0x5034_4743_3132_5351,
+            );
+
+        let bindings =
+            vec![
+                ExecutiveCandidateProvenanceBinding::
+                    new(
+                        source.clone(),
+                        candidate.clone(),
+                    ),
+                ExecutiveCandidateProvenanceBinding::
+                    new(
+                        source.clone(),
+                        candidate.clone(),
+                    ),
+            ];
+
+        let selected =
+            owner
+                .current_selected_executive_candidate_with_provenance(
+                    &bindings,
+                    &goal,
+                    policy(),
+                )
+                .expect(
+                    "repeated identical provenance is not ambiguous",
+                );
+
+        assert_eq!(
+            selected.source_state(),
+            &source,
+        );
+
+        assert_eq!(
+            selected.candidate(),
+            &candidate,
+        );
+    }
+
+    #[test]
+    fn same_candidate_from_distinct_sources_fails_closed(
+    ) {
+        let owner =
+            OnlinePersistentCognitiveState::
+                new();
+
+        let goal =
+            goal();
+
+        let candidate =
+            candidate(
+                &goal,
+            );
+
+        let bindings =
+            vec![
+                ExecutiveCandidateProvenanceBinding::
+                    new(
+                        atom(
+                            0x5034_4743_3132_5351,
+                        ),
+                        candidate.clone(),
+                    ),
+                ExecutiveCandidateProvenanceBinding::
+                    new(
+                        atom(
+                            0x5034_4743_3132_5352,
+                        ),
+                        candidate,
+                    ),
+            ];
+
+        assert_eq!(
+            owner
+                .current_selected_executive_candidate_with_provenance(
+                    &bindings,
+                    &goal,
+                    policy(),
+                ),
+            None,
+            "one selected candidate with conflicting causal source states must abstain",
+        );
+    }
+}
+
 
 #[cfg(test)]
 mod m50_source_state_binding_tests {
