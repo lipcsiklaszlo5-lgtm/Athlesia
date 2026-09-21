@@ -9859,7 +9859,81 @@ impl SuccessorInformedEpistemicPriorityBindingFrontier {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
+pub struct SuccessorInformedEpistemicActionIntent {
+    possibility:
+        athlesia_autonomous_active_experimentation::
+            GroundedEpistemicExperimentPossibility,
+    priority_candidate:
+        athlesia_autonomous_active_experimentation::
+            EmpiricalEpistemicActionPriorityCandidate,
+    successor_eligibility:
+        SuccessorInformedProposalEligibility,
+}
 
+impl SuccessorInformedEpistemicActionIntent {
+    pub fn possibility(
+        &self,
+    ) -> &athlesia_autonomous_active_experimentation::
+        GroundedEpistemicExperimentPossibility {
+        &self.possibility
+    }
+
+    pub fn priority_candidate(
+        &self,
+    ) -> &athlesia_autonomous_active_experimentation::
+        EmpiricalEpistemicActionPriorityCandidate {
+        &self.priority_candidate
+    }
+
+    pub fn successor_eligibility(
+        &self,
+    ) -> SuccessorInformedProposalEligibility {
+        self.successor_eligibility
+    }
+
+    pub fn source_state(
+        &self,
+    ) -> &CognitiveStructure {
+        self.possibility
+            .source_state()
+    }
+
+    pub fn action(
+        &self,
+    ) -> &CognitiveStructure {
+        self.possibility
+            .action()
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct SuccessorInformedEpistemicActionIntentFrontier {
+    intents:
+        Vec<SuccessorInformedEpistemicActionIntent>,
+}
+
+impl SuccessorInformedEpistemicActionIntentFrontier {
+    pub fn intents(
+        &self,
+    ) -> &[SuccessorInformedEpistemicActionIntent] {
+        &self.intents
+    }
+
+    pub fn intent_count(
+        &self,
+    ) -> usize {
+        self.intents.len()
+    }
+
+    pub fn is_empty(
+        &self,
+    ) -> bool {
+        self.intents.is_empty()
+    }
+}
+
+
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct SuccessorInformedNativeProposalInputRequest<'a> {
     pub state:
         &'a athlesia_universal_domain_learning::
@@ -12861,6 +12935,140 @@ impl OnlinePersistentCognitiveState {
             bindings,
         }
     }
+
+    pub fn current_successor_informed_epistemic_action_intent_frontier(
+        &self,
+        state:
+            &athlesia_universal_domain_learning::
+                GroundedStateSnapshot,
+        actions:
+            &[CognitiveStructure],
+        version_policy:
+            athlesia_universal_domain_learning::
+                GroundedExplanatoryVersionSpacePolicy,
+        discrimination_policy:
+            athlesia_autonomous_active_experimentation::
+                EpistemicForecastDiscriminationPolicy,
+        expectation_policy:
+            athlesia_autonomous_active_experimentation::
+                EmpiricalExpectedEpistemicProgressPolicy,
+        priority_policy:
+            athlesia_autonomous_active_experimentation::
+                EmpiricalEpistemicActionPriorityPolicy,
+    ) -> Option<
+        SuccessorInformedEpistemicActionIntentFrontier
+    > {
+        /*
+         * C16J-B:
+         *
+         * This is the first successor-informed epistemic authority frontier
+         * that does not require caller-native prediction/belief payload.
+         *
+         * Authority remains entirely evidence-derived:
+         *
+         * current M47/M50 forecast frontier
+         *      +
+         * retained empirical C3F progress priority
+         *      +
+         * retained B2 successor eligibility.
+         *
+         * No forecast abstention is converted into a concrete outcome.
+         * No probability, confidence, EIG, utility, controllability or
+         * execution cost is synthesized here.
+         */
+        let bindings =
+            self
+                .current_successor_informed_epistemic_priority_binding_frontier(
+                    state,
+                    actions,
+                    version_policy,
+                    discrimination_policy,
+                    expectation_policy,
+                    priority_policy,
+                );
+
+        let eligible =
+            bindings
+                .bindings()
+                .iter()
+                .filter(
+                    |binding| {
+                        binding
+                            .eligible_as_supplemental_successor_evidence()
+                    },
+                )
+                .collect::<Vec<_>>();
+
+        if eligible.is_empty() {
+            return None;
+        }
+
+        let mut intents =
+            Vec::with_capacity(
+                eligible.len(),
+            );
+
+        for binding in eligible {
+            let priority =
+                binding
+                    .priority_candidate();
+
+            let possibility =
+                self
+                    .current_m50_epistemic_possibility(
+                        state,
+                        priority
+                            .action(),
+                        version_policy,
+                    )?;
+
+            /*
+             * Exact causal identity must survive the re-resolution.
+             *
+             * A current epistemic possibility for another source/action
+             * cannot inherit the retained empirical priority binding.
+             */
+            if possibility
+                .source_state()
+                != priority
+                    .source_state()
+                || possibility
+                    .action()
+                    != priority
+                        .action()
+            {
+                return None;
+            }
+
+            intents.push(
+                SuccessorInformedEpistemicActionIntent {
+                    possibility,
+                    priority_candidate:
+                        priority.clone(),
+                    successor_eligibility:
+                        binding
+                            .successor_eligibility(),
+                },
+            );
+        }
+
+        /*
+         * Never expose a partial authority frontier.
+         */
+        if intents.len()
+            != bindings
+                .eligible_binding_count()
+        {
+            return None;
+        }
+
+        Some(
+            SuccessorInformedEpistemicActionIntentFrontier {
+                intents,
+            },
+        )
+    }
+
 
     pub fn current_successor_informed_native_proposal_input_frontier(
         &self,
@@ -18212,6 +18420,199 @@ mod p4g_c3f_endogenous_priority_frontier_bridge_tests {
                 .unwrap(),
         );
     }
+
+    #[test]
+    fn successor_informed_epistemic_action_intent_preserves_abstention_without_native_prediction_fabrication(
+    ) {
+        let mut owner =
+            c16i_b1_valid_owner();
+
+        let current =
+            state(&[1]);
+
+        let action =
+            a(100);
+
+        c16i_retain_b2_sample(
+            &mut owner,
+            9_160,
+            &current,
+            &action,
+        );
+
+        c16i_authorize_priority(
+            &mut owner,
+            9_161,
+            &current,
+            &action,
+        );
+
+        let progress_before =
+            owner
+                .epistemic_progress_event_count();
+
+        let transitions_before =
+            owner
+                .transition_episode_count();
+
+        let frontier =
+            owner
+                .current_successor_informed_epistemic_action_intent_frontier(
+                    &current,
+                    std::slice::from_ref(
+                        &action,
+                    ),
+                    version_policy(),
+                    discrimination_policy(),
+                    expectation_policy(),
+                    priority_policy(),
+                )
+                .expect(
+                    "real C3F+B2 authority must expose evidence-faithful intent",
+                );
+
+        assert_eq!(
+            frontier.intent_count(),
+            1,
+        );
+
+        assert!(
+            !frontier.is_empty(),
+        );
+
+        let intent =
+            &frontier.intents()[0];
+
+        assert_eq!(
+            intent.source_state(),
+            intent
+                .priority_candidate()
+                .source_state(),
+        );
+
+        assert_eq!(
+            intent.action(),
+            intent
+                .priority_candidate()
+                .action(),
+        );
+
+        assert!(
+            intent
+                .successor_eligibility()
+                .eligible_as_supplemental_evidence(),
+        );
+
+        assert!(
+            intent
+                .priority_candidate()
+                .qualifying_sample_count()
+                > 0,
+            "epistemic intent must carry real empirical C3F support",
+        );
+
+        /*
+         * Critical semantic invariant:
+         *
+         * ContextAbstained remains abstention.
+         *
+         * This new frontier must not manufacture the concrete prediction
+         * required by the legacy GroundedExperimentPossibility type.
+         */
+        assert!(
+            intent
+                .possibility()
+                .forecasts()
+                .iter()
+                .any(
+                    |forecast| {
+                        forecast.status()
+                            == EpistemicHypothesisForecastStatus::
+                                ContextAbstained
+                            && forecast
+                                .predicted_outcome()
+                                .is_none()
+                    },
+                ),
+            "evidence-faithful intent must preserve M50 abstention without manufacturing a concrete outcome",
+        );
+
+        assert!(
+            intent
+                .possibility()
+                .forecasts()
+                .iter()
+                .any(
+                    |forecast| {
+                        forecast.status()
+                            == EpistemicHypothesisForecastStatus::
+                                Predicted
+                            && forecast
+                                .predicted_outcome()
+                                .is_some()
+                    },
+                ),
+            "real concrete M50 predictions must remain concrete",
+        );
+
+        assert_eq!(
+            owner
+                .epistemic_progress_event_count(),
+            progress_before,
+            "intent query cannot manufacture empirical progress evidence",
+        );
+
+        assert_eq!(
+            owner
+                .transition_episode_count(),
+            transitions_before,
+            "intent query cannot manufacture transition evidence",
+        );
+    }
+
+    #[test]
+    fn successor_informed_epistemic_action_intent_requires_b2_eligibility_in_addition_to_c3f_priority(
+    ) {
+        let mut owner =
+            c16i_b1_valid_owner();
+
+        let current =
+            state(&[3]);
+
+        let action =
+            a(100);
+
+        /*
+         * Give the action genuine C3F authority but deliberately do not
+         * retain B2 successor evidence for this current representation.
+         */
+        c16i_authorize_priority(
+            &mut owner,
+            882,
+            &current,
+            &action,
+        );
+
+        let result =
+            owner
+                .current_successor_informed_epistemic_action_intent_frontier(
+                    &current,
+                    std::slice::from_ref(
+                        &action,
+                    ),
+                    version_policy(),
+                    discrimination_policy(),
+                    expectation_policy(),
+                    priority_policy(),
+                );
+
+        assert_eq!(
+            result,
+            None,
+            "positive C3F priority without B2 successor evidence must not create an epistemic action intent",
+        );
+    }
+
 
     #[test]
     fn successor_informed_native_input_gate_cannot_create_native_inputs_without_existing_c3f_priority() {
