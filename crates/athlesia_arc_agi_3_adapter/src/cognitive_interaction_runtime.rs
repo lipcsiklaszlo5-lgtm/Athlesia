@@ -1647,7 +1647,7 @@ impl UniversalArcAgi3CognitiveInteractionRuntime {
 
 
 #[cfg(test)]
-mod c16i_successor_informed_two_contract_e2e_tests {
+pub(crate) mod c16i_successor_informed_two_contract_e2e_tests {
     use super::*;
     mod m51_fixture {
         use crate as athlesia_arc_agi_3_adapter;
@@ -1952,7 +1952,7 @@ mod c16i_successor_informed_two_contract_e2e_tests {
     }
 
     #[derive(Debug)]
-    struct Fixture {
+    pub(crate) struct Fixture {
         runtime:
             ArcAgi3CognitiveInteractionRuntime,
         arc_action:
@@ -1973,7 +1973,97 @@ mod c16i_successor_informed_two_contract_e2e_tests {
             >,
     }
 
-    fn fixture(
+    impl Fixture {
+        pub(crate) fn into_live_parts(
+            self,
+        ) -> (
+            ArcAgi3CognitiveInteractionRuntime,
+            crate::ArcAgi3Action,
+            CognitiveStructure,
+            CognitiveStructure,
+            Vec<
+                athlesia_autonomous_active_experimentation::
+                    GroundedExperimentPossibility
+            >,
+            Vec<
+                athlesia_autonomous_active_experimentation::
+                    HypothesisBeliefState
+            >,
+        ) {
+            (
+                self.runtime,
+                self.arc_action,
+                self.cognitive_action,
+                self.native_source,
+                self.native_possibilities,
+                self.beliefs,
+            )
+        }
+    }
+
+    pub(crate) fn live_goal(
+    ) -> athlesia_executive_agency::
+        ExecutiveGoal {
+        goal()
+    }
+
+    pub(crate) fn live_response(
+        game:
+            &str,
+        value:
+            u8,
+        last_action:
+            Option<crate::ArcAgi3Action>,
+    ) -> crate::ArcAgi3Observation {
+        observation(
+            game,
+            value,
+            last_action,
+        )
+    }
+
+    pub(crate) fn live_request<'a>(
+        exploitation_actions:
+            &'a [crate::ArcAgi3Action],
+        goal:
+            &'a athlesia_executive_agency::
+                ExecutiveGoal,
+        native_possibilities:
+            &'a [
+                athlesia_autonomous_active_experimentation::
+                    GroundedExperimentPossibility
+            ],
+        beliefs:
+            &'a [
+                athlesia_autonomous_active_experimentation::
+                    HypothesisBeliefState
+            ],
+    ) -> ArcAgi3SuccessorInformedUnifiedExecutiveRequest<'a> {
+        ArcAgi3SuccessorInformedUnifiedExecutiveRequest {
+            exploitation_actions,
+            goal,
+            goal_alignment:
+                signal(900),
+            exploitation_execution_cost:
+                signal(100),
+            native_possibilities,
+            beliefs,
+            version_policy:
+                version_policy(),
+            discrimination_policy:
+                discrimination_policy(),
+            expectation_policy:
+                expectation_policy(),
+            priority_policy:
+                priority_policy(),
+            proposal_policy:
+                proposal_policy(),
+            executive_policy:
+                executive_policy(),
+        }
+    }
+
+    pub(crate) fn fixture(
         game: &str,
         first_index: u64,
     ) -> Fixture {
