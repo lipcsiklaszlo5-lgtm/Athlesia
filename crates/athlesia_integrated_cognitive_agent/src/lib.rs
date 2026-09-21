@@ -12884,6 +12884,100 @@ impl OnlinePersistentCognitiveState {
 
 
 
+    /*
+     * Exact structural prediction encoding for M48 predicted_outcome.
+     *
+     * These tags are generic cognitive transport identity, not ARC protocol
+     * identity and not additional empirical evidence.
+     */
+    const MODEL_PREDICTION_TAG: u64 =
+        0x5034_4742_3200_0001;
+
+    const MODEL_ADDITION_TAG: u64 =
+        0x5034_4742_3200_0002;
+
+    const MODEL_REMOVAL_TAG: u64 =
+        0x5034_4742_3200_0003;
+
+    fn structural_prediction_outcome_identity(
+        prediction:
+            &athlesia_universal_domain_learning::
+                GroundedStructuralPrediction,
+    ) -> Option<
+        CognitiveStructure
+    > {
+        if !prediction.predicted() {
+            return None;
+        }
+
+        let mut terms =
+            Vec::with_capacity(
+                2_usize
+                    .saturating_add(
+                        prediction
+                            .additions()
+                            .len(),
+                    )
+                    .saturating_add(
+                        prediction
+                            .removals()
+                            .len(),
+                    ),
+            );
+
+        terms.push(
+            CognitiveStructure::atom(
+                Self::MODEL_PREDICTION_TAG,
+            ),
+        );
+
+        terms.push(
+            prediction
+                .transformation()
+                .clone(),
+        );
+
+        for fact in
+            prediction.additions()
+        {
+            let effect =
+                CognitiveStructure::ordered(
+                    vec![
+                        CognitiveStructure::atom(
+                            Self::MODEL_ADDITION_TAG,
+                        ),
+                        fact.clone(),
+                    ],
+                )?;
+
+            terms.push(
+                effect,
+            );
+        }
+
+        for fact in
+            prediction.removals()
+        {
+            let effect =
+                CognitiveStructure::ordered(
+                    vec![
+                        CognitiveStructure::atom(
+                            Self::MODEL_REMOVAL_TAG,
+                        ),
+                        fact.clone(),
+                    ],
+                )?;
+
+            terms.push(
+                effect,
+            );
+        }
+
+        CognitiveStructure::ordered(
+            terms,
+        )
+    }
+
     pub fn current_structural_prediction(
         &self,
         state:
@@ -13064,6 +13158,79 @@ impl OnlinePersistentCognitiveState {
                 prediction,
                 authority,
             },
+        )
+    }
+
+    pub fn current_model_grounded_executive_candidate(
+        &self,
+        state:
+            &athlesia_universal_domain_learning::
+                GroundedStateSnapshot,
+        transformation:
+            &CognitiveStructure,
+        goal:
+            &athlesia_executive_agency::
+                ExecutiveGoal,
+        goal_alignment:
+            CognitiveSignal,
+        execution_cost:
+            CognitiveSignal,
+        schema_policy:
+            athlesia_universal_domain_learning::
+                TransitionSchemaPolicy,
+        model_policy:
+            athlesia_universal_domain_learning::
+                GroundedExecutableWorldModelPolicy,
+    ) -> Option<
+        athlesia_executive_agency::
+            GroundedExecutiveActionCandidate
+    > {
+        /*
+         * Learned causal interpretation, empirical authority and conversion
+         * into a generic M48 candidate are all cognitive-layer semantics.
+         *
+         * The protocol adapter supplies only:
+         *
+         * - exact encoded action identity,
+         * - explicit goal authority,
+         * - explicit goal alignment,
+         * - explicit execution cost,
+         * - bounded runtime policies.
+         */
+        let authorized_prediction =
+            self.current_empirically_authorized_structural_prediction(
+                state,
+                transformation,
+                schema_policy,
+                model_policy,
+            )?;
+
+        let predicted_outcome =
+            Self::structural_prediction_outcome_identity(
+                authorized_prediction
+                    .prediction(),
+            )?;
+
+        Some(
+            athlesia_executive_agency::
+                GroundedExecutiveActionCandidate::
+                    new(
+                        goal.identity().clone(),
+                        transformation.clone(),
+                        predicted_outcome,
+                        goal_alignment,
+                        authorized_prediction
+                            .controllability(),
+                        authorized_prediction
+                            .evidence_confidence(),
+                        /*
+                         * Learned-model exploitation is not an epistemic
+                         * experiment. Information gain remains zero rather
+                         * than being invented by an adapter.
+                         */
+                        CognitiveSignal::zero(),
+                        execution_cost,
+                    ),
         )
     }
 

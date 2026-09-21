@@ -582,56 +582,6 @@ impl ArcAgi3CognitiveInteractionRuntime {
             )
     }
 
-    /*
-     * These atoms are transport labels for the exact partial structural
-     * prediction carried into M48's predicted_outcome field.
-     *
-     * They are not observations, confidence, utility, or world facts.
-     */
-    const MODEL_PREDICTION_TAG: u64 = 0x5034_4742_3200_0001;
-    const MODEL_ADDITION_TAG: u64 = 0x5034_4742_3200_0002;
-    const MODEL_REMOVAL_TAG: u64 = 0x5034_4742_3200_0003;
-
-    fn model_prediction_structure(
-        prediction: &athlesia_universal_domain_learning::GroundedStructuralPrediction,
-    ) -> Option<athlesia_mindstone_sparse_cognition::CognitiveStructure> {
-        use athlesia_mindstone_sparse_cognition::CognitiveStructure;
-
-        if !prediction.predicted() {
-            return None;
-        }
-
-        let mut terms = Vec::with_capacity(
-            2_usize
-                .saturating_add(prediction.additions().len())
-                .saturating_add(prediction.removals().len()),
-        );
-
-        terms.push(CognitiveStructure::atom(Self::MODEL_PREDICTION_TAG));
-
-        terms.push(prediction.transformation().clone());
-
-        for fact in prediction.additions() {
-            let effect = CognitiveStructure::ordered(vec![
-                CognitiveStructure::atom(Self::MODEL_ADDITION_TAG),
-                fact.clone(),
-            ])?;
-
-            terms.push(effect);
-        }
-
-        for fact in prediction.removals() {
-            let effect = CognitiveStructure::ordered(vec![
-                CognitiveStructure::atom(Self::MODEL_REMOVAL_TAG),
-                fact.clone(),
-            ])?;
-
-            terms.push(effect);
-        }
-
-        CognitiveStructure::ordered(terms)
-    }
-
     fn model_grounded_executive_candidate(
         &self,
         state:
@@ -651,9 +601,16 @@ impl ArcAgi3CognitiveInteractionRuntime {
         athlesia_executive_agency::
             GroundedExecutiveActionCandidate
     > {
-        use athlesia_mindstone_sparse_cognition::
-            CognitiveSignal;
-
+        /*
+         * ARC-specific responsibility ends at exact action encoding.
+         *
+         * M51 owns:
+         *
+         * - executable prediction,
+         * - empirical prediction authority,
+         * - predicted-outcome cognitive identity,
+         * - generic M48 candidate construction.
+         */
         let transformation =
             crate::cognitive_protocol_bridge::
                 ArcAgi3CognitiveProtocolBridge::
@@ -661,55 +618,16 @@ impl ArcAgi3CognitiveInteractionRuntime {
                         action,
                     );
 
-        /*
-         * M51 is the only learned-model interpretation authority.
-         *
-         * The adapter receives an already predicted and empirically
-         * authorized structural result. It does not inspect schemas,
-         * calculate confidence, calculate controllability, or decide which
-         * learned effects support the prediction.
-         */
-        let authorized_prediction =
-            self.cognition
-                .current_empirically_authorized_structural_prediction(
-                    state,
-                    &transformation,
-                    Self::live_transition_schema_policy(),
-                    Self::live_executable_world_model_policy(),
-                )?;
-
-        /*
-         * Transport encoding only.
-         *
-         * This preserves the exact structural prediction for M48's
-         * predicted_outcome field without creating new causal evidence.
-         */
-        let predicted_outcome =
-            Self::model_prediction_structure(
-                authorized_prediction
-                    .prediction(),
-            )?;
-
-        Some(
-            athlesia_executive_agency::
-                GroundedExecutiveActionCandidate::
-                    new(
-                        goal.identity().clone(),
-                        transformation,
-                        predicted_outcome,
-                        goal_alignment,
-                        authorized_prediction
-                            .controllability(),
-                        authorized_prediction
-                            .evidence_confidence(),
-                        /*
-                         * Model-grounded exploitation is not an epistemic
-                         * experiment. No information gain is fabricated.
-                         */
-                        CognitiveSignal::zero(),
-                        execution_cost,
-                    ),
-        )
+        self.cognition
+            .current_model_grounded_executive_candidate(
+                state,
+                &transformation,
+                goal,
+                goal_alignment,
+                execution_cost,
+                Self::live_transition_schema_policy(),
+                Self::live_executable_world_model_policy(),
+            )
     }
 
     fn current_model_grounded_authorized_candidates(
