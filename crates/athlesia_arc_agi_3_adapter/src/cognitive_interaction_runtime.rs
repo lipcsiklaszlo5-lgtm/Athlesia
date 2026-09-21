@@ -290,22 +290,15 @@ impl ArcAgi3CognitiveInteractionRuntime {
 
     pub fn current_empirically_coherent_groupings(
         &self,
-    ) -> Vec<athlesia_core_knowledge_perceptual_grounding::PerceptualGroupingCandidate> {
-        let policy = Self::live_grouping_behavior_retention_policy();
-
-        let mut candidates = self
-            .cognition
-            .perceptual_grouping_behavior_evidence()
-            .supported_records(policy)
-            .into_iter()
-            .map(|record| record.candidate().clone())
-            .filter(|candidate| candidate.is_grounded_in(self.perception.latest_frame()))
-            .collect::<Vec<_>>();
-
-        candidates.sort();
-        candidates.dedup();
-
-        candidates
+    ) -> Vec<
+        athlesia_core_knowledge_perceptual_grounding::
+            PerceptualGroupingCandidate
+    > {
+        self.cognition
+            .current_empirically_coherent_groupings(
+                self.perception.latest_frame(),
+                Self::live_grouping_behavior_retention_policy(),
+            )
     }
 
     pub fn current_objecthood_eligible_groupings(

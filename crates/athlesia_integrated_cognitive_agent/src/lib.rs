@@ -11977,6 +11977,59 @@ impl OnlinePersistentCognitiveState {
     ) {
         self.perceptual_grouping_appearance_evidence.observe(result);
     }
+    pub fn current_empirically_coherent_groupings(
+        &self,
+        current_frame:
+            &athlesia_core_knowledge_perceptual_grounding::
+                PerceptualFrame,
+        policy:
+            athlesia_core_knowledge_perceptual_grounding::
+                PerceptualGroupingBehaviorRetentionPolicy,
+    ) -> Vec<
+        athlesia_core_knowledge_perceptual_grounding::
+            PerceptualGroupingCandidate
+    > {
+        /*
+         * Retained common-change behavior is M51-owned empirical state.
+         *
+         * A grouping is currently coherent only when:
+         *
+         * 1. retained behavior evidence supports it under the supplied
+         *    bounded policy; and
+         * 2. every grouping member is still grounded in the current
+         *    perceptual frame.
+         *
+         * Current grounding retracts stale hypotheses without destroying
+         * retained history.
+         */
+        let mut candidates =
+            self
+                .perceptual_grouping_behavior_evidence()
+                .supported_records(policy)
+                .into_iter()
+                .map(
+                    |record| {
+                        record
+                            .candidate()
+                            .clone()
+                    },
+                )
+                .filter(
+                    |candidate| {
+                        candidate
+                            .is_grounded_in(
+                                current_frame,
+                            )
+                    },
+                )
+                .collect::<Vec<_>>();
+
+        candidates.sort();
+        candidates.dedup();
+
+        candidates
+    }
+
     pub fn current_objecthood_eligible_groupings_from_visual_observations(
         &self,
         empirically_coherent_visual_observations:
