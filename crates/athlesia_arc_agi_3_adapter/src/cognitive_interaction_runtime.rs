@@ -111,6 +111,56 @@ impl<'a> ArcAgi3ExperimentDispatchAuthority<'a> {
     }
 }
 
+#[derive(Clone, Copy, Debug)]
+pub struct ArcAgi3SuccessorInformedUnifiedExecutiveRequest<'a> {
+    pub exploitation_actions: &'a [crate::ArcAgi3Action],
+    pub goal: &'a athlesia_executive_agency::ExecutiveGoal,
+    pub goal_alignment: CognitiveSignal,
+    pub exploitation_execution_cost: CognitiveSignal,
+
+    /*
+     * Exact native-M50 source identity expected at the ARC grounding
+     * boundary.  This is intentionally not reconstructed by the adapter.
+     */
+    pub expected_experiment_source_state: &'a CognitiveStructure,
+
+    /*
+     * These are caller-native M50 inputs.
+     *
+     * The adapter does not manufacture competing predictions, beliefs,
+     * controllability, confidence, EIG, or cost.
+     */
+    pub native_possibilities:
+        &'a [
+            athlesia_autonomous_active_experimentation::
+                GroundedExperimentPossibility
+        ],
+    pub beliefs:
+        &'a [
+            athlesia_autonomous_active_experimentation::
+                HypothesisBeliefState
+        ],
+
+    pub version_policy:
+        athlesia_universal_domain_learning::
+            GroundedExplanatoryVersionSpacePolicy,
+    pub discrimination_policy:
+        athlesia_autonomous_active_experimentation::
+            EpistemicForecastDiscriminationPolicy,
+    pub expectation_policy:
+        athlesia_autonomous_active_experimentation::
+            EmpiricalExpectedEpistemicProgressPolicy,
+    pub priority_policy:
+        athlesia_autonomous_active_experimentation::
+            EmpiricalEpistemicActionPriorityPolicy,
+    pub proposal_policy:
+        athlesia_autonomous_active_experimentation::
+            BeliefDrivenExperimentProposalPolicy,
+    pub executive_policy:
+        athlesia_executive_agency::
+            ExecutiveAgencyPolicy,
+}
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ArcAgi3UnifiedExecutiveAuthority {
     source_state: CognitiveStructure,
@@ -1035,6 +1085,247 @@ impl ArcAgi3CognitiveInteractionRuntime {
         );
 
         Self::select_authorized_executive_candidate(&authorized, goal, policy)
+    }
+
+    pub fn current_successor_informed_unified_executive_authority(
+        &self,
+        request:
+            ArcAgi3SuccessorInformedUnifiedExecutiveRequest<'_>,
+    ) -> Option<ArcAgi3UnifiedExecutiveAuthority> {
+        let ArcAgi3SuccessorInformedUnifiedExecutiveRequest {
+            exploitation_actions,
+            goal,
+            goal_alignment,
+            exploitation_execution_cost,
+            expected_experiment_source_state,
+            native_possibilities,
+            beliefs,
+            version_policy,
+            discrimination_policy,
+            expectation_policy,
+            priority_policy,
+            proposal_policy,
+            executive_policy,
+        } = request;
+
+        /*
+         * B0 current-grounding authority is shared by both branches.
+         *
+         * Native M50 gating is therefore conditioned on the exact same
+         * currently grounded representation that supplies exploitation
+         * provenance.
+         */
+        let current_state =
+            self.current_grounded_world_state()?;
+
+        let mut authorized =
+            self.current_model_grounded_authorized_candidates(
+                exploitation_actions,
+                goal,
+                goal_alignment,
+                exploitation_execution_cost,
+            );
+
+        let exploitation_source_state =
+            CognitiveStructure::unordered(
+                current_state
+                    .facts()
+                    .to_vec(),
+            )
+            .expect(
+                "grounded current state contains at least one fact",
+            );
+
+        let mut provenance =
+            authorized
+                .iter()
+                .cloned()
+                .map(
+                    |candidate| {
+                        (
+                            candidate,
+                            exploitation_source_state
+                                .clone(),
+                        )
+                    },
+                )
+                .collect::<Vec<_>>();
+
+        /*
+         * Preserve caller-native action identity and order.
+         *
+         * No sort, dedup, probability estimate, predicted outcome,
+         * information gain, confidence, controllability, or utility is
+         * synthesized here.
+         */
+        let native_actions =
+            native_possibilities
+                .iter()
+                .map(
+                    |possibility| {
+                        possibility
+                            .action()
+                            .clone()
+                    },
+                )
+                .collect::<Vec<_>>();
+
+        let delegated =
+            self
+                .cognition()
+                .current_successor_informed_native_m50_proposal_delegation(
+                    athlesia_integrated_cognitive_agent::
+                        SuccessorInformedNativeM50ProposalDelegationRequest {
+                            native_input:
+                                athlesia_integrated_cognitive_agent::
+                                    SuccessorInformedNativeProposalInputRequest {
+                                        state:
+                                            &current_state,
+                                        actions:
+                                            &native_actions,
+                                        version_policy,
+                                        discrimination_policy,
+                                        expectation_policy,
+                                        priority_policy,
+                                        native_possibilities,
+                                    },
+                            beliefs,
+                            proposal_policy,
+                        },
+                );
+
+        if let Some(result) =
+            delegated
+        {
+            /*
+             * C16I-E is the only native-M50 -> M48 grounding bridge.
+             *
+             * Its Result frontier is intentionally atomic: if any
+             * generated proposal fails exact source identity or current
+             * ARC availability, the complete experimental contribution
+             * fails closed BEFORE M48 is invoked.
+             */
+            let experimental_candidates =
+                crate::action_grounding_bridge::
+                    ArcAgi3ActionGroundingBridge::
+                        ground_belief_driven_proposal_frontier_for_goal(
+                            self.observation(),
+                            expected_experiment_source_state,
+                            goal,
+                            goal_alignment,
+                            &result,
+                        )
+                        .ok()?;
+
+            for candidate in
+                experimental_candidates
+            {
+                /*
+                 * Convert the already grounded M48 candidate into the
+                 * runtime's authorized wrapper without altering any
+                 * candidate field.
+                 */
+                let grounded =
+                    crate::action_grounding_bridge::
+                        ArcAgi3ActionGroundingBridge::
+                            authorize_executive_candidate(
+                                self.observation(),
+                                &candidate,
+                            )
+                            .ok()?;
+
+                /*
+                 * Exact duplicate suppression only.
+                 *
+                 * No semantic deduplication, no action-only collapse,
+                 * no re-ranking and no re-ordering.
+                 */
+                if authorized
+                    .iter()
+                    .any(
+                        |existing| {
+                            existing
+                                .candidate()
+                                == grounded
+                                    .candidate()
+                        },
+                    )
+                {
+                    continue;
+                }
+
+                provenance.push(
+                    (
+                        grounded.clone(),
+                        expected_experiment_source_state
+                            .clone(),
+                    ),
+                );
+
+                authorized.push(
+                    grounded,
+                );
+            }
+        }
+
+        /*
+         * C16I-F final authority:
+         *
+         * exploitation + native M50 candidates enter ONE common M48
+         * evaluation.  There is no second selector and no local utility
+         * authority in the ARC adapter.
+         */
+        let selected =
+            Self::selected_authorized_executive_candidate(
+                &authorized,
+                goal,
+                executive_policy,
+            )?;
+
+        let source_state =
+            provenance
+                .iter()
+                .find_map(
+                    |(
+                        candidate,
+                        source_state,
+                    )| {
+                        (
+                            candidate
+                                == &selected
+                        )
+                            .then(
+                                || {
+                                    source_state
+                                        .clone()
+                                },
+                            )
+                    },
+                )?;
+
+        Some(
+            ArcAgi3UnifiedExecutiveAuthority::
+                new(
+                    source_state,
+                    selected,
+                ),
+        )
+    }
+
+    pub fn current_successor_informed_unified_executive_action_selection(
+        &self,
+        request:
+            ArcAgi3SuccessorInformedUnifiedExecutiveRequest<'_>,
+    ) -> Option<crate::ArcAgi3Action> {
+        self
+            .current_successor_informed_unified_executive_authority(
+                request,
+            )
+            .map(
+                |authority| {
+                    authority.action()
+                },
+            )
     }
 
     pub fn current_unified_executive_authority(
