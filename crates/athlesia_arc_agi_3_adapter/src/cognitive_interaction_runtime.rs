@@ -850,14 +850,11 @@ impl ArcAgi3CognitiveInteractionRuntime {
             );
 
         let exploitation_source_state =
-            CognitiveStructure::unordered(
-                current_state
-                    .facts()
-                    .to_vec(),
-            )
-            .expect(
-                "grounded current state contains at least one fact",
-            );
+            athlesia_integrated_cognitive_agent::
+                OnlinePersistentCognitiveState::
+                grounded_execution_source_state_identity(
+                    &current_state,
+                );
 
         let mut provenance =
             authorized
@@ -1090,8 +1087,12 @@ impl ArcAgi3CognitiveInteractionRuntime {
         if !authorized.is_empty() {
             let grounded_state = self.current_grounded_world_state()?;
 
-            let source_state = CognitiveStructure::unordered(grounded_state.facts().to_vec())
-                .expect("retained grounded world state contains facts");
+            let source_state =
+                athlesia_integrated_cognitive_agent::
+                    OnlinePersistentCognitiveState::
+                    grounded_execution_source_state_identity(
+                        &grounded_state,
+                    );
 
             provenance.extend(
                 authorized

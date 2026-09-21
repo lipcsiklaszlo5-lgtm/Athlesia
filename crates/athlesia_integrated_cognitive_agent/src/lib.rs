@@ -11736,6 +11736,35 @@ impl OnlinePersistentCognitiveState {
         ])
     }
 
+    pub fn grounded_execution_source_state_identity(
+        state:
+            &athlesia_universal_domain_learning::
+                GroundedStateSnapshot,
+    ) -> CognitiveStructure {
+        /*
+         * Generic direct-execution provenance identity.
+         *
+         * This identifies the grounded state from which an already
+         * authorized action was actually dispatched.
+         *
+         * It deliberately does NOT reuse c3b_source_state_identity().
+         * The C3B tagged representation belongs to the M50 epistemic
+         * possibility contract used for exact epistemic source/action
+         * matching and outcome resolution.
+         *
+         * Direct execution provenance and epistemic possibility identity
+         * are therefore explicit, distinct semantic contracts.
+         */
+        CognitiveStructure::unordered(
+            state
+                .facts()
+                .to_vec(),
+        )
+        .expect(
+            "grounded execution source state contains at least one fact",
+        )
+    }
+
     fn c3b_source_state_identity(
         state: &athlesia_universal_domain_learning::GroundedStateSnapshot,
     ) -> CognitiveStructure {
@@ -13847,6 +13876,74 @@ mod executive_candidate_provenance_tests {
                 ),
             None,
             "one selected candidate with conflicting causal source states must abstain",
+        );
+    }
+}
+
+
+#[cfg(test)]
+mod grounded_execution_source_state_identity_tests {
+    use super::*;
+
+    fn a(
+        value: u64,
+    ) -> CognitiveStructure {
+        CognitiveStructure::atom(
+            value,
+        )
+    }
+
+    #[test]
+    fn direct_execution_provenance_preserves_grounded_state_without_c3b_epistemic_tag(
+    ) {
+        let state =
+            athlesia_universal_domain_learning::
+                GroundedStateSnapshot::new(
+                    vec![
+                        a(
+                            0x5034_4743_3133_0001,
+                        ),
+                        a(
+                            0x5034_4743_3133_0002,
+                        ),
+                    ],
+                )
+                .expect(
+                    "test state must be grounded",
+                );
+
+        let execution_identity =
+            OnlinePersistentCognitiveState::
+                grounded_execution_source_state_identity(
+                    &state,
+                );
+
+        let expected =
+            CognitiveStructure::unordered(
+                state
+                    .facts()
+                    .to_vec(),
+            )
+            .expect(
+                "grounded test state contains facts",
+            );
+
+        assert_eq!(
+            execution_identity,
+            expected,
+            "direct execution provenance must preserve exact grounded fact-set identity",
+        );
+
+        let c3b_epistemic_identity =
+            OnlinePersistentCognitiveState::
+                c3b_source_state_identity(
+                    &state,
+                );
+
+        assert_ne!(
+            execution_identity,
+            c3b_epistemic_identity,
+            "direct execution provenance must remain distinct from the C3B epistemic possibility identity",
         );
     }
 }
