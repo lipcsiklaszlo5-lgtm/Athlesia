@@ -110,17 +110,50 @@ impl ArcAgi3ActionGroundingBridge {
         observation: &ArcAgi3Observation,
         expected_source_state: &CognitiveStructure,
         proposal: &AutonomousExperimentProposal,
-    ) -> Result<ArcAgi3AuthorizedExperimentProposal, ArcAgi3ActionGroundingError> {
-        if proposal.source_state() != expected_source_state {
-            return Err(ArcAgi3ActionGroundingError::SourceStateMismatch);
-        }
+    ) -> Result<
+        ArcAgi3AuthorizedExperimentProposal,
+        ArcAgi3ActionGroundingError
+    > {
+        /*
+         * Source-state provenance is generic cognition.
+         *
+         * ARC maps the generic fail-closed provenance error onto its
+         * existing public grounding error surface, then performs only
+         * protocol-specific action authorization.
+         */
+        athlesia_integrated_cognitive_agent::
+            OnlinePersistentCognitiveState::
+                validate_experiment_proposal_source_state(
+                    expected_source_state,
+                    proposal,
+                )
+                .map_err(
+                    |error| {
+                        match error {
+                            athlesia_integrated_cognitive_agent::
+                                ExperimentProposalSourceBindingError::
+                                    SourceStateMismatch =>
+                            {
+                                ArcAgi3ActionGroundingError::
+                                    SourceStateMismatch
+                            }
+                        }
+                    },
+                )?;
 
-        let action = Self::authorize_environment_action(observation, proposal.action())?;
+        let action =
+            Self::authorize_environment_action(
+                observation,
+                proposal.action(),
+            )?;
 
-        Ok(ArcAgi3AuthorizedExperimentProposal {
-            action,
-            proposal: proposal.clone(),
-        })
+        Ok(
+            ArcAgi3AuthorizedExperimentProposal {
+                action,
+                proposal:
+                    proposal.clone(),
+            },
+        )
     }
 
     pub fn ground_experiment_for_goal(
@@ -134,15 +167,17 @@ impl ArcAgi3ActionGroundingBridge {
         ArcAgi3ActionGroundingError
     > {
         /*
-         * ARC-specific authority stops at:
+         * Generic source-state provenance is validated by M51 through
+         * authorize_experiment_proposal().
          *
-         * - exact source-state binding,
+         * ARC-specific authority is restricted to:
+         *
          * - cognitive-action decoding,
          * - RESET exclusion,
          * - current ARC action availability.
          *
          * M50 evidence interpretation and M48 candidate construction
-         * belong to the integrated cognitive layer.
+         * also remain in the integrated cognitive layer.
          */
         let authorized =
             Self::authorize_experiment_proposal(

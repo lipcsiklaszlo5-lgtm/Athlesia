@@ -11565,6 +11565,12 @@ impl EmpiricallyAuthorizedStructuralPrediction {
 }
 
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum ExperimentProposalSourceBindingError {
+    SourceStateMismatch,
+}
+
+
 impl OnlinePersistentCognitiveState {
     pub fn new() -> Self {
         Self::default()
@@ -13234,6 +13240,35 @@ impl OnlinePersistentCognitiveState {
         )
     }
 
+    pub fn validate_experiment_proposal_source_state(
+        expected_source_state:
+            &CognitiveStructure,
+        proposal:
+            &athlesia_autonomous_active_experimentation::
+                AutonomousExperimentProposal,
+    ) -> Result<
+        (),
+        ExperimentProposalSourceBindingError
+    > {
+        /*
+         * Exact M50 provenance is generic cognitive authority.
+         *
+         * A proposal produced for one source state must never be rebound
+         * to another state merely because its action remains executable in
+         * the external protocol.
+         */
+        if proposal.source_state()
+            != expected_source_state
+        {
+            return Err(
+                ExperimentProposalSourceBindingError::
+                    SourceStateMismatch,
+            );
+        }
+
+        Ok(())
+    }
+
     pub fn experiment_proposal_executive_candidate(
         goal:
             &athlesia_executive_agency::
@@ -13446,6 +13481,107 @@ impl OnlinePersistentCognitiveState {
         result
     }
 }
+
+#[cfg(test)]
+mod m50_source_state_binding_tests {
+    use super::*;
+
+    use athlesia_autonomous_active_experimentation::{
+        AutonomousExperimentProposal,
+        ExperimentEvidence,
+    };
+
+    fn signal(
+        value: u16,
+    ) -> CognitiveSignal {
+        CognitiveSignal::new(
+            value,
+        )
+        .expect(
+            "test signal is valid",
+        )
+    }
+
+    fn proposal(
+        source_state:
+            CognitiveStructure,
+    ) -> AutonomousExperimentProposal {
+        AutonomousExperimentProposal::new(
+            source_state,
+            CognitiveStructure::atom(
+                0x5034_4743_3131_4143,
+            ),
+            CognitiveStructure::atom(
+                0x5034_4743_3131_4F55,
+            ),
+            ExperimentEvidence::new(
+                signal(700),
+                signal(800),
+                signal(750),
+                signal(650),
+                signal(100),
+            )
+            .expect(
+                "test experiment evidence is valid",
+            ),
+        )
+    }
+
+    #[test]
+    fn exact_source_state_is_accepted(
+    ) {
+        let expected =
+            CognitiveStructure::atom(
+                0x5034_4743_3131_5352,
+            );
+
+        let proposal =
+            proposal(
+                expected.clone(),
+            );
+
+        assert_eq!(
+            OnlinePersistentCognitiveState::
+                validate_experiment_proposal_source_state(
+                    &expected,
+                    &proposal,
+                ),
+            Ok(()),
+        );
+    }
+
+    #[test]
+    fn stale_source_state_fails_closed(
+    ) {
+        let expected =
+            CognitiveStructure::atom(
+                0x5034_4743_3131_5352,
+            );
+
+        let stale =
+            CognitiveStructure::atom(
+                0x5034_4743_3131_5353,
+            );
+
+        let proposal =
+            proposal(
+                stale,
+            );
+
+        assert_eq!(
+            OnlinePersistentCognitiveState::
+                validate_experiment_proposal_source_state(
+                    &expected,
+                    &proposal,
+                ),
+            Err(
+                ExperimentProposalSourceBindingError::
+                    SourceStateMismatch,
+            ),
+        );
+    }
+}
+
 
 #[cfg(test)]
 mod m50_to_m48_candidate_grounding_tests {
