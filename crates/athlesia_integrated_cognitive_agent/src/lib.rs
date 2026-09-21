@@ -11511,6 +11511,60 @@ impl GroundedSemanticEpistemicExperimentPossibility {
 }
 
 
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct StructuralPredictionEmpiricalAuthority {
+    evidence_confidence: CognitiveSignal,
+    controllability: CognitiveSignal,
+}
+
+impl StructuralPredictionEmpiricalAuthority {
+    pub fn evidence_confidence(
+        self,
+    ) -> CognitiveSignal {
+        self.evidence_confidence
+    }
+
+    pub fn controllability(
+        self,
+    ) -> CognitiveSignal {
+        self.controllability
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct EmpiricallyAuthorizedStructuralPrediction {
+    prediction:
+        athlesia_universal_domain_learning::
+            GroundedStructuralPrediction,
+    authority:
+        StructuralPredictionEmpiricalAuthority,
+}
+
+impl EmpiricallyAuthorizedStructuralPrediction {
+    pub fn prediction(
+        &self,
+    ) -> &athlesia_universal_domain_learning::
+        GroundedStructuralPrediction {
+        &self.prediction
+    }
+
+    pub fn evidence_confidence(
+        &self,
+    ) -> CognitiveSignal {
+        self.authority
+            .evidence_confidence()
+    }
+
+    pub fn controllability(
+        &self,
+    ) -> CognitiveSignal {
+        self.authority
+            .controllability()
+    }
+}
+
+
 impl OnlinePersistentCognitiveState {
     pub fn new() -> Self {
         Self::default()
@@ -12829,6 +12883,189 @@ impl OnlinePersistentCognitiveState {
 
 
 
+
+    pub fn current_structural_prediction(
+        &self,
+        state:
+            &athlesia_universal_domain_learning::
+                GroundedStateSnapshot,
+        transformation:
+            &CognitiveStructure,
+        schema_policy:
+            athlesia_universal_domain_learning::
+                TransitionSchemaPolicy,
+        model_policy:
+            athlesia_universal_domain_learning::
+                GroundedExecutableWorldModelPolicy,
+    ) -> Option<
+        athlesia_universal_domain_learning::
+            GroundedStructuralPrediction
+    > {
+        /*
+         * M51 owns the retained transition evidence and the executable
+         * model derived from it.
+         *
+         * Structural prediction therefore belongs here rather than in a
+         * protocol adapter.
+         */
+        let model =
+            self.current_executable_world_model(
+                schema_policy,
+                model_policy,
+            )?;
+
+        Some(
+            model.predict(
+                state,
+                transformation,
+            ),
+        )
+    }
+
+    pub fn empirical_authority_for_structural_prediction(
+        &self,
+        prediction:
+            &athlesia_universal_domain_learning::
+                GroundedStructuralPrediction,
+        schema_policy:
+            athlesia_universal_domain_learning::
+                TransitionSchemaPolicy,
+        model_policy:
+            athlesia_universal_domain_learning::
+                GroundedExecutableWorldModelPolicy,
+    ) -> Option<
+        StructuralPredictionEmpiricalAuthority
+    > {
+        use athlesia_universal_domain_learning::
+            TransitionEffectKind;
+
+        if !prediction.predicted() {
+            return None;
+        }
+
+        /*
+         * Reconstruct the current executable model from M51-owned retained
+         * evidence. The adapter is not allowed to inspect schema support.
+         */
+        let model =
+            self.current_executable_world_model(
+                schema_policy,
+                model_policy,
+            )?;
+
+        let supporting =
+            model
+                .schemas()
+                .iter()
+                .filter(
+                    |schema| {
+                        if schema.transformation()
+                            != prediction.transformation()
+                        {
+                            return false;
+                        }
+
+                        match schema.effect_kind() {
+                            TransitionEffectKind::Added =>
+                                prediction
+                                    .predicts_addition(
+                                        schema.fact(),
+                                    ),
+
+                            TransitionEffectKind::Removed =>
+                                prediction
+                                    .predicts_removal(
+                                        schema.fact(),
+                                    ),
+                        }
+                    },
+                )
+                .collect::<Vec<_>>();
+
+        if supporting.is_empty() {
+            return None;
+        }
+
+        /*
+         * Weakest-link empirical authority.
+         *
+         * A multi-effect prediction cannot inherit stronger confidence or
+         * controllability than its least-supported predicted component.
+         */
+        let evidence_confidence =
+            supporting
+                .iter()
+                .map(
+                    |schema| {
+                        schema.precision()
+                    },
+                )
+                .min()?;
+
+        let controllability =
+            supporting
+                .iter()
+                .map(
+                    |schema| {
+                        schema.association_lift()
+                    },
+                )
+                .min()?;
+
+        if evidence_confidence
+                == CognitiveSignal::zero()
+            || controllability
+                == CognitiveSignal::zero()
+        {
+            return None;
+        }
+
+        Some(
+            StructuralPredictionEmpiricalAuthority {
+                evidence_confidence,
+                controllability,
+            },
+        )
+    }
+
+    pub fn current_empirically_authorized_structural_prediction(
+        &self,
+        state:
+            &athlesia_universal_domain_learning::
+                GroundedStateSnapshot,
+        transformation:
+            &CognitiveStructure,
+        schema_policy:
+            athlesia_universal_domain_learning::
+                TransitionSchemaPolicy,
+        model_policy:
+            athlesia_universal_domain_learning::
+                GroundedExecutableWorldModelPolicy,
+    ) -> Option<
+        EmpiricallyAuthorizedStructuralPrediction
+    > {
+        let prediction =
+            self.current_structural_prediction(
+                state,
+                transformation,
+                schema_policy,
+                model_policy,
+            )?;
+
+        let authority =
+            self.empirical_authority_for_structural_prediction(
+                &prediction,
+                schema_policy,
+                model_policy,
+            )?;
+
+        Some(
+            EmpiricallyAuthorizedStructuralPrediction {
+                prediction,
+                authority,
+            },
+        )
+    }
 
     pub fn current_executable_world_model(
         &self,

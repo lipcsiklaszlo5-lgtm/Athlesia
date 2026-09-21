@@ -559,21 +559,27 @@ impl ArcAgi3CognitiveInteractionRuntime {
     pub fn current_structural_prediction_for_action(
         &self,
         action: crate::ArcAgi3Action,
-    ) -> Option<athlesia_universal_domain_learning::GroundedStructuralPrediction> {
-        let state = self.current_grounded_world_state()?;
-
-        let model = self.current_executable_world_model()?;
+    ) -> Option<
+        athlesia_universal_domain_learning::
+            GroundedStructuralPrediction
+    > {
+        let state =
+            self.current_grounded_world_state()?;
 
         let transformation =
-            crate::cognitive_protocol_bridge::ArcAgi3CognitiveProtocolBridge::encode_action(action);
+            crate::cognitive_protocol_bridge::
+                ArcAgi3CognitiveProtocolBridge::
+                    encode_action(
+                        action,
+                    );
 
-        Some(
-            athlesia_universal_domain_learning::UniversalGroundedExecutableWorldModel::predict(
+        self.cognition
+            .current_structural_prediction(
                 &state,
                 &transformation,
-                &model,
-            ),
-        )
+                Self::live_transition_schema_policy(),
+                Self::live_executable_world_model_policy(),
+            )
     }
 
     /*
@@ -626,155 +632,154 @@ impl ArcAgi3CognitiveInteractionRuntime {
         CognitiveStructure::ordered(terms)
     }
 
-    fn model_prediction_empirical_authority(
-        model: &athlesia_universal_domain_learning::GroundedExecutableWorldModel,
-        prediction: &athlesia_universal_domain_learning::GroundedStructuralPrediction,
-    ) -> Option<(
-        athlesia_mindstone_sparse_cognition::CognitiveSignal,
-        athlesia_mindstone_sparse_cognition::CognitiveSignal,
-    )> {
-        use athlesia_mindstone_sparse_cognition::CognitiveSignal;
-        use athlesia_universal_domain_learning::TransitionEffectKind;
-
-        if !prediction.predicted() {
-            return None;
-        }
-
-        let supporting = model
-            .schemas()
-            .iter()
-            .filter(|schema| {
-                if schema.transformation() != prediction.transformation() {
-                    return false;
-                }
-
-                match schema.effect_kind() {
-                    TransitionEffectKind::Added => prediction.predicts_addition(schema.fact()),
-
-                    TransitionEffectKind::Removed => prediction.predicts_removal(schema.fact()),
-                }
-            })
-            .collect::<Vec<_>>();
-
-        if supporting.is_empty() {
-            return None;
-        }
-
-        /*
-         * Weakest-link authority:
-         *
-         * A multi-effect prediction cannot inherit more confidence or
-         * controllability than its least-supported applicable component.
-         */
-        let evidence_confidence = supporting.iter().map(|schema| schema.precision()).min()?;
-
-        let controllability = supporting
-            .iter()
-            .map(|schema| schema.association_lift())
-            .min()?;
-
-        if evidence_confidence == CognitiveSignal::zero()
-            || controllability == CognitiveSignal::zero()
-        {
-            return None;
-        }
-
-        Some((evidence_confidence, controllability))
-    }
-
     fn model_grounded_executive_candidate(
-        model: &athlesia_universal_domain_learning::GroundedExecutableWorldModel,
-        state: &athlesia_universal_domain_learning::GroundedStateSnapshot,
+        &self,
+        state:
+            &athlesia_universal_domain_learning::
+                GroundedStateSnapshot,
         action: crate::ArcAgi3Action,
-        goal: &athlesia_executive_agency::ExecutiveGoal,
-        goal_alignment: athlesia_mindstone_sparse_cognition::CognitiveSignal,
-        execution_cost: athlesia_mindstone_sparse_cognition::CognitiveSignal,
-    ) -> Option<athlesia_executive_agency::GroundedExecutiveActionCandidate> {
-        use athlesia_mindstone_sparse_cognition::CognitiveSignal;
+        goal:
+            &athlesia_executive_agency::
+                ExecutiveGoal,
+        goal_alignment:
+            athlesia_mindstone_sparse_cognition::
+                CognitiveSignal,
+        execution_cost:
+            athlesia_mindstone_sparse_cognition::
+                CognitiveSignal,
+    ) -> Option<
+        athlesia_executive_agency::
+            GroundedExecutiveActionCandidate
+    > {
+        use athlesia_mindstone_sparse_cognition::
+            CognitiveSignal;
 
         let transformation =
-            crate::cognitive_protocol_bridge::ArcAgi3CognitiveProtocolBridge::encode_action(action);
+            crate::cognitive_protocol_bridge::
+                ArcAgi3CognitiveProtocolBridge::
+                    encode_action(
+                        action,
+                    );
 
-        let prediction = model.predict(state, &transformation);
+        /*
+         * M51 is the only learned-model interpretation authority.
+         *
+         * The adapter receives an already predicted and empirically
+         * authorized structural result. It does not inspect schemas,
+         * calculate confidence, calculate controllability, or decide which
+         * learned effects support the prediction.
+         */
+        let authorized_prediction =
+            self.cognition
+                .current_empirically_authorized_structural_prediction(
+                    state,
+                    &transformation,
+                    Self::live_transition_schema_policy(),
+                    Self::live_executable_world_model_policy(),
+                )?;
 
-        if !prediction.predicted() {
-            return None;
-        }
-
-        let predicted_outcome = Self::model_prediction_structure(&prediction)?;
-
-        let (evidence_confidence, controllability) =
-            Self::model_prediction_empirical_authority(model, &prediction)?;
+        /*
+         * Transport encoding only.
+         *
+         * This preserves the exact structural prediction for M48's
+         * predicted_outcome field without creating new causal evidence.
+         */
+        let predicted_outcome =
+            Self::model_prediction_structure(
+                authorized_prediction
+                    .prediction(),
+            )?;
 
         Some(
-            athlesia_executive_agency::GroundedExecutiveActionCandidate::new(
-                goal.identity().clone(),
-                transformation,
-                predicted_outcome,
-                goal_alignment,
-                controllability,
-                evidence_confidence,
-                /*
-                 * This path exploits a learned causal model.
-                 *
-                 * It is not an epistemic experiment and therefore
-                 * receives no fabricated information-gain signal.
-                 */
-                CognitiveSignal::zero(),
-                execution_cost,
-            ),
+            athlesia_executive_agency::
+                GroundedExecutiveActionCandidate::
+                    new(
+                        goal.identity().clone(),
+                        transformation,
+                        predicted_outcome,
+                        goal_alignment,
+                        authorized_prediction
+                            .controllability(),
+                        authorized_prediction
+                            .evidence_confidence(),
+                        /*
+                         * Model-grounded exploitation is not an epistemic
+                         * experiment. No information gain is fabricated.
+                         */
+                        CognitiveSignal::zero(),
+                        execution_cost,
+                    ),
         )
     }
 
     fn current_model_grounded_authorized_candidates(
         &self,
-        candidate_actions: &[crate::ArcAgi3Action],
-        goal: &athlesia_executive_agency::ExecutiveGoal,
-        goal_alignment: athlesia_mindstone_sparse_cognition::CognitiveSignal,
-        execution_cost: athlesia_mindstone_sparse_cognition::CognitiveSignal,
-    ) -> Vec<crate::action_grounding_bridge::ArcAgi3AuthorizedExecutiveCandidate> {
-        let Some(state) = self.current_grounded_world_state() else {
+        candidate_actions:
+            &[crate::ArcAgi3Action],
+        goal:
+            &athlesia_executive_agency::
+                ExecutiveGoal,
+        goal_alignment:
+            athlesia_mindstone_sparse_cognition::
+                CognitiveSignal,
+        execution_cost:
+            athlesia_mindstone_sparse_cognition::
+                CognitiveSignal,
+    ) -> Vec<
+        crate::action_grounding_bridge::
+            ArcAgi3AuthorizedExecutiveCandidate
+    > {
+        let Some(state) =
+            self.current_grounded_world_state()
+        else {
             return Vec::new();
         };
 
-        let Some(model) = self.current_executable_world_model() else {
-            return Vec::new();
-        };
-
-        let mut authorized = Vec::new();
+        let mut authorized =
+            Vec::new();
 
         for &action in candidate_actions {
-            let Some(candidate) = Self::model_grounded_executive_candidate(
-                &model,
-                &state,
-                action,
-                goal,
-                goal_alignment,
-                execution_cost,
-            ) else {
+            let Some(candidate) =
+                self.model_grounded_executive_candidate(
+                    &state,
+                    action,
+                    goal,
+                    goal_alignment,
+                    execution_cost,
+                )
+            else {
                 continue;
             };
 
             let Ok(grounded) =
                 crate::action_grounding_bridge::
                     ArcAgi3ActionGroundingBridge::
-                    authorize_executive_candidate(
-                        self.observation(),
-                        &candidate,
-                    )
+                        authorize_executive_candidate(
+                            self.observation(),
+                            &candidate,
+                        )
             else {
                 continue;
             };
 
-            if authorized.iter().any(
-                |existing: &crate::action_grounding_bridge::ArcAgi3AuthorizedExecutiveCandidate| {
-                    existing.candidate() == grounded.candidate()
-                },
-            ) {
+            if authorized
+                .iter()
+                .any(
+                    |existing:
+                        &crate::action_grounding_bridge::
+                            ArcAgi3AuthorizedExecutiveCandidate|
+                    {
+                        existing.candidate()
+                            == grounded.candidate()
+                    },
+                )
+            {
                 continue;
             }
 
-            authorized.push(grounded);
+            authorized.push(
+                grounded,
+            );
         }
 
         authorized
