@@ -1879,3 +1879,891 @@ impl UniversalArcAgi3CognitiveInteractionRuntime {
         runtime.complete_environment_turn(observation, confidence)
     }
 }
+
+
+#[cfg(test)]
+mod c16i_successor_informed_two_contract_e2e_tests {
+    use super::*;
+    mod m51_fixture {
+        use crate as athlesia_arc_agi_3_adapter;
+
+        include!(
+            "../tests/support/m51_online_orchestration_fixture.rs"
+        );
+    }
+
+    fn signal(
+        value: u16,
+    ) -> athlesia_mindstone_sparse_cognition::CognitiveSignal {
+        athlesia_mindstone_sparse_cognition::
+            CognitiveSignal::new(value)
+            .unwrap()
+    }
+
+    fn atom(
+        value: u64,
+    ) -> athlesia_mindstone_sparse_cognition::CognitiveStructure {
+        athlesia_mindstone_sparse_cognition::
+            CognitiveStructure::atom(value)
+    }
+
+    fn action(
+        id: crate::ArcAgi3ActionId,
+    ) -> crate::ArcAgi3Action {
+        crate::ArcAgi3Action::discrete(id)
+            .unwrap()
+    }
+
+    fn object_grid(
+        value: u8,
+    ) -> crate::ArcAgi3Grid {
+        crate::ArcAgi3Grid::from_rows(
+            vec![
+                vec![value, value],
+                vec![8, 9],
+            ],
+        )
+        .unwrap()
+    }
+
+    fn observation(
+        game: &str,
+        value: u8,
+        last_action:
+            Option<crate::ArcAgi3Action>,
+    ) -> crate::ArcAgi3Observation {
+        crate::ArcAgi3Observation::new(
+            crate::ArcAgi3GameId::new(
+                game.to_string(),
+            )
+            .unwrap(),
+            crate::ArcAgi3GameState::NotFinished,
+            crate::ArcAgi3FrameSequence::new(
+                vec![
+                    object_grid(value),
+                ],
+            )
+            .unwrap(),
+            0,
+            3,
+            crate::ArcAgi3AvailableActions::new(
+                vec![
+                    crate::ArcAgi3ActionId::Action1,
+                    crate::ArcAgi3ActionId::Action2,
+                ],
+            )
+            .unwrap(),
+            last_action,
+        )
+    }
+
+    fn training_turn(
+        runtime:
+            &mut ArcAgi3CognitiveInteractionRuntime,
+        game: &str,
+        selected_action: crate::ArcAgi3Action,
+        value: u8,
+    ) {
+        let cognitive_action =
+            crate::cognitive_protocol_bridge::
+                ArcAgi3CognitiveProtocolBridge::
+                    encode_action(
+                        selected_action,
+                    );
+
+        m51_fixture::begin_arc(
+            runtime,
+            cognitive_action,
+        )
+        .expect(
+            "C16I E2E training action must begin",
+        );
+
+        let completion =
+            runtime
+                .complete_environment_turn(
+                    observation(
+                        game,
+                        value,
+                        Some(selected_action),
+                    ),
+                    signal(900),
+                )
+                .expect(
+                    "C16I E2E real consequence must commit",
+                );
+
+        assert!(
+            completion.has_cognitive_feedback(),
+            "training turn must be a genuine causal environment event",
+        );
+    }
+
+    fn mature_runtime(
+        runtime:
+            &mut ArcAgi3CognitiveInteractionRuntime,
+        game: &str,
+    ) {
+        let action_one =
+            action(
+                crate::ArcAgi3ActionId::Action1,
+            );
+
+        let action_two =
+            action(
+                crate::ArcAgi3ActionId::Action2,
+            );
+
+        for value in [
+            2_u8,
+            3,
+            4,
+            5,
+        ] {
+            training_turn(
+                runtime,
+                game,
+                action_one,
+                value,
+            );
+        }
+
+        for (
+            selected,
+            value,
+        ) in [
+            (action_two, 5_u8),
+            (action_one, 6_u8),
+            (action_two, 6_u8),
+            (action_one, 5_u8),
+            (action_two, 5_u8),
+            (action_one, 6_u8),
+            (action_two, 6_u8),
+            (action_one, 5_u8),
+        ] {
+            training_turn(
+                runtime,
+                game,
+                selected,
+                value,
+            );
+        }
+    }
+
+    fn version_policy(
+    ) -> athlesia_universal_domain_learning::
+        GroundedExplanatoryVersionSpacePolicy {
+        athlesia_universal_domain_learning::
+            GroundedExplanatoryVersionSpacePolicy::
+                new(
+                    1,
+                    64,
+                    512,
+                    256,
+                )
+                .unwrap()
+    }
+
+    fn discrimination_policy(
+    ) -> athlesia_autonomous_active_experimentation::
+        EpistemicForecastDiscriminationPolicy {
+        athlesia_autonomous_active_experimentation::
+            EpistemicForecastDiscriminationPolicy::
+                new(
+                    512,
+                    512,
+                )
+                .unwrap()
+    }
+
+    fn expectation_policy(
+    ) -> athlesia_autonomous_active_experimentation::
+        EmpiricalExpectedEpistemicProgressPolicy {
+        athlesia_autonomous_active_experimentation::
+            EmpiricalExpectedEpistemicProgressPolicy::
+                new(
+                    256,
+                    256,
+                    1,
+                )
+                .unwrap()
+    }
+
+    fn priority_policy(
+    ) -> athlesia_autonomous_active_experimentation::
+        EmpiricalEpistemicActionPriorityPolicy {
+        athlesia_autonomous_active_experimentation::
+            EmpiricalEpistemicActionPriorityPolicy::
+                new(8)
+                .unwrap()
+    }
+
+    fn proposal_policy(
+    ) -> athlesia_autonomous_active_experimentation::
+        BeliefDrivenExperimentProposalPolicy {
+        use athlesia_autonomous_active_experimentation::{
+            ActiveExperimentBounds,
+            ActiveExperimentPolicy,
+            ActiveExperimentThresholds,
+            BeliefDrivenExperimentProposalBounds,
+            BeliefDrivenExperimentProposalPolicy,
+        };
+
+        BeliefDrivenExperimentProposalPolicy::new(
+            ActiveExperimentPolicy::new(
+                ActiveExperimentBounds::new(
+                    16,
+                    16,
+                    16,
+                )
+                .unwrap(),
+                ActiveExperimentThresholds::new(
+                    signal(500),
+                    signal(500),
+                    signal(500),
+                    signal(500),
+                )
+                .unwrap(),
+            ),
+            BeliefDrivenExperimentProposalBounds::new(
+                16,
+                16,
+                16,
+                16,
+            )
+            .unwrap(),
+            signal(500),
+            signal(500),
+        )
+        .unwrap()
+    }
+
+    fn executive_policy(
+    ) -> athlesia_executive_agency::
+        ExecutiveAgencyPolicy {
+        use athlesia_executive_agency::{
+            ExecutiveAgencyPolicy,
+            ExecutiveSelectionThresholds,
+            ExecutiveUtilityWeights,
+        };
+
+        ExecutiveAgencyPolicy::new(
+            1,
+            8,
+            16,
+            1,
+            ExecutiveUtilityWeights::new(
+                0,
+                0,
+                0,
+                1000,
+                0,
+            )
+            .unwrap(),
+            ExecutiveSelectionThresholds::new(
+                signal(100),
+                signal(100),
+                signal(1),
+                signal(600),
+                signal(100),
+            )
+            .unwrap(),
+        )
+        .unwrap()
+    }
+
+    fn goal(
+    ) -> athlesia_executive_agency::
+        ExecutiveGoal {
+        athlesia_executive_agency::
+            ExecutiveGoal::new(
+                atom(
+                    0xC16F_0000_0000_0001,
+                ),
+                signal(900),
+                athlesia_mindstone_sparse_cognition::
+                    CognitiveSignal::zero(),
+            )
+    }
+
+    #[derive(Debug)]
+    struct Fixture {
+        runtime:
+            ArcAgi3CognitiveInteractionRuntime,
+        arc_action:
+            crate::ArcAgi3Action,
+        cognitive_action:
+            CognitiveStructure,
+        native_source:
+            CognitiveStructure,
+        native_possibilities:
+            Vec<
+                athlesia_autonomous_active_experimentation::
+                    GroundedExperimentPossibility
+            >,
+        beliefs:
+            Vec<
+                athlesia_autonomous_active_experimentation::
+                    HypothesisBeliefState
+            >,
+    }
+
+    fn fixture(
+        game: &str,
+        first_index: u64,
+    ) -> Fixture {
+        use athlesia_autonomous_active_experimentation::{
+            AutonomousEpistemicForecastDiscrimination,
+            AutonomousEpistemicResolutionProgress,
+            CompetingHypothesisPrediction,
+            GroundedEpistemicExperimentPossibility,
+            GroundedExperimentPossibility,
+            HypothesisBeliefState,
+        };
+
+        let action_one =
+            action(
+                crate::ArcAgi3ActionId::Action1,
+            );
+
+        let action_two =
+            action(
+                crate::ArcAgi3ActionId::Action2,
+            );
+
+        let mut runtime =
+            ArcAgi3CognitiveInteractionRuntime::new(
+                observation(
+                    game,
+                    1,
+                    None,
+                ),
+                first_index,
+            )
+            .unwrap();
+
+        mature_runtime(
+            &mut runtime,
+            game,
+        );
+
+        /*
+         * Enter the established informative holdout.
+         */
+        training_turn(
+            &mut runtime,
+            game,
+            action_two,
+            7_u8,
+        );
+
+        /*
+         * Real B2 sample:
+         *
+         *     state7 --ACTION1--> state6
+         */
+        training_turn(
+            &mut runtime,
+            game,
+            action_one,
+            6_u8,
+        );
+
+        /*
+         * Return through a real causal turn to the exact state7
+         * representation.  B2 now contains a genuine ACTION1 sample
+         * from this source representation.
+         */
+        training_turn(
+            &mut runtime,
+            game,
+            action_two,
+            7_u8,
+        );
+
+        let current =
+            runtime
+                .current_grounded_world_state()
+                .expect(
+                    "C16I E2E current state7 must be grounded",
+                );
+
+        let cognitive_action =
+            crate::cognitive_protocol_bridge::
+                ArcAgi3CognitiveProtocolBridge::
+                    encode_action(
+                        action_one,
+                    );
+
+        let b2 =
+            runtime
+                .current_action_qualified_empirical_successor_frequency(
+                    &cognitive_action,
+                )
+                .expect(
+                    "B0 current grounding must permit B2 live query",
+                );
+
+        assert!(
+            b2.is_qualified(),
+            "C16I E2E requires genuine action-qualified B2 evidence",
+        );
+
+        assert!(
+            b2.independent_action_event_count()
+                > 0,
+            "B2 authority must contain at least one real interaction event",
+        );
+
+        assert!(
+            b2
+                .successor_informed_proposal_eligibility()
+                .eligible_as_supplemental_evidence(),
+            "real B2 evidence must pass C16I-A integrity qualification",
+        );
+
+        /*
+         * Current M50 question from the retained M47 owner.
+         */
+        let current_epistemic =
+            runtime
+                .cognition
+                .current_m50_epistemic_possibility(
+                    &current,
+                    &cognitive_action,
+                    version_policy(),
+                )
+                .expect(
+                    "current state7 ACTION1 must expose an M50 epistemic possibility",
+                );
+
+        let current_discrimination =
+            AutonomousEpistemicForecastDiscrimination::
+                evaluate(
+                    &current_epistemic,
+                    discrimination_policy(),
+                );
+
+        assert!(
+            current_discrimination
+                .informative(),
+            "C16I E2E requires a genuinely unresolved current M50 question",
+        );
+
+        assert!(
+            current_discrimination
+                .pairwise_separation_score()
+                > 0,
+            "informative M50 question must contain real pairwise separation",
+        );
+
+        /*
+         * Ground outcome resolution in an actually observed B2
+         * successor representation.  No target-occurrence booleans are
+         * invented by this fixture.
+         */
+        let real_successor =
+            b2
+                .successor_frequencies()
+                .first()
+                .expect(
+                    "qualified B2 result must expose a real successor",
+                )
+                .successor_representation()
+                .clone();
+
+        let realized_outcome =
+            runtime
+                .cognition
+                .resolve_m50_epistemic_possibility_against_transition(
+                    &current_epistemic,
+                    &current,
+                    &real_successor,
+                    &cognitive_action,
+                    athlesia_autonomous_active_experimentation::
+                        EpistemicOutcomeResolutionPolicy::
+                            new(
+                                512,
+                                512,
+                            )
+                            .unwrap(),
+                )
+                .expect(
+                    "real B2 successor must resolve the current M50 question",
+                );
+
+        assert!(
+            realized_outcome.resolved(),
+            "C3D measurement requires a resolved empirical outcome",
+        );
+
+        /*
+         * C3D measurement fixture:
+         *
+         * Preserve source/action identity and use a strict subset of the
+         * already-existing forecast frontier as the post-learning
+         * comparison.  The progress VALUE is therefore produced only by
+         * AutonomousEpistemicResolutionProgress::measure.
+         *
+         * No expected progress/EIG number is manually inserted.
+         */
+        let post_learning =
+            GroundedEpistemicExperimentPossibility::new(
+                current_epistemic
+                    .source_state()
+                    .clone(),
+                current_epistemic
+                    .action()
+                    .clone(),
+                vec![
+                    current_epistemic
+                        .forecasts()
+                        .first()
+                        .expect(
+                            "informative possibility must contain forecasts",
+                        )
+                        .clone(),
+                ],
+            )
+            .unwrap();
+
+        let progress =
+            AutonomousEpistemicResolutionProgress::
+                measure(
+                    &current_epistemic,
+                    &realized_outcome,
+                    &post_learning,
+                    discrimination_policy(),
+                );
+
+        assert!(
+            progress.measured(),
+            "C16I E2E C3F evidence must come from the real C3D measurement authority",
+        );
+
+        let sample =
+            progress
+                .sample()
+                .expect(
+                    "measured progress must contain one exact sample",
+                )
+                .clone();
+
+        assert!(
+            sample
+                .realized_separation_reduction()
+                > sample
+                    .realized_separation_increase(),
+            "fixture must provide positive measured epistemic progress for C3F",
+        );
+
+        /*
+         * Retain through M51's existing bounded history owner.
+         *
+         * The high event id is fixture provenance only; it does not
+         * participate in matching or priority.
+         */
+        let retained =
+            runtime
+                .cognition
+                .retain_epistemic_progress_event(
+                    u64::MAX - 16,
+                    sample,
+                    athlesia_integrated_cognitive_agent::
+                        RetainedEpistemicProgressHistoryPolicy::
+                            new(256)
+                            .unwrap(),
+                );
+
+        assert!(
+            retained.retained(),
+            "measured C3D sample must be retained by the existing M51 owner",
+        );
+
+        let priority =
+            runtime
+                .cognition
+                .current_empirical_epistemic_action_priority_frontier(
+                    &current,
+                    std::slice::from_ref(
+                        &cognitive_action,
+                    ),
+                    version_policy(),
+                    discrimination_policy(),
+                    expectation_policy(),
+                    priority_policy(),
+                );
+
+        assert_eq!(
+            priority.status(),
+            athlesia_autonomous_active_experimentation::
+                EmpiricalEpistemicActionPriorityStatus::
+                    Ranked,
+            "C16I E2E requires measured positive C3F authority before native M50 gating",
+        );
+
+        let priority_candidate =
+            priority
+                .best()
+                .expect(
+                    "Ranked C3F frontier must expose one exact candidate",
+                );
+
+        assert_eq!(
+            priority_candidate.action(),
+            &cognitive_action,
+        );
+
+        /*
+         * C16I-C requires caller-native M50 source/action identity to
+         * match the already-ranked C3F binding exactly.
+         */
+        let native_source =
+            priority_candidate
+                .source_state()
+                .clone();
+
+        let hypothesis_one =
+            atom(
+                0xC16F_0000_0000_0101,
+            );
+
+        let hypothesis_two =
+            atom(
+                0xC16F_0000_0000_0102,
+            );
+
+        let native_possibilities =
+            vec![
+                GroundedExperimentPossibility::new(
+                    native_source.clone(),
+                    cognitive_action.clone(),
+                    vec![
+                        CompetingHypothesisPrediction::new(
+                            hypothesis_one.clone(),
+                            atom(
+                                0xC16F_0000_0000_0201,
+                            ),
+                            signal(900),
+                        )
+                        .unwrap(),
+                        CompetingHypothesisPrediction::new(
+                            hypothesis_two.clone(),
+                            atom(
+                                0xC16F_0000_0000_0202,
+                            ),
+                            signal(900),
+                        )
+                        .unwrap(),
+                    ],
+                    signal(900),
+                    signal(900),
+                    signal(100),
+                )
+                .unwrap(),
+            ];
+
+        let beliefs =
+            vec![
+                HypothesisBeliefState::new(
+                    hypothesis_one,
+                    signal(820),
+                )
+                .unwrap(),
+                HypothesisBeliefState::new(
+                    hypothesis_two,
+                    signal(760),
+                )
+                .unwrap(),
+            ];
+
+        /*
+         * Anti-vacuity: prove A-D produces a real native M50 proposal
+         * before testing F.
+         */
+        let native_result =
+            runtime
+                .cognition
+                .current_successor_informed_native_m50_proposal_delegation(
+                    athlesia_integrated_cognitive_agent::
+                        SuccessorInformedNativeM50ProposalDelegationRequest {
+                            native_input:
+                                athlesia_integrated_cognitive_agent::
+                                    SuccessorInformedNativeProposalInputRequest {
+                                        state:
+                                            &current,
+                                        actions:
+                                            std::slice::from_ref(
+                                                &cognitive_action,
+                                            ),
+                                        version_policy:
+                                            version_policy(),
+                                        discrimination_policy:
+                                            discrimination_policy(),
+                                        expectation_policy:
+                                            expectation_policy(),
+                                        priority_policy:
+                                            priority_policy(),
+                                        native_possibilities:
+                                            &native_possibilities,
+                                    },
+                            beliefs:
+                                &beliefs,
+                            proposal_policy:
+                                proposal_policy(),
+                        },
+                )
+                .expect(
+                    "real B2 + measured C3F must reach native M50 delegation",
+                );
+
+        assert!(
+            native_result.generated_count()
+                > 0,
+            "native M50 must actually generate a proposal before F is exercised",
+        );
+
+        Fixture {
+            runtime,
+            arc_action:
+                action_one,
+            cognitive_action,
+            native_source,
+            native_possibilities,
+            beliefs,
+        }
+    }
+
+    #[test]
+    fn mismatched_expected_source_state_fails_closed_before_m48_authority(
+    ) {
+        let fixture =
+            fixture(
+                "c16i-f-source-mismatch",
+                8_100_000,
+            );
+
+        let wrong_source =
+            atom(
+                0xC16F_FFFF_FFFF_FF01,
+            );
+
+        assert_ne!(
+            wrong_source,
+            fixture.native_source,
+        );
+
+        let selected =
+            fixture
+                .runtime
+                .current_successor_informed_unified_executive_authority(
+                    ArcAgi3SuccessorInformedUnifiedExecutiveRequest {
+                        exploitation_actions:
+                            &[],
+                        goal:
+                            &goal(),
+                        goal_alignment:
+                            signal(900),
+                        exploitation_execution_cost:
+                            signal(100),
+                        expected_experiment_source_state:
+                            &wrong_source,
+                        native_possibilities:
+                            &fixture
+                                .native_possibilities,
+                        beliefs:
+                            &fixture.beliefs,
+                        version_policy:
+                            version_policy(),
+                        discrimination_policy:
+                            discrimination_policy(),
+                        expectation_policy:
+                            expectation_policy(),
+                        priority_policy:
+                            priority_policy(),
+                        proposal_policy:
+                            proposal_policy(),
+                        executive_policy:
+                            executive_policy(),
+                    },
+                );
+
+        assert!(
+            selected.is_none(),
+            "exact E-bridge source mismatch must fail closed before any M48 authority can select the experiment",
+        );
+    }
+
+    #[test]
+    fn real_b2_measured_c3f_native_m50_reaches_action_only_through_common_m48(
+    ) {
+        let fixture =
+            fixture(
+                "c16i-f-common-m48",
+                8_200_000,
+            );
+
+        let authority =
+            fixture
+                .runtime
+                .current_successor_informed_unified_executive_authority(
+                    ArcAgi3SuccessorInformedUnifiedExecutiveRequest {
+                        exploitation_actions:
+                            &[],
+                        goal:
+                            &goal(),
+                        goal_alignment:
+                            signal(900),
+                        exploitation_execution_cost:
+                            signal(100),
+                        expected_experiment_source_state:
+                            &fixture.native_source,
+                        native_possibilities:
+                            &fixture
+                                .native_possibilities,
+                        beliefs:
+                            &fixture.beliefs,
+                        version_policy:
+                            version_policy(),
+                        discrimination_policy:
+                            discrimination_policy(),
+                        expectation_policy:
+                            expectation_policy(),
+                        priority_policy:
+                            priority_policy(),
+                        proposal_policy:
+                            proposal_policy(),
+                        executive_policy:
+                            executive_policy(),
+                    },
+                )
+                .expect(
+                    "eligible native M50 proposal must reach action authority only through the common M48 selector",
+                );
+
+        assert_eq!(
+            authority.action(),
+            fixture.arc_action,
+        );
+
+        assert_eq!(
+            authority.cognitive_action(),
+            &fixture.cognitive_action,
+        );
+
+        assert_eq!(
+            authority.source_state(),
+            &fixture.native_source,
+            "selected experiment must preserve exact native M50 source provenance through common M48",
+        );
+
+        assert!(
+            authority
+                .candidate()
+                .information_gain()
+                > athlesia_mindstone_sparse_cognition::
+                    CognitiveSignal::zero(),
+            "selected experiment must carry native M50 information authority rather than fabricated adapter utility",
+        );
+    }
+}
