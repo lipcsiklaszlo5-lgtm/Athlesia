@@ -92,6 +92,79 @@ fn production_policy<'a>(goal: &'a ExecutiveGoal) -> ArcAgi3ProductionSuccessorP
     .unwrap()
 }
 
+fn resolve_canonical_game_id(
+    client: &Client,
+    base_url: &str,
+    api_key: &str,
+    requested: &str,
+) -> Result<String, String> {
+    let response = client
+        .get(format!("{}/api/games", base_url.trim_end_matches('/'),))
+        .header("X-API-Key", api_key)
+        .send()
+        .map_err(|error| format!("game discovery transport failed: {error}"))?;
+
+    let response = response
+        .error_for_status()
+        .map_err(|error| format!("game discovery rejected: {error}"))?;
+
+    let value: Value = response
+        .json()
+        .map_err(|error| format!("game discovery decode failed: {error}"))?;
+
+    let entries = value
+        .as_array()
+        .ok_or_else(|| "game discovery response must be an array".to_string())?;
+
+    let mut matches = Vec::<String>::new();
+
+    for entry in entries {
+        let Some(id) = entry.get("game_id").and_then(Value::as_str) else {
+            continue;
+        };
+
+        /*
+         * Already-versioned exact identity.
+         */
+        if id == requested {
+            return Ok(id.to_string());
+        }
+
+        /*
+         * Generic protocol-level alias resolution only.
+         *
+         * Example shape:
+         *
+         *   requested: family name
+         *   published: family-version
+         *
+         * No game semantics, pixels, actions or ARC solution
+         * knowledge are used here.
+         */
+        if let Some(suffix) = id.strip_prefix(requested) {
+            if suffix.starts_with('-') {
+                matches.push(id.to_string());
+            }
+        }
+    }
+
+    matches.sort();
+    matches.dedup();
+
+    match matches.as_slice() {
+        [only] => Ok(only.clone()),
+
+        [] => Err(format!(
+            "no published ARC environment matches `{requested}`"
+        )),
+
+        many => Err(format!(
+            "ARC environment alias `{requested}` is ambiguous: {}",
+            many.join(", "),
+        )),
+    }
+}
+
 fn open_research_scorecard(
     client: &Client,
     base_url: &str,
@@ -301,17 +374,20 @@ fn run() -> Result<(), String> {
         .build()
         .map_err(|error| error.to_string())?;
 
+    let canonical_game_name = resolve_canonical_game_id(&client, &base_url, &api_key, &game_name)?;
+
     let card_id = open_research_scorecard(&client, &base_url, &api_key)?;
 
-    println!("GAME={game_name}");
+    println!("REQUESTED_GAME={game_name}");
+    println!("CANONICAL_GAME={canonical_game_name}");
     println!("CARD_ID={card_id}");
     println!("MAX_STEPS={max_steps}");
     println!("GOAL_AUTHORITY=DISABLED");
     println!("TRACE={trace_path}");
     println!("DIAG={diag_path}");
 
-    let game_id = ArcAgi3GameId::new(game_name.clone())
-        .ok_or_else(|| format!("invalid game id: {game_name}"))?;
+    let game_id = ArcAgi3GameId::new(canonical_game_name.clone())
+        .ok_or_else(|| format!("invalid canonical game id: {canonical_game_name}"))?;
 
     let transport = ArcAgi3RestTransport::new(base_url.clone(), api_key.clone())
         .map_err(|error| format!("REST transport init failed: {error:?}"))?;
