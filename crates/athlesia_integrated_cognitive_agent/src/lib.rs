@@ -9956,6 +9956,53 @@ impl EndogenousTransitionSchemaLearningState {
         self.event_provenance.len()
     }
 
+    // B3D-B1 M51 EXACT IGNORANCE COVERAGE
+    //
+    // Number of independently retained real interaction events for
+    // exactly:
+    //
+    //   grounded before representation + executed action identity.
+    //
+    // Zero is legitimate evidence of "not yet sampled".
+    //
+    // None means retained-history invariants are unsound and therefore
+    // no exploration authority may be derived.
+    pub fn exact_source_action_sample_count(
+        &self,
+        current_representation: &athlesia_universal_domain_learning::GroundedStateSnapshot,
+        action: &CognitiveStructure,
+    ) -> Option<usize> {
+        if self.episodes.len() != self.event_provenance.len() {
+            return None;
+        }
+
+        /*
+         * Event identity is the independent-sample authority.
+         *
+         * A duplicate event index would make raw episode cardinality
+         * unsafe as empirical coverage evidence.
+         */
+        for index in 0..self.event_provenance.len() {
+            let event_index = self.event_provenance[index].event_index();
+
+            if self.event_provenance[..index]
+                .iter()
+                .any(|prior| prior.event_index() == event_index)
+            {
+                return None;
+            }
+        }
+
+        Some(
+            self.episodes
+                .iter()
+                .filter(|episode| {
+                    episode.before() == current_representation && episode.transformation() == action
+                })
+                .count(),
+        )
+    }
+
     pub fn empirical_successor_representation_qualification(
         &self,
         current_representation: &athlesia_universal_domain_learning::GroundedStateSnapshot,
@@ -12489,6 +12536,52 @@ impl OnlinePersistentCognitiveState {
             intent,
             executive_candidate,
         })
+    }
+
+    /*
+     * B3D-B1 M51 EXACT IGNORANCE COVERAGE SELECTION
+     *
+     * This path exists for genuine absence of stronger learned action
+     * authority.
+     *
+     * M51 owns retained transition evidence.
+     * M48 owns final action selection.
+     *
+     * No expected outcome or scalar epistemic value is synthesized.
+     */
+    pub fn current_selected_ignorance_exploration_action(
+        &self,
+        state: &athlesia_universal_domain_learning::GroundedStateSnapshot,
+        actions: &[CognitiveStructure],
+        policy: athlesia_executive_agency::IgnoranceExplorationSelectionPolicy,
+    ) -> Option<athlesia_executive_agency::GroundedIgnoranceExplorationCandidate> {
+        let source_state = Self::grounded_execution_source_state_identity(state);
+
+        let mut candidates = Vec::with_capacity(actions.len());
+
+        for action in actions {
+            let sample_count = self
+                .transition_schema_learning
+                .exact_source_action_sample_count(state, action)?;
+
+            candidates.push(
+                athlesia_executive_agency::GroundedIgnoranceExplorationCandidate::new(
+                    source_state.clone(),
+                    action.clone(),
+                    sample_count,
+                ),
+            );
+        }
+
+        /*
+         * M48 is the sole final selector.
+         *
+         * M51 supplies only exact retained coverage evidence.
+         */
+        let result =
+            athlesia_executive_agency::IgnoranceExplorationAgency::select(&candidates, policy);
+
+        result.selected_candidate().cloned()
     }
 
     pub fn current_successor_informed_native_proposal_input_frontier(
@@ -17608,6 +17701,238 @@ mod p4g_c3f_endogenous_priority_frontier_bridge_tests {
             owner.transition_schema_learning().event_provenance_count(),
             provenance_before,
         );
+    }
+
+    #[test]
+    fn b3db1_zero_history_is_valid_zero_coverage_and_selects_deterministically() {
+        let owner = OnlinePersistentCognitiveState::new();
+
+        let current = state(&[1]);
+
+        let action_a = a(100);
+
+        let action_b = a(200);
+
+        assert_eq!(
+            owner
+                .transition_schema_learning()
+                .exact_source_action_sample_count(&current, &action_a,),
+            Some(0),
+        );
+
+        assert_eq!(
+            owner
+                .transition_schema_learning()
+                .exact_source_action_sample_count(&current, &action_b,),
+            Some(0),
+        );
+
+        let expected = if format!("{:?}", action_a) <= format!("{:?}", action_b) {
+            action_a.clone()
+        } else {
+            action_b.clone()
+        };
+
+        let selected = owner
+            .current_selected_ignorance_exploration_action(
+                &current,
+                &[action_b.clone(), action_a.clone()],
+                athlesia_executive_agency::IgnoranceExplorationSelectionPolicy::new(8).unwrap(),
+            )
+            .expect("zero history is legitimate cold-start coverage");
+
+        assert_eq!(selected.action(), &expected,);
+
+        assert_eq!(selected.exact_source_action_sample_count(), 0,);
+
+        assert_eq!(
+            selected.source_state(),
+            &OnlinePersistentCognitiveState::grounded_execution_source_state_identity(&current,),
+        );
+    }
+
+    #[test]
+    fn b3db1_untried_action_beats_exactly_sampled_action() {
+        let mut owner = OnlinePersistentCognitiveState::new();
+
+        let current = state(&[1]);
+
+        let sampled = a(100);
+
+        let untried = a(200);
+
+        c16i_retain_b2_sample(&mut owner, 9_300, &current, &sampled);
+
+        assert_eq!(
+            owner
+                .transition_schema_learning()
+                .exact_source_action_sample_count(&current, &sampled,),
+            Some(1),
+        );
+
+        assert_eq!(
+            owner
+                .transition_schema_learning()
+                .exact_source_action_sample_count(&current, &untried,),
+            Some(0),
+        );
+
+        let selected = owner
+            .current_selected_ignorance_exploration_action(
+                &current,
+                &[sampled, untried.clone()],
+                athlesia_executive_agency::IgnoranceExplorationSelectionPolicy::new(8).unwrap(),
+            )
+            .expect("M48 must cover an untried action before repeating");
+
+        assert_eq!(selected.action(), &untried,);
+
+        assert_eq!(selected.exact_source_action_sample_count(), 0,);
+    }
+
+    #[test]
+    fn b3db1_after_all_actions_are_sampled_least_sampled_action_wins() {
+        let mut owner = OnlinePersistentCognitiveState::new();
+
+        let current = state(&[1]);
+
+        let often = a(100);
+
+        let less = a(200);
+
+        c16i_retain_b2_sample(&mut owner, 9_301, &current, &often);
+
+        c16i_retain_b2_sample(&mut owner, 9_302, &current, &often);
+
+        c16i_retain_b2_sample(&mut owner, 9_303, &current, &less);
+
+        let selected = owner
+            .current_selected_ignorance_exploration_action(
+                &current,
+                &[often, less.clone()],
+                athlesia_executive_agency::IgnoranceExplorationSelectionPolicy::new(8).unwrap(),
+            )
+            .expect("least sampled exact intervention should be selected");
+
+        assert_eq!(selected.action(), &less,);
+
+        assert_eq!(selected.exact_source_action_sample_count(), 1,);
+    }
+
+    #[test]
+    fn b3db1_coverage_is_exact_source_state_conditioned() {
+        let mut owner = OnlinePersistentCognitiveState::new();
+
+        let observed_state = state(&[1]);
+
+        let different_state = state(&[2]);
+
+        let action = a(100);
+
+        c16i_retain_b2_sample(&mut owner, 9_304, &observed_state, &action);
+
+        assert_eq!(
+            owner
+                .transition_schema_learning()
+                .exact_source_action_sample_count(&observed_state, &action,),
+            Some(1),
+        );
+
+        assert_eq!(
+            owner
+                .transition_schema_learning()
+                .exact_source_action_sample_count(&different_state, &action,),
+            Some(0),
+            "coverage from another grounded source state must not transfer",
+        );
+    }
+
+    #[test]
+    fn b3db1_corrupted_retained_event_accounting_fails_closed() {
+        let mut owner = OnlinePersistentCognitiveState::new();
+
+        let current = state(&[1]);
+
+        let action = a(100);
+
+        /*
+         * Deliberately corrupt the private retained invariant:
+         * one episode without one independent event provenance.
+         */
+        owner
+            .transition_schema_learning
+            .episodes
+            .push(GroundedTransformationEpisode::new(
+                current.clone(),
+                state(&[2]),
+                action.clone(),
+            ));
+
+        assert_eq!(
+            owner
+                .transition_schema_learning()
+                .exact_source_action_sample_count(&current, &action,),
+            None,
+        );
+
+        assert_eq!(
+            owner.current_selected_ignorance_exploration_action(
+                &current,
+                std::slice::from_ref(&action,),
+                athlesia_executive_agency::IgnoranceExplorationSelectionPolicy::new(8).unwrap(),
+            ),
+            None,
+            "unsound retained history must never create exploration authority",
+        );
+    }
+
+    #[test]
+    fn b3db1_coverage_query_and_selection_are_non_mutating() {
+        let mut owner = OnlinePersistentCognitiveState::new();
+
+        let current = state(&[1]);
+
+        let first = a(100);
+
+        let second = a(200);
+
+        c16i_retain_b2_sample(&mut owner, 9_305, &current, &first);
+
+        let episodes_before = owner.transition_episode_count();
+
+        let provenance_before = owner.transition_schema_learning().event_provenance_count();
+
+        let progress_before = owner.epistemic_progress_event_count();
+
+        let first_selection = owner
+            .current_selected_ignorance_exploration_action(
+                &current,
+                &[first.clone(), second.clone()],
+                athlesia_executive_agency::IgnoranceExplorationSelectionPolicy::new(8).unwrap(),
+            )
+            .expect("first selection");
+
+        let second_selection = owner
+            .current_selected_ignorance_exploration_action(
+                &current,
+                &[second, first],
+                athlesia_executive_agency::IgnoranceExplorationSelectionPolicy::new(8).unwrap(),
+            )
+            .expect("second selection");
+
+        assert_eq!(
+            first_selection, second_selection,
+            "candidate input ordering must not change coverage authority",
+        );
+
+        assert_eq!(owner.transition_episode_count(), episodes_before,);
+
+        assert_eq!(
+            owner.transition_schema_learning().event_provenance_count(),
+            provenance_before,
+        );
+
+        assert_eq!(owner.epistemic_progress_event_count(), progress_before,);
     }
 }
 
