@@ -788,7 +788,11 @@ mod successor_informed_live_dispatch_tests {
         );
 
         assert!(
-            step.authority().candidate().information_gain() > CognitiveSignal::zero(),
+            step.authority()
+                .legacy_candidate()
+                .expect("legacy live regression must expose legacy candidate")
+                .information_gain()
+                > CognitiveSignal::zero(),
             "live winner must carry real native M50 information authority",
         );
 

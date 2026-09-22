@@ -66,7 +66,7 @@ impl ArcAgi3AuthorizedExperimentProposal {
 pub struct ArcAgi3ActionGroundingBridge;
 
 impl ArcAgi3ActionGroundingBridge {
-    fn authorize_environment_action(
+    pub(crate) fn authorize_environment_action(
         observation: &ArcAgi3Observation,
         action_structure: &CognitiveStructure,
     ) -> Result<ArcAgi3Action, ArcAgi3ActionGroundingError> {

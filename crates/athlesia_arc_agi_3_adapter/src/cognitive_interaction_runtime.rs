@@ -140,10 +140,68 @@ pub struct ArcAgi3SuccessorInformedUnifiedExecutiveRequest<'a> {
     pub executive_policy: athlesia_executive_agency::ExecutiveAgencyPolicy,
 }
 
+// B3C-C1 EVIDENCE-FAITHFUL ARC AUTHORITY
+//
+// This request contains only:
+//
+// - a concrete ARC protocol action frontier;
+// - exploitation context retained temporarily for the legacy exploitation
+//   branch;
+// - evidence/resource policies.
+//
+// It contains NO caller-native:
+//
+// - GroundedExperimentPossibility;
+// - HypothesisBeliefState;
+// - BeliefDrivenExperimentProposalPolicy;
+// - predicted outcome;
+// - confidence for hypotheses;
+// - EIG;
+// - controllability.
+//
+// `candidate_actions` are protocol action identities only. They are not
+// cognitive predictions or beliefs.
+#[derive(Clone, Copy, Debug)]
+pub struct ArcAgi3EvidenceFaithfulSuccessorExecutiveRequest<'a> {
+    pub candidate_actions: &'a [crate::ArcAgi3Action],
+
+    pub goal: &'a athlesia_executive_agency::ExecutiveGoal,
+    pub goal_alignment: CognitiveSignal,
+    pub exploitation_execution_cost: CognitiveSignal,
+
+    pub version_policy: athlesia_universal_domain_learning::GroundedExplanatoryVersionSpacePolicy,
+
+    pub discrimination_policy:
+        athlesia_autonomous_active_experimentation::EpistemicForecastDiscriminationPolicy,
+
+    pub expectation_policy:
+        athlesia_autonomous_active_experimentation::EmpiricalExpectedEpistemicProgressPolicy,
+
+    pub priority_policy:
+        athlesia_autonomous_active_experimentation::EmpiricalEpistemicActionPriorityPolicy,
+
+    pub exploitation_policy: athlesia_executive_agency::ExecutiveAgencyPolicy,
+
+    pub epistemic_policy: athlesia_executive_agency::EpistemicExecutiveSelectionPolicy,
+}
+
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub enum ArcAgi3UnifiedExecutiveAuthorityKind {
+    LegacyGrounded,
+    EvidenceFaithfulEpistemic,
+}
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ArcAgi3UnifiedExecutiveAuthority {
+    kind: ArcAgi3UnifiedExecutiveAuthorityKind,
     source_state: CognitiveStructure,
-    selected: crate::action_grounding_bridge::ArcAgi3AuthorizedExecutiveCandidate,
+    action: crate::ArcAgi3Action,
+    cognitive_action: CognitiveStructure,
+
+    legacy_selected: Option<crate::action_grounding_bridge::ArcAgi3AuthorizedExecutiveCandidate>,
+
+    epistemic_selected:
+        Option<athlesia_integrated_cognitive_agent::SelectedSuccessorInformedEpistemicActionIntent>,
 }
 
 impl ArcAgi3UnifiedExecutiveAuthority {
@@ -151,30 +209,81 @@ impl ArcAgi3UnifiedExecutiveAuthority {
         source_state: CognitiveStructure,
         selected: crate::action_grounding_bridge::ArcAgi3AuthorizedExecutiveCandidate,
     ) -> Self {
+        let action = selected.action();
+
+        let cognitive_action = selected.candidate().action().clone();
+
         Self {
+            kind: ArcAgi3UnifiedExecutiveAuthorityKind::LegacyGrounded,
             source_state,
-            selected,
+            action,
+            cognitive_action,
+            legacy_selected: Some(selected),
+            epistemic_selected: None,
         }
     }
 
+    fn new_epistemic(
+        action: crate::ArcAgi3Action,
+        selected:
+            athlesia_integrated_cognitive_agent::
+                SelectedSuccessorInformedEpistemicActionIntent,
+    ) -> Self {
+        let source_state = selected.source_state().clone();
+
+        let cognitive_action = selected.action().clone();
+
+        Self {
+            kind: ArcAgi3UnifiedExecutiveAuthorityKind::EvidenceFaithfulEpistemic,
+            source_state,
+            action,
+            cognitive_action,
+            legacy_selected: None,
+            epistemic_selected: Some(selected),
+        }
+    }
+
+    pub fn kind(&self) -> ArcAgi3UnifiedExecutiveAuthorityKind {
+        self.kind
+    }
+
     pub fn action(&self) -> crate::ArcAgi3Action {
-        self.selected.action()
+        self.action
     }
 
     pub fn cognitive_action(&self) -> &CognitiveStructure {
-        self.selected.candidate().action()
+        &self.cognitive_action
     }
 
-    pub fn predicted_outcome(&self) -> &CognitiveStructure {
-        self.selected.candidate().predicted_outcome()
+    /*
+     * A concrete predicted outcome exists only on the frozen legacy
+     * candidate representation.
+     *
+     * Evidence-faithful epistemic authority deliberately returns None.
+     */
+    pub fn predicted_outcome(&self) -> Option<&CognitiveStructure> {
+        self.legacy_selected
+            .as_ref()
+            .map(|selected| selected.candidate().predicted_outcome())
     }
 
     pub fn source_state(&self) -> &CognitiveStructure {
         &self.source_state
     }
 
-    pub fn candidate(&self) -> &athlesia_executive_agency::GroundedExecutiveActionCandidate {
-        self.selected.candidate()
+    pub fn legacy_candidate(
+        &self,
+    ) -> Option<&athlesia_executive_agency::GroundedExecutiveActionCandidate> {
+        self.legacy_selected
+            .as_ref()
+            .map(|selected| selected.candidate())
+    }
+
+    pub fn epistemic_selection(
+        &self,
+    ) -> Option<&athlesia_integrated_cognitive_agent::SelectedSuccessorInformedEpistemicActionIntent>
+    {
+        self.epistemic_selected.as_ref()
     }
 }
 
@@ -654,6 +763,144 @@ impl ArcAgi3CognitiveInteractionRuntime {
         );
 
         self.select_authorized_executive_candidate(&authorized, goal, policy)
+    }
+
+    // B3C-C1 EVIDENCE-FAITHFUL ARC AUTHORITY PATH
+    //
+    // The epistemic branch is now:
+    //
+    // current grounded state
+    //   -> current M47/M50 forecast evidence
+    //   -> retained C3F empirical progress
+    //   -> retained B2 successor eligibility
+    //   -> Cut16B intent
+    //   -> M48 evidence-faithful final selection
+    //   -> exact intent
+    //   -> ARC protocol authorization.
+    //
+    // No native possibilities or belief states enter this path.
+    //
+    // Cross-kind exploitation/epistemic values are intentionally NOT
+    // converted onto a fabricated common scale.
+    //
+    // If BOTH kinds independently produce authority, this transitional
+    // path abstains fail-closed.
+    pub fn current_evidence_faithful_successor_executive_authority(
+        &self,
+        request: ArcAgi3EvidenceFaithfulSuccessorExecutiveRequest<'_>,
+    ) -> Option<ArcAgi3UnifiedExecutiveAuthority> {
+        let ArcAgi3EvidenceFaithfulSuccessorExecutiveRequest {
+            candidate_actions,
+            goal,
+            goal_alignment,
+            exploitation_execution_cost,
+            version_policy,
+            discrimination_policy,
+            expectation_policy,
+            priority_policy,
+            exploitation_policy,
+            epistemic_policy,
+        } = request;
+
+        let current_state = self.current_grounded_world_state()?;
+
+        /*
+         * Existing model-grounded exploitation remains frozen here.
+         *
+         * This branch is NOT reinterpreted as epistemic evidence.
+         */
+        let exploitation_authorized = self.current_model_grounded_authorized_candidates(
+            candidate_actions,
+            goal,
+            goal_alignment,
+            exploitation_execution_cost,
+        );
+
+        let exploitation_source_state =
+            athlesia_integrated_cognitive_agent::
+                OnlinePersistentCognitiveState::
+                    grounded_execution_source_state_identity(
+                        &current_state,
+                    );
+
+        let exploitation_authority = self
+            .selected_authorized_executive_candidate(
+                &exploitation_authorized,
+                goal,
+                exploitation_policy,
+            )
+            .map(|selected| {
+                ArcAgi3UnifiedExecutiveAuthority::new(exploitation_source_state, selected)
+            });
+
+        /*
+         * Candidate ARC actions become only exact cognitive action
+         * identities. No prediction semantics are added by the adapter.
+         */
+        let cognitive_actions = candidate_actions
+            .iter()
+            .copied()
+            .map(crate::cognitive_protocol_bridge::ArcAgi3CognitiveProtocolBridge::encode_action)
+            .collect::<Vec<_>>();
+
+        let epistemic_selected = self
+            .cognition
+            .current_selected_successor_informed_epistemic_action_intent(
+                &current_state,
+                &cognitive_actions,
+                version_policy,
+                discrimination_policy,
+                expectation_policy,
+                priority_policy,
+                epistemic_policy,
+            );
+
+        let epistemic_authority = match epistemic_selected {
+            Some(selected) => {
+                /*
+                 * ARC performs only protocol decoding/availability
+                 * authorization here.
+                 *
+                 * Cognitive selection already belongs to M51 -> M48.
+                 */
+                let action =
+                        crate::action_grounding_bridge::
+                            ArcAgi3ActionGroundingBridge::
+                                authorize_environment_action(
+                                    self.observation(),
+                                    selected.action(),
+                                )
+                                .ok()?;
+
+                Some(ArcAgi3UnifiedExecutiveAuthority::new_epistemic(
+                    action, selected,
+                ))
+            }
+
+            None => None,
+        };
+
+        match (exploitation_authority, epistemic_authority) {
+            (Some(authority), None) | (None, Some(authority)) => Some(authority),
+
+            /*
+             * Evidence kinds currently have no justified common metric.
+             *
+             * Two simultaneous authorities are therefore ambiguity,
+             * not permission for the adapter to invent arbitration.
+             */
+            (Some(_), Some(_)) => None,
+
+            (None, None) => None,
+        }
+    }
+
+    pub fn current_evidence_faithful_successor_action_selection(
+        &self,
+        request: ArcAgi3EvidenceFaithfulSuccessorExecutiveRequest<'_>,
+    ) -> Option<crate::ArcAgi3Action> {
+        self.current_evidence_faithful_successor_executive_authority(request)
+            .map(|authority| authority.action())
     }
 
     pub fn current_successor_informed_unified_executive_authority(
@@ -2019,11 +2266,129 @@ pub(crate) mod c16i_successor_informed_two_contract_e2e_tests {
 
         assert!(
             authority
-                .candidate()
+                .legacy_candidate()
+                .expect("legacy successor regression must expose legacy candidate")
                 .information_gain()
                 > athlesia_mindstone_sparse_cognition::
                     CognitiveSignal::zero(),
             "selected experiment must carry native M50 information authority rather than fabricated adapter utility",
+        );
+    }
+
+    #[test]
+    fn b3cc1_evidence_faithful_arc_path_uses_no_native_beliefs_or_possibilities() {
+        let fixture = fixture("b3cc1-clean-epistemic", 8_400_000);
+
+        let candidate_actions = [fixture.arc_action];
+
+        let clean_request = ArcAgi3EvidenceFaithfulSuccessorExecutiveRequest {
+            candidate_actions: &candidate_actions,
+
+            goal: &goal(),
+
+            /*
+             * Deliberately suppress the frozen exploitation branch.
+             *
+             * This scalar is NOT consumed by the epistemic branch.
+             */
+            goal_alignment: CognitiveSignal::zero(),
+
+            exploitation_execution_cost: signal(100),
+
+            version_policy: version_policy(),
+
+            discrimination_policy: discrimination_policy(),
+
+            expectation_policy: expectation_policy(),
+
+            priority_policy: priority_policy(),
+
+            exploitation_policy: executive_policy(),
+
+            epistemic_policy: athlesia_executive_agency::EpistemicExecutiveSelectionPolicy::new(8)
+                .unwrap(),
+        };
+
+        let progress_before = fixture.runtime.cognition().epistemic_progress_event_count();
+
+        let transition_before = fixture.runtime.cognition().transition_episode_count();
+
+        let authority = fixture
+            .runtime
+            .current_evidence_faithful_successor_executive_authority(clean_request)
+            .expect("real retained B2+C3F evidence must reach clean M48 authority");
+
+        assert_eq!(
+            authority.kind(),
+            ArcAgi3UnifiedExecutiveAuthorityKind::EvidenceFaithfulEpistemic,
+        );
+
+        assert_eq!(authority.action(), fixture.arc_action,);
+
+        assert_eq!(authority.cognitive_action(), &fixture.cognitive_action,);
+
+        assert_eq!(authority.source_state(), &fixture.native_source,);
+
+        assert!(
+            authority.legacy_candidate().is_none(),
+            "clean epistemic authority must not smuggle a legacy executive candidate",
+        );
+
+        let selected = authority
+            .epistemic_selection()
+            .expect("clean authority must retain exact M51-selected epistemic intent");
+
+        assert_eq!(selected.action(), &fixture.cognitive_action,);
+
+        assert_eq!(selected.source_state(), &fixture.native_source,);
+
+        assert_eq!(
+            authority.predicted_outcome(),
+            None,
+            "clean epistemic authority must not fabricate one concrete outcome",
+        );
+
+        assert_eq!(
+            fixture.runtime.cognition().epistemic_progress_event_count(),
+            progress_before,
+            "selection itself must not manufacture learning evidence",
+        );
+
+        assert_eq!(
+            fixture.runtime.cognition().transition_episode_count(),
+            transition_before,
+            "selection itself must not manufacture transition evidence",
+        );
+    }
+
+    #[test]
+    fn b3cc1_clean_path_abstains_without_empirical_epistemic_authority() {
+        let runtime = ArcAgi3CognitiveInteractionRuntime::new(
+            observation("b3cc1-no-evidence", 1, None),
+            8_500_000,
+        )
+        .unwrap();
+
+        let candidate_actions = [action(crate::ArcAgi3ActionId::Action1)];
+
+        let request = ArcAgi3EvidenceFaithfulSuccessorExecutiveRequest {
+            candidate_actions: &candidate_actions,
+            goal: &goal(),
+            goal_alignment: CognitiveSignal::zero(),
+            exploitation_execution_cost: signal(100),
+            version_policy: version_policy(),
+            discrimination_policy: discrimination_policy(),
+            expectation_policy: expectation_policy(),
+            priority_policy: priority_policy(),
+            exploitation_policy: executive_policy(),
+            epistemic_policy: athlesia_executive_agency::EpistemicExecutiveSelectionPolicy::new(8)
+                .unwrap(),
+        };
+
+        assert_eq!(
+            runtime.current_evidence_faithful_successor_executive_authority(request,),
+            None,
+            "absence of evidence must remain abstention",
         );
     }
 }
