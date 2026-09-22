@@ -539,3 +539,5 @@ pub mod live_environment_runtime;
 pub mod bounded_episode_runtime;
 
 pub mod competition_session_runtime;
+
+pub mod cognitive_trace;

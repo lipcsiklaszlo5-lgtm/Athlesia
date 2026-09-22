@@ -480,6 +480,87 @@ where
             .map(Some)
     }
 
+    /// Opt-in passive recording around the unchanged production successor path.
+    pub fn execute_successor_informed_unified_with_trace(
+        &mut self,
+        request: ArcAgi3LiveSuccessorInformedUnifiedActionRequest<'_>,
+        sink: &mut impl crate::cognitive_trace::ArcAgi3CognitiveTraceSink,
+    ) -> Result<Option<ArcAgi3LiveUnifiedStep>, ArcAgi3LiveEnvironmentError> {
+        use crate::cognitive_trace::{
+            emit, ArcAgi3CognitiveTraceEvent as Event, ArcAgi3TraceObservation,
+            ArcAgi3TraceOperation,
+        };
+        let before = ArcAgi3TraceObservation::from(self.cognitive_runtime.observation());
+        let result = self.execute_successor_informed_unified(request);
+        let event = match &result {
+            Ok(Some(step)) => Some(Event::executed(before, step)),
+            Ok(None) => Some(Event::Abstained {
+                completed_cognitive_step_count: self.completed_cognitive_step_count,
+                before,
+            }),
+            Err(ArcAgi3LiveEnvironmentError::Transport(error)) => Some(Event::TransportFailure {
+                operation: ArcAgi3TraceOperation::SuccessorInformedUnified,
+                completed_cognitive_step_count: self.completed_cognitive_step_count,
+                before,
+                error_debug: format!("{error:?}"),
+                has_pending_command: self.cognitive_runtime.session().has_pending_command(),
+                pending_command_action: self
+                    .cognitive_runtime
+                    .session()
+                    .pending_action()
+                    .map(Into::into),
+                produced_cognitive_completion: false,
+            }),
+            // A precondition/cognitive rejection is not a transport failure or abstention.
+            Err(_) => None,
+        };
+        if let Some(event) = event {
+            emit(sink, &event);
+        }
+        result
+    }
+
+    /// Reset diagnostics use the actual returned completion, without new dispatch.
+    pub fn reset_with_trace(
+        &mut self,
+        confidence: CognitiveSignal,
+        sink: &mut impl crate::cognitive_trace::ArcAgi3CognitiveTraceSink,
+    ) -> Result<ArcAgi3CognitiveInteractionCompletion, ArcAgi3LiveEnvironmentError> {
+        use crate::cognitive_trace::{
+            emit, ArcAgi3CognitiveTraceEvent as Event, ArcAgi3TraceObservation,
+            ArcAgi3TraceOperation, ArcAgi3TraceOutcome,
+        };
+        let before = ArcAgi3TraceObservation::from(self.cognitive_runtime.observation());
+        let result = self.reset(confidence);
+        let event = match &result {
+            Ok(completion) => Some(Event::Reset {
+                completed_cognitive_step_count: self.completed_cognitive_step_count,
+                completed_reset_count: self.completed_reset_count,
+                outcome: ArcAgi3TraceOutcome::new(&before, completion),
+                before,
+                command_action: completion.turn().action().into(),
+            }),
+            Err(ArcAgi3LiveEnvironmentError::Transport(error)) => Some(Event::TransportFailure {
+                operation: ArcAgi3TraceOperation::Reset,
+                completed_cognitive_step_count: self.completed_cognitive_step_count,
+                before,
+                error_debug: format!("{error:?}"),
+                has_pending_command: self.cognitive_runtime.session().has_pending_command(),
+                pending_command_action: self
+                    .cognitive_runtime
+                    .session()
+                    .pending_action()
+                    .map(Into::into),
+                produced_cognitive_completion: false,
+            }),
+            Err(_) => None,
+        };
+        if let Some(event) = event {
+            emit(sink, &event);
+        }
+        result
+    }
+
     pub fn reset(
         &mut self,
         confidence: CognitiveSignal,
@@ -747,5 +828,376 @@ mod successor_informed_live_dispatch_tests {
             evidence.experiment_observation().action(),
             &expected_cognitive_action,
         );
+    }
+    use crate::cognitive_trace::{
+        ArcAgi3CognitiveTraceEvent as TraceEvent, ArcAgi3CognitiveTraceSink, ArcAgi3JsonlTraceSink,
+        ArcAgi3TraceObservation, ArcAgi3TraceStructure,
+    };
+
+    #[derive(Default)]
+    struct Collector(Vec<TraceEvent>);
+
+    impl ArcAgi3CognitiveTraceSink for Collector {
+        fn record(&mut self, event: &TraceEvent) -> std::io::Result<()> {
+            self.0.push(event.clone());
+            Ok(())
+        }
+    }
+
+    fn live_runtime(
+        cognition: ArcAgi3CognitiveInteractionRuntime,
+        response: crate::ArcAgi3Observation,
+    ) -> ArcAgi3LiveEnvironmentRuntime<RecordingTransport> {
+        ArcAgi3LiveEnvironmentRuntime {
+            transport: RecordingTransport::new(response),
+            cognitive_runtime: cognition,
+            completed_cognitive_step_count: 0,
+            completed_reset_count: 0,
+            faulted_pending: false,
+            fault_disposition: None,
+        }
+    }
+
+    #[test]
+    fn trace_preserves_exact_successor_authority_completion_and_all_retained_cognition() {
+        let game = "trace-passive-successor";
+        let (cognition, action, cognitive_action, source, possibilities, beliefs) =
+            c16i::fixture(game, 8_300_000).into_live_parts();
+        let response = c16i::live_response(game, 6, Some(action));
+        let before = ArcAgi3TraceObservation::from(cognition.observation());
+        let mut plain = live_runtime(cognition.clone(), response.clone());
+        let mut traced = live_runtime(cognition, response);
+        let goal = c16i::live_goal();
+        let request = ArcAgi3LiveSuccessorInformedUnifiedActionRequest::new(
+            c16i::live_request(&[], &goal, &possibilities, &beliefs),
+            signal(900),
+        );
+        let selected = plain
+            .cognitive_runtime()
+            .current_successor_informed_unified_executive_authority(request.executive_request())
+            .expect("real fixture selects an M48 authority");
+        let plain_step = plain
+            .execute_successor_informed_unified(request)
+            .unwrap()
+            .unwrap();
+        let mut sink = Collector::default();
+        let traced_step = traced
+            .execute_successor_informed_unified_with_trace(request, &mut sink)
+            .unwrap()
+            .unwrap();
+        assert_eq!(plain_step, traced_step);
+        assert_eq!(traced_step.authority(), &selected);
+        assert_eq!(plain.transport().execute_count(), 1);
+        assert_eq!(traced.transport().execute_count(), 1);
+        assert_eq!(plain.cognitive_runtime(), traced.cognitive_runtime());
+        assert_eq!(
+            plain.completed_cognitive_step_count(),
+            traced.completed_cognitive_step_count()
+        );
+        assert_eq!(sink.0.len(), 1);
+        let TraceEvent::Executed {
+            authority,
+            command_action,
+            outcome,
+            completed_cognitive_step_count,
+            before: recorded_before,
+        } = &sink.0[0]
+        else {
+            panic!("expected execution");
+        };
+        assert_eq!(recorded_before, &before);
+        assert_eq!(*completed_cognitive_step_count, 1);
+        assert_eq!(authority.selected_action, action.into());
+        assert_eq!(*command_action, traced_step.command().action().into());
+        assert_eq!(
+            authority.cognitive_action,
+            ArcAgi3TraceStructure::from(&cognitive_action)
+        );
+        assert_eq!(authority.source_state, ArcAgi3TraceStructure::from(&source));
+        assert_eq!(
+            authority.source_state,
+            ArcAgi3TraceStructure::from(selected.source_state())
+        );
+        assert_eq!(
+            authority.cognitive_action,
+            ArcAgi3TraceStructure::from(selected.cognitive_action())
+        );
+        assert_eq!(outcome.observed_action_echo, Some(action.into()));
+        assert_eq!(
+            outcome.observation,
+            ArcAgi3TraceObservation::from(traced.cognitive_runtime().observation())
+        );
+        assert_eq!(outcome.structurally_changed, before != outcome.observation);
+        assert!(outcome.produced_cognitive_completion);
+        assert!(outcome.has_cognitive_feedback);
+
+        // Repeating selection on identical retained state cannot acquire a diagnostic candidate.
+        assert_eq!(
+            plain
+                .cognitive_runtime()
+                .current_successor_informed_unified_executive_authority(
+                    request.executive_request()
+                ),
+            traced
+                .cognitive_runtime()
+                .current_successor_informed_unified_executive_authority(
+                    request.executive_request()
+                )
+        );
+        assert_jsonl_round_trip(&sink.0[0]);
+    }
+
+    fn assert_jsonl_round_trip(event: &TraceEvent) {
+        let mut sink = ArcAgi3JsonlTraceSink::new(Vec::new());
+        sink.record(event).unwrap();
+        sink.record(event).unwrap();
+        let text = String::from_utf8(sink.writer).unwrap();
+        let lines: Vec<_> = text.lines().collect();
+        assert_eq!(lines.len(), 2);
+        assert_eq!(lines[0], lines[1]);
+        let decoded: TraceEvent = serde_json::from_str(lines[0]).unwrap();
+        assert_eq!(&decoded, event);
+        let mut encoded = Vec::new();
+        decoded.write_jsonl(&mut encoded).unwrap();
+        assert_eq!(encoded, format!("{}\n", lines[0]).as_bytes());
+    }
+
+    #[test]
+    fn trace_abstention_cannot_create_an_action_or_mutate_cognition() {
+        let game = "trace-abstention";
+        let (cognition, _, _, _, _, _) = c16i::fixture(game, 8_300_000).into_live_parts();
+        let snapshot = cognition.clone();
+        let response = c16i::live_response(game, 6, None);
+        let mut plain = live_runtime(cognition.clone(), response.clone());
+        let mut traced = live_runtime(cognition, response);
+        let goal = c16i::live_goal();
+        let request = ArcAgi3LiveSuccessorInformedUnifiedActionRequest::new(
+            c16i::live_request(&[], &goal, &[], &[]),
+            signal(900),
+        );
+        let mut sink = Collector::default();
+        assert_eq!(
+            plain.execute_successor_informed_unified(request).unwrap(),
+            None
+        );
+        assert_eq!(
+            traced
+                .execute_successor_informed_unified_with_trace(request, &mut sink)
+                .unwrap(),
+            None
+        );
+        assert_eq!(plain.transport().execute_count(), 0);
+        assert_eq!(traced.transport().execute_count(), 0);
+        assert_eq!(plain.cognitive_runtime(), &snapshot);
+        assert_eq!(traced.cognitive_runtime(), &snapshot);
+        assert!(!traced.cognitive_runtime().session().has_pending_command());
+        assert_eq!(traced.completed_cognitive_step_count(), 0);
+        assert_eq!(sink.0.len(), 1);
+        assert!(matches!(sink.0[0], TraceEvent::Abstained { .. }));
+        let json = serde_json::to_value(&sink.0[0]).unwrap();
+        let keys: Vec<_> = json
+            .as_object()
+            .unwrap()
+            .keys()
+            .map(String::as_str)
+            .collect();
+        assert_eq!(
+            keys,
+            vec!["before", "completed_cognitive_step_count", "event"]
+        );
+        assert_jsonl_round_trip(&sink.0[0]);
+    }
+
+    #[test]
+    fn trace_reset_and_transport_failure_preserve_results_and_state() {
+        for reset in [false, true] {
+            for fail in [false, true] {
+                let game = "trace-reset-failure";
+                let (cognition, action, _, _, possibilities, beliefs) =
+                    c16i::fixture(game, 8_300_000).into_live_parts();
+                let response = c16i::live_response(
+                    game,
+                    6,
+                    Some(if reset {
+                        ArcAgi3Action::reset()
+                    } else {
+                        action
+                    }),
+                );
+                let mut plain = live_runtime(cognition.clone(), response.clone());
+                let mut traced = live_runtime(cognition, response);
+                if fail {
+                    for runtime in [&mut plain, &mut traced] {
+                        *runtime.transport.responses.borrow_mut() =
+                            VecDeque::from([Err(ArcAgi3TransportError::HttpTransport {
+                                message: "fixture transport failed".into(),
+                                disposition:
+                                    ArcAgi3TransportFailureDisposition::DispatchIndeterminate,
+                            })]);
+                    }
+                }
+                let mut sink = Collector::default();
+                if reset {
+                    assert_eq!(
+                        plain.reset(signal(900)),
+                        traced.reset_with_trace(signal(900), &mut sink)
+                    );
+                } else {
+                    let goal = c16i::live_goal();
+                    let request = ArcAgi3LiveSuccessorInformedUnifiedActionRequest::new(
+                        c16i::live_request(&[], &goal, &possibilities, &beliefs),
+                        signal(900),
+                    );
+                    assert_eq!(
+                        plain.execute_successor_informed_unified(request),
+                        traced.execute_successor_informed_unified_with_trace(request, &mut sink)
+                    );
+                }
+                assert_eq!(plain.transport().execute_count(), 1);
+                assert_eq!(traced.transport().execute_count(), 1);
+                assert_eq!(plain.cognitive_runtime(), traced.cognitive_runtime());
+                assert_eq!(plain.status(), traced.status());
+                assert_eq!(plain.fault_disposition(), traced.fault_disposition());
+                assert_eq!(
+                    plain.completed_reset_count(),
+                    traced.completed_reset_count()
+                );
+                assert_eq!(
+                    plain.completed_cognitive_step_count(),
+                    traced.completed_cognitive_step_count()
+                );
+                assert_eq!(sink.0.len(), 1);
+                if fail {
+                    let TraceEvent::TransportFailure {
+                        has_pending_command,
+                        pending_command_action,
+                        produced_cognitive_completion,
+                        error_debug,
+                        ..
+                    } = &sink.0[0]
+                    else {
+                        panic!("expected transport failure");
+                    };
+                    assert!(*has_pending_command);
+                    assert!(!produced_cognitive_completion);
+                    assert_eq!(
+                        *pending_command_action,
+                        Some(
+                            (if reset {
+                                ArcAgi3Action::reset()
+                            } else {
+                                action
+                            })
+                            .into()
+                        )
+                    );
+                    assert!(error_debug.contains("DispatchIndeterminate"));
+                } else if reset {
+                    assert!(matches!(
+                        sink.0[0],
+                        TraceEvent::Reset {
+                            completed_reset_count: 1,
+                            ..
+                        }
+                    ));
+                }
+                assert_jsonl_round_trip(&sink.0[0]);
+            }
+        }
+    }
+
+    #[test]
+    fn trace_sink_errors_and_unwinding_panics_cannot_change_execution() {
+        struct BrokenSink(bool);
+        impl ArcAgi3CognitiveTraceSink for BrokenSink {
+            fn record(&mut self, _: &TraceEvent) -> std::io::Result<()> {
+                if self.0 {
+                    panic!("diagnostic sink panic");
+                }
+                Err(std::io::Error::other("diagnostic sink error"))
+            }
+        }
+        for panic in [false, true] {
+            let game = "trace-broken-sink";
+            let (cognition, action, _, _, possibilities, beliefs) =
+                c16i::fixture(game, 8_300_000).into_live_parts();
+            let response = c16i::live_response(game, 6, Some(action));
+            let mut plain = live_runtime(cognition.clone(), response.clone());
+            let mut traced = live_runtime(cognition, response);
+            let goal = c16i::live_goal();
+            let request = ArcAgi3LiveSuccessorInformedUnifiedActionRequest::new(
+                c16i::live_request(&[], &goal, &possibilities, &beliefs),
+                signal(900),
+            );
+            assert_eq!(
+                plain.execute_successor_informed_unified(request),
+                traced
+                    .execute_successor_informed_unified_with_trace(request, &mut BrokenSink(panic))
+            );
+            assert_eq!(plain.cognitive_runtime(), traced.cognitive_runtime());
+            assert_eq!(traced.transport().execute_count(), 1);
+        }
+    }
+    #[test]
+    fn trace_reports_unchanged_observations_and_exact_terminal_states() {
+        for state in [
+            ArcAgi3GameState::NotFinished,
+            ArcAgi3GameState::Win,
+            ArcAgi3GameState::GameOver,
+        ] {
+            let game = "trace-terminal";
+            let (cognition, action, _, _, possibilities, beliefs) =
+                c16i::fixture(game, 8_300_000).into_live_parts();
+            let before = cognition.observation();
+            let response = crate::ArcAgi3Observation::new(
+                before.game_id().clone(),
+                state,
+                before.frames().clone(),
+                before.levels_completed(),
+                before.win_levels(),
+                before.available_actions().clone(),
+                Some(action),
+            );
+            let mut plain = live_runtime(cognition.clone(), response.clone());
+            let mut traced = live_runtime(cognition, response);
+            let goal = c16i::live_goal();
+            let request = ArcAgi3LiveSuccessorInformedUnifiedActionRequest::new(
+                c16i::live_request(&[], &goal, &possibilities, &beliefs),
+                signal(900),
+            );
+            let mut sink = Collector::default();
+            let expected = plain
+                .execute_successor_informed_unified(request)
+                .unwrap()
+                .unwrap();
+            let actual = traced
+                .execute_successor_informed_unified_with_trace(request, &mut sink)
+                .unwrap()
+                .unwrap();
+            assert_eq!(actual, expected);
+            assert_eq!(plain.cognitive_runtime(), traced.cognitive_runtime());
+            let TraceEvent::Executed { outcome, .. } = &sink.0[0] else {
+                panic!("expected executed");
+            };
+            assert_eq!(outcome.observation.state, state.into());
+            assert_eq!(
+                outcome.structurally_changed,
+                state != ArcAgi3GameState::NotFinished
+            );
+            assert_jsonl_round_trip(&sink.0[0]);
+            if state.is_terminal() {
+                let count = sink.0.len();
+                assert_eq!(
+                    plain.execute_successor_informed_unified(request),
+                    traced.execute_successor_informed_unified_with_trace(request, &mut sink)
+                );
+                assert_eq!(
+                    sink.0.len(),
+                    count,
+                    "precondition errors are not transport failures"
+                );
+                assert_eq!(traced.transport().execute_count(), 1);
+            }
+        }
     }
 }
