@@ -1,0 +1,17 @@
+name: Repository verification
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      # Cargo/rustup reads the version and components from rust-toolchain.toml.
+      - name: Verify all repository manifests
+        run: ./tools/verify_repo.sh
