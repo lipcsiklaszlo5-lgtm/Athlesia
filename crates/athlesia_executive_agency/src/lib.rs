@@ -6061,3 +6061,472 @@ mod b3ca_evidence_faithful_epistemic_m48_tests {
 }
 
 // === ATHLESIA B3C-A EVIDENCE-FAITHFUL EPISTEMIC M48 END ===
+// === ATHLESIA B3D-A IGNORANCE COVERAGE M48 BEGIN ===
+//
+// Generic action coverage under genuine ignorance.
+//
+// This selector is used only when stronger learned authority is absent.
+//
+// It does NOT claim:
+//
+// - expected information gain;
+// - predicted outcome;
+// - probability;
+// - confidence;
+// - utility;
+// - controllability;
+// - reward;
+// - execution cost;
+// - causal value.
+//
+// The only empirical quantity is:
+//
+// exact_source_action_sample_count
+//
+// meaning:
+//
+// how many independently retained real transitions were produced by
+// executing this exact action from this exact grounded source
+// representation.
+//
+// Selection rule:
+//
+// 1. prefer fewer exact source/action samples;
+// 2. break a complete tie only by deterministic structural action identity.
+//
+// This is coverage, not value estimation.
+//
+// An untried intervention is preferred over repeating an already sampled
+// intervention because doing so expands empirical action coverage without
+// pretending to know which action is better.
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct GroundedIgnoranceExplorationCandidate {
+    source_state: CognitiveStructure,
+    action: CognitiveStructure,
+    exact_source_action_sample_count: usize,
+}
+
+impl GroundedIgnoranceExplorationCandidate {
+    pub fn new(
+        source_state: CognitiveStructure,
+        action: CognitiveStructure,
+        exact_source_action_sample_count: usize,
+    ) -> Self {
+        Self {
+            source_state,
+            action,
+            exact_source_action_sample_count,
+        }
+    }
+
+    pub fn source_state(&self) -> &CognitiveStructure {
+        &self.source_state
+    }
+
+    pub fn action(&self) -> &CognitiveStructure {
+        &self.action
+    }
+
+    pub fn exact_source_action_sample_count(&self) -> usize {
+        self.exact_source_action_sample_count
+    }
+
+    pub fn untried_in_exact_source_state(&self) -> bool {
+        self.exact_source_action_sample_count == 0
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub struct IgnoranceExplorationSelectionPolicy {
+    max_candidates: usize,
+}
+
+impl IgnoranceExplorationSelectionPolicy {
+    pub fn new(max_candidates: usize) -> Option<Self> {
+        if max_candidates == 0 {
+            return None;
+        }
+
+        Some(Self { max_candidates })
+    }
+
+    pub fn max_candidates(self) -> usize {
+        self.max_candidates
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub enum IgnoranceExplorationSelectionStatus {
+    Selected,
+    NoCandidate,
+    CandidateFrontierExceeded,
+    SourceStateMismatch,
+    ConflictingActionIdentity,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct IgnoranceExplorationSelectionResult {
+    status: IgnoranceExplorationSelectionStatus,
+    input_candidate_count: usize,
+    unique_candidate_count: usize,
+    selected: Option<GroundedIgnoranceExplorationCandidate>,
+}
+
+impl IgnoranceExplorationSelectionResult {
+    fn rejected(
+        status: IgnoranceExplorationSelectionStatus,
+        input_candidate_count: usize,
+        unique_candidate_count: usize,
+    ) -> Self {
+        Self {
+            status,
+            input_candidate_count,
+            unique_candidate_count,
+            selected: None,
+        }
+    }
+
+    pub fn status(&self) -> IgnoranceExplorationSelectionStatus {
+        self.status
+    }
+
+    pub fn input_candidate_count(&self) -> usize {
+        self.input_candidate_count
+    }
+
+    pub fn unique_candidate_count(&self) -> usize {
+        self.unique_candidate_count
+    }
+
+    pub fn selected_candidate(&self) -> Option<&GroundedIgnoranceExplorationCandidate> {
+        self.selected.as_ref()
+    }
+
+    pub fn selected(&self) -> bool {
+        self.status == IgnoranceExplorationSelectionStatus::Selected
+    }
+
+    pub fn abstained(&self) -> bool {
+        !self.selected()
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, Hash, PartialEq)]
+pub struct IgnoranceExplorationAgency;
+
+impl IgnoranceExplorationAgency {
+    pub fn select(
+        candidates: &[GroundedIgnoranceExplorationCandidate],
+        policy: IgnoranceExplorationSelectionPolicy,
+    ) -> IgnoranceExplorationSelectionResult {
+        let input_candidate_count = candidates.len();
+
+        if candidates.is_empty() {
+            return IgnoranceExplorationSelectionResult::rejected(
+                IgnoranceExplorationSelectionStatus::NoCandidate,
+                0,
+                0,
+            );
+        }
+
+        /*
+         * Never silently truncate an ignorance frontier.
+         *
+         * Truncation would make an arbitrary host ordering become
+         * hidden action-selection authority.
+         */
+        if input_candidate_count > policy.max_candidates() {
+            return IgnoranceExplorationSelectionResult::rejected(
+                IgnoranceExplorationSelectionStatus::CandidateFrontierExceeded,
+                input_candidate_count,
+                0,
+            );
+        }
+
+        let expected_source_state = candidates[0].source_state();
+
+        if candidates
+            .iter()
+            .any(|candidate| candidate.source_state() != expected_source_state)
+        {
+            return IgnoranceExplorationSelectionResult::rejected(
+                IgnoranceExplorationSelectionStatus::SourceStateMismatch,
+                input_candidate_count,
+                0,
+            );
+        }
+
+        /*
+         * Canonicalize first so duplicate handling and final
+         * tie-breaking do not depend on caller order.
+         */
+        let mut canonical = candidates.to_vec();
+
+        canonical.sort_by(|left, right| {
+            format!("{:?}", left.action())
+                .cmp(&format!("{:?}", right.action()))
+                .then_with(|| {
+                    left.exact_source_action_sample_count()
+                        .cmp(&right.exact_source_action_sample_count())
+                })
+        });
+
+        let mut unique = Vec::<GroundedIgnoranceExplorationCandidate>::new();
+
+        for candidate in canonical {
+            if let Some(existing) = unique
+                .iter()
+                .find(|existing| existing.action() == candidate.action())
+            {
+                /*
+                 * Exact duplicate evidence is harmless.
+                 *
+                 * Same action with a different empirical count is a
+                 * provenance/evidence contradiction. Never average or
+                 * arbitrarily choose one.
+                 */
+                if existing != &candidate {
+                    return IgnoranceExplorationSelectionResult::rejected(
+                        IgnoranceExplorationSelectionStatus::ConflictingActionIdentity,
+                        input_candidate_count,
+                        unique.len(),
+                    );
+                }
+
+                continue;
+            }
+
+            unique.push(candidate);
+        }
+
+        let unique_candidate_count = unique.len();
+
+        /*
+         * Primary priority:
+         *
+         * fewer exact source/action interventions first.
+         *
+         * Final complete tie:
+         *
+         * deterministic structural action identity.
+         *
+         * Structural ordering breaks symmetry only. It does NOT
+         * assign semantic value to an action.
+         */
+        unique.sort_by(|left, right| {
+            left.exact_source_action_sample_count()
+                .cmp(&right.exact_source_action_sample_count())
+                .then_with(|| format!("{:?}", left.action()).cmp(&format!("{:?}", right.action())))
+        });
+
+        IgnoranceExplorationSelectionResult {
+            status: IgnoranceExplorationSelectionStatus::Selected,
+            input_candidate_count,
+            unique_candidate_count,
+            selected: unique.first().cloned(),
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, Hash, PartialEq)]
+pub struct UniversalIgnoranceExplorationAgency;
+
+impl UniversalIgnoranceExplorationAgency {
+    pub fn evaluate(
+        candidates: &[GroundedIgnoranceExplorationCandidate],
+        policy: IgnoranceExplorationSelectionPolicy,
+    ) -> IgnoranceExplorationSelectionResult {
+        IgnoranceExplorationAgency::select(candidates, policy)
+    }
+}
+
+#[cfg(test)]
+mod b3da_ignorance_coverage_m48_tests {
+    use super::*;
+
+    fn a(value: u64) -> CognitiveStructure {
+        CognitiveStructure::atom(value)
+    }
+
+    fn candidate(
+        source: u64,
+        action: u64,
+        samples: usize,
+    ) -> GroundedIgnoranceExplorationCandidate {
+        GroundedIgnoranceExplorationCandidate::new(a(source), a(action), samples)
+    }
+
+    fn policy(max_candidates: usize) -> IgnoranceExplorationSelectionPolicy {
+        IgnoranceExplorationSelectionPolicy::new(max_candidates).expect("positive test frontier")
+    }
+
+    #[test]
+    fn candidate_preserves_only_exact_coverage_evidence() {
+        let value = candidate(1, 10, 0);
+
+        assert_eq!(value.source_state(), &a(1),);
+
+        assert_eq!(value.action(), &a(10),);
+
+        assert_eq!(value.exact_source_action_sample_count(), 0,);
+
+        assert!(value.untried_in_exact_source_state(),);
+    }
+
+    #[test]
+    fn untried_action_beats_previously_sampled_action() {
+        let sampled = candidate(1, 10, 1);
+
+        let untried = candidate(1, 20, 0);
+
+        let result = IgnoranceExplorationAgency::select(&[sampled, untried.clone()], policy(8));
+
+        assert_eq!(result.selected_candidate(), Some(&untried),);
+    }
+
+    #[test]
+    fn lower_exact_sample_count_wins_after_all_actions_are_tried() {
+        let often = candidate(1, 10, 7);
+
+        let less = candidate(1, 20, 2);
+
+        let result = IgnoranceExplorationAgency::select(&[often, less.clone()], policy(8));
+
+        assert_eq!(result.selected_candidate(), Some(&less),);
+    }
+
+    #[test]
+    fn complete_coverage_tie_uses_only_structural_action_order() {
+        let left = candidate(1, 10, 0);
+
+        let right = candidate(1, 20, 0);
+
+        let expected = if format!("{:?}", left.action()) <= format!("{:?}", right.action()) {
+            left.clone()
+        } else {
+            right.clone()
+        };
+
+        let first = IgnoranceExplorationAgency::select(&[right.clone(), left.clone()], policy(8));
+
+        let second = IgnoranceExplorationAgency::select(&[left, right], policy(8));
+
+        assert_eq!(first.selected_candidate(), Some(&expected),);
+
+        assert_eq!(first, second);
+    }
+
+    #[test]
+    fn exact_duplicates_are_deduplicated() {
+        let value = candidate(1, 10, 3);
+
+        let result = IgnoranceExplorationAgency::select(&[value.clone(), value.clone()], policy(8));
+
+        assert_eq!(result.input_candidate_count(), 2,);
+
+        assert_eq!(result.unique_candidate_count(), 1,);
+
+        assert_eq!(result.selected_candidate(), Some(&value),);
+    }
+
+    #[test]
+    fn conflicting_count_for_same_action_fails_closed() {
+        let first = candidate(1, 10, 1);
+
+        let conflict = candidate(1, 10, 2);
+
+        let result = IgnoranceExplorationAgency::select(&[first, conflict], policy(8));
+
+        assert_eq!(
+            result.status(),
+            IgnoranceExplorationSelectionStatus::ConflictingActionIdentity,
+        );
+
+        assert!(result.selected_candidate().is_none(),);
+    }
+
+    #[test]
+    fn source_state_mismatch_fails_closed() {
+        let first = candidate(1, 10, 0);
+
+        let second = candidate(2, 20, 0);
+
+        let result = IgnoranceExplorationAgency::select(&[first, second], policy(8));
+
+        assert_eq!(
+            result.status(),
+            IgnoranceExplorationSelectionStatus::SourceStateMismatch,
+        );
+
+        assert!(result.selected_candidate().is_none(),);
+    }
+
+    #[test]
+    fn frontier_exceeded_fails_closed_without_truncation() {
+        let result = IgnoranceExplorationAgency::select(
+            &[candidate(1, 10, 0), candidate(1, 20, 0)],
+            policy(1),
+        );
+
+        assert_eq!(
+            result.status(),
+            IgnoranceExplorationSelectionStatus::CandidateFrontierExceeded,
+        );
+
+        assert_eq!(result.input_candidate_count(), 2,);
+
+        assert_eq!(result.unique_candidate_count(), 0,);
+
+        assert!(result.selected_candidate().is_none(),);
+    }
+
+    #[test]
+    fn empty_frontier_is_legitimate_abstention() {
+        let result = IgnoranceExplorationAgency::select(&[], policy(8));
+
+        assert_eq!(
+            result.status(),
+            IgnoranceExplorationSelectionStatus::NoCandidate,
+        );
+
+        assert!(result.abstained());
+
+        assert!(result.selected_candidate().is_none(),);
+    }
+
+    #[test]
+    fn selected_candidate_preserves_full_input_identity() {
+        let weaker = candidate(7, 10, 5);
+
+        let winner = candidate(7, 20, 1);
+
+        let result = IgnoranceExplorationAgency::select(&[weaker, winner.clone()], policy(8));
+
+        assert_eq!(result.selected_candidate(), Some(&winner),);
+
+        let selected = result.selected_candidate().unwrap();
+
+        assert_eq!(selected.source_state(), winner.source_state(),);
+
+        assert_eq!(selected.action(), winner.action(),);
+
+        assert_eq!(
+            selected.exact_source_action_sample_count(),
+            winner.exact_source_action_sample_count(),
+        );
+    }
+
+    #[test]
+    fn huge_sample_count_is_evidence_not_overflowing_score() {
+        let saturated = candidate(1, 10, usize::MAX);
+
+        let smaller = candidate(1, 20, usize::MAX - 1);
+
+        let result = IgnoranceExplorationAgency::select(&[saturated, smaller.clone()], policy(8));
+
+        assert_eq!(result.selected_candidate(), Some(&smaller),);
+    }
+}
+
+// === ATHLESIA B3D-A IGNORANCE COVERAGE M48 END ===
