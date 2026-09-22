@@ -894,6 +894,271 @@ fn b4b4_strict_grounding_disables_bootstrap_authority_even_when_global_coverage_
 }
 
 #[test]
+fn b4b5_real_production_bootstrap_autonomously_reaches_strict_grounding_and_hands_off() {
+    fn groundable_observation(
+        game: &str,
+        value: u8,
+        available: Vec<ArcAgi3ActionId>,
+    ) -> ArcAgi3Observation {
+        /*
+         * Same deliberately simple visual structure used by the
+         * established C16I grounding regressions:
+         *
+         *     value value
+         *       8     9
+         *
+         * Only raw protocol-visible pixels are supplied.
+         * No object, scene or world-state annotation enters here.
+         */
+        ArcAgi3Observation::new(
+            ArcAgi3GameId::new(game.to_string()).unwrap(),
+            ArcAgi3GameState::NotFinished,
+            ArcAgi3FrameSequence::new(vec![ArcAgi3Grid::from_rows(vec![
+                vec![value, value],
+                vec![8, 9],
+            ])
+            .unwrap()])
+            .unwrap(),
+            0,
+            3,
+            ArcAgi3AvailableActions::new(available).unwrap(),
+            /*
+             * Deliberately omit environment action echo.
+             *
+             * Self-generated provenance still comes from the exact
+             * pending unified executive command. The fixture therefore
+             * does not need to know in advance which action M48 chose.
+             */
+            None,
+        )
+    }
+
+    let game_name = "b4b5-autonomous-grounding";
+
+    let game_id = ArcAgi3GameId::new(game_name.to_string()).unwrap();
+
+    let available = vec![ArcAgi3ActionId::Action2, ArcAgi3ActionId::Action1];
+
+    let initial = groundable_observation(game_name, 1, available.clone());
+
+    /*
+     * Reproduce the perceptual evidence progression used by the
+     * established mature-runtime fixture, but this time every action
+     * is selected by the real production authority path.
+     *
+     * Extra post-maturation observations give the live runtime room
+     * to execute after strict grounding has appeared.
+     */
+    let values = [2_u8, 3, 4, 5, 5, 6, 6, 5, 5, 6, 6, 5, 6, 5];
+
+    let responses = values
+        .into_iter()
+        .map(|value| groundable_observation(game_name, value, available.clone()))
+        .collect::<Vec<_>>();
+
+    let mut session = ArcAgi3CompetitionSession::open(
+        B4b2ScorecardTransport::new("b4b5-card-autonomous-grounding"),
+        &metadata(),
+    )
+    .unwrap();
+
+    let environment = B4b2EnvironmentTransport::new(initial, responses);
+
+    let mut game = session
+        .start_game(environment, &game_id, 10_000_000)
+        .unwrap();
+
+    /*
+     * This must be a genuine zero-history start.
+     */
+    assert!(
+        game.runtime()
+            .cognitive_runtime()
+            .current_grounded_world_state()
+            .is_none(),
+        "B4B5 must begin without fabricated strict B0 grounding",
+    );
+
+    assert_eq!(
+        game.runtime()
+            .cognitive_runtime()
+            .cognition()
+            .bootstrap_action_coverage_event_count(),
+        0,
+    );
+
+    assert_eq!(
+        game.runtime()
+            .cognitive_runtime()
+            .cognition()
+            .transition_episode_count(),
+        0,
+    );
+
+    let goal = c16i::live_goal();
+
+    let mut trace = B4b2TraceCollector::default();
+
+    let result = game
+        .run_production_successor_bounded_with_trace(
+            ArcAgi3SuccessorEpisodePolicy::new(14, 14).unwrap(),
+            production_policy(&goal),
+            &mut trace,
+        )
+        .unwrap();
+
+    assert_eq!(
+        result.termination(),
+        ArcAgi3SuccessorEpisodeTermination::DecisionBudgetExhausted,
+        "non-terminal fixture must finish only because the explicit decision budget is exhausted",
+    );
+
+    assert_eq!(result.decision_attempts(), 14,);
+
+    /*
+     * This fixture is deliberately designed to remain actionable
+     * throughout. An unexplained abstention would hide whether the
+     * autonomous handoff itself works.
+     */
+    assert_eq!(
+        result.executed_steps(),
+        14,
+        "every bounded production decision must become one real intervention in this fixture",
+    );
+
+    assert_eq!(
+        result.abstentions(),
+        0,
+        "autonomous grounding fixture must not rely on abstention to cross the authority boundary",
+    );
+
+    assert_eq!(game.runtime().transport().execute_count(), 14,);
+
+    /*
+     * Critical result #1:
+     *
+     * production interaction alone must have accumulated enough
+     * perceptual evidence for strict B0 grounding.
+     */
+    assert!(
+        game.runtime()
+            .cognitive_runtime()
+            .current_grounded_world_state()
+            .is_some(),
+        "real production bootstrap interaction must autonomously produce strict B0 grounding",
+    );
+
+    /*
+     * Extract only executed authority kinds.
+     */
+    let executed_kinds = trace
+        .0
+        .iter()
+        .filter_map(|event| match event {
+            ArcAgi3CognitiveTraceEvent::Executed { authority, .. } => Some(authority.kind),
+
+            _ => None,
+        })
+        .collect::<Vec<_>>();
+
+    assert_eq!(executed_kinds.len(), 14,);
+
+    assert_eq!(
+        executed_kinds.first(),
+        Some(&ArcAgi3TraceAuthorityKind::BootstrapIgnoranceExploration,),
+        "the first real decision must use explicit pre-grounding bootstrap authority",
+    );
+
+    let first_grounded_authority = executed_kinds
+        .iter()
+        .position(|kind| *kind != ArcAgi3TraceAuthorityKind::BootstrapIgnoranceExploration)
+        .expect("production loop must eventually leave bootstrap authority");
+
+    assert!(
+        first_grounded_authority > 0,
+        "handoff cannot occur before at least one real bootstrap intervention",
+    );
+
+    /*
+     * Once this stable fixture reaches strict grounding, bootstrap must
+     * not reappear. That would indicate authority oscillation or leaked
+     * pre-grounding policy.
+     */
+    assert!(
+        executed_kinds[
+            first_grounded_authority..
+        ]
+        .iter()
+        .all(
+            |kind| {
+                *kind
+                    != ArcAgi3TraceAuthorityKind::
+                        BootstrapIgnoranceExploration
+            },
+        ),
+        "bootstrap authority must not reappear after autonomous strict grounding in the stable fixture",
+    );
+
+    let bootstrap_execution_count = executed_kinds
+        .iter()
+        .filter(|kind| **kind == ArcAgi3TraceAuthorityKind::BootstrapIgnoranceExploration)
+        .count();
+
+    assert!(bootstrap_execution_count > 0,);
+
+    assert!(
+        bootstrap_execution_count < 14,
+        "the episode must contain both bootstrap and post-grounding decisions",
+    );
+
+    /*
+     * Critical result #2:
+     *
+     * only pre-grounding actions enter the GLOBAL bootstrap coverage
+     * owner. Grounded actions must not continue incrementing it.
+     */
+    assert_eq!(
+        game.runtime()
+            .cognitive_runtime()
+            .cognition()
+            .bootstrap_action_coverage_event_count(),
+        bootstrap_execution_count,
+        "global bootstrap coverage must stop growing exactly when bootstrap authority ends",
+    );
+
+    /*
+     * Critical result #3:
+     *
+     * after the handoff there is enough strict scene continuity for
+     * the normal M47 grounded transition-learning path to begin
+     * retaining real transformation episodes.
+     */
+    assert!(
+        game.runtime()
+            .cognitive_runtime()
+            .cognition()
+            .transition_episode_count()
+            > 0,
+        "autonomous bootstrap -> B0 handoff must reach real grounded transition learning",
+    );
+
+    /*
+     * We did not fabricate terminal state or mutate competition
+     * lifecycle while proving cognition behavior.
+     */
+    assert_eq!(
+        result.final_status(),
+        crate::live_environment_runtime::ArcAgi3LiveEnvironmentStatus::Active,
+    );
+
+    let runtime = game.finish();
+
+    assert_eq!(runtime.completed_cognitive_step_count(), 14,);
+
+    assert_eq!(session.status(), ArcAgi3CompetitionSessionStatus::Open,);
+}
+
+#[test]
 fn b4b2_terminal_start_never_invokes_production_callback_or_fake_command() {
     let game_name = "b4b2-terminal-start";
 
