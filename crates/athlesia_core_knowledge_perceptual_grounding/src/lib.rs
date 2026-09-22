@@ -5449,6 +5449,44 @@ impl GroundedPerceptualStateProjectionResult {
 pub struct GroundedPerceptualStateProjector;
 
 impl GroundedPerceptualStateProjector {
+    /// Evidence-neutral projection of facts that are directly present in
+    /// one perceptual frame.
+    ///
+    /// This is intentionally weaker than scene grounding:
+    ///
+    /// - no ObjectHypothesis is created;
+    /// - no SceneInterpretation is created;
+    /// - no persistence/common-change evidence is invented;
+    /// - no grouping or causal semantics are assigned.
+    ///
+    /// It exists only so a system with zero temporal history can retain an
+    /// exact structural identity for what was literally observed.
+    pub fn directly_observed_frame_facts(
+        frame: &PerceptualFrame,
+        excluded_handles: &[PerceptualElementHandle],
+    ) -> Option<Vec<CognitiveStructure>> {
+        let mut excluded = excluded_handles.to_vec();
+
+        excluded.sort_unstable();
+        excluded.dedup();
+
+        let mut facts = frame
+            .elements()
+            .iter()
+            .filter(|element| excluded.binary_search(&element.handle()).is_err())
+            .map(|element| element.signature().clone())
+            .collect::<Vec<_>>();
+
+        facts.sort();
+        facts.dedup();
+
+        if facts.is_empty() {
+            return None;
+        }
+
+        Some(facts)
+    }
+
     pub fn unique_selected_scene_facts(
         frame: &PerceptualFrame,
         competition: &SceneCompetitionResult,
@@ -5812,5 +5850,62 @@ mod grounded_perceptual_state_projection_tests {
 
         assert_eq!(first, second);
         assert_eq!(input, before);
+    }
+}
+
+#[cfg(test)]
+mod b4b2_direct_perceptual_bootstrap_tests {
+    use super::*;
+
+    #[test]
+    fn b4b2_direct_frame_facts_preserve_only_observed_nonexcluded_signatures() {
+        let excluded = PerceptualElementHandle::new(1);
+
+        let cell_a = PerceptualElementHandle::new(2);
+
+        let cell_b = PerceptualElementHandle::new(3);
+
+        let frame = PerceptualFrame::new(
+            1,
+            vec![
+                PerceptualElement::new(excluded, CognitiveStructure::atom(100)),
+                PerceptualElement::new(cell_a, CognitiveStructure::atom(200)),
+                PerceptualElement::new(cell_b, CognitiveStructure::atom(300)),
+            ],
+        )
+        .unwrap();
+
+        let facts =
+            GroundedPerceptualStateProjector::directly_observed_frame_facts(&frame, &[excluded])
+                .unwrap();
+
+        assert_eq!(
+            facts,
+            vec![CognitiveStructure::atom(200), CognitiveStructure::atom(300),],
+        );
+
+        assert!(
+            !facts.contains(&CognitiveStructure::atom(100)),
+            "excluded protocol/non-scene handle must never enter bootstrap provenance",
+        );
+    }
+
+    #[test]
+    fn b4b2_direct_frame_facts_fail_closed_when_everything_is_excluded() {
+        let handle = PerceptualElementHandle::new(1);
+
+        let frame = PerceptualFrame::new(
+            1,
+            vec![PerceptualElement::new(
+                handle,
+                CognitiveStructure::atom(100),
+            )],
+        )
+        .unwrap();
+
+        assert_eq!(
+            GroundedPerceptualStateProjector::directly_observed_frame_facts(&frame, &[handle],),
+            None,
+        );
     }
 }

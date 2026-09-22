@@ -12,6 +12,7 @@ use crate::live_environment_runtime::{
     ArcAgi3LiveCognitiveStep, ArcAgi3LiveEnvironmentError, ArcAgi3LiveEnvironmentRuntime,
     ArcAgi3LiveUnifiedStep,
 };
+use crate::production_successor_runtime::ArcAgi3ProductionSuccessorPolicy;
 use crate::successor_episode_runtime::{
     ArcAgi3SuccessorEpisodeError, ArcAgi3SuccessorEpisodePolicy, ArcAgi3SuccessorEpisodeResult,
     ArcAgi3SuccessorEpisodeRuntime,
@@ -816,6 +817,45 @@ where
         ArcAgi3SuccessorEpisodeRuntime::run_with(&mut self.runtime, policy, execute_attempt)
     }
 
+    // B4B2 PRODUCTION COMPETITION RUNNER
+    //
+    // Competition/session lifecycle remains owned here.
+    //
+    // Cognitive action authority is not.
+    //
+    // Each bounded decision attempt delegates to B4B1, which derives the
+    // complete concrete B4A frontier from the LIVE current observation.
+    //
+    // The production caller therefore cannot inject:
+    //
+    // - candidate action lists;
+    // - ACTION6 coordinates;
+    // - hypotheses;
+    // - belief states;
+    // - proposal policies;
+    // - action rankings.
+    pub fn run_production_successor_bounded(
+        &mut self,
+        episode_policy: ArcAgi3SuccessorEpisodePolicy,
+        production_policy: ArcAgi3ProductionSuccessorPolicy<'_>,
+    ) -> Result<ArcAgi3SuccessorEpisodeResult, ArcAgi3SuccessorEpisodeError> {
+        ArcAgi3SuccessorEpisodeRuntime::run_with(&mut self.runtime, episode_policy, |runtime| {
+            runtime.execute_production_evidence_faithful_successor(production_policy)
+        })
+    }
+
+    pub fn run_production_successor_bounded_with_trace(
+        &mut self,
+        episode_policy: ArcAgi3SuccessorEpisodePolicy,
+        production_policy: ArcAgi3ProductionSuccessorPolicy<'_>,
+        sink: &mut impl crate::cognitive_trace::ArcAgi3CognitiveTraceSink,
+    ) -> Result<ArcAgi3SuccessorEpisodeResult, ArcAgi3SuccessorEpisodeError> {
+        ArcAgi3SuccessorEpisodeRuntime::run_with(&mut self.runtime, episode_policy, |runtime| {
+            runtime
+                .execute_production_evidence_faithful_successor_with_trace(production_policy, sink)
+        })
+    }
+
     pub fn finish(self) -> ArcAgi3LiveEnvironmentRuntime<E> {
         self.runtime
     }
@@ -835,3 +875,7 @@ impl UniversalArcAgi3CompetitionSessionRuntime {
         ArcAgi3CompetitionSession::open(scorecard_transport, metadata)
     }
 }
+
+#[cfg(test)]
+#[path = "competition_session_runtime_b4b2_tests.rs"]
+mod b4b2_production_competition_tests;

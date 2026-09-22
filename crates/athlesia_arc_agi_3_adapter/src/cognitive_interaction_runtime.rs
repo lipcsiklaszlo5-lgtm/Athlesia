@@ -589,6 +589,37 @@ impl ArcAgi3CognitiveInteractionRuntime {
             .expect("live executable world-model schema frontier is positive")
     }
 
+    fn current_evidence_neutral_bootstrap_state(
+        &self,
+    ) -> Option<athlesia_universal_domain_learning::GroundedStateSnapshot> {
+        /*
+         * Cold-start provenance only.
+         *
+         * A fresh interactive session may not yet contain enough temporal
+         * evidence to justify one unique scene interpretation.
+         *
+         * That absence must NOT be repaired by fabricating objecthood or a
+         * world model. Instead, retain only the signatures literally present
+         * in the current frame, excluding the ARC geometry protocol handle.
+         *
+         * This representation is allowed only for ignorance exploration.
+         * Exploitation and epistemic learned authority remain gated on the
+         * strict B0 scene-grounded state below.
+         */
+        let facts =
+            athlesia_core_knowledge_perceptual_grounding::
+                GroundedPerceptualStateProjector::
+                    directly_observed_frame_facts(
+                        self.perception.latest_frame(),
+                        &[
+                            ArcAgi3PerceptualIngestionBridge::
+                                geometry_handle(),
+                        ],
+                    )?;
+
+        athlesia_universal_domain_learning::GroundedStateSnapshot::new(facts)
+    }
+
     pub fn current_grounded_world_state(
         &self,
     ) -> Option<athlesia_universal_domain_learning::GroundedStateSnapshot> {
@@ -842,7 +873,63 @@ impl ArcAgi3CognitiveInteractionRuntime {
             ignorance_policy,
         } = request;
 
-        let current_state = self.current_grounded_world_state()?;
+        /*
+         * Encode the concrete protocol frontier only as exact cognitive
+         * action identities.
+         *
+         * No prediction or value semantics are added.
+         */
+        let cognitive_actions = candidate_actions
+            .iter()
+            .copied()
+            .map(crate::cognitive_protocol_bridge::ArcAgi3CognitiveProtocolBridge::encode_action)
+            .collect::<Vec<_>>();
+
+        /*
+         * Normal authority requires the strict B0 scene-grounded state.
+         *
+         * At true cold start, however, the agent has not yet accumulated
+         * enough temporal evidence to justify a unique scene.
+         *
+         * In that exact case ONLY, permit evidence-neutral ignorance
+         * exploration from directly observed perceptual facts.
+         *
+         * No exploitation or epistemic authority is evaluated in this
+         * bootstrap branch because no justified scene/world state exists.
+         */
+        let current_state = match self.current_grounded_world_state() {
+            Some(state) => state,
+
+            None => {
+                let bootstrap_state = self.current_evidence_neutral_bootstrap_state()?;
+
+                let selected = self
+                    .cognition
+                    .current_selected_ignorance_exploration_action(
+                        &bootstrap_state,
+                        &cognitive_actions,
+                        ignorance_policy,
+                    )?;
+
+                /*
+                 * M48 selection is already complete.
+                 *
+                 * ARC contributes only exact protocol authorization.
+                 */
+                let action =
+                    crate::action_grounding_bridge::
+                        ArcAgi3ActionGroundingBridge::
+                            authorize_environment_action(
+                                self.observation(),
+                                selected.action(),
+                            )
+                            .ok()?;
+
+                return Some(ArcAgi3UnifiedExecutiveAuthority::new_ignorance(
+                    action, selected,
+                ));
+            }
+        };
 
         /*
          * Existing model-grounded exploitation remains frozen here.
@@ -874,15 +961,10 @@ impl ArcAgi3CognitiveInteractionRuntime {
             });
 
         /*
-         * Candidate ARC actions become only exact cognitive action
-         * identities. No prediction semantics are added by the adapter.
+         * `cognitive_actions` were encoded once above so the exact same
+         * identities feed either cold-start ignorance or the normal
+         * scene-grounded epistemic/ignorance path.
          */
-        let cognitive_actions = candidate_actions
-            .iter()
-            .copied()
-            .map(crate::cognitive_protocol_bridge::ArcAgi3CognitiveProtocolBridge::encode_action)
-            .collect::<Vec<_>>();
-
         let epistemic_selected = self
             .cognition
             .current_selected_successor_informed_epistemic_action_intent(
