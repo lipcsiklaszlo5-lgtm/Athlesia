@@ -298,6 +298,12 @@ fn b4b2_competition_production_runner_executes_real_terminal_step_and_preserves_
         .cognition()
         .perceptual_temporal_record_count();
 
+    let bootstrap_coverage_before = game
+        .runtime()
+        .cognitive_runtime()
+        .cognition()
+        .bootstrap_action_coverage_event_count();
+
     let mut trace = B4b2TraceCollector::default();
 
     /*
@@ -358,13 +364,22 @@ fn b4b2_competition_production_runner_executes_real_terminal_step_and_preserves_
         "the real bootstrap intervention must retain real cross-frame perceptual evidence",
     );
 
+    assert_eq!(
+        game.runtime()
+            .cognitive_runtime()
+            .cognition()
+            .bootstrap_action_coverage_event_count(),
+        bootstrap_coverage_before + 1,
+        "a real bootstrap intervention must become one retained global action-coverage event",
+    );
+
     assert_eq!(trace.0.len(), 1);
 
     match &trace.0[0] {
         ArcAgi3CognitiveTraceEvent::Executed { authority, .. } => {
             assert_eq!(
                 authority.kind,
-                ArcAgi3TraceAuthorityKind::IgnoranceExploration,
+                ArcAgi3TraceAuthorityKind::BootstrapIgnoranceExploration,
             );
         }
 

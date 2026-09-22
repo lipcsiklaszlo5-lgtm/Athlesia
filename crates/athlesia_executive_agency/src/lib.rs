@@ -6530,3 +6530,352 @@ mod b3da_ignorance_coverage_m48_tests {
 }
 
 // === ATHLESIA B3D-A IGNORANCE COVERAGE M48 END ===
+// === ATHLESIA B4A.5-A ABSOLUTE BOOTSTRAP COVERAGE M48 BEGIN ===
+//
+// Absolute cold-start action coverage.
+//
+// This contract exists specifically for the period BEFORE a grounded world
+// representation exists.
+//
+// `observation_identity` is exact current observation provenance. It is NOT a
+// GroundedStateSnapshot and MUST NOT be interpreted as learned world state.
+//
+// `global_action_sample_count` means only:
+//
+//     how many independently retained real self-generated interaction events
+//     have executed this exact action identity.
+//
+// It does NOT mean:
+//
+// - expected outcome;
+// - information gain;
+// - confidence;
+// - probability;
+// - utility;
+// - controllability;
+// - reward;
+// - causal value;
+// - grounded-state support.
+//
+// Selection expands intervention coverage only:
+//
+// 1. prefer lower global real-execution count;
+// 2. complete ties use deterministic structural action ordering.
+//
+// M48 remains the sole final selector.
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct BootstrapIgnoranceExplorationCandidate {
+    observation_identity: CognitiveStructure,
+    action: CognitiveStructure,
+    global_action_sample_count: usize,
+}
+
+impl BootstrapIgnoranceExplorationCandidate {
+    pub fn new(
+        observation_identity: CognitiveStructure,
+        action: CognitiveStructure,
+        global_action_sample_count: usize,
+    ) -> Self {
+        Self {
+            observation_identity,
+            action,
+            global_action_sample_count,
+        }
+    }
+
+    pub fn observation_identity(&self) -> &CognitiveStructure {
+        &self.observation_identity
+    }
+
+    pub fn action(&self) -> &CognitiveStructure {
+        &self.action
+    }
+
+    pub fn global_action_sample_count(&self) -> usize {
+        self.global_action_sample_count
+    }
+
+    pub fn globally_untried(&self) -> bool {
+        self.global_action_sample_count == 0
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub enum BootstrapIgnoranceExplorationSelectionStatus {
+    Selected,
+    NoCandidate,
+    CandidateFrontierExceeded,
+    ObservationIdentityMismatch,
+    ConflictingActionIdentity,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct BootstrapIgnoranceExplorationSelectionResult {
+    status: BootstrapIgnoranceExplorationSelectionStatus,
+    input_candidate_count: usize,
+    unique_candidate_count: usize,
+    selected: Option<BootstrapIgnoranceExplorationCandidate>,
+}
+
+impl BootstrapIgnoranceExplorationSelectionResult {
+    fn rejected(
+        status: BootstrapIgnoranceExplorationSelectionStatus,
+        input_candidate_count: usize,
+        unique_candidate_count: usize,
+    ) -> Self {
+        Self {
+            status,
+            input_candidate_count,
+            unique_candidate_count,
+            selected: None,
+        }
+    }
+
+    pub fn status(&self) -> BootstrapIgnoranceExplorationSelectionStatus {
+        self.status
+    }
+
+    pub fn input_candidate_count(&self) -> usize {
+        self.input_candidate_count
+    }
+
+    pub fn unique_candidate_count(&self) -> usize {
+        self.unique_candidate_count
+    }
+
+    pub fn selected_candidate(&self) -> Option<&BootstrapIgnoranceExplorationCandidate> {
+        self.selected.as_ref()
+    }
+
+    pub fn selected(&self) -> bool {
+        self.status == BootstrapIgnoranceExplorationSelectionStatus::Selected
+    }
+
+    pub fn abstained(&self) -> bool {
+        !self.selected()
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, Hash, PartialEq)]
+pub struct BootstrapIgnoranceExplorationAgency;
+
+impl BootstrapIgnoranceExplorationAgency {
+    pub fn select(
+        candidates: &[BootstrapIgnoranceExplorationCandidate],
+        policy: IgnoranceExplorationSelectionPolicy,
+    ) -> BootstrapIgnoranceExplorationSelectionResult {
+        let input_candidate_count = candidates.len();
+
+        if candidates.is_empty() {
+            return BootstrapIgnoranceExplorationSelectionResult::rejected(
+                BootstrapIgnoranceExplorationSelectionStatus::NoCandidate,
+                0,
+                0,
+            );
+        }
+
+        /*
+         * Never silently truncate the concrete intervention frontier.
+         *
+         * Caller ordering must never become hidden selection authority.
+         */
+        if input_candidate_count > policy.max_candidates() {
+            return BootstrapIgnoranceExplorationSelectionResult::rejected(
+                BootstrapIgnoranceExplorationSelectionStatus::CandidateFrontierExceeded,
+                input_candidate_count,
+                0,
+            );
+        }
+
+        let expected_observation = candidates[0].observation_identity();
+
+        if candidates
+            .iter()
+            .any(|candidate| candidate.observation_identity() != expected_observation)
+        {
+            return BootstrapIgnoranceExplorationSelectionResult::rejected(
+                BootstrapIgnoranceExplorationSelectionStatus::ObservationIdentityMismatch,
+                input_candidate_count,
+                0,
+            );
+        }
+
+        let mut canonical = candidates.to_vec();
+
+        canonical.sort_by(|left, right| {
+            format!("{:?}", left.action())
+                .cmp(&format!("{:?}", right.action()))
+                .then_with(|| {
+                    left.global_action_sample_count()
+                        .cmp(&right.global_action_sample_count())
+                })
+        });
+
+        let mut unique = Vec::<BootstrapIgnoranceExplorationCandidate>::new();
+
+        for candidate in canonical {
+            if let Some(existing) = unique
+                .iter()
+                .find(|existing| existing.action() == candidate.action())
+            {
+                if existing != &candidate {
+                    return BootstrapIgnoranceExplorationSelectionResult::rejected(
+                        BootstrapIgnoranceExplorationSelectionStatus::ConflictingActionIdentity,
+                        input_candidate_count,
+                        unique.len(),
+                    );
+                }
+
+                continue;
+            }
+
+            unique.push(candidate);
+        }
+
+        let unique_candidate_count = unique.len();
+
+        unique.sort_by(|left, right| {
+            left.global_action_sample_count()
+                .cmp(&right.global_action_sample_count())
+                .then_with(|| format!("{:?}", left.action()).cmp(&format!("{:?}", right.action())))
+        });
+
+        BootstrapIgnoranceExplorationSelectionResult {
+            status: BootstrapIgnoranceExplorationSelectionStatus::Selected,
+            input_candidate_count,
+            unique_candidate_count,
+            selected: unique.first().cloned(),
+        }
+    }
+}
+
+#[cfg(test)]
+mod b4a5a_bootstrap_ignorance_m48_tests {
+    use super::*;
+
+    fn a(value: u64) -> CognitiveStructure {
+        CognitiveStructure::atom(value)
+    }
+
+    fn candidate(
+        observation: u64,
+        action: u64,
+        count: usize,
+    ) -> BootstrapIgnoranceExplorationCandidate {
+        BootstrapIgnoranceExplorationCandidate::new(a(observation), a(action), count)
+    }
+
+    fn policy(max: usize) -> IgnoranceExplorationSelectionPolicy {
+        IgnoranceExplorationSelectionPolicy::new(max).unwrap()
+    }
+
+    #[test]
+    fn b4a5a_zero_exposure_is_valid_bootstrap_coverage() {
+        let value = candidate(1, 10, 0);
+
+        assert_eq!(value.observation_identity(), &a(1),);
+
+        assert_eq!(value.action(), &a(10),);
+
+        assert_eq!(value.global_action_sample_count(), 0,);
+
+        assert!(value.globally_untried(),);
+    }
+
+    #[test]
+    fn b4a5a_globally_untried_action_beats_executed_action() {
+        let tried = candidate(1, 10, 1);
+
+        let untried = candidate(1, 20, 0);
+
+        let result =
+            BootstrapIgnoranceExplorationAgency::select(&[tried, untried.clone()], policy(8));
+
+        assert_eq!(result.selected_candidate(), Some(&untried),);
+    }
+
+    #[test]
+    fn b4a5a_global_count_remains_primary_after_all_actions_are_tried() {
+        let often = candidate(1, 10, 7);
+
+        let less = candidate(1, 20, 2);
+
+        let result = BootstrapIgnoranceExplorationAgency::select(&[often, less.clone()], policy(8));
+
+        assert_eq!(result.selected_candidate(), Some(&less),);
+    }
+
+    #[test]
+    fn b4a5a_complete_tie_is_deterministic_under_input_reordering() {
+        let left = candidate(1, 10, 0);
+
+        let right = candidate(1, 20, 0);
+
+        let first =
+            BootstrapIgnoranceExplorationAgency::select(&[right.clone(), left.clone()], policy(8));
+
+        let second = BootstrapIgnoranceExplorationAgency::select(&[left, right], policy(8));
+
+        assert_eq!(first, second,);
+    }
+
+    #[test]
+    fn b4a5a_mixed_observation_provenance_fails_closed() {
+        let result = BootstrapIgnoranceExplorationAgency::select(
+            &[candidate(1, 10, 0), candidate(2, 20, 0)],
+            policy(8),
+        );
+
+        assert_eq!(
+            result.status(),
+            BootstrapIgnoranceExplorationSelectionStatus::ObservationIdentityMismatch,
+        );
+
+        assert!(result.selected_candidate().is_none(),);
+    }
+
+    #[test]
+    fn b4a5a_same_action_with_conflicting_count_fails_closed() {
+        let result = BootstrapIgnoranceExplorationAgency::select(
+            &[candidate(1, 10, 1), candidate(1, 10, 2)],
+            policy(8),
+        );
+
+        assert_eq!(
+            result.status(),
+            BootstrapIgnoranceExplorationSelectionStatus::ConflictingActionIdentity,
+        );
+
+        assert!(result.selected_candidate().is_none(),);
+    }
+
+    #[test]
+    fn b4a5a_frontier_bound_never_silently_truncates() {
+        let result = BootstrapIgnoranceExplorationAgency::select(
+            &[candidate(1, 10, 0), candidate(1, 20, 0)],
+            policy(1),
+        );
+
+        assert_eq!(
+            result.status(),
+            BootstrapIgnoranceExplorationSelectionStatus::CandidateFrontierExceeded,
+        );
+
+        assert!(result.abstained(),);
+    }
+
+    #[test]
+    fn b4a5a_empty_frontier_is_legitimate_abstention() {
+        let result = BootstrapIgnoranceExplorationAgency::select(&[], policy(8));
+
+        assert_eq!(
+            result.status(),
+            BootstrapIgnoranceExplorationSelectionStatus::NoCandidate,
+        );
+
+        assert!(result.abstained(),);
+    }
+}
+
+// === ATHLESIA B4A.5-A ABSOLUTE BOOTSTRAP COVERAGE M48 END ===

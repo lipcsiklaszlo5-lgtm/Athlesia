@@ -20,6 +20,11 @@ use athlesia_mindstone_sparse_cognition::{CognitiveSignal, CognitiveStructure};
 pub enum ArcAgi3CognitiveInteractionError {
     DispatchRejected(EnvironmentActionDispatchStatus),
     ReadyDispatchMissing,
+    BootstrapCoverageMissingFeedback,
+    BootstrapCoverageActionMismatch,
+    BootstrapCoverageRetentionRejected(
+        athlesia_integrated_cognitive_agent::RetainedBootstrapActionCoverageStatus,
+    ),
     Session(ArcAgi3InteractiveSessionError),
     Perception(ArcAgi3PerceptualBridgeError),
 }
@@ -198,6 +203,7 @@ pub enum ArcAgi3UnifiedExecutiveAuthorityKind {
     LegacyGrounded,
     EvidenceFaithfulEpistemic,
     IgnoranceExploration,
+    BootstrapIgnoranceExploration,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -213,6 +219,9 @@ pub struct ArcAgi3UnifiedExecutiveAuthority {
         Option<athlesia_integrated_cognitive_agent::SelectedSuccessorInformedEpistemicActionIntent>,
 
     ignorance_selected: Option<athlesia_executive_agency::GroundedIgnoranceExplorationCandidate>,
+
+    bootstrap_ignorance_selected:
+        Option<athlesia_executive_agency::BootstrapIgnoranceExplorationCandidate>,
 }
 
 impl ArcAgi3UnifiedExecutiveAuthority {
@@ -232,6 +241,7 @@ impl ArcAgi3UnifiedExecutiveAuthority {
             legacy_selected: Some(selected),
             epistemic_selected: None,
             ignorance_selected: None,
+            bootstrap_ignorance_selected: None,
         }
     }
 
@@ -253,6 +263,7 @@ impl ArcAgi3UnifiedExecutiveAuthority {
             legacy_selected: None,
             epistemic_selected: Some(selected),
             ignorance_selected: None,
+            bootstrap_ignorance_selected: None,
         }
     }
 
@@ -272,6 +283,27 @@ impl ArcAgi3UnifiedExecutiveAuthority {
             legacy_selected: None,
             epistemic_selected: None,
             ignorance_selected: Some(selected),
+            bootstrap_ignorance_selected: None,
+        }
+    }
+
+    fn new_bootstrap_ignorance(
+        action: crate::ArcAgi3Action,
+        selected: athlesia_executive_agency::BootstrapIgnoranceExplorationCandidate,
+    ) -> Self {
+        let source_state = selected.observation_identity().clone();
+
+        let cognitive_action = selected.action().clone();
+
+        Self {
+            kind: ArcAgi3UnifiedExecutiveAuthorityKind::BootstrapIgnoranceExploration,
+            source_state,
+            action,
+            cognitive_action,
+            legacy_selected: None,
+            epistemic_selected: None,
+            ignorance_selected: None,
+            bootstrap_ignorance_selected: Some(selected),
         }
     }
 
@@ -324,6 +356,12 @@ impl ArcAgi3UnifiedExecutiveAuthority {
     ) -> Option<&athlesia_executive_agency::GroundedIgnoranceExplorationCandidate> {
         self.ignorance_selected.as_ref()
     }
+
+    pub fn bootstrap_ignorance_selection(
+        &self,
+    ) -> Option<&athlesia_executive_agency::BootstrapIgnoranceExplorationCandidate> {
+        self.bootstrap_ignorance_selected.as_ref()
+    }
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -331,6 +369,8 @@ pub struct ArcAgi3CognitiveInteractionRuntime {
     session: ArcAgi3InteractiveSession,
     perception: ArcAgi3PerceptualProjection,
     cognition: athlesia_integrated_cognitive_agent::OnlinePersistentCognitiveState,
+
+    pending_bootstrap_coverage_action: Option<CognitiveStructure>,
 }
 
 impl ArcAgi3CognitiveInteractionRuntime {
@@ -348,6 +388,7 @@ impl ArcAgi3CognitiveInteractionRuntime {
             session: ArcAgi3InteractiveSession::new(initial_observation),
             perception,
             cognition: athlesia_integrated_cognitive_agent::OnlinePersistentCognitiveState::new(),
+            pending_bootstrap_coverage_action: None,
         })
     }
 
@@ -589,23 +630,29 @@ impl ArcAgi3CognitiveInteractionRuntime {
             .expect("live executable world-model schema frontier is positive")
     }
 
-    fn current_evidence_neutral_bootstrap_state(
+    fn live_bootstrap_action_coverage_policy(
+    ) -> athlesia_integrated_cognitive_agent::RetainedBootstrapActionCoveragePolicy {
+        athlesia_integrated_cognitive_agent::RetainedBootstrapActionCoveragePolicy::new(
+            crate::production_action_frontier::ARC_AGI_3_MAX_PRODUCTION_ACTION_FRONTIER,
+        )
+        .expect("production bootstrap coverage bound is positive")
+    }
+
+    fn current_evidence_neutral_bootstrap_observation_identity(
         &self,
-    ) -> Option<athlesia_universal_domain_learning::GroundedStateSnapshot> {
+    ) -> Option<CognitiveStructure> {
         /*
-         * Cold-start provenance only.
+         * Absolute cold-start provenance.
          *
-         * A fresh interactive session may not yet contain enough temporal
-         * evidence to justify one unique scene interpretation.
+         * This is NOT a GroundedStateSnapshot and carries no object,
+         * scene, causal, value, probability or predictive semantics.
          *
-         * That absence must NOT be repaired by fabricating objecthood or a
-         * world model. Instead, retain only the signatures literally present
-         * in the current frame, excluding the ARC geometry protocol handle.
-         *
-         * This representation is allowed only for ignorance exploration.
-         * Exploitation and epistemic learned authority remain gated on the
-         * strict B0 scene-grounded state below.
+         * Cell signatures already preserve x/y/value exactly. The
+         * explicit outer tag keeps this provenance identity structurally
+         * distinct from every normal grounded execution-state identity.
          */
+        const BOOTSTRAP_OBSERVATION_TAG: u64 = 0x4234_4135_414F_4253; // "B4A5AOBS"
+
         let facts =
             athlesia_core_knowledge_perceptual_grounding::
                 GroundedPerceptualStateProjector::
@@ -617,7 +664,12 @@ impl ArcAgi3CognitiveInteractionRuntime {
                         ],
                     )?;
 
-        athlesia_universal_domain_learning::GroundedStateSnapshot::new(facts)
+        let observed = CognitiveStructure::unordered(facts)?;
+
+        Some(CognitiveStructure::Ordered(vec![
+            CognitiveStructure::atom(BOOTSTRAP_OBSERVATION_TAG),
+            observed,
+        ]))
     }
 
     pub fn current_grounded_world_state(
@@ -901,20 +953,32 @@ impl ArcAgi3CognitiveInteractionRuntime {
             Some(state) => state,
 
             None => {
-                let bootstrap_state = self.current_evidence_neutral_bootstrap_state()?;
+                let observation_identity =
+                    self.current_evidence_neutral_bootstrap_observation_identity()?;
 
-                let selected = self
-                    .cognition
-                    .current_selected_ignorance_exploration_action(
-                        &bootstrap_state,
-                        &cognitive_actions,
-                        ignorance_policy,
-                    )?;
+                let retention_policy = Self::live_bootstrap_action_coverage_policy();
 
                 /*
-                 * M48 selection is already complete.
+                 * Never authorize a real bootstrap intervention that the
+                 * retained owner cannot subsequently record.
+                 */
+                if self.cognition.bootstrap_action_coverage_event_count()
+                    >= retention_policy.max_events()
+                {
+                    return None;
+                }
+
+                let selected = self.cognition.current_selected_bootstrap_ignorance_action(
+                    &observation_identity,
+                    &cognitive_actions,
+                    ignorance_policy,
+                )?;
+
+                /*
+                 * M48 selection is complete.
                  *
-                 * ARC contributes only exact protocol authorization.
+                 * ARC contributes only exact current protocol
+                 * authorization.
                  */
                 let action =
                     crate::action_grounding_bridge::
@@ -925,7 +989,7 @@ impl ArcAgi3CognitiveInteractionRuntime {
                             )
                             .ok()?;
 
-                return Some(ArcAgi3UnifiedExecutiveAuthority::new_ignorance(
+                return Some(ArcAgi3UnifiedExecutiveAuthority::new_bootstrap_ignorance(
                     action, selected,
                 ));
             }
@@ -1419,12 +1483,18 @@ impl ArcAgi3CognitiveInteractionRuntime {
         &mut self,
         authority: &ArcAgi3UnifiedExecutiveAuthority,
     ) -> Result<ArcAgi3SessionCommand, ArcAgi3CognitiveInteractionError> {
+        let pending_bootstrap_coverage_action = authority
+            .bootstrap_ignorance_selection()
+            .map(|selected| selected.action().clone());
+
         let command = self.session.begin_unified_executive_action(
             authority.source_state(),
             authority.cognitive_action(),
         )?;
 
         debug_assert_eq!(command.action(), authority.action(),);
+
+        self.pending_bootstrap_coverage_action = pending_bootstrap_coverage_action;
 
         Ok(command)
     }
@@ -1501,6 +1571,8 @@ impl ArcAgi3CognitiveInteractionRuntime {
          */
         let previous_best_scene = self.current_best_scene_interpretation();
 
+        let pending_bootstrap_coverage_action = self.pending_bootstrap_coverage_action.clone();
+
         let mut next_session = self.session.clone();
 
         let completed_turn = next_session.complete_turn(observation.clone(), confidence)?;
@@ -1512,6 +1584,36 @@ impl ArcAgi3CognitiveInteractionRuntime {
         )?;
 
         let mut next_cognition = self.cognition.clone();
+
+        if let Some(expected_action) = pending_bootstrap_coverage_action.as_ref() {
+            let evidence = completed_turn
+                .evidence()
+                .ok_or(ArcAgi3CognitiveInteractionError::BootstrapCoverageMissingFeedback)?;
+
+            if evidence.action_observation().descriptor() != expected_action {
+                return Err(ArcAgi3CognitiveInteractionError::BootstrapCoverageActionMismatch);
+            }
+
+            let retention_status = next_cognition
+                .retain_bootstrap_action_coverage_event(
+                    evidence,
+                    Self::live_bootstrap_action_coverage_policy(),
+                )
+                .status();
+
+            if retention_status
+                != athlesia_integrated_cognitive_agent::
+                    RetainedBootstrapActionCoverageStatus::
+                        Retained
+            {
+                return Err(
+                    ArcAgi3CognitiveInteractionError::
+                        BootstrapCoverageRetentionRejected(
+                            retention_status,
+                        ),
+                );
+            }
+        }
 
         if completed_turn.has_cognitive_feedback() {
             if let Some(causal_transition) = next_perception.causal_environment_transition() {
@@ -1581,6 +1683,8 @@ impl ArcAgi3CognitiveInteractionRuntime {
                             session: next_session.clone(),
                             perception: next_perception.clone(),
                             cognition: next_cognition.clone(),
+                            pending_bootstrap_coverage_action: pending_bootstrap_coverage_action
+                                .clone(),
                         };
 
                         next_runtime_view.current_best_scene_interpretation()
@@ -1789,6 +1893,7 @@ impl ArcAgi3CognitiveInteractionRuntime {
         self.session = next_session;
         self.perception = next_perception.clone();
         self.cognition = next_cognition;
+        self.pending_bootstrap_coverage_action = None;
 
         Ok(ArcAgi3CognitiveInteractionCompletion {
             turn: completed_turn,

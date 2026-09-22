@@ -141,6 +141,7 @@ pub enum ArcAgi3TraceAuthorityKind {
     LegacyGrounded,
     EvidenceFaithfulEpistemic,
     IgnoranceExploration,
+    BootstrapIgnoranceExploration,
 }
 
 impl From<ArcAgi3UnifiedExecutiveAuthorityKind> for ArcAgi3TraceAuthorityKind {
@@ -154,6 +155,10 @@ impl From<ArcAgi3UnifiedExecutiveAuthorityKind> for ArcAgi3TraceAuthorityKind {
 
             ArcAgi3UnifiedExecutiveAuthorityKind::IgnoranceExploration => {
                 Self::IgnoranceExploration
+            }
+
+            ArcAgi3UnifiedExecutiveAuthorityKind::BootstrapIgnoranceExploration => {
+                Self::BootstrapIgnoranceExploration
             }
         }
     }

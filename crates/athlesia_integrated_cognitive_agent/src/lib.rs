@@ -10541,9 +10541,187 @@ impl RetainedEpistemicTransferProgressEventResult {
     }
 }
 
+// === ATHLESIA B4A.5-A ABSOLUTE BOOTSTRAP COVERAGE M51 BEGIN ===
+//
+// Retains only the fact that a real self-generated action was executed.
+//
+// This is deliberately weaker than grounded transition evidence:
+//
+// - no GroundedStateSnapshot is required;
+// - no outcome is scored;
+// - no causal relation is inferred;
+// - no confidence/EIG/utility is created.
+//
+// Its sole purpose is preventing absolute cold start from repeatedly
+// selecting the same intervention while no grounded world representation
+// exists.
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct RetainedBootstrapActionCoverageEvent {
+    event_index: u64,
+    action: CognitiveStructure,
+}
+
+impl RetainedBootstrapActionCoverageEvent {
+    fn new(event_index: u64, action: CognitiveStructure) -> Self {
+        Self {
+            event_index,
+            action,
+        }
+    }
+
+    pub fn event_index(&self) -> u64 {
+        self.event_index
+    }
+
+    pub fn action(&self) -> &CognitiveStructure {
+        &self.action
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub struct RetainedBootstrapActionCoveragePolicy {
+    max_events: usize,
+}
+
+impl RetainedBootstrapActionCoveragePolicy {
+    pub fn new(max_events: usize) -> Option<Self> {
+        if max_events == 0 {
+            return None;
+        }
+
+        Some(Self { max_events })
+    }
+
+    pub fn max_events(self) -> usize {
+        self.max_events
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub enum RetainedBootstrapActionCoverageStatus {
+    Retained,
+    ExactDuplicateEvent,
+    ConflictingEventIdentity,
+    EvidenceFrontierExceeded,
+    ActionSourceNotSelfGenerated,
+}
+
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub struct RetainedBootstrapActionCoverageResult {
+    status: RetainedBootstrapActionCoverageStatus,
+    event_index: u64,
+}
+
+impl RetainedBootstrapActionCoverageResult {
+    fn rejected(status: RetainedBootstrapActionCoverageStatus, event_index: u64) -> Self {
+        Self {
+            status,
+            event_index,
+        }
+    }
+
+    pub fn status(self) -> RetainedBootstrapActionCoverageStatus {
+        self.status
+    }
+
+    pub fn event_index(self) -> u64 {
+        self.event_index
+    }
+
+    pub fn retained(self) -> bool {
+        self.status == RetainedBootstrapActionCoverageStatus::Retained
+    }
+}
+
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
+pub struct RetainedBootstrapActionCoverageState {
+    events: Vec<RetainedBootstrapActionCoverageEvent>,
+}
+
+impl RetainedBootstrapActionCoverageState {
+    pub fn events(&self) -> &[RetainedBootstrapActionCoverageEvent] {
+        &self.events
+    }
+
+    pub fn event_count(&self) -> usize {
+        self.events.len()
+    }
+
+    fn event_identity_consistent(&self) -> bool {
+        let mut identities = self
+            .events
+            .iter()
+            .map(RetainedBootstrapActionCoverageEvent::event_index)
+            .collect::<Vec<_>>();
+
+        identities.sort_unstable();
+
+        !identities.windows(2).any(|pair| pair[0] == pair[1])
+    }
+
+    fn action_sample_count_unchecked(&self, action: &CognitiveStructure) -> usize {
+        self.events
+            .iter()
+            .filter(|event| event.action() == action)
+            .count()
+    }
+
+    pub fn global_action_sample_count(&self, action: &CognitiveStructure) -> Option<usize> {
+        if !self.event_identity_consistent() {
+            return None;
+        }
+
+        Some(self.action_sample_count_unchecked(action))
+    }
+
+    pub fn retain(
+        &mut self,
+        event_index: u64,
+        action: CognitiveStructure,
+        policy: RetainedBootstrapActionCoveragePolicy,
+    ) -> RetainedBootstrapActionCoverageResult {
+        if let Some(existing) = self
+            .events
+            .iter()
+            .find(|event| event.event_index() == event_index)
+        {
+            return RetainedBootstrapActionCoverageResult::rejected(
+                if existing.action() == &action {
+                    RetainedBootstrapActionCoverageStatus::ExactDuplicateEvent
+                } else {
+                    RetainedBootstrapActionCoverageStatus::ConflictingEventIdentity
+                },
+                event_index,
+            );
+        }
+
+        if self.events.len() >= policy.max_events() {
+            return RetainedBootstrapActionCoverageResult::rejected(
+                RetainedBootstrapActionCoverageStatus::EvidenceFrontierExceeded,
+                event_index,
+            );
+        }
+
+        self.events.push(RetainedBootstrapActionCoverageEvent::new(
+            event_index,
+            action,
+        ));
+
+        RetainedBootstrapActionCoverageResult {
+            status: RetainedBootstrapActionCoverageStatus::Retained,
+            event_index,
+        }
+    }
+}
+
+// === ATHLESIA B4A.5-A ABSOLUTE BOOTSTRAP COVERAGE M51 TYPES END ===
+
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct OnlinePersistentCognitiveState {
     transition_schema_learning: EndogenousTransitionSchemaLearningState,
+
+    bootstrap_action_coverage: RetainedBootstrapActionCoverageState,
     epistemic_progress_history: Vec<RetainedEpistemicProgressEvent>,
     epistemic_transfer_progress_history: Vec<RetainedEpistemicTransferProgressEvent>,
     perceptual_temporal_evidence:
@@ -11335,6 +11513,79 @@ impl OnlinePersistentCognitiveState {
     pub fn new() -> Self {
         Self::default()
     }
+
+    // === B4A.5-A ABSOLUTE BOOTSTRAP COVERAGE M51 METHODS ===
+
+    pub fn bootstrap_action_coverage(&self) -> &RetainedBootstrapActionCoverageState {
+        &self.bootstrap_action_coverage
+    }
+
+    pub fn bootstrap_action_coverage_event_count(&self) -> usize {
+        self.bootstrap_action_coverage.event_count()
+    }
+
+    pub fn retain_bootstrap_action_coverage_event(
+        &mut self,
+        evidence: &EnvironmentInteractionEvidence,
+        policy: RetainedBootstrapActionCoveragePolicy,
+    ) -> RetainedBootstrapActionCoverageResult {
+        let action_observation = evidence.action_observation();
+
+        if action_observation.source()
+            != athlesia_core_knowledge_perceptual_grounding::ActionSource::SelfGenerated
+        {
+            return RetainedBootstrapActionCoverageResult::rejected(
+                RetainedBootstrapActionCoverageStatus::ActionSourceNotSelfGenerated,
+                action_observation.event_index(),
+            );
+        }
+
+        self.bootstrap_action_coverage.retain(
+            action_observation.event_index(),
+            action_observation.descriptor().clone(),
+            policy,
+        )
+    }
+
+    pub fn current_selected_bootstrap_ignorance_action(
+        &self,
+        observation_identity: &CognitiveStructure,
+        actions: &[CognitiveStructure],
+        policy: athlesia_executive_agency::IgnoranceExplorationSelectionPolicy,
+    ) -> Option<athlesia_executive_agency::BootstrapIgnoranceExplorationCandidate> {
+        /*
+         * Fail closed on retained event-identity corruption before
+         * exposing any count to M48.
+         */
+        if !self.bootstrap_action_coverage.event_identity_consistent() {
+            return None;
+        }
+
+        let mut candidates = Vec::with_capacity(actions.len());
+
+        for action in actions {
+            let count = self
+                .bootstrap_action_coverage
+                .action_sample_count_unchecked(action);
+
+            candidates.push(
+                athlesia_executive_agency::BootstrapIgnoranceExplorationCandidate::new(
+                    observation_identity.clone(),
+                    action.clone(),
+                    count,
+                ),
+            );
+        }
+
+        let result = athlesia_executive_agency::BootstrapIgnoranceExplorationAgency::select(
+            &candidates,
+            policy,
+        );
+
+        result.selected_candidate().cloned()
+    }
+
+    // === B4A.5-A ABSOLUTE BOOTSTRAP COVERAGE M51 METHODS END ===
 
     pub fn transition_schema_learning(&self) -> &EndogenousTransitionSchemaLearningState {
         &self.transition_schema_learning
@@ -18695,5 +18946,205 @@ mod p4g_c3h_c16d_realization_conditioned_transfer_evidence_tests {
         let _ = std::mem::size_of::<GroundedRealizationConditionedTransferEvidence>();
 
         let _ = std::mem::size_of::<GroundedRealizationConditionedTransferEvidenceFrontier>();
+    }
+}
+
+#[cfg(test)]
+mod b4a5a_absolute_bootstrap_coverage_tests {
+    use super::*;
+
+    fn a(value: u64) -> CognitiveStructure {
+        CognitiveStructure::atom(value)
+    }
+
+    fn s(value: u16) -> CognitiveSignal {
+        CognitiveSignal::new(value).unwrap()
+    }
+
+    fn evidence(
+        event_index: u64,
+        source: u64,
+        action: u64,
+        outcome: u64,
+    ) -> EnvironmentInteractionEvidence {
+        let observation =
+            EnvironmentInteractionObservation::new(event_index, a(outcome), s(900)).unwrap();
+
+        EnvironmentInteractionEvidence::self_generated(&a(source), &a(action), &observation)
+            .unwrap()
+    }
+
+    fn retention_policy(max: usize) -> RetainedBootstrapActionCoveragePolicy {
+        RetainedBootstrapActionCoveragePolicy::new(max).unwrap()
+    }
+
+    fn selection_policy(
+        max: usize,
+    ) -> athlesia_executive_agency::IgnoranceExplorationSelectionPolicy {
+        athlesia_executive_agency::IgnoranceExplorationSelectionPolicy::new(max).unwrap()
+    }
+
+    #[test]
+    fn b4a5a_empty_owner_exposes_zero_global_action_coverage() {
+        let owner = OnlinePersistentCognitiveState::new();
+
+        assert_eq!(
+            owner
+                .bootstrap_action_coverage()
+                .global_action_sample_count(&a(10),),
+            Some(0),
+        );
+
+        assert_eq!(owner.bootstrap_action_coverage_event_count(), 0,);
+    }
+
+    #[test]
+    fn b4a5a_real_self_generated_event_increments_exact_action_only() {
+        let mut owner = OnlinePersistentCognitiveState::new();
+
+        let result = owner.retain_bootstrap_action_coverage_event(
+            &evidence(1, 100, 10, 900),
+            retention_policy(8),
+        );
+
+        assert!(result.retained(),);
+
+        assert_eq!(
+            owner
+                .bootstrap_action_coverage()
+                .global_action_sample_count(&a(10),),
+            Some(1),
+        );
+
+        assert_eq!(
+            owner
+                .bootstrap_action_coverage()
+                .global_action_sample_count(&a(20),),
+            Some(0),
+        );
+    }
+
+    #[test]
+    fn b4a5a_global_coverage_survives_observation_identity_change() {
+        let mut owner = OnlinePersistentCognitiveState::new();
+
+        assert!(owner
+            .retain_bootstrap_action_coverage_event(
+                &evidence(1, 100, 10, 900,),
+                retention_policy(8),
+            )
+            .retained(),);
+
+        let selected = owner
+            .current_selected_bootstrap_ignorance_action(
+                &a(999),
+                &[a(10), a(20)],
+                selection_policy(8),
+            )
+            .expect("an untried action remains bootstrap-authorized after raw observation changes");
+
+        assert_eq!(selected.observation_identity(), &a(999),);
+
+        assert_eq!(selected.action(), &a(20),);
+
+        assert_eq!(selected.global_action_sample_count(), 0,);
+    }
+
+    #[test]
+    fn b4a5a_duplicate_and_conflicting_event_identity_are_distinct() {
+        let mut owner = OnlinePersistentCognitiveState::new();
+
+        let first = evidence(7, 100, 10, 900);
+
+        assert!(owner
+            .retain_bootstrap_action_coverage_event(&first, retention_policy(8),)
+            .retained(),);
+
+        assert_eq!(
+            owner
+                .retain_bootstrap_action_coverage_event(&first, retention_policy(8),)
+                .status(),
+            RetainedBootstrapActionCoverageStatus::ExactDuplicateEvent,
+        );
+
+        assert_eq!(
+            owner
+                .retain_bootstrap_action_coverage_event(
+                    &evidence(7, 100, 20, 901,),
+                    retention_policy(8),
+                )
+                .status(),
+            RetainedBootstrapActionCoverageStatus::ConflictingEventIdentity,
+        );
+
+        assert_eq!(owner.bootstrap_action_coverage_event_count(), 1,);
+    }
+
+    #[test]
+    fn b4a5a_retention_frontier_fails_closed_without_overwrite() {
+        let mut owner = OnlinePersistentCognitiveState::new();
+
+        assert!(owner
+            .retain_bootstrap_action_coverage_event(
+                &evidence(1, 100, 10, 900,),
+                retention_policy(1),
+            )
+            .retained(),);
+
+        assert_eq!(
+            owner
+                .retain_bootstrap_action_coverage_event(
+                    &evidence(2, 100, 20, 901,),
+                    retention_policy(1),
+                )
+                .status(),
+            RetainedBootstrapActionCoverageStatus::EvidenceFrontierExceeded,
+        );
+
+        assert_eq!(owner.bootstrap_action_coverage_event_count(), 1,);
+    }
+
+    #[test]
+    fn b4a5a_selection_is_deterministic_and_non_mutating() {
+        let mut owner = OnlinePersistentCognitiveState::new();
+
+        assert!(owner
+            .retain_bootstrap_action_coverage_event(
+                &evidence(1, 100, 10, 900,),
+                retention_policy(8),
+            )
+            .retained(),);
+
+        let before = owner.clone();
+
+        let first = owner.current_selected_bootstrap_ignorance_action(
+            &a(500),
+            &[a(10), a(20), a(30)],
+            selection_policy(8),
+        );
+
+        let second = owner.current_selected_bootstrap_ignorance_action(
+            &a(500),
+            &[a(30), a(20), a(10)],
+            selection_policy(8),
+        );
+
+        assert_eq!(first, second,);
+
+        assert_eq!(owner, before,);
+    }
+
+    #[test]
+    fn b4a5a_m51_preserves_m48_frontier_failure_as_abstention() {
+        let owner = OnlinePersistentCognitiveState::new();
+
+        assert_eq!(
+            owner.current_selected_bootstrap_ignorance_action(
+                &a(1),
+                &[a(10), a(20),],
+                selection_policy(1),
+            ),
+            None,
+        );
     }
 }
