@@ -10,6 +10,11 @@ use crate::bounded_episode_runtime::{
 use crate::environment_transport_boundary::ArcAgi3EnvironmentTransport;
 use crate::live_environment_runtime::{
     ArcAgi3LiveCognitiveStep, ArcAgi3LiveEnvironmentError, ArcAgi3LiveEnvironmentRuntime,
+    ArcAgi3LiveUnifiedStep,
+};
+use crate::successor_episode_runtime::{
+    ArcAgi3SuccessorEpisodeError, ArcAgi3SuccessorEpisodePolicy, ArcAgi3SuccessorEpisodeResult,
+    ArcAgi3SuccessorEpisodeRuntime,
 };
 use crate::ArcAgi3GameId;
 
@@ -794,6 +799,21 @@ where
         ) -> Result<ArcAgi3LiveCognitiveStep, ArcAgi3LiveEnvironmentError>,
     {
         ArcAgi3BoundedEpisodeRuntime::run_with(&mut self.runtime, policy, execute_step)
+    }
+
+    /// Delegates lifecycle and budgets; the caller still supplies each successor request.
+    /// A callback can capture a B3A sink and call traced successor execution.
+    pub fn run_successor_bounded_with<F>(
+        &mut self,
+        policy: ArcAgi3SuccessorEpisodePolicy,
+        execute_attempt: F,
+    ) -> Result<ArcAgi3SuccessorEpisodeResult, ArcAgi3SuccessorEpisodeError>
+    where
+        F: FnMut(
+            &mut ArcAgi3LiveEnvironmentRuntime<E>,
+        ) -> Result<Option<ArcAgi3LiveUnifiedStep>, ArcAgi3LiveEnvironmentError>,
+    {
+        ArcAgi3SuccessorEpisodeRuntime::run_with(&mut self.runtime, policy, execute_attempt)
     }
 
     pub fn finish(self) -> ArcAgi3LiveEnvironmentRuntime<E> {
