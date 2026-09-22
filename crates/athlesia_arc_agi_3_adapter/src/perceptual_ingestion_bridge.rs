@@ -366,6 +366,111 @@ impl ArcAgi3PerceptualIngestionBridge {
         )
     }
 
+    /*
+     * Evidence-neutral appearance grouping.
+     *
+     * This discovers maximal 4-connected regions whose currently observed
+     * cell appearance is identical.
+     *
+     * It does NOT claim objecthood, persistence, causality, value, agency,
+     * reward or task semantics. It is merely an alternative perceptual
+     * proposal family, analogous to generic visual connected-component
+     * segmentation.
+     *
+     * Singletons remain available through atomic temporal evidence but are
+     * not promoted into a grouping because PerceptualGroupingCandidate
+     * deliberately requires at least two members.
+     */
+    pub fn appearance_coherent_grid_grouping_candidates(
+        frame: &PerceptualFrame,
+    ) -> Vec<athlesia_core_knowledge_perceptual_grounding::PerceptualGroupingCandidate> {
+        use athlesia_core_knowledge_perceptual_grounding::{
+            PerceptualGroupingCandidate, PerceptualGroupingCandidateKind,
+        };
+
+        let mut cells =
+            std::collections::BTreeMap::<(u8, u8), (PerceptualElementHandle, u8)>::new();
+
+        for element in frame.elements() {
+            let Ok(decoded) = Self::decode_element_signature(element.signature()) else {
+                continue;
+            };
+
+            let ArcAgi3PerceptualElementSignature::Cell { x, y, value } = decoded else {
+                continue;
+            };
+
+            if Self::decode_handle_coordinate(element.handle()) != Some((x, y)) {
+                continue;
+            }
+
+            cells.insert((x, y), (element.handle(), value));
+        }
+
+        let mut remaining = cells
+            .keys()
+            .copied()
+            .collect::<std::collections::BTreeSet<_>>();
+
+        let mut candidates = Vec::new();
+
+        while let Some(seed) = remaining.iter().next().copied() {
+            remaining.remove(&seed);
+
+            let Some((_, seed_value)) = cells.get(&seed).copied() else {
+                continue;
+            };
+
+            let mut frontier = vec![seed];
+            let mut members = Vec::new();
+
+            while let Some((x, y)) = frontier.pop() {
+                let Some((handle, value)) = cells.get(&(x, y)).copied() else {
+                    continue;
+                };
+
+                if value != seed_value {
+                    continue;
+                }
+
+                members.push(handle);
+
+                let neighbors = [
+                    x.checked_sub(1).map(|nx| (nx, y)),
+                    x.checked_add(1).map(|nx| (nx, y)),
+                    y.checked_sub(1).map(|ny| (x, ny)),
+                    y.checked_add(1).map(|ny| (x, ny)),
+                ];
+
+                for neighbor in neighbors.into_iter().flatten() {
+                    let Some((_, neighbor_value)) = cells.get(&neighbor).copied() else {
+                        continue;
+                    };
+
+                    if neighbor_value != seed_value {
+                        continue;
+                    }
+
+                    if remaining.remove(&neighbor) {
+                        frontier.push(neighbor);
+                    }
+                }
+            }
+
+            if let Some(candidate) = PerceptualGroupingCandidate::new(
+                members,
+                PerceptualGroupingCandidateKind::ConnectedComponent,
+            ) {
+                candidates.push(candidate);
+            }
+        }
+
+        candidates.sort();
+        candidates.dedup();
+
+        candidates
+    }
+
     pub fn grouping_visual_objecthood_evidence(
         frame: &PerceptualFrame,
         candidate: &athlesia_core_knowledge_perceptual_grounding::PerceptualGroupingCandidate,
@@ -592,5 +697,116 @@ impl UniversalArcAgi3PerceptualIngestionBridge {
             first_observation_index,
             previous_frame,
         )
+    }
+}
+
+#[cfg(test)]
+mod appearance_coherent_grouping_tests {
+    use super::*;
+
+    #[test]
+    fn maximal_same_appearance_components_are_global_not_prefix_local() {
+        let grid = ArcAgi3Grid::from_rows(vec![
+            vec![1, 1, 0, 2],
+            vec![1, 0, 0, 2],
+            vec![3, 3, 3, 2],
+            vec![4, 0, 5, 5],
+        ])
+        .unwrap();
+
+        let frame = ArcAgi3PerceptualIngestionBridge::project_grid(&grid, 1).unwrap();
+
+        let candidates =
+            ArcAgi3PerceptualIngestionBridge::appearance_coherent_grid_grouping_candidates(&frame);
+
+        let member_sets = candidates
+            .iter()
+            .map(|candidate| {
+                candidate
+                    .members()
+                    .iter()
+                    .filter_map(|handle| {
+                        ArcAgi3PerceptualIngestionBridge::decode_handle_coordinate(*handle)
+                    })
+                    .collect::<Vec<_>>()
+            })
+            .collect::<Vec<_>>();
+
+        /*
+         * Candidate members are canonically ordered by perceptual handle.
+         * The assertion below is about SET membership, not handle encoding.
+         * Normalize decoded coordinates before comparing expectations.
+         */
+        let member_sets = member_sets
+            .into_iter()
+            .map(|mut members| {
+                members.sort_unstable();
+                members
+            })
+            .collect::<Vec<_>>();
+
+        assert!(member_sets.contains(&vec![(0, 0), (0, 1), (1, 0),],),);
+
+        assert!(
+            member_sets.contains(&vec![(3, 0), (3, 1), (3, 2),],),
+            "appearance proposal generation must reach the far side of the frame",
+        );
+
+        assert!(member_sets.contains(&vec![(0, 2), (1, 2), (2, 2),],),);
+
+        assert!(member_sets.contains(&vec![(2, 3), (3, 3),],),);
+
+        /*
+         * Isolated singleton appearances are not falsely upgraded into
+         * grouping candidates.
+         */
+        assert!(member_sets.iter().all(|members| { members.len() >= 2 },),);
+    }
+
+    #[test]
+    fn maximal_component_satisfies_exact_visual_boundary_while_internal_pair_does_not() {
+        let grid = ArcAgi3Grid::from_rows(vec![
+            vec![0, 0, 0, 0],
+            vec![0, 7, 7, 0],
+            vec![0, 7, 7, 0],
+            vec![0, 0, 0, 0],
+        ])
+        .unwrap();
+
+        let frame = ArcAgi3PerceptualIngestionBridge::project_grid(&grid, 1).unwrap();
+
+        let components =
+            ArcAgi3PerceptualIngestionBridge::appearance_coherent_grid_grouping_candidates(&frame);
+
+        let object = components
+            .iter()
+            .find(|candidate| candidate.member_count() == 4)
+            .expect("2x2 appearance component must be proposed");
+
+        assert_eq!(
+            ArcAgi3PerceptualIngestionBridge::grouping_visual_objecthood_evidence(&frame, object,),
+            Some((true, true)),
+        );
+
+        let pair =
+            athlesia_core_knowledge_perceptual_grounding::
+                PerceptualGroupingCandidate::new(
+                    vec![
+                        ArcAgi3PerceptualIngestionBridge::
+                            cell_handle(1, 1),
+                        ArcAgi3PerceptualIngestionBridge::
+                            cell_handle(2, 1),
+                    ],
+                    athlesia_core_knowledge_perceptual_grounding::
+                        PerceptualGroupingCandidateKind::
+                            PairwiseRelation,
+                )
+                .unwrap();
+
+        assert_eq!(
+            ArcAgi3PerceptualIngestionBridge::grouping_visual_objecthood_evidence(&frame, &pair,),
+            Some((true, false)),
+            "partial fragments must not fabricate a closed visual boundary",
+        );
     }
 }

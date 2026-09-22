@@ -12051,29 +12051,35 @@ impl OnlinePersistentCognitiveState {
 
     pub fn current_objecthood_eligible_groupings_from_visual_observations(
         &self,
-        empirically_coherent_visual_observations:
+        candidate_visual_observations:
             &[athlesia_core_knowledge_perceptual_grounding::
                 PerceptualGroupingAppearanceObservationEvidence],
         temporal_policy:
             athlesia_core_knowledge_perceptual_grounding::
                 PerceptualProposalTemporalEvidencePolicy,
+        behavior_policy:
+            athlesia_core_knowledge_perceptual_grounding::
+                PerceptualGroupingBehaviorRetentionPolicy,
     ) -> Vec<athlesia_core_knowledge_perceptual_grounding::PerceptualGroupingCandidate> {
         use athlesia_core_knowledge_perceptual_grounding::{
-            PerceptualObjectPromotionEvidence, PerceptualObjectPromotionGate,
-            PerceptualObjectProposal, PerceptualProposalTemporalSupportStatus,
+            PerceptualGroupingBehaviorSupportStatus, PerceptualObjectPromotionEvidence,
+            PerceptualObjectPromotionGate, PerceptualObjectProposal,
+            PerceptualProposalTemporalSupportStatus,
         };
 
         let mut eligible = Vec::new();
 
         /*
-         * Input observations are deliberately restricted by the caller to
-         * groupings already supported by retained empirical common-change
-         * evidence.
+         * Visual proposal and behavioral confirmation are independent.
          *
-         * Therefore common_change=true below is derived from that upstream
-         * semantic qualification, not from ARC appearance or geometry.
+         * A grouping may therefore become a provisional perceptual object
+         * from retained persistence + visual cohesion + visual boundary
+         * before common-change behavior is known.
+         *
+         * If common-change evidence exists, it is preserved explicitly in
+         * the promotion evidence rather than fabricated.
          */
-        for observation in empirically_coherent_visual_observations {
+        for observation in candidate_visual_observations {
             let grouping = observation.candidate();
 
             let temporal_persistence = grouping.members().iter().all(|handle| {
@@ -12085,9 +12091,14 @@ impl OnlinePersistentCognitiveState {
                     == PerceptualProposalTemporalSupportStatus::Supported
             });
 
+            let common_change = self
+                .perceptual_grouping_behavior_evidence()
+                .support_status(grouping, behavior_policy)
+                == PerceptualGroupingBehaviorSupportStatus::Supported;
+
             let evidence = PerceptualObjectPromotionEvidence::new(
                 temporal_persistence,
-                true,
+                common_change,
                 observation.appearance_cohesion_supported(),
                 observation.contrast_boundary_supported(),
             );
@@ -12112,10 +12123,14 @@ impl OnlinePersistentCognitiveState {
         appearance_policy:
             athlesia_core_knowledge_perceptual_grounding::
                 PerceptualGroupingAppearanceRetentionPolicy,
+        behavior_policy:
+            athlesia_core_knowledge_perceptual_grounding::
+                PerceptualGroupingBehaviorRetentionPolicy,
     ) -> Vec<athlesia_core_knowledge_perceptual_grounding::ObjectHypothesis> {
         use athlesia_core_knowledge_perceptual_grounding::{
             EmpiricalObjecthoodSignalCalibration, ObjectHypothesis, ObjecthoodEvidence,
-            PerceptualGroupingAppearanceSupportStatus, PerceptualObjectProposal,
+            PerceptualGroupingAppearanceSupportStatus, PerceptualGroupingBehaviorEvidenceRecord,
+            PerceptualGroupingBehaviorSupportStatus, PerceptualObjectProposal,
         };
 
         let mut hypotheses = Vec::new();
@@ -12136,23 +12151,49 @@ impl OnlinePersistentCognitiveState {
                 continue;
             };
 
-            let Some(behavior_record) = self
-                .perceptual_grouping_behavior_evidence()
-                .record(grouping)
-            else {
-                continue;
+            let behavior = self.perceptual_grouping_behavior_evidence();
+            let matching_histories = || {
+                behavior
+                    .records()
+                    .iter()
+                    .filter(|record| record.candidate().members() == grouping.members())
+            };
+            let profile = |record: &PerceptualGroupingBehaviorEvidenceRecord| {
+                (
+                    record.uniform_stable_count(),
+                    record.uniform_changed_count(),
+                    record.boundary_interrupted_count(),
+                    record.mixed_count(),
+                    record.last_status(),
+                )
             };
 
-            let behavioral_opportunities = behavior_record
-                .uniform_changed_count()
-                .saturating_add(behavior_record.mixed_count());
-
-            let Some(common_change) = EmpiricalObjecthoodSignalCalibration::from_counts(
-                behavior_record.uniform_changed_count(),
-                behavioral_opportunities,
-            ) else {
-                continue;
-            };
+            // Bind one exact physical-member history; never pool provenance
+            // counts. Prefer the longest history, breaking equivalent ties by
+            // canonical proposal identity. Conflicting equal-length histories
+            // and policy-immature evidence cannot establish scene authority.
+            let common_change = matching_histories()
+                .max_by(|left, right| {
+                    left.observation_count()
+                        .cmp(&right.observation_count())
+                        .then_with(|| right.candidate().cmp(left.candidate()))
+                })
+                .filter(|record| {
+                    behavior.support_status(record.candidate(), behavior_policy)
+                        == PerceptualGroupingBehaviorSupportStatus::Supported
+                        && matching_histories()
+                            .filter(|other| other.observation_count() == record.observation_count())
+                            .all(|other| profile(other) == profile(record))
+                })
+                .and_then(|record| {
+                    EmpiricalObjecthoodSignalCalibration::from_counts(
+                        record.uniform_changed_count(),
+                        record
+                            .uniform_changed_count()
+                            .saturating_add(record.mixed_count()),
+                    )
+                })
+                .unwrap_or_else(CognitiveSignal::zero);
 
             let Some(cohesion) = EmpiricalObjecthoodSignalCalibration::from_counts(
                 appearance_record.appearance_cohesion_support_count(),

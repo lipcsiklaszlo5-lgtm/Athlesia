@@ -163,19 +163,71 @@ fn mature_runtime(runtime: &mut ArcAgi3LiveEnvironmentRuntime<RecordingTransport
     let action_two = action(ArcAgi3ActionId::Action2);
 
     /*
-     * Repeated coherent ACTION1 changes establish object/scene and
-     * action-specific transition evidence.
+     * Perceptual maturity and causal training are deliberately separated.
+     *
+     * Older fixture semantics relied accidentally on delayed object
+     * grounding: early ACTION1 transitions occurred before a strict scene
+     * existed and therefore never reached M47.
+     *
+     * B4C correctly permits appearance+persistence to establish provisional
+     * objecthood earlier, so those same real ACTION1 turns became legitimate
+     * causal evidence and destroyed the intended synthetic holdout.
+     *
+     * Warm perception using only ACTION2 at value 5. No ACTION1 consequence
+     * is allowed before the world is genuinely grounded.
+     *
+     * The bounded loop makes the fixture independent of the exact number of
+     * observations required by the perceptual grounding implementation.
      */
-    for value in [2_u8, 3, 4, 5] {
-        real_training_turn(runtime, game, action_one, value);
+    for _ in 0..8 {
+        real_training_turn(runtime, game, action_two, 5_u8);
+
+        if runtime
+            .cognitive_runtime()
+            .current_grounded_world_state()
+            .is_some()
+        {
+            break;
+        }
     }
 
+    assert!(
+        runtime
+            .cognitive_runtime()
+            .current_grounded_world_state()
+            .is_some(),
+        "P4G fixture must establish genuine perception before causal training",
+    );
+
+    let cognitive_action_one = ArcAgi3CognitiveProtocolBridge::encode_action(action_one);
+
+    assert_eq!(
+        runtime
+            .cognitive_runtime()
+            .cognition()
+            .transition_schema_learning()
+            .episodes()
+            .iter()
+            .filter(|episode| { episode.transformation() == &cognitive_action_one },)
+            .count(),
+        0,
+        "perceptual warmup must not leak ACTION1 causal evidence",
+    );
+
     /*
-     * ACTION2 is explicitly contrasted as a self-loop while ACTION1
-     * continues to change the same grounded object.
+     * Now create the exact causal knowledge required by the C2/C3 family:
+     *
+     *     state 5 --ACTION1--> state 6
+     *     state 6 --ACTION1--> state 5
+     *
+     * repeated twice.
+     *
+     * ACTION2 remains the contrasted self-loop.
+     *
+     * Therefore a later state 7 reached through ACTION2 is a genuine
+     * ACTION1 holdout even when perception grounds immediately.
      */
     for (selected, value) in [
-        (action_two, 5_u8),
         (action_one, 6_u8),
         (action_two, 6_u8),
         (action_one, 5_u8),
@@ -183,9 +235,32 @@ fn mature_runtime(runtime: &mut ArcAgi3LiveEnvironmentRuntime<RecordingTransport
         (action_one, 6_u8),
         (action_two, 6_u8),
         (action_one, 5_u8),
+        (action_two, 5_u8),
     ] {
         real_training_turn(runtime, game, selected, value);
     }
+
+    let retained_action_one = runtime
+        .cognitive_runtime()
+        .cognition()
+        .transition_schema_learning()
+        .episodes()
+        .iter()
+        .filter(|episode| episode.transformation() == &cognitive_action_one)
+        .count();
+
+    assert_eq!(
+        retained_action_one, 4,
+        "mature P4G fixture must contain exactly four post-grounding ACTION1 causal episodes",
+    );
+
+    assert!(
+        runtime
+            .cognitive_runtime()
+            .current_grounded_world_state()
+            .is_some(),
+        "mature P4G fixture must finish in a grounded state",
+    );
 }
 
 fn goal() -> ExecutiveGoal {

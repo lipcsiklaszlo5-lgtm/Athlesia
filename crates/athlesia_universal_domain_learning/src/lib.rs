@@ -10420,6 +10420,34 @@ impl GroundedExplanatoryVersionSpaceSynthesis {
         facts
     }
 
+    /*
+     * A contextual explanatory hypothesis can only acquire positive
+     * empirical support if its context was actually satisfied in at
+     * least one episode where this exact transformation produced this
+     * exact effect.
+     *
+     * Filtering such impossible context/effect cross-products before
+     * hypothesis evaluation is lossless with respect to active
+     * hypotheses: GroundedExplanatoryVersionSpaceSynthesis::measure()
+     * would return None for every rejected pair because support_count
+     * would be zero.
+     *
+     * This is evidence relevance, not domain knowledge.
+     */
+    fn context_can_support_effect(
+        episodes: &[GroundedTransformationEpisode],
+        transformation: &CognitiveStructure,
+        context: &ContextPremiseSet,
+        effect_kind: TransitionEffectKind,
+        effect_fact: &CognitiveStructure,
+    ) -> bool {
+        episodes.iter().any(|episode| {
+            episode.transformation() == transformation
+                && context.is_satisfied_by(episode.before())
+                && episode.effect_occurs(effect_kind, effect_fact)
+        })
+    }
+
     pub fn synthesize(
         episodes: &[GroundedTransformationEpisode],
         policy: GroundedExplanatoryVersionSpacePolicy,
@@ -10452,10 +10480,43 @@ impl GroundedExplanatoryVersionSpaceSynthesis {
         let generated_context_count = contexts.len();
         let effect_target_count = effects.len();
 
-        let variants_per_effect = contexts.len().saturating_add(1);
+        /*
+         * Do not charge the hypothesis budget for context/effect pairs
+         * which cannot possibly acquire positive empirical support.
+         *
+         * The previous Cartesian product:
+         *
+         *     all observed effects × all observed contexts
+         *
+         * becomes:
+         *
+         *     each observed effect
+         *       × only contexts witnessed in a supporting episode.
+         *
+         * The unconditional hypothesis remains evaluated for every
+         * observed effect.
+         */
+        let possible_hypothesis_evaluation_count = effects.iter().fold(
+            0_usize,
+            |total, (transformation, effect_kind, effect_fact)| {
+                let relevant_context_count = contexts
+                    .iter()
+                    .filter(|context| {
+                        Self::context_can_support_effect(
+                            episodes,
+                            transformation,
+                            context,
+                            *effect_kind,
+                            effect_fact,
+                        )
+                    })
+                    .count();
 
-        let possible_hypothesis_evaluation_count =
-            effects.len().saturating_mul(variants_per_effect);
+                total
+                    .saturating_add(1)
+                    .saturating_add(relevant_context_count)
+            },
+        );
 
         let mut evaluated_hypothesis_count = 0_usize;
         let mut active = Vec::new();
@@ -10475,7 +10536,15 @@ impl GroundedExplanatoryVersionSpaceSynthesis {
                 }
             }
 
-            for context in &contexts {
+            for context in contexts.iter().filter(|context| {
+                Self::context_can_support_effect(
+                    episodes,
+                    transformation,
+                    context,
+                    *effect_kind,
+                    effect_fact,
+                )
+            }) {
                 if evaluated_hypothesis_count >= policy.max_hypothesis_evaluations() {
                     break 'effects;
                 }
@@ -10525,6 +10594,149 @@ impl GroundedExplanatoryVersionSpaceSynthesis {
             admitted_before_frontier,
             active,
         }
+    }
+}
+
+#[cfg(test)]
+mod evidence_relevant_version_space_tests {
+    use super::*;
+
+    fn atom(value: u64) -> CognitiveStructure {
+        CognitiveStructure::atom(value)
+    }
+
+    fn state(values: &[u64]) -> GroundedStateSnapshot {
+        GroundedStateSnapshot::new(values.iter().copied().map(atom).collect()).unwrap()
+    }
+
+    fn episode(
+        before: &[u64],
+        after: &[u64],
+        transformation: u64,
+    ) -> GroundedTransformationEpisode {
+        GroundedTransformationEpisode::new(state(before), state(after), atom(transformation))
+    }
+
+    #[test]
+    fn unrelated_global_contexts_do_not_consume_effect_evaluation_budget() {
+        /*
+         * ACTION10 genuinely adds fact100 while premise1 is present.
+         *
+         * ACTION20 contributes a large unrelated context vocabulary but
+         * produces no effect at all.
+         *
+         * A Cartesian-product enumerator wastes its hypothesis budget on
+         * those unrelated facts. Evidence-relevant enumeration must not.
+         */
+        let episodes = vec![
+            episode(&[1], &[1, 100], 10),
+            episode(
+                &[20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30],
+                &[20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30],
+                20,
+            ),
+        ];
+
+        let policy = GroundedExplanatoryVersionSpacePolicy::new(1, 64, 3, 64).unwrap();
+
+        let result = GroundedExplanatoryVersionSpaceSynthesis::synthesize(&episodes, policy);
+
+        assert!(
+            result.possible_context_count() > 3,
+            "fixture must contain enough unrelated context to defeat Cartesian enumeration",
+        );
+
+        assert_eq!(result.effect_target_count(), 1,);
+
+        assert_eq!(
+            result.possible_hypothesis_evaluation_count(),
+            2,
+            "only unconditional + one actually supporting context are semantically viable",
+        );
+
+        assert_eq!(result.evaluated_hypothesis_count(), 2,);
+
+        assert!(!result.evaluation_truncated(),);
+
+        /*
+         * Evidence relevance must remove impossible cross-products
+         * WITHOUT collapsing legitimate explanatory ambiguity.
+         *
+         * One observation supports both:
+         *
+         *   action -> effect
+         *
+         * and:
+         *
+         *   premise1 AND action -> effect
+         *
+         * until discriminating evidence arrives.
+         */
+        assert_eq!(result.active_count(), 2,);
+
+        assert!(
+            result.active().iter().any(|hypothesis| {
+                hypothesis.context().is_none()
+                    && hypothesis.transformation() == &atom(10)
+                    && hypothesis.effect_kind() == TransitionEffectKind::Added
+                    && hypothesis.effect_fact() == &atom(100)
+            },),
+            "general explanation must remain live after one observation",
+        );
+
+        let supporting_context = ContextPremiseSet::new(vec![atom(1)]).unwrap();
+
+        assert!(
+            result.active().iter().any(|hypothesis| {
+                hypothesis.context() == Some(&supporting_context)
+                    && hypothesis.transformation() == &atom(10)
+                    && hypothesis.effect_kind() == TransitionEffectKind::Added
+                    && hypothesis.effect_fact() == &atom(100)
+            },),
+            "actually supported contextual alternative must remain live",
+        );
+    }
+
+    #[test]
+    fn real_counterexample_preserves_needed_context_specialization() {
+        /*
+         * ACTION10 adds fact100 when premise1 is present.
+         *
+         * A second ACTION10 opportunity without premise1 fails to add
+         * fact100, falsifying the unconditional explanation.
+         *
+         * The context-specific rule is therefore informative and must
+         * survive.
+         */
+        let episodes = vec![episode(&[1], &[1, 100], 10), episode(&[2], &[2], 10)];
+
+        let policy = GroundedExplanatoryVersionSpacePolicy::new(1, 64, 4, 64).unwrap();
+
+        let result = GroundedExplanatoryVersionSpaceSynthesis::synthesize(&episodes, policy);
+
+        assert!(!result.evaluation_truncated(),);
+
+        assert_eq!(result.active_count(), 1,);
+
+        let hypothesis = &result.active()[0];
+
+        assert_eq!(hypothesis.transformation(), &atom(10),);
+
+        assert_eq!(hypothesis.effect_kind(), TransitionEffectKind::Added,);
+
+        assert_eq!(hypothesis.effect_fact(), &atom(100),);
+
+        let context = hypothesis
+            .context()
+            .expect("falsified broad rule must permit grounded specialization");
+
+        assert_eq!(context.premises(), &[atom(1)],);
+
+        assert_eq!(hypothesis.support_count(), 1,);
+
+        assert_eq!(hypothesis.opportunity_count(), 1,);
+
+        assert_eq!(hypothesis.counterexample_count(), 0,);
     }
 }
 

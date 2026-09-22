@@ -2194,12 +2194,19 @@ mod retained_perceptual_grouping_behavior_evidence_tests {
 // This gate deliberately stops before semantic object promotion.
 //
 // A structural grouping is merely ELIGIBLE for future ObjectHypothesis
-// construction when multiple independent evidence families agree:
+// construction when independently retained perceptual evidence establishes
+// a stable bounded visual unit.
+//
+// Provisional objecthood requires:
 //
 // - retained temporal persistence;
-// - retained common-change behavior;
-// - current perceptual appearance cohesion;
+// - appearance cohesion;
 // - an explicit contrast boundary.
+//
+// Retained common-change behavior remains an independent evidence axis.
+// It may strengthen or later revise an object hypothesis, but requiring an
+// object to move before it may even be represented as an object creates a
+// circular dependency between perception and causal learning.
 //
 // No CognitiveSignal is synthesized here. Therefore no unsupported confidence
 // value is smuggled into ObjecthoodEvidence.
@@ -2253,6 +2260,17 @@ impl PerceptualObjectPromotionEvidence {
             && self.appearance_cohesion
             && self.contrast_boundary
     }
+
+    /*
+     * Evidence sufficient for a PROVISIONAL perceptual object.
+     *
+     * Common change is deliberately not required here. It remains
+     * independently represented and may strengthen/revise the hypothesis
+     * after interaction.
+     */
+    pub fn appearance_grounded_objecthood_supported(self) -> bool {
+        self.temporal_persistence && self.appearance_cohesion && self.contrast_boundary
+    }
 }
 
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
@@ -2279,7 +2297,7 @@ impl PerceptualObjectPromotionGate {
         grouping: PerceptualGroupingCandidate,
         evidence: PerceptualObjectPromotionEvidence,
     ) -> Option<PerceptualObjectPromotionCandidate> {
-        if !evidence.all_required_axes_supported() {
+        if !evidence.appearance_grounded_objecthood_supported() {
             return None;
         }
 
@@ -2296,6 +2314,58 @@ impl UniversalPerceptualObjectPromotionGate {
         evidence: PerceptualObjectPromotionEvidence,
     ) -> Option<PerceptualObjectPromotionCandidate> {
         PerceptualObjectPromotionGate::evaluate(grouping, evidence)
+    }
+}
+
+#[cfg(test)]
+mod provisional_objecthood_without_prior_motion_tests {
+    use super::*;
+
+    fn grouping() -> PerceptualGroupingCandidate {
+        PerceptualGroupingCandidate::new(
+            vec![
+                PerceptualElementHandle::new(1),
+                PerceptualElementHandle::new(2),
+            ],
+            PerceptualGroupingCandidateKind::ConnectedComponent,
+        )
+        .unwrap()
+    }
+
+    #[test]
+    fn persistent_cohesive_bounded_grouping_is_provisionally_eligible_without_common_change() {
+        let evidence = PerceptualObjectPromotionEvidence::new(true, false, true, true);
+
+        assert!(evidence.appearance_grounded_objecthood_supported());
+
+        assert!(!evidence.all_required_axes_supported());
+
+        let selected = PerceptualObjectPromotionGate::evaluate(grouping(), evidence)
+            .expect("prior motion must not be required to perceive a provisional object");
+
+        assert!(!selected.evidence().common_change());
+    }
+
+    #[test]
+    fn missing_persistence_cohesion_or_boundary_still_fails_closed() {
+        for evidence in [
+            PerceptualObjectPromotionEvidence::new(false, true, true, true),
+            PerceptualObjectPromotionEvidence::new(true, true, false, true),
+            PerceptualObjectPromotionEvidence::new(true, true, true, false),
+        ] {
+            assert!(PerceptualObjectPromotionGate::evaluate(grouping(), evidence,).is_none(),);
+        }
+    }
+
+    #[test]
+    fn common_change_remains_explicit_independent_evidence() {
+        let evidence = PerceptualObjectPromotionEvidence::new(true, true, true, true);
+
+        assert!(evidence.appearance_grounded_objecthood_supported());
+
+        assert!(evidence.all_required_axes_supported());
+
+        assert!(evidence.common_change());
     }
 }
 
@@ -2628,6 +2698,15 @@ impl ObjecthoodEvidence {
         self.topology
     }
 
+    fn has_independent_scene_support(self) -> bool {
+        // Appearance, persistence and boundary establish a provisional unit.
+        // Behavioral or relational evidence can additionally support its role
+        // in a scene, without being required for provisional objecthood.
+        [self.common_change, self.containment, self.topology]
+            .into_iter()
+            .any(|signal| signal > CognitiveSignal::zero())
+    }
+
     pub fn has_support(self) -> bool {
         [
             self.cohesion,
@@ -2802,6 +2881,63 @@ impl SceneInterpretation {
                 .zip(other.hypotheses.iter())
                 .all(|(left, right)| left.members() == right.members())
     }
+
+    fn evidentially_dominates(&self, other: &Self) -> bool {
+        let independently_supported =
+            |hypothesis: &&ObjectHypothesis| hypothesis.evidence().has_independent_scene_support();
+        let supported_count = self
+            .hypotheses
+            .iter()
+            .filter(independently_supported)
+            .count();
+        let other_supported_count = other
+            .hypotheses
+            .iter()
+            .filter(independently_supported)
+            .count();
+
+        if supported_count == 0 {
+            return false;
+        }
+
+        // Preserve every independently supported physical object in the rival
+        // explanation, with no weaker evidence on any axis.
+        let preserves_support =
+            other
+                .hypotheses
+                .iter()
+                .filter(independently_supported)
+                .all(|other| {
+                    self.hypotheses.iter().any(|ours| {
+                        ours.members() == other.members()
+                            && ours
+                                .evidence()
+                                .canonical_key()
+                                .iter()
+                                .zip(other.evidence().canonical_key())
+                                .all(|(ours, other)| *ours >= other)
+                    })
+                });
+
+        // Adding an appearance-only object is an additional unresolved claim,
+        // not extra independent scene evidence.
+        let adds_no_unconfirmed_objects = self
+            .hypotheses
+            .iter()
+            .filter(|hypothesis| !hypothesis.evidence().has_independent_scene_support())
+            .all(|ours| {
+                other
+                    .hypotheses
+                    .iter()
+                    .any(|other| ours.members() == other.members())
+            });
+
+        preserves_support
+            && adds_no_unconfirmed_objects
+            && (supported_count > other_supported_count
+                || self.hypothesis_count() - supported_count
+                    < other.hypothesis_count() - other_supported_count)
+    }
 }
 
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
@@ -2906,8 +3042,14 @@ impl SceneInterpretationConstruction {
         }
 
         let mut covered = std::collections::BTreeSet::new();
+        let has_independent_support = hypotheses
+            .iter()
+            .any(|hypothesis| hypothesis.evidence().has_independent_scene_support());
 
         for hypothesis in hypotheses {
+            if has_independent_support && !hypothesis.evidence().has_independent_scene_support() {
+                continue;
+            }
             for &member in hypothesis.members() {
                 if eligible_handles.binary_search(&member).is_ok() {
                     covered.insert(member);
@@ -2933,52 +3075,98 @@ impl SceneInterpretationConstruction {
             return Vec::new();
         }
 
-        /*
-         * Each hypothesis seeds one alternative maximal non-overlapping
-         * explanation.
-         *
-         * Competing overlapping object identities therefore remain separate
-         * scene candidates rather than being silently merged.
-         */
-        let mut candidates = Vec::new();
+        let mut hypotheses = hypotheses
+            .iter()
+            .filter(|hypothesis| hypothesis.is_grounded_in(frame))
+            .collect::<Vec<_>>();
+        hypotheses.sort_by(|left, right| {
+            left.members().cmp(right.members()).then_with(|| {
+                left.evidence()
+                    .canonical_key()
+                    .cmp(&right.evidence().canonical_key())
+            })
+        });
+
+        // For each seed, consider its provisional singleton, the independently
+        // supported structure, and the compatible superset. This is a bounded
+        // family of alternatives, not a powerset. Unsupported membership must
+        // remain optional; a maximal superset alone cannot establish authority.
+        let mut candidates: Vec<SceneInterpretation> = Vec::new();
+
+        #[derive(Clone, Copy, PartialEq)]
+        enum Extension {
+            Singleton,
+            IndependentlySupported,
+            AllCompatible,
+        }
 
         for seed_index in 0..hypotheses.len() {
-            let mut scene_hypotheses = vec![hypotheses[seed_index].clone()];
-
-            for (candidate_index, candidate) in hypotheses.iter().enumerate() {
-                if candidate_index == seed_index {
+            for extension in [
+                Extension::Singleton,
+                Extension::IndependentlySupported,
+                Extension::AllCompatible,
+            ] {
+                let seed_supported = hypotheses[seed_index]
+                    .evidence()
+                    .has_independent_scene_support();
+                if (extension == Extension::Singleton && seed_supported)
+                    || (extension == Extension::IndependentlySupported && !seed_supported)
+                {
                     continue;
                 }
 
-                if scene_hypotheses.len() >= policy.max_object_hypotheses_per_scene() {
-                    break;
+                let mut scene_hypotheses = vec![hypotheses[seed_index].clone()];
+                if extension != Extension::Singleton {
+                    for (candidate_index, candidate) in hypotheses.iter().enumerate() {
+                        if candidate_index == seed_index
+                            || (extension == Extension::IndependentlySupported
+                                && !candidate.evidence().has_independent_scene_support())
+                        {
+                            continue;
+                        }
+
+                        if scene_hypotheses.len() >= policy.max_object_hypotheses_per_scene() {
+                            break;
+                        }
+
+                        if !scene_hypotheses
+                            .iter()
+                            .any(|existing| Self::hypotheses_overlap(existing, candidate))
+                        {
+                            scene_hypotheses.push((*candidate).clone());
+                        }
+                    }
                 }
 
-                let overlaps_existing = scene_hypotheses
-                    .iter()
-                    .any(|existing| Self::hypotheses_overlap(existing, candidate));
+                let Some(explanatory_support) =
+                    Self::explanatory_support(frame, &scene_hypotheses, excluded_handles)
+                else {
+                    continue;
+                };
 
-                if !overlaps_existing {
-                    scene_hypotheses.push(candidate.clone());
+                let Some(scene) = SceneInterpretation::new(scene_hypotheses, explanatory_support)
+                else {
+                    continue;
+                };
+
+                if let Some(existing) = candidates
+                    .iter_mut()
+                    .find(|existing| existing.same_grouping(&scene))
+                {
+                    if CompetingSceneInterpretations::ranking(&scene, existing)
+                        == std::cmp::Ordering::Less
+                    {
+                        *existing = scene;
+                    }
+                    continue;
                 }
+
+                if candidates.len() == policy.max_scene_interpretations() {
+                    // A resource cutoff is not evidence resolving ambiguity.
+                    return Vec::new();
+                }
+                candidates.push(scene);
             }
-
-            let Some(explanatory_support) =
-                Self::explanatory_support(frame, &scene_hypotheses, excluded_handles)
-            else {
-                continue;
-            };
-
-            let Some(scene) = SceneInterpretation::new(scene_hypotheses, explanatory_support)
-            else {
-                continue;
-            };
-
-            if scene.contains_overlapping_hypotheses() {
-                continue;
-            }
-
-            candidates.push(scene);
         }
 
         candidates
@@ -3032,6 +3220,9 @@ impl SceneCompetitionResult {
      * exactly one scene remains selected.
      */
     pub fn unique_selected_scene(&self) -> Option<&SceneInterpretation> {
+        if self.dropped_by_scene_bound_count > 0 {
+            return None;
+        }
         match self.selected.as_slice() {
             [scene] => Some(scene),
             _ => None,
@@ -3073,6 +3264,7 @@ impl CompetingSceneInterpretations {
         for candidate in candidates {
             if candidate.hypothesis_count() > policy.max_object_hypotheses_per_scene()
                 || !candidate.is_grounded_in(frame)
+                || candidate.contains_overlapping_hypotheses()
             {
                 rejected_scene_count = rejected_scene_count.saturating_add(1);
 
@@ -3080,6 +3272,18 @@ impl CompetingSceneInterpretations {
             }
 
             valid_scene_count = valid_scene_count.saturating_add(1);
+
+            // Ranking and coverage are not proof of unique scene membership.
+            // Eliminate only alternatives that lose independent object support
+            // or add unconfirmed identities without explaining more evidence.
+            if candidates.iter().any(|other| {
+                other.hypothesis_count() <= policy.max_object_hypotheses_per_scene()
+                    && other.is_grounded_in(frame)
+                    && !other.contains_overlapping_hypotheses()
+                    && other.evidentially_dominates(candidate)
+            }) {
+                continue;
+            }
 
             if let Some(duplicate_index) = frontier
                 .iter()
@@ -3233,6 +3437,132 @@ mod unique_scene_authority_tests {
         assert!(
             GroundedPerceptualStateProjector::unique_selected_scene_facts(&frame, &result,)
                 .is_none(),
+        );
+    }
+
+    #[test]
+    fn optional_membership_requires_independent_evidence_not_extra_coverage() {
+        let frame = frame();
+        // Swap which physical member has behavioral evidence. Neither handle
+        // identity nor input order may determine scene authority.
+        for supported_handle in [None, Some(1), Some(2)] {
+            let hypotheses = [1, 2].map(|handle| {
+                let mut object = hypothesis(handle);
+                if Some(handle) != supported_handle {
+                    object.evidence.common_change = CognitiveSignal::zero();
+                }
+                object
+            });
+            let candidates = SceneInterpretationConstruction::evaluate_hypotheses(
+                &frame,
+                &hypotheses,
+                &[],
+                policy(),
+            );
+            let reversed = SceneInterpretationConstruction::evaluate_hypotheses(
+                &frame,
+                &[hypotheses[1].clone(), hypotheses[0].clone()],
+                &[],
+                policy(),
+            );
+            assert_eq!(candidates, reversed);
+
+            let competition = CompetingSceneInterpretations::select(&frame, &candidates, policy());
+            match supported_handle {
+                None => {
+                    assert!(competition.unique_selected_scene().is_none());
+                    for handle in [1, 2] {
+                        assert!(competition.selected().iter().any(|scene| {
+                            !scene
+                                .hypotheses()
+                                .iter()
+                                .any(|object| object.contains(PerceptualElementHandle::new(handle)))
+                        }));
+                    }
+                }
+                Some(handle) => {
+                    let selected = competition
+                        .unique_selected_scene()
+                        .expect("independent support must resolve optional membership");
+                    assert_eq!(selected.hypotheses(), &[hypothesis(handle)]);
+                    let superset = candidates
+                        .iter()
+                        .find(|scene| scene.hypothesis_count() == 2)
+                        .expect("construction must consider inclusion as well as omission");
+                    assert!(superset.explanatory_support() <= selected.explanatory_support());
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn resource_bounds_cannot_resolve_scene_membership_ambiguity() {
+        let frame = frame();
+        let hypotheses = [1, 2].map(|handle| {
+            let mut object = hypothesis(handle);
+            object.evidence.common_change = CognitiveSignal::zero();
+            object
+        });
+
+        for width in [1, 2] {
+            for capacity in [1, 2] {
+                let policy = PerceptualGroundingPolicy::new(width, capacity).unwrap();
+                let candidates = SceneInterpretationConstruction::evaluate_hypotheses(
+                    &frame,
+                    &hypotheses,
+                    &[],
+                    policy,
+                );
+                assert!(candidates.len() <= capacity);
+                assert!(
+                    candidates
+                        .iter()
+                        .all(|scene| scene.hypothesis_count() <= width)
+                );
+                assert!(
+                    CompetingSceneInterpretations::select(&frame, &candidates, policy)
+                        .unique_selected_scene()
+                        .is_none()
+                );
+            }
+        }
+
+        let truncated = CompetingSceneInterpretations::select(
+            &frame,
+            &[scene(1), scene(2)],
+            PerceptualGroundingPolicy::new(2, 1).unwrap(),
+        );
+        assert!(truncated.dropped_by_scene_bound_count() > 0);
+        assert!(truncated.unique_selected_scene().is_none());
+    }
+
+    #[test]
+    fn overlapping_independently_supported_objects_remain_alternatives() {
+        let frame = frame();
+        let small = hypothesis(1);
+        let large = ObjectHypothesis::new(
+            vec![
+                PerceptualElementHandle::new(1),
+                PerceptualElementHandle::new(2),
+            ],
+            small.evidence(),
+        )
+        .unwrap();
+        let candidates = SceneInterpretationConstruction::evaluate_hypotheses(
+            &frame,
+            &[small, large],
+            &[],
+            policy(),
+        );
+        assert!(
+            candidates
+                .iter()
+                .all(|scene| !scene.contains_overlapping_hypotheses())
+        );
+        assert!(
+            CompetingSceneInterpretations::select(&frame, &candidates, policy())
+                .unique_selected_scene()
+                .is_none()
         );
     }
 }

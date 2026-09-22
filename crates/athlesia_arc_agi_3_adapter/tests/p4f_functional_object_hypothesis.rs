@@ -75,33 +75,103 @@ fn repeated_independent_evidence_produces_real_grounded_object_hypothesis() {
         ArcAgi3CognitiveInteractionRuntime::new(observation(game, grid(1, 1, 8, 9), None), 60_000)
             .unwrap();
 
-    for frame in [grid(2, 2, 8, 9), grid(3, 3, 8, 9), grid(4, 4, 8, 9)] {
-        real_turn(&mut runtime, game, frame);
+    /*
+     * One transition is insufficient for the live temporal persistence
+     * threshold.
+     */
+    real_turn(&mut runtime, game, grid(2, 2, 8, 9));
 
-        assert!(
-            !top_pair_is_object(&runtime),
-            "a provisional object must not appear before multiple retained evidence families mature"
-        );
-    }
+    assert!(
+        !top_pair_is_object(&runtime),
+        "one temporal observation must not fabricate persistent objecthood",
+    );
 
-    real_turn(&mut runtime, game, grid(5, 5, 8, 9));
+    assert!(
+        runtime.current_empirically_coherent_groupings().is_empty(),
+        "behavioral confirmation must still be absent after one transition",
+    );
+
+    /*
+     * The second retained transition establishes:
+     *
+     * - temporal persistence of the two perceptual identities;
+     * - repeated appearance cohesion;
+     * - repeated local contrast boundary.
+     *
+     * Common-change behavior has NOT yet matured because behavior is
+     * intentionally evaluated from the pre-existing temporal frontier.
+     *
+     * This is the key B4C contract:
+     *
+     * perception may form a provisional object before causal behavior
+     * has been independently confirmed.
+     */
+    real_turn(&mut runtime, game, grid(3, 3, 8, 9));
+
+    assert!(
+        top_pair_is_object(&runtime),
+        "persistent cohesive bounded appearance must permit provisional objecthood before common-change confirmation",
+    );
+
+    assert!(
+        runtime.current_empirically_coherent_groupings().is_empty(),
+        "provisional objecthood must not fabricate behavioral confirmation",
+    );
 
     let hypotheses = runtime.current_provisional_object_hypotheses();
 
     assert_eq!(
         hypotheses.len(),
         1,
-        "the holdout world contains exactly one grouping with sufficient independent empirical evidence"
-    );
-
-    assert!(
-        top_pair_is_object(&runtime),
-        "the repeatedly coherent compact pair must become a real ObjectHypothesis"
+        "the holdout world contains exactly one appearance-grounded provisional object",
     );
 
     assert!(
         hypotheses[0].is_grounded_in(runtime.perception().latest_frame(),),
-        "emitted object hypothesis must remain grounded in the actual current observation"
+        "provisional object must remain grounded in the actual current observation",
+    );
+
+    /*
+     * Once temporal eligibility already exists, subsequent transitions
+     * may independently accumulate common-change evidence.
+     *
+     * One behavioral observation is still insufficient.
+     */
+    real_turn(&mut runtime, game, grid(4, 4, 8, 9));
+
+    assert!(
+        top_pair_is_object(&runtime),
+        "provisional objecthood must remain available while behavioral evidence is still maturing",
+    );
+
+    assert!(
+        runtime.current_empirically_coherent_groupings().is_empty(),
+        "one common-change observation must remain insufficient under the live behavior policy",
+    );
+
+    /*
+     * A second independent common-change observation now confirms the
+     * same grouping behaviorally.
+     */
+    real_turn(&mut runtime, game, grid(5, 5, 8, 9));
+
+    assert!(
+        top_pair_is_object(&runtime),
+        "behavioral confirmation must strengthen rather than create the already grounded provisional object",
+    );
+
+    let left = ArcAgi3PerceptualIngestionBridge::cell_handle(0, 0);
+
+    let right = ArcAgi3PerceptualIngestionBridge::cell_handle(1, 0);
+
+    assert!(
+        runtime
+            .current_empirically_coherent_groupings()
+            .iter()
+            .any(|grouping| {
+                grouping.member_count() == 2 && grouping.contains(left) && grouping.contains(right)
+            },),
+        "repeated common change must eventually become independent behavioral confirmation",
     );
 }
 

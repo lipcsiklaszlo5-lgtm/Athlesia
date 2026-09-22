@@ -456,6 +456,82 @@ impl ArcAgi3CognitiveInteractionRuntime {
         )
     }
 
+    /*
+     * Competing perceptual proposal families.
+     *
+     * 1. retained temporal adjacency proposals;
+     * 2. current appearance-coherent maximal connected components.
+     *
+     * Neither family owns objecthood authority. Both merely provide
+     * grounded candidates for later evidence gates.
+     */
+    /*
+     * Proposal kind is discovery provenance, not physical grouping
+     * identity.
+     *
+     * For the objecthood path, equal member sets require one stable
+     * representative across time. Appearance-connected grouping is
+     * preferred because it can exist before temporal relation evidence
+     * matures; choosing it prevents retained appearance history from
+     * changing identity when PairwiseRelation appears later.
+     */
+    fn compare_objecthood_grouping_candidates(
+        left: &athlesia_core_knowledge_perceptual_grounding::PerceptualGroupingCandidate,
+        right: &athlesia_core_knowledge_perceptual_grounding::PerceptualGroupingCandidate,
+    ) -> std::cmp::Ordering {
+        use athlesia_core_knowledge_perceptual_grounding::PerceptualGroupingCandidateKind;
+
+        fn provenance_rank(kind: PerceptualGroupingCandidateKind) -> u8 {
+            match kind {
+                PerceptualGroupingCandidateKind::ConnectedComponent => 0,
+
+                PerceptualGroupingCandidateKind::PairwiseRelation => 1,
+            }
+        }
+
+        left.members()
+            .cmp(right.members())
+            .then_with(|| provenance_rank(left.kind()).cmp(&provenance_rank(right.kind())))
+    }
+
+    pub fn current_perceptual_grouping_candidates(
+        &self,
+    ) -> Vec<athlesia_core_knowledge_perceptual_grounding::PerceptualGroupingCandidate> {
+        let mut candidates = self
+            .current_perceptual_grouping_frontier(
+                Self::live_temporal_grouping_policy(),
+                Self::live_grouping_generation_policy(),
+            )
+            .candidates()
+            .to_vec();
+
+        candidates.extend(
+            ArcAgi3PerceptualIngestionBridge::appearance_coherent_grid_grouping_candidates(
+                self.perception.latest_frame(),
+            ),
+        );
+
+        /*
+         * Proposal family is provenance, not perceptual identity.
+         *
+         * The same physical grouping may be discovered independently as
+         * a temporal PairwiseRelation and as an appearance
+         * ConnectedComponent.
+         *
+         * Downstream objecthood identity is the canonical member set, so
+         * equivalent proposals must not become duplicate object candidates.
+         *
+         * Sorting remains deterministic. When both proposal families expose
+         * the same member set, the canonical ordering selects one stable
+         * representative without fabricating or discarding membership.
+         */
+        candidates.sort_by(Self::compare_objecthood_grouping_candidates);
+
+        candidates.dedup_by(|left, right| left.members() == right.members());
+
+        candidates
+    }
+
     pub fn current_empirically_coherent_groupings(
         &self,
     ) -> Vec<athlesia_core_knowledge_perceptual_grounding::PerceptualGroupingCandidate> {
@@ -473,16 +549,14 @@ impl ArcAgi3CognitiveInteractionRuntime {
         let frame = self.perception.latest_frame();
 
         /*
-         * ARC-specific responsibility ends here:
+         * ARC-specific responsibility ends at reporting exact current
+         * appearance observations for evidence-neutral grouping proposals.
          *
-         * decode the current grid and report raw visual observations for
-         * groupings that have already passed the retained behavior frontier.
-         *
-         * No temporal-support interpretation and no object-promotion
-         * decision belongs to the adapter.
+         * The adapter does not decide objecthood and does not fabricate
+         * common-change support.
          */
         let visual_observations = self
-            .current_empirically_coherent_groupings()
+            .current_perceptual_grouping_candidates()
             .into_iter()
             .filter_map(|grouping| {
                 let (appearance_cohesion, contrast_boundary) =
@@ -502,6 +576,7 @@ impl ArcAgi3CognitiveInteractionRuntime {
             .current_objecthood_eligible_groupings_from_visual_observations(
                 &visual_observations,
                 Self::live_temporal_grouping_policy(),
+                Self::live_grouping_behavior_retention_policy(),
             )
     }
 
@@ -515,7 +590,47 @@ impl ArcAgi3CognitiveInteractionRuntime {
                 self.perception.latest_frame(),
                 &groupings,
                 Self::live_grouping_appearance_retention_policy(),
+                Self::live_grouping_behavior_retention_policy(),
             )
+    }
+
+    fn current_grouping_behavior_candidates(
+        &self,
+    ) -> Vec<athlesia_core_knowledge_perceptual_grounding::PerceptualGroupingCandidate> {
+        let mut candidates = self
+            .current_perceptual_grouping_frontier(
+                Self::live_temporal_grouping_policy(),
+                Self::live_grouping_generation_policy(),
+            )
+            .candidates()
+            .to_vec();
+        candidates.extend(self.current_objecthood_eligible_groupings());
+
+        // Observe each physical member-set once per action, even when both
+        // temporal and appearance proposals already identify it.
+        candidates.sort();
+        candidates.dedup_by(|left, right| left.members() == right.members());
+
+        for candidate in &mut candidates {
+            // Continue one exact retained history when discovery provenance
+            // changes. This does not merge counts or rewrite other histories.
+            if let Some(record) = self
+                .cognition
+                .perceptual_grouping_behavior_evidence()
+                .records()
+                .iter()
+                .filter(|record| record.candidate().members() == candidate.members())
+                .max_by(|left, right| {
+                    left.observation_count()
+                        .cmp(&right.observation_count())
+                        .then_with(|| right.candidate().cmp(left.candidate()))
+                })
+            {
+                *candidate = record.candidate().clone();
+            }
+        }
+
+        candidates
     }
 
     fn live_scene_grounding_policy(
@@ -1571,6 +1686,11 @@ impl ArcAgi3CognitiveInteractionRuntime {
          */
         let previous_best_scene = self.current_best_scene_interpretation();
 
+        // Perception and retained cognition are unchanged while an action is
+        // pending. Reconstruct its subjects from that pre-action state before
+        // projecting or retaining any part of the consequence.
+        let previous_grouping_candidates = self.current_grouping_behavior_candidates();
+
         let pending_bootstrap_coverage_action = self.pending_bootstrap_coverage_action.clone();
 
         let mut next_session = self.session.clone();
@@ -1629,17 +1749,26 @@ impl ArcAgi3CognitiveInteractionRuntime {
                         max_proposals_per_frame,
                     )
                 {
+                    // Validate or contradict prior subjects on the explicit
+                    // action boundary, including members lost in the response.
+                    // A unique scene is not required for behavioral observation.
+                    let grouping_behavior =
+                        athlesia_core_knowledge_perceptual_grounding::
+                            PerceptualGroupingBehaviorObservation::observe(
+                                &previous_grouping_candidates,
+                                &observation_result,
+                            );
+
+                    next_cognition.retain_perceptual_grouping_behavior_result(&grouping_behavior);
+
                     /*
-                     * Epistemic anti-self-confirmation rule:
+                     * Appearance proposals are allowed to originate from
+                     * current visual organization without retroactively
+                     * contaminating common-change evidence for this same
+                     * transition.
                      *
-                     * Grouping candidates are derived from temporal evidence
-                     * retained BEFORE this environment consequence.
-                     *
-                     * The newly observed consequence may then validate or
-                     * contradict those already-eligible candidates.
-                     *
-                     * Only after behavior evidence is retained do we admit
-                     * this transition into atomic temporal history.
+                     * These post-action candidates receive only appearance
+                     * evidence here; behavior used the pre-action subjects.
                      */
                     let grouping_frontier =
                         ArcAgi3PerceptualIngestionBridge::
@@ -1651,19 +1780,32 @@ impl ArcAgi3CognitiveInteractionRuntime {
                                 Self::live_grouping_generation_policy(),
                             );
 
-                    let grouping_behavior =
-                        athlesia_core_knowledge_perceptual_grounding::
-                            PerceptualGroupingBehaviorObservation::observe(
-                                grouping_frontier.candidates(),
-                                &observation_result,
-                            );
+                    let mut appearance_candidates = grouping_frontier.candidates().to_vec();
 
-                    next_cognition.retain_perceptual_grouping_behavior_result(&grouping_behavior);
+                    appearance_candidates.extend(
+                        ArcAgi3PerceptualIngestionBridge::
+                            appearance_coherent_grid_grouping_candidates(
+                                causal_transition.current_frame(),
+                            ),
+                    );
+
+                    /*
+                     * Retain one appearance observation per physical
+                     * membership grouping, even when several proposal
+                     * families independently discovered it.
+                     *
+                     * Otherwise proposal provenance would incorrectly
+                     * multiply empirical evidence and later scene
+                     * hypotheses.
+                     */
+                    appearance_candidates.sort_by(Self::compare_objecthood_grouping_candidates);
+
+                    appearance_candidates.dedup_by(|left, right| left.members() == right.members());
 
                     let grouping_appearance =
                         ArcAgi3PerceptualIngestionBridge::grouping_appearance_observation(
                             causal_transition.current_frame(),
-                            grouping_frontier.candidates(),
+                            &appearance_candidates,
                         );
 
                     next_cognition

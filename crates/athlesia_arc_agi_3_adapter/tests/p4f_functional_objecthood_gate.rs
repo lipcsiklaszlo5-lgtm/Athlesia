@@ -74,33 +74,93 @@ fn holdout_compact_coherent_pair_becomes_objecthood_eligible() {
             .unwrap();
 
     /*
-     * The first two consequences establish temporal eligibility.
-     *
-     * The next two are genuinely new common-change validation.
-     *
-     * Throughout, the top pair shares one observed appearance feature and
-     * remains contrast-separated from the bottom cells.
+     * One transition is not enough to satisfy the live temporal
+     * persistence threshold.
      */
-    for frame in [grid(2, 2, 8, 9), grid(3, 3, 8, 9), grid(4, 4, 8, 9)] {
-        real_turn(&mut runtime, game, frame);
+    real_turn(&mut runtime, game, grid(2, 2, 8, 9));
 
-        assert!(
-            !top_pair_is_eligible(&runtime),
-            "objecthood eligibility must not appear before sufficient independent evidence"
-        );
-    }
+    assert!(
+        !top_pair_is_eligible(&runtime),
+        "one temporal observation must not create objecthood eligibility",
+    );
 
-    real_turn(&mut runtime, game, grid(5, 5, 8, 9));
+    assert!(
+        runtime.current_empirically_coherent_groupings().is_empty(),
+        "behavioral confirmation must still be absent after one transition",
+    );
+
+    /*
+     * The second retained transition establishes independent:
+     *
+     * - temporal persistence;
+     * - repeated appearance cohesion;
+     * - repeated local contrast boundary.
+     *
+     * That is sufficient for PROVISIONAL perceptual eligibility.
+     *
+     * Common-change behavior is intentionally still immature here,
+     * because behavior is evaluated from the pre-existing temporal
+     * candidate frontier.
+     */
+    real_turn(&mut runtime, game, grid(3, 3, 8, 9));
 
     assert!(
         top_pair_is_eligible(&runtime),
-        "repeated behavior plus temporal persistence plus appearance cohesion plus boundary must become eligible"
+        "persistent cohesive bounded appearance must become objecthood-eligible before causal confirmation",
+    );
+
+    assert!(
+        runtime.current_empirically_coherent_groupings().is_empty(),
+        "objecthood eligibility must not fabricate common-change support",
     );
 
     assert_eq!(
         runtime.current_objecthood_eligible_groupings().len(),
         1,
-        "the holdout world contains only one grouping satisfying all evidence families"
+        "the holdout world contains one appearance-grounded eligible grouping",
+    );
+
+    /*
+     * One subsequent common-change opportunity remains insufficient
+     * under the live behavior threshold.
+     */
+    real_turn(&mut runtime, game, grid(4, 4, 8, 9));
+
+    assert!(
+        top_pair_is_eligible(&runtime),
+        "provisional perceptual eligibility must remain stable while behavioral evidence matures",
+    );
+
+    assert!(
+        runtime.current_empirically_coherent_groupings().is_empty(),
+        "one common-change observation must remain insufficient",
+    );
+
+    /*
+     * The next independent behavioral observation now confirms the
+     * already perceived grouping.
+     */
+    real_turn(&mut runtime, game, grid(5, 5, 8, 9));
+
+    assert!(
+        top_pair_is_eligible(&runtime),
+        "behavioral confirmation must strengthen rather than create perceptual eligibility",
+    );
+
+    let left = ArcAgi3PerceptualIngestionBridge::cell_handle(0, 0);
+
+    let right = ArcAgi3PerceptualIngestionBridge::cell_handle(1, 0);
+
+    assert!(
+        runtime
+            .current_empirically_coherent_groupings()
+            .iter()
+            .any(|candidate| {
+                candidate.member_count() == 2
+                    && candidate.contains(left)
+                    && candidate.contains(right)
+            },),
+        "repeated common change must independently confirm the perceived grouping",
     );
 }
 
