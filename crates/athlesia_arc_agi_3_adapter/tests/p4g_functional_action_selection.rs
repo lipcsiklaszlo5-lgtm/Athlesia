@@ -1,8 +1,8 @@
 use athlesia_arc_agi_3_adapter::{
-    ArcAgi3Action, ArcAgi3ActionId, ArcAgi3AvailableActions, ArcAgi3FrameSequence, ArcAgi3GameId,
-    ArcAgi3GameState, ArcAgi3Grid, ArcAgi3Observation,
     cognitive_interaction_runtime::ArcAgi3CognitiveInteractionRuntime,
-    cognitive_protocol_bridge::ArcAgi3CognitiveProtocolBridge,
+    cognitive_protocol_bridge::ArcAgi3CognitiveProtocolBridge, ArcAgi3Action, ArcAgi3ActionId,
+    ArcAgi3AvailableActions, ArcAgi3FrameSequence, ArcAgi3GameId, ArcAgi3GameState, ArcAgi3Grid,
+    ArcAgi3Observation,
 };
 use athlesia_executive_agency::{
     ExecutiveAgencyPolicy, ExecutiveGoal, ExecutiveSelectionThresholds, ExecutiveUtilityWeights,

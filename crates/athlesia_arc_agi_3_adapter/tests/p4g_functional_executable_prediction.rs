@@ -1,8 +1,8 @@
 use athlesia_arc_agi_3_adapter::{
-    ArcAgi3Action, ArcAgi3ActionId, ArcAgi3AvailableActions, ArcAgi3FrameSequence, ArcAgi3GameId,
-    ArcAgi3GameState, ArcAgi3Grid, ArcAgi3Observation,
     cognitive_interaction_runtime::ArcAgi3CognitiveInteractionRuntime,
-    cognitive_protocol_bridge::ArcAgi3CognitiveProtocolBridge,
+    cognitive_protocol_bridge::ArcAgi3CognitiveProtocolBridge, ArcAgi3Action, ArcAgi3ActionId,
+    ArcAgi3AvailableActions, ArcAgi3FrameSequence, ArcAgi3GameId, ArcAgi3GameState, ArcAgi3Grid,
+    ArcAgi3Observation,
 };
 use athlesia_mindstone_sparse_cognition::CognitiveSignal;
 use athlesia_universal_domain_learning::GroundedStructuralPredictionStatus;
@@ -227,7 +227,7 @@ fn global_flash_never_bootstraps_an_executable_world_model() {
             ArcAgi3GameId::new(game.to_string()).unwrap(),
             ArcAgi3GameState::NotFinished,
             ArcAgi3FrameSequence::new(vec![
-                ArcAgi3Grid::from_rows(vec![vec![1, 1], vec![1, 1]]).unwrap(),
+                ArcAgi3Grid::from_rows(vec![vec![1, 1], vec![1, 1]]).unwrap()
             ])
             .unwrap(),
             0,
@@ -257,9 +257,11 @@ fn global_flash_never_bootstraps_an_executable_world_model() {
         let response = ArcAgi3Observation::new(
             ArcAgi3GameId::new(game.to_string()).unwrap(),
             ArcAgi3GameState::NotFinished,
-            ArcAgi3FrameSequence::new(vec![
-                ArcAgi3Grid::from_rows(vec![vec![value, value], vec![value, value]]).unwrap(),
+            ArcAgi3FrameSequence::new(vec![ArcAgi3Grid::from_rows(vec![
+                vec![value, value],
+                vec![value, value],
             ])
+            .unwrap()])
             .unwrap(),
             0,
             3,

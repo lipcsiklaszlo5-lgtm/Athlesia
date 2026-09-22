@@ -1,12 +1,12 @@
 use athlesia_arc_agi_3_adapter::{
-    ArcAgi3Action, ArcAgi3ActionId, ArcAgi3AvailableActions, ArcAgi3FrameSequence, ArcAgi3GameId,
-    ArcAgi3GameState, ArcAgi3Grid, ArcAgi3Observation,
     cognitive_interaction_runtime::{
         ArcAgi3CognitiveInteractionError, ArcAgi3CognitiveInteractionRuntime,
         UniversalArcAgi3CognitiveInteractionRuntime,
     },
     cognitive_protocol_bridge::ArcAgi3CognitiveProtocolBridge,
     interactive_session_runtime::ArcAgi3InteractiveSessionError,
+    ArcAgi3Action, ArcAgi3ActionId, ArcAgi3AvailableActions, ArcAgi3FrameSequence, ArcAgi3GameId,
+    ArcAgi3GameState, ArcAgi3Grid, ArcAgi3Observation,
 };
 use athlesia_mindstone_sparse_cognition::CognitiveSignal;
 

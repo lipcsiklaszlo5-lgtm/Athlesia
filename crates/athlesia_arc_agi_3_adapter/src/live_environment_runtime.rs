@@ -131,18 +131,14 @@ impl<'a> ArcAgi3LiveUnifiedActionRequest<'a> {
 
 #[derive(Clone, Copy, Debug)]
 pub struct ArcAgi3LiveSuccessorInformedUnifiedActionRequest<'a> {
-    executive_request:
-        ArcAgi3SuccessorInformedUnifiedExecutiveRequest<'a>,
-    confidence:
-        CognitiveSignal,
+    executive_request: ArcAgi3SuccessorInformedUnifiedExecutiveRequest<'a>,
+    confidence: CognitiveSignal,
 }
 
 impl<'a> ArcAgi3LiveSuccessorInformedUnifiedActionRequest<'a> {
     pub fn new(
-        executive_request:
-            ArcAgi3SuccessorInformedUnifiedExecutiveRequest<'a>,
-        confidence:
-            CognitiveSignal,
+        executive_request: ArcAgi3SuccessorInformedUnifiedExecutiveRequest<'a>,
+        confidence: CognitiveSignal,
     ) -> Self {
         Self {
             executive_request,
@@ -150,19 +146,14 @@ impl<'a> ArcAgi3LiveSuccessorInformedUnifiedActionRequest<'a> {
         }
     }
 
-    pub fn executive_request(
-        self,
-    ) -> ArcAgi3SuccessorInformedUnifiedExecutiveRequest<'a> {
+    pub fn executive_request(self) -> ArcAgi3SuccessorInformedUnifiedExecutiveRequest<'a> {
         self.executive_request
     }
 
-    pub fn confidence(
-        self,
-    ) -> CognitiveSignal {
+    pub fn confidence(self) -> CognitiveSignal {
         self.confidence
     }
 }
-
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ArcAgi3LiveUnifiedStep {
@@ -397,22 +388,13 @@ where
 
     fn execute_unified_authority(
         &mut self,
-        authority:
-            ArcAgi3UnifiedExecutiveAuthority,
-        confidence:
-            CognitiveSignal,
-    ) -> Result<
-        ArcAgi3LiveUnifiedStep,
-        ArcAgi3LiveEnvironmentError
-    > {
-        let next_completed_step_count =
-            self
-                .completed_cognitive_step_count
-                .checked_add(1)
-                .ok_or(
-                    ArcAgi3LiveEnvironmentError::
-                        CognitiveStepCounterOverflow,
-                )?;
+        authority: ArcAgi3UnifiedExecutiveAuthority,
+        confidence: CognitiveSignal,
+    ) -> Result<ArcAgi3LiveUnifiedStep, ArcAgi3LiveEnvironmentError> {
+        let next_completed_step_count = self
+            .completed_cognitive_step_count
+            .checked_add(1)
+            .ok_or(ArcAgi3LiveEnvironmentError::CognitiveStepCounterOverflow)?;
 
         /*
          * M48 already chose the authority.
@@ -420,81 +402,51 @@ where
          * Live execution performs no local ranking, source inference,
          * provenance reinterpretation, or utility computation.
          */
-        let command =
-            self
-                .cognitive_runtime
-                .begin_unified_executive_authority(
-                    &authority,
-                )?;
+        let command = self
+            .cognitive_runtime
+            .begin_unified_executive_authority(&authority)?;
 
-        let completion =
-            ArcAgi3EnvironmentTransportBoundary::
-                complete_pending(
-                    &mut self.transport,
-                    &mut self.cognitive_runtime,
-                    &command,
-                    confidence,
-                );
+        let completion = ArcAgi3EnvironmentTransportBoundary::complete_pending(
+            &mut self.transport,
+            &mut self.cognitive_runtime,
+            &command,
+            confidence,
+        );
 
-        let completion =
-            match completion {
-                Ok(completion) =>
-                    completion,
+        let completion = match completion {
+            Ok(completion) => completion,
 
-                Err(error) => {
-                    self.mark_transport_failure(
-                        &error,
-                    );
+            Err(error) => {
+                self.mark_transport_failure(&error);
 
-                    return Err(
-                        ArcAgi3LiveEnvironmentError::
-                            Transport(error),
-                    );
-                }
-            };
+                return Err(ArcAgi3LiveEnvironmentError::Transport(error));
+            }
+        };
 
-        self.completed_cognitive_step_count =
-            next_completed_step_count;
+        self.completed_cognitive_step_count = next_completed_step_count;
 
-        Ok(
-            ArcAgi3LiveUnifiedStep {
-                authority,
-                command,
-                completion,
-                completed_cognitive_step_count:
-                    next_completed_step_count,
-            },
-        )
+        Ok(ArcAgi3LiveUnifiedStep {
+            authority,
+            command,
+            completion,
+            completed_cognitive_step_count: next_completed_step_count,
+        })
     }
 
     pub fn execute_unified(
         &mut self,
-        request:
-            ArcAgi3LiveUnifiedActionRequest<'_>,
-    ) -> Result<
-        Option<ArcAgi3LiveUnifiedStep>,
-        ArcAgi3LiveEnvironmentError
-    > {
+        request: ArcAgi3LiveUnifiedActionRequest<'_>,
+    ) -> Result<Option<ArcAgi3LiveUnifiedStep>, ArcAgi3LiveEnvironmentError> {
         self.ensure_active()?;
 
-        let Some(authority) =
-            self
-                .cognitive_runtime
-                .current_unified_executive_authority(
-                    request
-                        .exploitation_actions(),
-                    request
-                        .goal(),
-                    request
-                        .goal_alignment(),
-                    request
-                        .exploitation_execution_cost(),
-                    request
-                        .experiment_authority(),
-                    request
-                        .policy(),
-                )
-        else {
+        let Some(authority) = self.cognitive_runtime.current_unified_executive_authority(
+            request.exploitation_actions(),
+            request.goal(),
+            request.goal_alignment(),
+            request.exploitation_execution_cost(),
+            request.experiment_authority(),
+            request.policy(),
+        ) else {
             /*
              * Epistemic abstention is not a command.
              *
@@ -503,32 +455,19 @@ where
             return Ok(None);
         };
 
-        self
-            .execute_unified_authority(
-                authority,
-                request
-                    .confidence(),
-            )
+        self.execute_unified_authority(authority, request.confidence())
             .map(Some)
     }
 
     pub fn execute_successor_informed_unified(
         &mut self,
-        request:
-            ArcAgi3LiveSuccessorInformedUnifiedActionRequest<'_>,
-    ) -> Result<
-        Option<ArcAgi3LiveUnifiedStep>,
-        ArcAgi3LiveEnvironmentError
-    > {
+        request: ArcAgi3LiveSuccessorInformedUnifiedActionRequest<'_>,
+    ) -> Result<Option<ArcAgi3LiveUnifiedStep>, ArcAgi3LiveEnvironmentError> {
         self.ensure_active()?;
 
-        let Some(authority) =
-            self
-                .cognitive_runtime
-                .current_successor_informed_unified_executive_authority(
-                    request
-                        .executive_request(),
-                )
+        let Some(authority) = self
+            .cognitive_runtime
+            .current_successor_informed_unified_executive_authority(request.executive_request())
         else {
             /*
              * Cognitive abstention remains side-effect free at the
@@ -537,12 +476,7 @@ where
             return Ok(None);
         };
 
-        self
-            .execute_unified_authority(
-                authority,
-                request
-                    .confidence(),
-            )
+        self.execute_unified_authority(authority, request.confidence())
             .map(Some)
     }
 
@@ -614,21 +548,13 @@ impl UniversalArcAgi3LiveEnvironmentRuntime {
     }
 
     pub fn execute_successor_informed_unified<T>(
-        runtime:
-            &mut ArcAgi3LiveEnvironmentRuntime<T>,
-        request:
-            ArcAgi3LiveSuccessorInformedUnifiedActionRequest<'_>,
-    ) -> Result<
-        Option<ArcAgi3LiveUnifiedStep>,
-        ArcAgi3LiveEnvironmentError
-    >
+        runtime: &mut ArcAgi3LiveEnvironmentRuntime<T>,
+        request: ArcAgi3LiveSuccessorInformedUnifiedActionRequest<'_>,
+    ) -> Result<Option<ArcAgi3LiveUnifiedStep>, ArcAgi3LiveEnvironmentError>
     where
         T: ArcAgi3EnvironmentTransport,
     {
-        runtime
-            .execute_successor_informed_unified(
-                request,
-            )
+        runtime.execute_successor_informed_unified(request)
     }
 
     pub fn reset<T>(
@@ -642,154 +568,76 @@ impl UniversalArcAgi3LiveEnvironmentRuntime {
     }
 }
 
-
 #[cfg(test)]
 mod successor_informed_live_dispatch_tests {
     use super::*;
 
-    use std::cell::{
-        Cell,
-        RefCell,
-    };
-    use std::collections::
-        VecDeque;
+    use std::cell::{Cell, RefCell};
+    use std::collections::VecDeque;
 
-    use crate::
-        cognitive_interaction_runtime::
-        c16i_successor_informed_two_contract_e2e_tests
-            as c16i;
+    use crate::cognitive_interaction_runtime::c16i_successor_informed_two_contract_e2e_tests as c16i;
 
     #[derive(Debug)]
     struct RecordingTransport {
-        responses:
-            RefCell<
-                VecDeque<
-                    Result<
-                        crate::ArcAgi3Observation,
-                        ArcAgi3TransportError
-                    >
-                >
-            >,
-        execute_count:
-            Cell<usize>,
-        executed_actions:
-            RefCell<
-                Vec<ArcAgi3Action>
-            >,
+        responses: RefCell<VecDeque<Result<crate::ArcAgi3Observation, ArcAgi3TransportError>>>,
+        execute_count: Cell<usize>,
+        executed_actions: RefCell<Vec<ArcAgi3Action>>,
     }
 
     impl RecordingTransport {
-        fn new(
-            response:
-                crate::ArcAgi3Observation,
-        ) -> Self {
+        fn new(response: crate::ArcAgi3Observation) -> Self {
             Self {
-                responses:
-                    RefCell::new(
-                        VecDeque::from([
-                            Ok(response),
-                        ]),
-                    ),
-                execute_count:
-                    Cell::new(0),
-                executed_actions:
-                    RefCell::new(
-                        Vec::new(),
-                    ),
+                responses: RefCell::new(VecDeque::from([Ok(response)])),
+                execute_count: Cell::new(0),
+                executed_actions: RefCell::new(Vec::new()),
             }
         }
 
-        fn execute_count(
-            &self,
-        ) -> usize {
-            self.execute_count
-                .get()
+        fn execute_count(&self) -> usize {
+            self.execute_count.get()
         }
 
-        fn last_executed_action(
-            &self,
-        ) -> Option<ArcAgi3Action> {
-            self.executed_actions
-                .borrow()
-                .last()
-                .copied()
+        fn last_executed_action(&self) -> Option<ArcAgi3Action> {
+            self.executed_actions.borrow().last().copied()
         }
     }
 
-    impl ArcAgi3EnvironmentTransport
-        for RecordingTransport
-    {
+    impl ArcAgi3EnvironmentTransport for RecordingTransport {
         fn start_game(
             &mut self,
-            _game_id:
-                &ArcAgi3GameId,
-            _card_id:
-                &str,
-        ) -> Result<
-            crate::ArcAgi3Observation,
-            ArcAgi3TransportError
-        > {
-            Err(
-                ArcAgi3TransportError::
-                    ActiveSessionExists,
-            )
+            _game_id: &ArcAgi3GameId,
+            _card_id: &str,
+        ) -> Result<crate::ArcAgi3Observation, ArcAgi3TransportError> {
+            Err(ArcAgi3TransportError::ActiveSessionExists)
         }
 
         fn execute(
             &mut self,
-            command:
-                &ArcAgi3SessionCommand,
-        ) -> Result<
-            crate::ArcAgi3Observation,
-            ArcAgi3TransportError
-        > {
-            self.execute_count
-                .set(
-                    self
-                        .execute_count
-                        .get()
-                        .checked_add(1)
-                        .expect(
-                            "test transport counter remains bounded",
-                        ),
-                );
+            command: &ArcAgi3SessionCommand,
+        ) -> Result<crate::ArcAgi3Observation, ArcAgi3TransportError> {
+            self.execute_count.set(
+                self.execute_count
+                    .get()
+                    .checked_add(1)
+                    .expect("test transport counter remains bounded"),
+            );
 
-            self.executed_actions
-                .borrow_mut()
-                .push(
-                    command
-                        .action(),
-                );
+            self.executed_actions.borrow_mut().push(command.action());
 
             self.responses
                 .borrow_mut()
                 .pop_front()
-                .unwrap_or(
-                    Err(
-                        ArcAgi3TransportError::
-                            NoActiveSession,
-                    ),
-                )
+                .unwrap_or(Err(ArcAgi3TransportError::NoActiveSession))
         }
     }
 
-    fn signal(
-        value:
-            u16,
-    ) -> CognitiveSignal {
-        CognitiveSignal::new(
-            value,
-        )
-        .expect(
-            "test signal is positive and bounded",
-        )
+    fn signal(value: u16) -> CognitiveSignal {
+        CognitiveSignal::new(value).expect("test signal is positive and bounded")
     }
 
     #[test]
-    fn successor_informed_native_m50_reaches_live_transport_with_exact_m51_provenance(
-    ) {
-        let game =
-            "c16i-live-successor-m50";
+    fn successor_informed_native_m50_reaches_live_transport_with_exact_m51_provenance() {
+        let game = "c16i-live-successor-m50";
 
         /*
          * Canonical C16I fixture:
@@ -800,11 +648,7 @@ mod successor_informed_live_dispatch_tests {
          * + retained positive C3F priority
          * + caller-native matching M50 possibility/beliefs.
          */
-        let fixture =
-            c16i::fixture(
-                game,
-                8_300_000,
-            );
+        let fixture = c16i::fixture(game, 8_300_000);
 
         let (
             cognitive_runtime,
@@ -813,86 +657,48 @@ mod successor_informed_live_dispatch_tests {
             expected_source_state,
             native_possibilities,
             beliefs,
-        ) =
-            fixture
-                .into_live_parts();
+        ) = fixture.into_live_parts();
 
         /*
          * The actual environment consequence of the selected ACTION1.
          */
-        let response =
-            c16i::live_response(
-                game,
-                6,
-                Some(
-                    expected_arc_action,
-                ),
-            );
+        let response = c16i::live_response(game, 6, Some(expected_arc_action));
 
         /*
          * Test-only assembly around the already-mature retained cognitive
          * runtime. No production mutable-cognition escape hatch is added.
          */
-        let mut runtime =
-            ArcAgi3LiveEnvironmentRuntime {
-                transport:
-                    RecordingTransport::new(
-                        response,
-                    ),
-                cognitive_runtime,
-                completed_cognitive_step_count:
-                    0,
-                completed_reset_count:
-                    0,
-                faulted_pending:
-                    false,
-                fault_disposition:
-                    None,
-            };
+        let mut runtime = ArcAgi3LiveEnvironmentRuntime {
+            transport: RecordingTransport::new(response),
+            cognitive_runtime,
+            completed_cognitive_step_count: 0,
+            completed_reset_count: 0,
+            faulted_pending: false,
+            fault_disposition: None,
+        };
 
-        let goal =
-            c16i::live_goal();
+        let goal = c16i::live_goal();
 
-        let exploitation_actions:
-            [ArcAgi3Action; 0] =
-                [];
+        let exploitation_actions: [ArcAgi3Action; 0] = [];
 
-        let executive_request =
-            c16i::live_request(
-                &exploitation_actions,
-                &goal,
-                &native_possibilities,
-                &beliefs,
-            );
+        let executive_request = c16i::live_request(
+            &exploitation_actions,
+            &goal,
+            &native_possibilities,
+            &beliefs,
+        );
 
         let request =
-            ArcAgi3LiveSuccessorInformedUnifiedActionRequest::
-                new(
-                    executive_request,
-                    signal(900),
-                );
+            ArcAgi3LiveSuccessorInformedUnifiedActionRequest::new(executive_request, signal(900));
 
-        let step =
-            runtime
-                .execute_successor_informed_unified(
-                    request,
-                )
-                .expect(
-                    "successor-informed live execution must not fail",
-                )
-                .expect(
-                    "real native M50 authority must reach live execution",
-                );
+        let step = runtime
+            .execute_successor_informed_unified(request)
+            .expect("successor-informed live execution must not fail")
+            .expect("real native M50 authority must reach live execution");
 
-        assert_eq!(
-            step.action(),
-            expected_arc_action,
-        );
+        assert_eq!(step.action(), expected_arc_action,);
 
-        assert_eq!(
-            step.cognitive_action(),
-            &expected_cognitive_action,
-        );
+        assert_eq!(step.cognitive_action(), &expected_cognitive_action,);
 
         assert_eq!(
             step.source_state(),
@@ -901,65 +707,44 @@ mod successor_informed_live_dispatch_tests {
         );
 
         assert!(
-            step
-                .authority()
-                .candidate()
-                .information_gain()
-                > CognitiveSignal::zero(),
+            step.authority().candidate().information_gain() > CognitiveSignal::zero(),
             "live winner must carry real native M50 information authority",
         );
 
         assert_eq!(
-            runtime
-                .transport()
-                .execute_count(),
+            runtime.transport().execute_count(),
             1,
             "one selected successor-informed authority produces exactly one transport side effect",
         );
 
         assert_eq!(
-            runtime
-                .transport()
-                .last_executed_action(),
-            Some(
-                expected_arc_action,
-            ),
+            runtime.transport().last_executed_action(),
+            Some(expected_arc_action,),
         );
 
-        let evidence =
-            step
-                .completion()
-                .turn()
-                .evidence()
-                .expect(
-                    "live completion must retain self-generated cognitive feedback",
-                );
+        let evidence = step
+            .completion()
+            .turn()
+            .evidence()
+            .expect("live completion must retain self-generated cognitive feedback");
 
         assert_eq!(
-            evidence
-                .execution_observation()
-                .observed_state(),
+            evidence.execution_observation().observed_state(),
             &expected_source_state,
         );
 
         assert_eq!(
-            evidence
-                .experiment_observation()
-                .source_state(),
+            evidence.experiment_observation().source_state(),
             &expected_source_state,
         );
 
         assert_eq!(
-            evidence
-                .execution_observation()
-                .observed_action(),
+            evidence.execution_observation().observed_action(),
             &expected_cognitive_action,
         );
 
         assert_eq!(
-            evidence
-                .experiment_observation()
-                .action(),
+            evidence.experiment_observation().action(),
             &expected_cognitive_action,
         );
     }

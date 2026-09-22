@@ -1153,8 +1153,8 @@ fn live_empirical_history_queries_never_create_new_progress_events() {
 }
 
 #[test]
-fn live_current_state_without_matching_empirical_history_has_zero_epistemic_priority_and_zero_transport()
- {
+fn live_current_state_without_matching_empirical_history_has_zero_epistemic_priority_and_zero_transport(
+) {
     let game = "p4gc3f-live-no-matching-history";
 
     let action_one = action(ArcAgi3ActionId::Action1);
@@ -1428,8 +1428,8 @@ fn live_progress_history_from_other_source_state_cannot_prioritize_new_current_s
 }
 
 #[test]
-fn live_real_c3d_event_retains_pre_learning_structural_transfer_identity_with_same_event_provenance()
- {
+fn live_real_c3d_event_retains_pre_learning_structural_transfer_identity_with_same_event_provenance(
+) {
     let game = "p4gc3g-live-transfer-retention";
 
     let action_one = action(ArcAgi3ActionId::Action1);
@@ -1632,8 +1632,8 @@ fn live_noninformative_turn_cannot_manufacture_transfer_progress_history() {
 }
 
 #[test]
-fn live_real_transfer_history_can_estimate_structurally_identical_other_source_query_without_transport()
- {
+fn live_real_transfer_history_can_estimate_structurally_identical_other_source_query_without_transport(
+) {
     let game = "p4gc3g-live-transfer-estimate";
 
     let action_one = action(ArcAgi3ActionId::Action1);
@@ -1800,22 +1800,14 @@ fn live_real_transfer_history_can_estimate_structurally_identical_other_source_q
 }
 
 fn c3h_distinct_transfer_targets(
-    identity:
-        &athlesia_autonomous_active_experimentation::
-            EmpiricalEpistemicTransferIdentity,
+    identity: &athlesia_autonomous_active_experimentation::EmpiricalEpistemicTransferIdentity,
 ) -> Vec<CognitiveStructure> {
-    let mut result =
-        Vec::new();
+    let mut result = Vec::new();
 
-    for forecast in
-        identity.forecasts()
-    {
-        let target =
-            forecast.target().clone();
+    for forecast in identity.forecasts() {
+        let target = forecast.target().clone();
 
-        if !result.contains(
-            &target,
-        ) {
+        if !result.contains(&target) {
             result.push(target);
         }
     }
@@ -1823,88 +1815,47 @@ fn c3h_distinct_transfer_targets(
     result
 }
 
-
 fn c3h_target_difference(
     left: &[CognitiveStructure],
     right: &[CognitiveStructure],
 ) -> Vec<CognitiveStructure> {
     left.iter()
-        .filter(|candidate| {
-            !right.contains(candidate)
-        })
+        .filter(|candidate| !right.contains(candidate))
         .cloned()
         .collect()
 }
 
-
 fn c3h_binding_signature(
-    result:
-        &athlesia_autonomous_active_experimentation::
-            RolePreservingTargetSchemaResult,
+    result: &athlesia_autonomous_active_experimentation::RolePreservingTargetSchemaResult,
 ) -> Vec<(u64, u64)> {
-    let mut signature =
-        result.bindings()
-            .iter()
-            .map(|binding| {
-                (
-                    binding.historical_atom(),
-                    binding.current_atom(),
-                )
-            })
-            .collect::<Vec<_>>();
+    let mut signature = result
+        .bindings()
+        .iter()
+        .map(|binding| (binding.historical_atom(), binding.current_atom()))
+        .collect::<Vec<_>>();
 
     signature.sort();
 
     signature
 }
 
-
 #[test]
 fn live_c3h_role_preserving_schema_recovers_d6_target_substitution() {
-    let mut cross_world_binding_signature:
-        Option<Vec<(u64, u64)>> =
-        None;
+    let mut cross_world_binding_signature: Option<Vec<(u64, u64)>> = None;
 
     /*
      * Two separated holdout response values from the D6 family.
      * The schema must emerge from live cognition, not from manually
      * constructed target fixtures.
      */
-    for (
-        world_index,
-        candidate_value,
-    ) in [
-        2_u8,
-        14_u8,
-    ]
-    .into_iter()
-    .enumerate()
-    {
-        let game = format!(
-            "p4gc3h-live-role-schema-{candidate_value}"
-        );
+    for (world_index, candidate_value) in [2_u8, 14_u8].into_iter().enumerate() {
+        let game = format!("p4gc3h-live-role-schema-{candidate_value}");
 
-        let mut runtime =
-            live_runtime(
-                &game,
-                700_000
-                    + world_index as u64
-                        * 10_000,
-            );
+        let mut runtime = live_runtime(&game, 700_000 + world_index as u64 * 10_000);
 
-        mature_runtime(
-            &mut runtime,
-            &game,
-        );
+        mature_runtime(&mut runtime, &game);
 
-        real_training_turn(
-            &mut runtime,
-            &game,
-            action(
-                ArcAgi3ActionId::Action2,
-            ),
-            7_u8,
-        );
+        real_training_turn(&mut runtime, &game, action(ArcAgi3ActionId::Action2), 7_u8);
 
         let state7 = runtime
             .cognitive_runtime()
@@ -1913,33 +1864,20 @@ fn live_c3h_role_preserving_schema_recovers_d6_target_substitution() {
             .clone();
 
         let action_one =
-            ArcAgi3CognitiveProtocolBridge::
-                encode_action(
-                    action(
-                        ArcAgi3ActionId::Action1,
-                    ),
-                );
+            ArcAgi3CognitiveProtocolBridge::encode_action(action(ArcAgi3ActionId::Action1));
 
-        let pre_learning =
-            runtime
-                .cognitive_runtime()
-                .cognition()
-                .current_m50_epistemic_possibility(
-                    &state7,
-                    &action_one,
-                    athlesia_universal_domain_learning::
-                        GroundedExplanatoryVersionSpacePolicy::
-                            new(
-                                1,
-                                64,
-                                512,
-                                256,
-                            )
-                            .unwrap(),
+        let pre_learning = runtime
+            .cognitive_runtime()
+            .cognition()
+            .current_m50_epistemic_possibility(
+                &state7,
+                &action_one,
+                athlesia_universal_domain_learning::GroundedExplanatoryVersionSpacePolicy::new(
+                    1, 64, 512, 256,
                 )
-                .expect(
-                    "state7 Action1 must be informative before the real progress event",
-                );
+                .unwrap(),
+            )
+            .expect("state7 Action1 must be informative before the real progress event");
 
         let pre_discrimination =
             athlesia_autonomous_active_experimentation::
@@ -1955,24 +1893,14 @@ fn live_c3h_role_preserving_schema_recovers_d6_target_substitution() {
                                 .unwrap(),
                     );
 
-        assert!(
-            pre_discrimination.informative(),
-        );
+        assert!(pre_discrimination.informative(),);
 
-        let history_before =
-            runtime
-                .cognitive_runtime()
-                .cognition()
-                .epistemic_transfer_progress_event_count();
+        let history_before = runtime
+            .cognitive_runtime()
+            .cognition()
+            .epistemic_transfer_progress_event_count();
 
-        real_training_turn(
-            &mut runtime,
-            &game,
-            action(
-                ArcAgi3ActionId::Action1,
-            ),
-            6_u8,
-        );
+        real_training_turn(&mut runtime, &game, action(ArcAgi3ActionId::Action1), 6_u8);
 
         assert_eq!(
             runtime
@@ -1982,15 +1910,14 @@ fn live_c3h_role_preserving_schema_recovers_d6_target_substitution() {
             history_before + 1,
         );
 
-        let historical_identity =
-            runtime
-                .cognitive_runtime()
-                .cognition()
-                .epistemic_transfer_progress_history()
-                .last()
-                .unwrap()
-                .transfer_identity()
-                .clone();
+        let historical_identity = runtime
+            .cognitive_runtime()
+            .cognition()
+            .epistemic_transfer_progress_history()
+            .last()
+            .unwrap()
+            .transfer_identity()
+            .clone();
 
         /*
          * The second real Action1 transition creates the different
@@ -1999,39 +1926,28 @@ fn live_c3h_role_preserving_schema_recovers_d6_target_substitution() {
         real_training_turn(
             &mut runtime,
             &game,
-            action(
-                ArcAgi3ActionId::Action1,
-            ),
+            action(ArcAgi3ActionId::Action1),
             candidate_value,
         );
 
-        let current_state =
-            runtime
-                .cognitive_runtime()
-                .current_grounded_world_state()
-                .unwrap()
-                .clone();
+        let current_state = runtime
+            .cognitive_runtime()
+            .current_grounded_world_state()
+            .unwrap()
+            .clone();
 
-        let current_possibility =
-            runtime
-                .cognitive_runtime()
-                .cognition()
-                .current_m50_epistemic_possibility(
-                    &current_state,
-                    &action_one,
-                    athlesia_universal_domain_learning::
-                        GroundedExplanatoryVersionSpacePolicy::
-                            new(
-                                1,
-                                64,
-                                512,
-                                256,
-                            )
-                            .unwrap(),
+        let current_possibility = runtime
+            .cognitive_runtime()
+            .cognition()
+            .current_m50_epistemic_possibility(
+                &current_state,
+                &action_one,
+                athlesia_universal_domain_learning::GroundedExplanatoryVersionSpacePolicy::new(
+                    1, 64, 512, 256,
                 )
-                .expect(
-                    "holdout live current state must expose Action1 possibility",
-                );
+                .unwrap(),
+            )
+            .expect("holdout live current state must expose Action1 possibility");
 
         let current_discrimination =
             athlesia_autonomous_active_experimentation::
@@ -2047,9 +1963,7 @@ fn live_c3h_role_preserving_schema_recovers_d6_target_substitution() {
                                 .unwrap(),
                     );
 
-        assert!(
-            current_discrimination.informative(),
-        );
+        assert!(current_discrimination.informative(),);
 
         let current_identity =
             athlesia_autonomous_active_experimentation::
@@ -2067,27 +1981,13 @@ fn live_c3h_role_preserving_schema_recovers_d6_target_substitution() {
                     .unwrap()
                     .clone();
 
-        let historical_targets =
-            c3h_distinct_transfer_targets(
-                &historical_identity,
-            );
+        let historical_targets = c3h_distinct_transfer_targets(&historical_identity);
 
-        let current_targets =
-            c3h_distinct_transfer_targets(
-                &current_identity,
-            );
+        let current_targets = c3h_distinct_transfer_targets(&current_identity);
 
-        let lost =
-            c3h_target_difference(
-                &historical_targets,
-                &current_targets,
-            );
+        let lost = c3h_target_difference(&historical_targets, &current_targets);
 
-        let gained =
-            c3h_target_difference(
-                &current_targets,
-                &historical_targets,
-            );
+        let gained = c3h_target_difference(&current_targets, &historical_targets);
 
         assert_eq!(
             lost.len(),
@@ -2095,40 +1995,25 @@ fn live_c3h_role_preserving_schema_recovers_d6_target_substitution() {
             "D6 live family must expose four historical targets replaced in the new source state",
         );
 
-        assert_eq!(
-            gained.len(),
-            4,
-        );
+        assert_eq!(gained.len(), 4,);
 
-        let transport_before_schema_queries =
-            runtime.transport().execute_count();
+        let transport_before_schema_queries = runtime.transport().execute_count();
 
-        let history_before_schema_queries =
-            runtime
-                .cognitive_runtime()
-                .cognition()
-                .epistemic_transfer_progress_event_count();
+        let history_before_schema_queries = runtime
+            .cognitive_runtime()
+            .cognition()
+            .epistemic_transfer_progress_event_count();
 
-        let mut world_signature:
-            Option<Vec<(u64, u64)>> =
-            None;
+        let mut world_signature: Option<Vec<(u64, u64)>> = None;
 
-        let mut mapped =
-            0_usize;
+        let mut mapped = 0_usize;
 
-        for historical_target in
-            &lost
-        {
-            let mut best:
-                Option<
-                    athlesia_autonomous_active_experimentation::
-                        RolePreservingTargetSchemaResult,
-                > =
-                None;
+        for historical_target in &lost {
+            let mut best: Option<
+                athlesia_autonomous_active_experimentation::RolePreservingTargetSchemaResult,
+            > = None;
 
-            for current_target in
-                &gained
-            {
+            for current_target in &gained {
                 let candidate =
                     athlesia_autonomous_active_experimentation::
                         AutonomousRolePreservingTargetSchema::
@@ -2144,94 +2029,66 @@ fn live_c3h_role_preserving_schema_recovers_d6_target_substitution() {
                                         .unwrap(),
                             );
 
-                if !candidate.derived()
-                    || candidate.role_count() == 0
-                {
+                if !candidate.derived() || candidate.role_count() == 0 {
                     continue;
                 }
 
-                let replace =
-                    best.as_ref()
-                        .map(|existing| {
-                            (
-                                candidate.role_count(),
-                                candidate
-                                    .substitution_occurrence_count(),
-                            )
-                            <
-                            (
-                                existing.role_count(),
-                                existing
-                                    .substitution_occurrence_count(),
-                            )
-                        })
-                        .unwrap_or(true);
+                let replace = best
+                    .as_ref()
+                    .map(|existing| {
+                        (
+                            candidate.role_count(),
+                            candidate.substitution_occurrence_count(),
+                        ) < (
+                            existing.role_count(),
+                            existing.substitution_occurrence_count(),
+                        )
+                    })
+                    .unwrap_or(true);
 
                 if replace {
-                    best =
-                        Some(candidate);
+                    best = Some(candidate);
                 }
             }
 
             let best =
-                best.expect(
-                    "every D6 lost target must have a role-preserving live replacement",
-                );
+                best.expect("every D6 lost target must have a role-preserving live replacement");
 
             /*
              * D6 showed two UNIQUE bindings even when one binding is
              * repeated at multiple structural positions.
              */
-            assert_eq!(
-                best.role_count(),
-                2,
-            );
+            assert_eq!(best.role_count(), 2,);
 
-            let signature =
-                c3h_binding_signature(
-                    &best,
-                );
+            let signature = c3h_binding_signature(&best);
 
-            assert_eq!(
-                signature.len(),
-                2,
-            );
+            assert_eq!(signature.len(), 2,);
 
-            if let Some(expected) =
-                &world_signature
-            {
+            if let Some(expected) = &world_signature {
                 assert_eq!(
                     &signature,
                     expected,
                     "all four target replacements in one live world must share the same role binding relation",
                 );
             } else {
-                world_signature =
-                    Some(signature);
+                world_signature = Some(signature);
             }
 
             mapped += 1;
         }
 
-        assert_eq!(
-            mapped,
-            4,
-        );
+        assert_eq!(mapped, 4,);
 
-        let world_signature =
-            world_signature.unwrap();
+        let world_signature = world_signature.unwrap();
 
-        if let Some(expected) =
-            &cross_world_binding_signature
-        {
+        if let Some(expected) = &cross_world_binding_signature {
             assert_eq!(
                 &world_signature,
                 expected,
                 "separated live holdout response values must recover the same structural substitution relation",
             );
         } else {
-            cross_world_binding_signature =
-                Some(world_signature);
+            cross_world_binding_signature = Some(world_signature);
         }
 
         assert_eq!(
@@ -2250,115 +2107,63 @@ fn live_c3h_role_preserving_schema_recovers_d6_target_substitution() {
         );
     }
 
-    assert!(
-        cross_world_binding_signature.is_some(),
-    );
+    assert!(cross_world_binding_signature.is_some(),);
 }
 
 fn c3hb_live_historical_and_current_identity(
     game: &str,
     first_index: u64,
-    route_action:
-        ArcAgi3ActionId,
+    route_action: ArcAgi3ActionId,
     candidate_value: u8,
 ) -> (
-    ArcAgi3LiveEnvironmentRuntime<
-        RecordingTransport,
-    >,
-    athlesia_autonomous_active_experimentation::
-        EmpiricalEpistemicTransferIdentity,
-    athlesia_autonomous_active_experimentation::
-        EmpiricalEpistemicTransferIdentity,
+    ArcAgi3LiveEnvironmentRuntime<RecordingTransport>,
+    athlesia_autonomous_active_experimentation::EmpiricalEpistemicTransferIdentity,
+    athlesia_autonomous_active_experimentation::EmpiricalEpistemicTransferIdentity,
 ) {
-    let mut runtime =
-        live_runtime(
-            game,
-            first_index,
-        );
+    let mut runtime = live_runtime(game, first_index);
 
-    mature_runtime(
-        &mut runtime,
-        game,
-    );
+    mature_runtime(&mut runtime, game);
 
-    real_training_turn(
-        &mut runtime,
-        game,
-        action(
-            ArcAgi3ActionId::Action2,
-        ),
-        7_u8,
-    );
+    real_training_turn(&mut runtime, game, action(ArcAgi3ActionId::Action2), 7_u8);
 
     /*
      * Real Action1 consequence creates the genuine historical C3D
      * transfer event retained by C3G-B.
      */
-    real_training_turn(
-        &mut runtime,
-        game,
-        action(
-            ArcAgi3ActionId::Action1,
-        ),
-        6_u8,
-    );
+    real_training_turn(&mut runtime, game, action(ArcAgi3ActionId::Action1), 6_u8);
 
-    let historical =
-        runtime
-            .cognitive_runtime()
-            .cognition()
-            .epistemic_transfer_progress_history()
-            .last()
-            .expect(
-                "real historical C3D transfer event must exist",
-            )
-            .transfer_identity()
-            .clone();
+    let historical = runtime
+        .cognitive_runtime()
+        .cognition()
+        .epistemic_transfer_progress_history()
+        .last()
+        .expect("real historical C3D transfer event must exist")
+        .transfer_identity()
+        .clone();
 
-    real_training_turn(
-        &mut runtime,
-        game,
-        action(route_action),
-        candidate_value,
-    );
+    real_training_turn(&mut runtime, game, action(route_action), candidate_value);
 
-    let current_state =
-        runtime
-            .cognitive_runtime()
-            .current_grounded_world_state()
-            .expect(
-                "candidate must be a genuinely reached grounded state",
-            )
-            .clone();
+    let current_state = runtime
+        .cognitive_runtime()
+        .current_grounded_world_state()
+        .expect("candidate must be a genuinely reached grounded state")
+        .clone();
 
     let action_one =
-        ArcAgi3CognitiveProtocolBridge::
-            encode_action(
-                action(
-                    ArcAgi3ActionId::Action1,
-                ),
-            );
+        ArcAgi3CognitiveProtocolBridge::encode_action(action(ArcAgi3ActionId::Action1));
 
-    let current_possibility =
-        runtime
-            .cognitive_runtime()
-            .cognition()
-            .current_m50_epistemic_possibility(
-                &current_state,
-                &action_one,
-                athlesia_universal_domain_learning::
-                    GroundedExplanatoryVersionSpacePolicy::
-                        new(
-                            1,
-                            64,
-                            512,
-                            256,
-                        )
-                        .unwrap(),
+    let current_possibility = runtime
+        .cognitive_runtime()
+        .cognition()
+        .current_m50_epistemic_possibility(
+            &current_state,
+            &action_one,
+            athlesia_universal_domain_learning::GroundedExplanatoryVersionSpacePolicy::new(
+                1, 64, 512, 256,
             )
-            .expect(
-                "current live state must expose Action1 possibility",
-            );
+            .unwrap(),
+        )
+        .expect("current live state must expose Action1 possibility");
 
     let discrimination =
         athlesia_autonomous_active_experimentation::
@@ -2397,86 +2202,48 @@ fn c3hb_live_historical_and_current_identity(
                 )
                 .clone();
 
-    (
-        runtime,
-        historical,
-        current,
-    )
+    (runtime, historical, current)
 }
-
 
 fn c3hb_policy(
-) -> athlesia_autonomous_active_experimentation::
-    SchemaLevelTargetTransferIdentityPolicy {
-    athlesia_autonomous_active_experimentation::
-        SchemaLevelTargetTransferIdentityPolicy::
-            new(
-                64,
-                64,
-                4096,
-                athlesia_autonomous_active_experimentation::
-                    RolePreservingTargetSchemaPolicy::
-                        new(
-                            512,
-                            32,
-                        )
-                        .unwrap(),
-            )
-            .unwrap()
+) -> athlesia_autonomous_active_experimentation::SchemaLevelTargetTransferIdentityPolicy {
+    athlesia_autonomous_active_experimentation::SchemaLevelTargetTransferIdentityPolicy::new(
+        64,
+        64,
+        4096,
+        athlesia_autonomous_active_experimentation::RolePreservingTargetSchemaPolicy::new(512, 32)
+            .unwrap(),
+    )
+    .unwrap()
 }
-
 
 #[test]
 fn live_c3hb_schema_level_identity_recovers_role_substitution_across_holdouts() {
-    let mut shared_identity:
-        Option<
-            athlesia_autonomous_active_experimentation::
-                SchemaLevelTargetTransferIdentity,
-        > =
-        None;
+    let mut shared_identity: Option<
+        athlesia_autonomous_active_experimentation::SchemaLevelTargetTransferIdentity,
+    > = None;
 
-    for (
-        world_index,
-        candidate_value,
-    ) in [
-        2_u8,
-        14_u8,
-    ]
-    .into_iter()
-    .enumerate()
-    {
-        let game = format!(
-            "p4gc3hb-role-holdout-{candidate_value}"
+    for (world_index, candidate_value) in [2_u8, 14_u8].into_iter().enumerate() {
+        let game = format!("p4gc3hb-role-holdout-{candidate_value}");
+
+        let (runtime, historical, current) = c3hb_live_historical_and_current_identity(
+            &game,
+            760_000 + world_index as u64 * 10_000,
+            ArcAgi3ActionId::Action1,
+            candidate_value,
         );
 
-        let (
-            runtime,
-            historical,
-            current,
-        ) =
-            c3hb_live_historical_and_current_identity(
-                &game,
-                760_000
-                    + world_index as u64
-                        * 10_000,
-                ArcAgi3ActionId::Action1,
-                candidate_value,
-            );
+        let transport_before = runtime.transport().execute_count();
 
-        let transport_before =
-            runtime.transport().execute_count();
+        let exact_history_before = runtime
+            .cognitive_runtime()
+            .cognition()
+            .epistemic_progress_event_count();
 
-        let exact_history_before =
-            runtime
-                .cognitive_runtime()
-                .cognition()
-                .epistemic_progress_event_count();
-
-        let transfer_history_before =
-            runtime
-                .cognitive_runtime()
-                .cognition()
-                .epistemic_transfer_progress_event_count();
+        let transfer_history_before = runtime
+            .cognitive_runtime()
+            .cognition()
+            .epistemic_transfer_progress_event_count();
 
         let relation =
             athlesia_autonomous_active_experimentation::
@@ -2492,30 +2259,15 @@ fn live_c3hb_schema_level_identity_recovers_role_substitution_across_holdouts() 
             "D6-proven live role substitutions must form one bounded schema-level historical-to-current relation",
         );
 
-        assert_eq!(
-            relation.historical_target_count(),
-            16,
-        );
+        assert_eq!(relation.historical_target_count(), 16,);
 
-        assert_eq!(
-            relation.current_target_count(),
-            16,
-        );
+        assert_eq!(relation.current_target_count(), 16,);
 
-        assert_eq!(
-            relation.exact_match_count(),
-            12,
-        );
+        assert_eq!(relation.exact_match_count(), 12,);
 
-        assert_eq!(
-            relation.role_preserving_match_count(),
-            4,
-        );
+        assert_eq!(relation.role_preserving_match_count(), 4,);
 
-        assert_eq!(
-            relation.ignored_current_target_count(),
-            0,
-        );
+        assert_eq!(relation.ignored_current_target_count(), 0,);
 
         assert_eq!(
             relation.global_binding_count(),
@@ -2523,23 +2275,16 @@ fn live_c3hb_schema_level_identity_recovers_role_substitution_across_holdouts() 
             "four replaced live targets must share the same two concrete changed-atom bindings",
         );
 
-        let identity =
-            relation
-                .identity()
-                .unwrap()
-                .clone();
+        let identity = relation.identity().unwrap().clone();
 
-        if let Some(expected) =
-            &shared_identity
-        {
+        if let Some(expected) = &shared_identity {
             assert_eq!(
                 &identity,
                 expected,
                 "separated real holdout worlds must recover the same abstract target-transfer identity",
             );
         } else {
-            shared_identity =
-                Some(identity);
+            shared_identity = Some(identity);
         }
 
         assert_eq!(
@@ -2567,28 +2312,19 @@ fn live_c3hb_schema_level_identity_recovers_role_substitution_across_holdouts() 
         );
     }
 
-    assert!(
-        shared_identity.is_some(),
-    );
+    assert!(shared_identity.is_some(),);
 }
-
 
 #[test]
 fn live_c3hb_current_only_target_refinement_preserves_all_historical_targets_exactly() {
-    let (
-        runtime,
-        historical,
-        current,
-    ) =
-        c3hb_live_historical_and_current_identity(
-            "p4gc3hb-exact-refinement-control",
-            790_000,
-            ArcAgi3ActionId::Action2,
-            2_u8,
-        );
+    let (runtime, historical, current) = c3hb_live_historical_and_current_identity(
+        "p4gc3hb-exact-refinement-control",
+        790_000,
+        ArcAgi3ActionId::Action2,
+        2_u8,
+    );
 
-    let transport_before =
-        runtime.transport().execute_count();
+    let transport_before = runtime.transport().execute_count();
 
     let relation =
         athlesia_autonomous_active_experimentation::
@@ -2599,19 +2335,11 @@ fn live_c3hb_current_only_target_refinement_preserves_all_historical_targets_exa
                     c3hb_policy(),
                 );
 
-    assert!(
-        relation.derived(),
-    );
+    assert!(relation.derived(),);
 
-    assert_eq!(
-        relation.historical_target_count(),
-        16,
-    );
+    assert_eq!(relation.historical_target_count(), 16,);
 
-    assert_eq!(
-        relation.current_target_count(),
-        20,
-    );
+    assert_eq!(relation.current_target_count(), 20,);
 
     assert_eq!(
         relation.exact_match_count(),
@@ -2631,98 +2359,50 @@ fn live_c3hb_current_only_target_refinement_preserves_all_historical_targets_exa
         "four genuinely new current targets are explicit refinement rather than historical mismatch",
     );
 
-    assert_eq!(
-        relation.global_binding_count(),
-        0,
-    );
+    assert_eq!(relation.global_binding_count(), 0,);
 
-    assert_eq!(
-        runtime.transport().execute_count(),
-        transport_before,
-    );
+    assert_eq!(runtime.transport().execute_count(), transport_before,);
 }
 
 #[test]
 fn live_c3h_c8_target_anchored_context_transformation_recovers_unique_hypothesis_correspondence() {
     use athlesia_autonomous_active_experimentation::{
         AutonomousTargetAnchoredContextTransformation,
-        GroundedTargetAnchoredContextTransformationIdentity,
-        TargetAnchoredContextTopologyClass,
+        GroundedTargetAnchoredContextTransformationIdentity, TargetAnchoredContextTopologyClass,
         TargetAnchoredContextTransformationPolicy,
     };
 
-    let policy =
-        TargetAnchoredContextTransformationPolicy::
-            new(
-                32,
-                4096,
-                2048,
-            )
-            .unwrap();
+    let policy = TargetAnchoredContextTransformationPolicy::new(32, 4096, 2048).unwrap();
 
-    let mut shared_identity:
-        Option<
-            GroundedTargetAnchoredContextTransformationIdentity
-        > =
-        None;
+    let mut shared_identity: Option<GroundedTargetAnchoredContextTransformationIdentity> = None;
 
-    let mut direct_count =
-        0_usize;
+    let mut direct_count = 0_usize;
 
-    let mut recursive_count =
-        0_usize;
+    let mut recursive_count = 0_usize;
 
-    let mut total_derived_pairs =
-        0_usize;
+    let mut total_derived_pairs = 0_usize;
 
+    for (world_index, candidate_value) in [2_u8, 14_u8].into_iter().enumerate() {
+        let game = format!("p4gc3hc8-role-{candidate_value}");
 
-    for (
-        world_index,
-        candidate_value,
-    ) in [
-        2_u8,
-        14_u8,
-    ]
-    .into_iter()
-    .enumerate()
-    {
-        let game =
-            format!(
-                "p4gc3hc8-role-{candidate_value}"
-            );
+        let (runtime, historical, current) = c3hb_live_historical_and_current_identity(
+            &game,
+            1_240_000 + world_index as u64 * 20_000,
+            ArcAgi3ActionId::Action1,
+            candidate_value,
+        );
 
-        let (
-            runtime,
-            historical,
-            current,
-        ) =
-            c3hb_live_historical_and_current_identity(
-                &game,
-                1_240_000
-                    + world_index as u64
-                        * 20_000,
-                ArcAgi3ActionId::Action1,
-                candidate_value,
-            );
+        let transport_before = runtime.transport().execute_count();
 
+        let exact_history_before = runtime
+            .cognitive_runtime()
+            .cognition()
+            .epistemic_progress_event_count();
 
-        let transport_before =
-            runtime
-                .transport()
-                .execute_count();
-
-        let exact_history_before =
-            runtime
-                .cognitive_runtime()
-                .cognition()
-                .epistemic_progress_event_count();
-
-        let transfer_history_before =
-            runtime
-                .cognitive_runtime()
-                .cognition()
-                .epistemic_transfer_progress_event_count();
-
+        let transfer_history_before = runtime
+            .cognitive_runtime()
+            .cognition()
+            .epistemic_transfer_progress_event_count();
 
         let relation =
             athlesia_autonomous_active_experimentation::
@@ -2735,19 +2415,11 @@ fn live_c3h_c8_target_anchored_context_transformation_recovers_unique_hypothesis
 
         assert!(relation.derived());
 
-        assert_eq!(
-            relation
-                .role_preserving_match_count(),
-            4,
-        );
+        assert_eq!(relation.role_preserving_match_count(), 4,);
 
+        let mut role_target_count = 0_usize;
 
-        let mut role_target_count =
-            0_usize;
-
-        for correspondence in
-            relation.correspondences()
-        {
+        for correspondence in relation.correspondences() {
             if correspondence.match_kind()
                 != athlesia_autonomous_active_experimentation::
                     SchemaLevelTargetMatchKind::
@@ -2758,88 +2430,42 @@ fn live_c3h_c8_target_anchored_context_transformation_recovers_unique_hypothesis
 
             role_target_count += 1;
 
-
-            let historical_context =
-                historical
-                    .forecasts()
-                    .iter()
-                    .filter(|forecast| {
-                        forecast.target()
-                            == correspondence
-                                .historical_target()
-                            && format!(
-                                "{:?}",
-                                forecast.status(),
-                            ) == "ContextAbstained"
-                    })
-                    .collect::<Vec<_>>();
-
-            let current_context =
-                current
-                    .forecasts()
-                    .iter()
-                    .filter(|forecast| {
-                        forecast.target()
-                            == correspondence
-                                .current_target()
-                            && format!(
-                                "{:?}",
-                                forecast.status(),
-                            ) == "ContextAbstained"
-                    })
-                    .collect::<Vec<_>>();
-
-            assert_eq!(
-                historical_context.len(),
-                4,
-            );
-
-            assert_eq!(
-                current_context.len(),
-                4,
-            );
-
-
-            let mut left_degree =
-                vec![
-                    0_usize;
-                    historical_context.len()
-                ];
-
-            let mut right_degree =
-                vec![
-                    0_usize;
-                    current_context.len()
-                ];
-
-            let mut target_derived_count =
-                0_usize;
-
-
-            for (
-                historical_index,
-                historical_forecast,
-            ) in historical_context
+            let historical_context = historical
+                .forecasts()
                 .iter()
-                .enumerate()
-            {
-                for (
-                    current_index,
-                    current_forecast,
-                ) in current_context
-                    .iter()
-                    .enumerate()
-                {
-                    let derived =
-                        AutonomousTargetAnchoredContextTransformation::
-                            derive(
-                                historical_forecast
-                                    .hypothesis(),
-                                current_forecast
-                                    .hypothesis(),
-                                correspondence,
-                                policy,
-                            );
+                .filter(|forecast| {
+                    forecast.target() == correspondence.historical_target()
+                        && format!("{:?}", forecast.status(),) == "ContextAbstained"
+                })
+                .collect::<Vec<_>>();
+
+            let current_context = current
+                .forecasts()
+                .iter()
+                .filter(|forecast| {
+                    forecast.target() == correspondence.current_target()
+                        && format!("{:?}", forecast.status(),) == "ContextAbstained"
+                })
+                .collect::<Vec<_>>();
+
+            assert_eq!(historical_context.len(), 4,);
+
+            assert_eq!(current_context.len(), 4,);
+
+            let mut left_degree = vec![0_usize; historical_context.len()];
+
+            let mut right_degree = vec![0_usize; current_context.len()];
+
+            let mut target_derived_count = 0_usize;
+
+            for (historical_index, historical_forecast) in historical_context.iter().enumerate() {
+                for (current_index, current_forecast) in current_context.iter().enumerate() {
+                    let derived = AutonomousTargetAnchoredContextTransformation::derive(
+                        historical_forecast.hypothesis(),
+                        current_forecast.hypothesis(),
+                        correspondence,
+                        policy,
+                    );
 
                     if !derived.derived() {
                         continue;
@@ -2848,19 +2474,11 @@ fn live_c3h_c8_target_anchored_context_transformation_recovers_unique_hypothesis
                     target_derived_count += 1;
                     total_derived_pairs += 1;
 
-                    left_degree[
-                        historical_index
-                    ] += 1;
+                    left_degree[historical_index] += 1;
 
-                    right_degree[
-                        current_index
-                    ] += 1;
+                    right_degree[current_index] += 1;
 
-
-                    let transformation =
-                        derived
-                            .transformation()
-                            .unwrap();
+                    let transformation = derived.transformation().unwrap();
 
                     assert_eq!(
                         transformation
@@ -2870,44 +2488,29 @@ fn live_c3h_c8_target_anchored_context_transformation_recovers_unique_hypothesis
                         "production relation must reproduce frozen C3H-C7 target-conditioned realization",
                     );
 
-                    match transformation
-                        .target_anchor_topology()
-                    {
-                        TargetAnchoredContextTopologyClass::
-                            Direct =>
-                        {
+                    match transformation.target_anchor_topology() {
+                        TargetAnchoredContextTopologyClass::Direct => {
                             direct_count += 1;
                         }
 
-                        TargetAnchoredContextTopologyClass::
-                            Recursive =>
-                        {
+                        TargetAnchoredContextTopologyClass::Recursive => {
                             recursive_count += 1;
                         }
                     }
 
+                    let identity = transformation.identity().clone();
 
-                    let identity =
-                        transformation
-                            .identity()
-                            .clone();
-
-                    if let Some(
-                        expected,
-                    ) = &shared_identity
-                    {
+                    if let Some(expected) = &shared_identity {
                         assert_eq!(
                             &identity,
                             expected,
                             "all direct/recursive and cross-world realizations must share one abstract context transformation identity",
                         );
                     } else {
-                        shared_identity =
-                            Some(identity);
+                        shared_identity = Some(identity);
                     }
                 }
             }
-
 
             assert_eq!(
                 target_derived_count,
@@ -2934,17 +2537,10 @@ fn live_c3h_c8_target_anchored_context_transformation_recovers_unique_hypothesis
             );
         }
 
+        assert_eq!(role_target_count, 4,);
 
         assert_eq!(
-            role_target_count,
-            4,
-        );
-
-
-        assert_eq!(
-            runtime
-                .transport()
-                .execute_count(),
+            runtime.transport().execute_count(),
             transport_before,
             "C3H-C8 derivation has zero transport authority",
         );
@@ -2968,125 +2564,64 @@ fn live_c3h_c8_target_anchored_context_transformation_recovers_unique_hypothesis
         );
     }
 
+    assert_eq!(total_derived_pairs, 32,);
 
-    assert_eq!(
-        total_derived_pairs,
-        32,
-    );
+    assert_eq!(direct_count, 16,);
 
-    assert_eq!(
-        direct_count,
-        16,
-    );
+    assert_eq!(recursive_count, 16,);
 
-    assert_eq!(
-        recursive_count,
-        16,
-    );
-
-    assert!(
-        shared_identity.is_some(),
-    );
+    assert!(shared_identity.is_some(),);
 }
 
 #[test]
 fn live_c3h_c10_grounded_forecast_correspondence_closes_full_frontier_before_status_analysis() {
     use athlesia_autonomous_active_experimentation::{
-        AutonomousGroundedForecastCorrespondence,
-        EpistemicHypothesisForecastStatus,
-        GroundedForecastCorrespondencePolicy,
-        GroundedForecastCorrespondenceRelation,
+        AutonomousGroundedForecastCorrespondence, EpistemicHypothesisForecastStatus,
+        GroundedForecastCorrespondencePolicy, GroundedForecastCorrespondenceRelation,
     };
 
     let policy =
-        GroundedForecastCorrespondencePolicy::
-            new(
-                32,
-                10_000,
+        GroundedForecastCorrespondencePolicy::new(32, 10_000, 32, 4096, 2048, 4096, 256).unwrap();
 
-                32,
-                4096,
-                2048,
+    let mut total_forecasts = 0_usize;
 
-                4096,
-                256,
-            )
-            .unwrap();
+    let mut total_context = 0_usize;
 
-    let mut total_forecasts =
-        0_usize;
+    let mut total_base = 0_usize;
 
-    let mut total_context =
-        0_usize;
+    let mut context_status_preserved = 0_usize;
 
-    let mut total_base =
-        0_usize;
+    let mut base_predicted_to_no_opportunity = 0_usize;
 
-    let mut context_status_preserved =
-        0_usize;
+    let mut context_none_to_none = 0_usize;
 
-    let mut base_predicted_to_no_opportunity =
-        0_usize;
+    let mut base_some_to_none = 0_usize;
 
-    let mut context_none_to_none =
-        0_usize;
-
-    let mut base_some_to_none =
-        0_usize;
-
-    let mut evidence_maturity_changed =
-        0_usize;
+    let mut evidence_maturity_changed = 0_usize;
 
     let mut shared_context_identity = None;
 
+    for (world_index, candidate_value) in [2_u8, 14_u8].into_iter().enumerate() {
+        let game = format!("p4gc3hc10-role-{candidate_value}");
 
-    for (
-        world_index,
-        candidate_value,
-    ) in [
-        2_u8,
-        14_u8,
-    ]
-    .into_iter()
-    .enumerate()
-    {
-        let game =
-            format!(
-                "p4gc3hc10-role-{candidate_value}"
-            );
+        let (runtime, historical, current) = c3hb_live_historical_and_current_identity(
+            &game,
+            1_340_000 + world_index as u64 * 20_000,
+            ArcAgi3ActionId::Action1,
+            candidate_value,
+        );
 
-        let (
-            runtime,
-            historical,
-            current,
-        ) =
-            c3hb_live_historical_and_current_identity(
-                &game,
-                1_340_000
-                    + world_index as u64
-                        * 20_000,
-                ArcAgi3ActionId::Action1,
-                candidate_value,
-            );
+        let transport_before = runtime.transport().execute_count();
 
+        let exact_history_before = runtime
+            .cognitive_runtime()
+            .cognition()
+            .epistemic_progress_event_count();
 
-        let transport_before =
-            runtime
-                .transport()
-                .execute_count();
-
-        let exact_history_before =
-            runtime
-                .cognitive_runtime()
-                .cognition()
-                .epistemic_progress_event_count();
-
-        let transfer_history_before =
-            runtime
-                .cognitive_runtime()
-                .cognition()
-                .epistemic_transfer_progress_event_count();
-
+        let transfer_history_before = runtime
+            .cognitive_runtime()
+            .cognition()
+            .epistemic_transfer_progress_event_count();
 
         let target_relation =
             athlesia_autonomous_active_experimentation::
@@ -3097,24 +2632,13 @@ fn live_c3h_c10_grounded_forecast_correspondence_closes_full_frontier_before_sta
                         c3hb_policy(),
                     );
 
-        assert!(
-            target_relation.derived(),
-        );
+        assert!(target_relation.derived(),);
 
-        assert_eq!(
-            target_relation
-                .role_preserving_match_count(),
-            4,
-        );
+        assert_eq!(target_relation.role_preserving_match_count(), 4,);
 
+        let mut role_target_count = 0_usize;
 
-        let mut role_target_count =
-            0_usize;
-
-
-        for target_correspondence in
-            target_relation.correspondences()
-        {
+        for target_correspondence in target_relation.correspondences() {
             if target_correspondence
                 .match_kind()
                 != athlesia_autonomous_active_experimentation::
@@ -3126,49 +2650,27 @@ fn live_c3h_c10_grounded_forecast_correspondence_closes_full_frontier_before_sta
 
             role_target_count += 1;
 
-
-            let result =
-                AutonomousGroundedForecastCorrespondence::
-                    derive(
-                        &historical,
-                        &current,
-                        target_correspondence,
-                        policy,
-                    );
+            let result = AutonomousGroundedForecastCorrespondence::derive(
+                &historical,
+                &current,
+                target_correspondence,
+                policy,
+            );
 
             assert!(
                 result.derived(),
                 "frozen C3H-C9 structural graph must derive one grounded correspondence",
             );
 
-            assert_eq!(
-                result
-                    .matching_solution_count(),
-                1,
-            );
+            assert_eq!(result.matching_solution_count(), 1,);
 
-            let correspondence =
-                result
-                    .correspondence()
-                    .unwrap();
+            let correspondence = result.correspondence().unwrap();
 
-            assert_eq!(
-                correspondence
-                    .forecast_count(),
-                5,
-            );
+            assert_eq!(correspondence.forecast_count(), 5,);
 
-            assert_eq!(
-                correspondence
-                    .context_transformation_count(),
-                4,
-            );
+            assert_eq!(correspondence.context_transformation_count(), 4,);
 
-            assert_eq!(
-                correspondence
-                    .target_bound_continuation_count(),
-                1,
-            );
+            assert_eq!(correspondence.target_bound_continuation_count(), 1,);
 
             assert_eq!(
                 result
@@ -3177,40 +2679,20 @@ fn live_c3h_c10_grounded_forecast_correspondence_closes_full_frontier_before_sta
                 "C3H-C9 established exactly five non-overlapping structural candidate edges per role target",
             );
 
+            let mut seen_current = std::collections::BTreeSet::<usize>::new();
 
-            let mut seen_current =
-                std::collections::BTreeSet::<
-                    usize
-                >::new();
-
-            for entry in
-                correspondence.entries()
-            {
+            for entry in correspondence.entries() {
                 total_forecasts += 1;
 
                 assert!(
-                    seen_current.insert(
-                        entry
-                            .current_forecast_index(),
-                    ),
+                    seen_current.insert(entry.current_forecast_index(),),
                     "grounded correspondence must be one-to-one",
                 );
 
-
                 let historical_forecast =
-                    &historical
-                        .forecasts()[
-                            entry
-                                .historical_forecast_index()
-                        ];
+                    &historical.forecasts()[entry.historical_forecast_index()];
 
-                let current_forecast =
-                    &current
-                        .forecasts()[
-                            entry
-                                .current_forecast_index()
-                        ];
-
+                let current_forecast = &current.forecasts()[entry.current_forecast_index()];
 
                 /*
                  * These checks are intentionally AFTER structural
@@ -3220,102 +2702,58 @@ fn live_c3h_c10_grounded_forecast_correspondence_closes_full_frontier_before_sta
                  * matching authority.
                  */
                 match entry.relation() {
-                    GroundedForecastCorrespondenceRelation::
-                        TargetAnchoredContextTransformation(
-                            identity,
-                        ) =>
-                    {
+                    GroundedForecastCorrespondenceRelation::TargetAnchoredContextTransformation(
+                        identity,
+                    ) => {
                         total_context += 1;
 
                         assert_eq!(
-                            historical_forecast
-                                .status(),
-                            EpistemicHypothesisForecastStatus::
-                                ContextAbstained,
+                            historical_forecast.status(),
+                            EpistemicHypothesisForecastStatus::ContextAbstained,
                         );
 
                         assert_eq!(
-                            current_forecast
-                                .status(),
-                            EpistemicHypothesisForecastStatus::
-                                ContextAbstained,
+                            current_forecast.status(),
+                            EpistemicHypothesisForecastStatus::ContextAbstained,
                         );
 
-                        context_status_preserved +=
-                            1;
+                        context_status_preserved += 1;
 
-                        assert!(
-                            historical_forecast
-                                .predicted_outcome()
-                                .is_none(),
-                        );
+                        assert!(historical_forecast.predicted_outcome().is_none(),);
 
-                        assert!(
-                            current_forecast
-                                .predicted_outcome()
-                                .is_none(),
-                        );
+                        assert!(current_forecast.predicted_outcome().is_none(),);
 
-                        context_none_to_none +=
-                            1;
+                        context_none_to_none += 1;
 
-
-                        if let Some(
-                            expected,
-                        ) =
-                            &shared_context_identity
-                        {
-                            assert_eq!(
-                                identity,
-                                expected,
-                            );
+                        if let Some(expected) = &shared_context_identity {
+                            assert_eq!(identity, expected,);
                         } else {
-                            shared_context_identity =
-                                Some(
-                                    identity.clone(),
-                                );
+                            shared_context_identity = Some(identity.clone());
                         }
                     }
 
-                    GroundedForecastCorrespondenceRelation::
-                        TargetBoundHypothesisContinuation =>
-                    {
+                    GroundedForecastCorrespondenceRelation::TargetBoundHypothesisContinuation => {
                         total_base += 1;
 
                         assert_eq!(
-                            historical_forecast
-                                .status(),
-                            EpistemicHypothesisForecastStatus::
-                                Predicted,
+                            historical_forecast.status(),
+                            EpistemicHypothesisForecastStatus::Predicted,
                         );
 
                         assert_eq!(
-                            current_forecast
-                                .status(),
-                            EpistemicHypothesisForecastStatus::
-                                NoEffectOpportunity,
+                            current_forecast.status(),
+                            EpistemicHypothesisForecastStatus::NoEffectOpportunity,
                         );
 
-                        base_predicted_to_no_opportunity +=
-                            1;
+                        base_predicted_to_no_opportunity += 1;
 
-                        assert!(
-                            historical_forecast
-                                .predicted_outcome()
-                                .is_some(),
-                        );
+                        assert!(historical_forecast.predicted_outcome().is_some(),);
 
-                        assert!(
-                            current_forecast
-                                .predicted_outcome()
-                                .is_none(),
-                        );
+                        assert!(current_forecast.predicted_outcome().is_none(),);
 
-                        base_some_to_none +=
-                            1;
+                        base_some_to_none += 1;
                     }
                 }
-
 
                 /*
                  * C3H-C9 measured (-1,-1,0) on every matched edge.
@@ -3324,53 +2762,30 @@ fn live_c3h_c10_grounded_forecast_correspondence_closes_full_frontier_before_sta
                  * absent from GroundedForecastCorrespondenceRelation.
                  */
                 assert_eq!(
-                    current_forecast
-                        .support_count()
-                        .checked_add(1),
-                    Some(
-                        historical_forecast
-                            .support_count(),
-                    ),
+                    current_forecast.support_count().checked_add(1),
+                    Some(historical_forecast.support_count(),),
                 );
 
                 assert_eq!(
-                    current_forecast
-                        .opportunity_count()
-                        .checked_add(1),
-                    Some(
-                        historical_forecast
-                            .opportunity_count(),
-                    ),
+                    current_forecast.opportunity_count().checked_add(1),
+                    Some(historical_forecast.opportunity_count(),),
                 );
 
                 assert_eq!(
-                    current_forecast
-                        .counterexample_count(),
-                    historical_forecast
-                        .counterexample_count(),
+                    current_forecast.counterexample_count(),
+                    historical_forecast.counterexample_count(),
                 );
 
-                evidence_maturity_changed +=
-                    1;
+                evidence_maturity_changed += 1;
             }
 
-            assert_eq!(
-                seen_current.len(),
-                5,
-            );
+            assert_eq!(seen_current.len(), 5,);
         }
 
+        assert_eq!(role_target_count, 4,);
 
         assert_eq!(
-            role_target_count,
-            4,
-        );
-
-
-        assert_eq!(
-            runtime
-                .transport()
-                .execute_count(),
+            runtime.transport().execute_count(),
             transport_before,
             "C3H-C10 correspondence has zero transport authority",
         );
@@ -3394,92 +2809,50 @@ fn live_c3h_c10_grounded_forecast_correspondence_closes_full_frontier_before_sta
         );
     }
 
+    assert_eq!(total_forecasts, 40,);
 
-    assert_eq!(
-        total_forecasts,
-        40,
-    );
+    assert_eq!(total_context, 32,);
 
-    assert_eq!(
-        total_context,
-        32,
-    );
+    assert_eq!(total_base, 8,);
 
-    assert_eq!(
-        total_base,
-        8,
-    );
+    assert_eq!(context_status_preserved, 32,);
 
-    assert_eq!(
-        context_status_preserved,
-        32,
-    );
+    assert_eq!(base_predicted_to_no_opportunity, 8,);
 
-    assert_eq!(
-        base_predicted_to_no_opportunity,
-        8,
-    );
+    assert_eq!(context_none_to_none, 32,);
 
-    assert_eq!(
-        context_none_to_none,
-        32,
-    );
+    assert_eq!(base_some_to_none, 8,);
 
-    assert_eq!(
-        base_some_to_none,
-        8,
-    );
+    assert_eq!(evidence_maturity_changed, 40,);
 
-    assert_eq!(
-        evidence_maturity_changed,
-        40,
-    );
-
-    assert!(
-        shared_context_identity
-            .is_some(),
-    );
+    assert!(shared_context_identity.is_some(),);
 }
-
 
 #[test]
 fn live_c3h_c10_exact_target_correspondence_cannot_be_reinterpreted_as_role_forecast_transfer() {
     use athlesia_autonomous_active_experimentation::{
-        AutonomousGroundedForecastCorrespondence,
-        GroundedForecastCorrespondencePolicy,
+        AutonomousGroundedForecastCorrespondence, GroundedForecastCorrespondencePolicy,
         GroundedForecastCorrespondenceStatus,
     };
 
-    let (
-        runtime,
-        historical,
-        current,
-    ) =
-        c3hb_live_historical_and_current_identity(
-            "p4gc3hc10-exact-target-control",
-            1_390_000,
-            ArcAgi3ActionId::Action2,
-            2_u8,
-        );
+    let (runtime, historical, current) = c3hb_live_historical_and_current_identity(
+        "p4gc3hc10-exact-target-control",
+        1_390_000,
+        ArcAgi3ActionId::Action2,
+        2_u8,
+    );
 
+    let transport_before = runtime.transport().execute_count();
 
-    let transport_before =
-        runtime
-            .transport()
-            .execute_count();
+    let exact_history_before = runtime
+        .cognitive_runtime()
+        .cognition()
+        .epistemic_progress_event_count();
 
-    let exact_history_before =
-        runtime
-            .cognitive_runtime()
-            .cognition()
-            .epistemic_progress_event_count();
-
-    let transfer_history_before =
-        runtime
-            .cognitive_runtime()
-            .cognition()
-            .epistemic_transfer_progress_event_count();
-
+    let transfer_history_before = runtime
+        .cognitive_runtime()
+        .cognition()
+        .epistemic_transfer_progress_event_count();
 
     let target_relation =
         athlesia_autonomous_active_experimentation::
@@ -3490,64 +2863,32 @@ fn live_c3h_c10_exact_target_correspondence_cannot_be_reinterpreted_as_role_fore
                     c3hb_policy(),
                 );
 
-    assert!(
-        target_relation.derived(),
+    assert!(target_relation.derived(),);
+
+    let exact = target_relation
+        .correspondences()
+        .iter()
+        .find(|correspondence| {
+            correspondence.match_kind()
+                == athlesia_autonomous_active_experimentation::SchemaLevelTargetMatchKind::Exact
+        })
+        .expect("C3H-B refinement control contains exact historical target correspondence");
+
+    let result = AutonomousGroundedForecastCorrespondence::derive(
+        &historical,
+        &current,
+        exact,
+        GroundedForecastCorrespondencePolicy::new(32, 10_000, 32, 4096, 2048, 4096, 256).unwrap(),
     );
-
-    let exact =
-        target_relation
-            .correspondences()
-            .iter()
-            .find(|correspondence| {
-                correspondence.match_kind()
-                    == athlesia_autonomous_active_experimentation::
-                        SchemaLevelTargetMatchKind::
-                            Exact
-            })
-            .expect(
-                "C3H-B refinement control contains exact historical target correspondence",
-            );
-
-
-    let result =
-        AutonomousGroundedForecastCorrespondence::
-            derive(
-                &historical,
-                &current,
-                exact,
-                GroundedForecastCorrespondencePolicy::
-                    new(
-                        32,
-                        10_000,
-                        32,
-                        4096,
-                        2048,
-                        4096,
-                        256,
-                    )
-                    .unwrap(),
-            );
-
 
     assert_eq!(
         result.status(),
-        GroundedForecastCorrespondenceStatus::
-            TargetCorrespondenceNotRolePreserving,
+        GroundedForecastCorrespondenceStatus::TargetCorrespondenceNotRolePreserving,
     );
 
-    assert!(
-        result
-            .correspondence()
-            .is_none(),
-    );
+    assert!(result.correspondence().is_none(),);
 
-
-    assert_eq!(
-        runtime
-            .transport()
-            .execute_count(),
-        transport_before,
-    );
+    assert_eq!(runtime.transport().execute_count(), transport_before,);
 
     assert_eq!(
         runtime
@@ -3566,140 +2907,81 @@ fn live_c3h_c10_exact_target_correspondence_cannot_be_reinterpreted_as_role_fore
     );
 }
 
-
 #[test]
 fn live_c3h_c15b_semantic_provenance_preserves_c10_and_dynamic_state_causality() {
-    let (
-        runtime2,
-        historical2,
-        current2,
-    ) =
-        c3hb_live_historical_and_current_identity(
-            "p4gc3hc15b-state2",
-            6_000_000,
-            ArcAgi3ActionId::Action1,
-            2,
-        );
+    let (runtime2, historical2, current2) = c3hb_live_historical_and_current_identity(
+        "p4gc3hc15b-state2",
+        6_000_000,
+        ArcAgi3ActionId::Action1,
+        2,
+    );
 
-    let (
-        runtime7,
-        historical7,
-        current7,
-    ) =
-        c3hb_live_historical_and_current_identity(
-            "p4gc3hc15b-state7",
-            6_100_000,
-            ArcAgi3ActionId::Action1,
-            7,
-        );
+    let (runtime7, historical7, current7) = c3hb_live_historical_and_current_identity(
+        "p4gc3hc15b-state7",
+        6_100_000,
+        ArcAgi3ActionId::Action1,
+        7,
+    );
 
     assert_eq!(
-        historical2,
-        historical7,
+        historical2, historical7,
         "C14B authority: historical transfer identity is equal",
     );
 
-    let state2 =
-        runtime2
-            .cognitive_runtime()
-            .current_grounded_world_state()
-            .expect(
-                "state2 grounded state",
-            )
-            .clone();
+    let state2 = runtime2
+        .cognitive_runtime()
+        .current_grounded_world_state()
+        .expect("state2 grounded state")
+        .clone();
 
-    let state7 =
-        runtime7
-            .cognitive_runtime()
-            .current_grounded_world_state()
-            .expect(
-                "state7 grounded state",
-            )
-            .clone();
+    let state7 = runtime7
+        .cognitive_runtime()
+        .current_grounded_world_state()
+        .expect("state7 grounded state")
+        .clone();
 
     let action_one =
-        ArcAgi3CognitiveProtocolBridge::
-            encode_action(
-                action(
-                    ArcAgi3ActionId::Action1,
-                ),
-            );
+        ArcAgi3CognitiveProtocolBridge::encode_action(action(ArcAgi3ActionId::Action1));
 
-    let policy =
-        || {
-            athlesia_universal_domain_learning::
-                GroundedExplanatoryVersionSpacePolicy::
-                    new(
-                        1,
-                        64,
-                        512,
-                        256,
-                    )
-                    .unwrap()
-        };
+    let policy = || {
+        athlesia_universal_domain_learning::GroundedExplanatoryVersionSpacePolicy::new(
+            1, 64, 512, 256,
+        )
+        .unwrap()
+    };
 
-    let frozen2 =
-        runtime2
-            .cognitive_runtime()
-            .cognition()
-            .current_m50_epistemic_possibility(
-                &state2,
-                &action_one,
-                policy(),
-            )
-            .expect(
-                "frozen state2 M50 possibility",
-            );
+    let frozen2 = runtime2
+        .cognitive_runtime()
+        .cognition()
+        .current_m50_epistemic_possibility(&state2, &action_one, policy())
+        .expect("frozen state2 M50 possibility");
 
-    let semantic2 =
-        runtime2
-            .cognitive_runtime()
-            .cognition()
-            .current_semantic_m50_epistemic_possibility(
-                &state2,
-                &action_one,
-                policy(),
-            )
-            .expect(
-                "state2 typed semantic sidecar",
-            );
+    let semantic2 = runtime2
+        .cognitive_runtime()
+        .cognition()
+        .current_semantic_m50_epistemic_possibility(&state2, &action_one, policy())
+        .expect("state2 typed semantic sidecar");
 
     assert_eq!(
-        semantic2
-            .m50_possibility(),
+        semantic2.m50_possibility(),
         &frozen2,
         "semantic sidecar cannot alter M50 possibility",
     );
 
-    let frozen7 =
-        runtime7
-            .cognitive_runtime()
-            .cognition()
-            .current_m50_epistemic_possibility(
-                &state7,
-                &action_one,
-                policy(),
-            )
-            .expect(
-                "frozen state7 M50 possibility",
-            );
+    let frozen7 = runtime7
+        .cognitive_runtime()
+        .cognition()
+        .current_m50_epistemic_possibility(&state7, &action_one, policy())
+        .expect("frozen state7 M50 possibility");
 
-    let semantic7 =
-        runtime7
-            .cognitive_runtime()
-            .cognition()
-            .current_semantic_m50_epistemic_possibility(
-                &state7,
-                &action_one,
-                policy(),
-            )
-            .expect(
-                "state7 typed semantic sidecar",
-            );
+    let semantic7 = runtime7
+        .cognitive_runtime()
+        .cognition()
+        .current_semantic_m50_epistemic_possibility(&state7, &action_one, policy())
+        .expect("state7 typed semantic sidecar");
 
     assert_eq!(
-        semantic7
-            .m50_possibility(),
+        semantic7.m50_possibility(),
         &frozen7,
         "semantic sidecar cannot alter M50 possibility",
     );
@@ -3743,14 +3025,12 @@ fn live_c3h_c15b_semantic_provenance_preserves_c10_and_dynamic_state_causality()
                 .clone();
 
     assert_eq!(
-        derived2,
-        current2,
+        derived2, current2,
         "semantic bridge preserves exact frozen state2 transfer identity",
     );
 
     assert_eq!(
-        derived7,
-        current7,
+        derived7, current7,
         "semantic bridge preserves exact frozen state7 transfer identity",
     );
 
@@ -3772,83 +3052,44 @@ fn live_c3h_c15b_semantic_provenance_preserves_c10_and_dynamic_state_causality()
                     c3hb_policy(),
                 );
 
-    assert!(
-        relation2.derived()
-            && relation7.derived(),
-    );
+    assert!(relation2.derived() && relation7.derived(),);
 
-    let realization22 =
-        semantic2
-            .realize_at_state(
-                &state2,
-            )
-            .expect(
-                "history2/state2 semantic realization",
-            );
+    let realization22 = semantic2
+        .realize_at_state(&state2)
+        .expect("history2/state2 semantic realization");
 
-    let realization27 =
-        semantic2
-            .realize_at_state(
-                &state7,
-            )
-            .expect(
-                "history2/state7 semantic realization",
-            );
+    let realization27 = semantic2
+        .realize_at_state(&state7)
+        .expect("history2/state7 semantic realization");
 
-    let realization77 =
-        semantic7
-            .realize_at_state(
-                &state7,
-            )
-            .expect(
-                "history7/state7 semantic realization",
-            );
+    let realization77 = semantic7
+        .realize_at_state(&state7)
+        .expect("history7/state7 semantic realization");
 
-    let realization72 =
-        semantic7
-            .realize_at_state(
-                &state2,
-            )
-            .expect(
-                "history7/state2 semantic realization",
-            );
+    let realization72 = semantic7
+        .realize_at_state(&state2)
+        .expect("history7/state2 semantic realization");
 
-    let mut state2_context =
-        0_usize;
-    let mut state2_base =
-        0_usize;
-    let mut state7_context =
-        0_usize;
-    let mut state7_base =
-        0_usize;
+    let mut state2_context = 0_usize;
+    let mut state2_base = 0_usize;
+    let mut state7_context = 0_usize;
+    let mut state7_base = 0_usize;
 
-    for (
-        target2,
-        target7,
-    ) in relation2
+    for (target2, target7) in relation2
         .correspondences()
         .iter()
-        .filter(
-            |target| {
-                target.match_kind()
+        .filter(|target| {
+            target.match_kind()
                     == athlesia_autonomous_active_experimentation::
                         SchemaLevelTargetMatchKind::
                             RolePreserving
-            },
-        )
-        .zip(
-            relation7
-                .correspondences()
-                .iter()
-                .filter(
-                    |target| {
-                        target.match_kind()
+        })
+        .zip(relation7.correspondences().iter().filter(|target| {
+            target.match_kind()
                             == athlesia_autonomous_active_experimentation::
                                 SchemaLevelTargetMatchKind::
                                     RolePreserving
-                    },
-                ),
-        )
+        }))
     {
         let c10_2 =
             athlesia_autonomous_active_experimentation::
@@ -3892,108 +3133,52 @@ fn live_c3h_c15b_semantic_provenance_preserves_c10_and_dynamic_state_causality()
                                 .unwrap(),
                     );
 
-        assert!(
-            c10_2.derived()
-                && c10_7.derived(),
-        );
+        assert!(c10_2.derived() && c10_7.derived(),);
 
-        let correspondence2 =
-            c10_2
-                .correspondence()
-                .unwrap();
+        let correspondence2 = c10_2.correspondence().unwrap();
 
-        let correspondence7 =
-            c10_7
-                .correspondence()
-                .unwrap();
+        let correspondence7 = c10_7.correspondence().unwrap();
 
-        assert_eq!(
-            correspondence2
-                .forecast_count(),
-            5,
-        );
+        assert_eq!(correspondence2.forecast_count(), 5,);
 
-        assert_eq!(
-            correspondence7
-                .forecast_count(),
-            5,
-        );
+        assert_eq!(correspondence7.forecast_count(), 5,);
 
-        for entry in
-            correspondence2.entries()
-        {
-            let empirical_forecast =
-                &derived2
-                    .forecasts()[
-                        entry
-                            .current_forecast_index()
-                    ];
+        for entry in correspondence2.entries() {
+            let empirical_forecast = &derived2.forecasts()[entry.current_forecast_index()];
 
-            let hypothesis_identity =
-                empirical_forecast
-                    .hypothesis();
+            let hypothesis_identity = empirical_forecast.hypothesis();
 
-            let mut matching22 =
-                realization22
-                    .forecasts()
-                    .iter()
-                    .filter(
-                        |realization| {
-                            realization
-                                .hypothesis_identity()
-                                == hypothesis_identity
-                        },
-                    );
+            let mut matching22 = realization22
+                .forecasts()
+                .iter()
+                .filter(|realization| realization.hypothesis_identity() == hypothesis_identity);
 
-            let realized22 =
-                matching22
-                    .next()
-                    .expect(
-                        "every C10 state2 forecast must retain exact semantic provenance",
-                    );
+            let realized22 = matching22
+                .next()
+                .expect("every C10 state2 forecast must retain exact semantic provenance");
 
             assert!(
-                matching22
-                    .next()
-                    .is_none(),
+                matching22.next().is_none(),
                 "C10 state2 forecast identity must map to exactly one semantic realization",
             );
 
-            let mut matching27 =
-                realization27
-                    .forecasts()
-                    .iter()
-                    .filter(
-                        |realization| {
-                            realization
-                                .hypothesis_identity()
-                                == hypothesis_identity
-                        },
-                    );
+            let mut matching27 = realization27
+                .forecasts()
+                .iter()
+                .filter(|realization| realization.hypothesis_identity() == hypothesis_identity);
 
-            let realized27 =
-                matching27
-                    .next()
-                    .expect(
-                        "state2 semantic provenance must remain identifiable under state7 realization",
-                    );
+            let realized27 = matching27.next().expect(
+                "state2 semantic provenance must remain identifiable under state7 realization",
+            );
 
             assert!(
-                matching27
-                    .next()
-                    .is_none(),
+                matching27.next().is_none(),
                 "counterfactual state7 realization must retain unique state2 hypothesis identity",
             );
 
-            let status22 =
-                realized22
-                    .prediction()
-                    .status();
+            let status22 = realized22.prediction().status();
 
-            let status27 =
-                realized27
-                    .prediction()
-                    .status();
+            let status27 = realized27.prediction().status();
 
             match entry.relation() {
                 athlesia_autonomous_active_experimentation::
@@ -4042,81 +3227,42 @@ fn live_c3h_c15b_semantic_provenance_preserves_c10_and_dynamic_state_causality()
             }
         }
 
-        for entry in
-            correspondence7.entries()
-        {
-            let empirical_forecast =
-                &derived7
-                    .forecasts()[
-                        entry
-                            .current_forecast_index()
-                    ];
+        for entry in correspondence7.entries() {
+            let empirical_forecast = &derived7.forecasts()[entry.current_forecast_index()];
 
-            let hypothesis_identity =
-                empirical_forecast
-                    .hypothesis();
+            let hypothesis_identity = empirical_forecast.hypothesis();
 
-            let mut matching77 =
-                realization77
-                    .forecasts()
-                    .iter()
-                    .filter(
-                        |realization| {
-                            realization
-                                .hypothesis_identity()
-                                == hypothesis_identity
-                        },
-                    );
+            let mut matching77 = realization77
+                .forecasts()
+                .iter()
+                .filter(|realization| realization.hypothesis_identity() == hypothesis_identity);
 
-            let realized77 =
-                matching77
-                    .next()
-                    .expect(
-                        "every C10 state7 forecast must retain exact semantic provenance",
-                    );
+            let realized77 = matching77
+                .next()
+                .expect("every C10 state7 forecast must retain exact semantic provenance");
 
             assert!(
-                matching77
-                    .next()
-                    .is_none(),
+                matching77.next().is_none(),
                 "C10 state7 forecast identity must map to exactly one semantic realization",
             );
 
-            let mut matching72 =
-                realization72
-                    .forecasts()
-                    .iter()
-                    .filter(
-                        |realization| {
-                            realization
-                                .hypothesis_identity()
-                                == hypothesis_identity
-                        },
-                    );
+            let mut matching72 = realization72
+                .forecasts()
+                .iter()
+                .filter(|realization| realization.hypothesis_identity() == hypothesis_identity);
 
-            let realized72 =
-                matching72
-                    .next()
-                    .expect(
-                        "state7 semantic provenance must remain identifiable under state2 realization",
-                    );
+            let realized72 = matching72.next().expect(
+                "state7 semantic provenance must remain identifiable under state2 realization",
+            );
 
             assert!(
-                matching72
-                    .next()
-                    .is_none(),
+                matching72.next().is_none(),
                 "counterfactual state2 realization must retain unique state7 hypothesis identity",
             );
 
-            let status77 =
-                realized77
-                    .prediction()
-                    .status();
+            let status77 = realized77.prediction().status();
 
-            let status72 =
-                realized72
-                    .prediction()
-                    .status();
+            let status72 = realized72.prediction().status();
 
             match entry.relation() {
                 athlesia_autonomous_active_experimentation::
@@ -4166,25 +3312,13 @@ fn live_c3h_c15b_semantic_provenance_preserves_c10_and_dynamic_state_causality()
         }
     }
 
-    assert_eq!(
-        state2_context,
-        16,
-    );
+    assert_eq!(state2_context, 16,);
 
-    assert_eq!(
-        state2_base,
-        4,
-    );
+    assert_eq!(state2_base, 4,);
 
-    assert_eq!(
-        state7_context,
-        16,
-    );
+    assert_eq!(state7_context, 16,);
 
-    assert_eq!(
-        state7_base,
-        4,
-    );
+    assert_eq!(state7_base, 4,);
 
     println!(
         "C3HC15B_LIVE \
@@ -4198,7 +3332,6 @@ fn live_c3h_c15b_semantic_provenance_preserves_c10_and_dynamic_state_causality()
     );
 }
 
-
 #[test]
 fn live_c3h_c16d_combines_structural_current_and_measured_history_without_fabricating_value() {
     type ApplicabilityStatus =
@@ -4206,36 +3339,23 @@ fn live_c3h_c16d_combines_structural_current_and_measured_history_without_fabric
             GroundedRealizationConditionedTransferApplicabilityStatus;
 
     type EvidenceStatus =
-        athlesia_integrated_cognitive_agent::
-            GroundedRealizationConditionedTransferEvidenceStatus;
+        athlesia_integrated_cognitive_agent::GroundedRealizationConditionedTransferEvidenceStatus;
 
-
-    fn version_policy(
-    ) -> athlesia_universal_domain_learning::
-        GroundedExplanatoryVersionSpacePolicy {
-        athlesia_universal_domain_learning::
-            GroundedExplanatoryVersionSpacePolicy::
-                new(
-                    1,
-                    64,
-                    512,
-                    256,
-                )
-                .unwrap()
+    fn version_policy() -> athlesia_universal_domain_learning::GroundedExplanatoryVersionSpacePolicy
+    {
+        athlesia_universal_domain_learning::GroundedExplanatoryVersionSpacePolicy::new(
+            1, 64, 512, 256,
+        )
+        .unwrap()
     }
-
 
     fn transfer_identity_policy(
-    ) -> athlesia_autonomous_active_experimentation::
-        EmpiricalEpistemicTransferIdentityPolicy {
-        athlesia_autonomous_active_experimentation::
-            EmpiricalEpistemicTransferIdentityPolicy::
-                new(
-                    512,
-                )
-                .unwrap()
+    ) -> athlesia_autonomous_active_experimentation::EmpiricalEpistemicTransferIdentityPolicy {
+        athlesia_autonomous_active_experimentation::EmpiricalEpistemicTransferIdentityPolicy::new(
+            512,
+        )
+        .unwrap()
     }
-
 
     fn measure(
         game: &str,
@@ -4250,45 +3370,28 @@ fn live_c3h_c16d_combines_structural_current_and_measured_history_without_fabric
         usize,
         usize,
     ) {
-        let (
-            runtime,
-            _historical,
-            _current,
-        ) =
-            c3hb_live_historical_and_current_identity(
-                game,
-                first_index,
-                ArcAgi3ActionId::Action1,
-                value,
-            );
+        let (runtime, _historical, _current) = c3hb_live_historical_and_current_identity(
+            game,
+            first_index,
+            ArcAgi3ActionId::Action1,
+            value,
+        );
 
-        let current_state =
-            runtime
-                .cognitive_runtime()
-                .current_grounded_world_state()
-                .expect(
-                    "C16D requires genuinely reached grounded state",
-                )
-                .clone();
+        let current_state = runtime
+            .cognitive_runtime()
+            .current_grounded_world_state()
+            .expect("C16D requires genuinely reached grounded state")
+            .clone();
 
         let action_one =
-            ArcAgi3CognitiveProtocolBridge::
-                encode_action(
-                    action(
-                        ArcAgi3ActionId::Action1,
-                    ),
-                );
+            ArcAgi3CognitiveProtocolBridge::encode_action(action(ArcAgi3ActionId::Action1));
 
-        let history_before =
-            runtime
-                .cognitive_runtime()
-                .cognition()
-                .epistemic_transfer_progress_event_count();
+        let history_before = runtime
+            .cognitive_runtime()
+            .cognition()
+            .epistemic_transfer_progress_event_count();
 
-        let transport_before =
-            runtime
-                .transport()
-                .execute_count();
+        let transport_before = runtime.transport().execute_count();
 
         let result =
             athlesia_integrated_cognitive_agent::
@@ -4324,44 +3427,32 @@ fn live_c3h_c16d_combines_structural_current_and_measured_history_without_fabric
         );
 
         assert_eq!(
-            runtime
-                .transport()
-                .execute_count(),
+            runtime.transport().execute_count(),
             transport_before,
             "C16D query has zero transport authority",
         );
 
         assert_eq!(
-            result
-                .retained_history_count(),
+            result.retained_history_count(),
             1,
             "fixture owns one real historical C3G event",
         );
 
         assert_eq!(
-            result
-                .structurally_corresponding_history_count(),
+            result.structurally_corresponding_history_count(),
             1,
             "frozen C3H relation must identify the historical event structurally",
         );
 
         assert_eq!(
-            result
-                .evidence_count(),
+            result.evidence_count(),
             1,
             "one structural historical event must produce one evidence bundle",
         );
 
-        let evidence =
-            &result
-                .evidence()[0];
+        let evidence = &result.evidence()[0];
 
-        assert_eq!(
-            evidence
-                .historical_sample()
-                .action(),
-            &action_one,
-        );
+        assert_eq!(evidence.historical_sample().action(), &action_one,);
 
         println!(
             "C3HC16D_WORLD \
@@ -4375,78 +3466,32 @@ fn live_c3h_c16d_combines_structural_current_and_measured_history_without_fabric
              HIST_REDUCTION={} \
              HIST_INCREASE={}",
             value,
-            result
-                .applicability()
-                .status(),
-            evidence
-                .status(),
-            evidence
-                .historical_progress_class(),
-            result
-                .applicability()
-                .predicted_count(),
-            result
-                .applicability()
-                .context_uninformative_count(),
-            result
-                .applicability()
-                .no_effect_opportunity_count(),
-            evidence
-                .historical_sample()
-                .realized_separation_reduction(),
-            evidence
-                .historical_sample()
-                .realized_separation_increase(),
+            result.applicability().status(),
+            evidence.status(),
+            evidence.historical_progress_class(),
+            result.applicability().predicted_count(),
+            result.applicability().context_uninformative_count(),
+            result.applicability().no_effect_opportunity_count(),
+            evidence.historical_sample().realized_separation_reduction(),
+            evidence.historical_sample().realized_separation_increase(),
         );
 
         (
-            result
-                .applicability()
-                .status(),
-
-            evidence
-                .status(),
-
-            result
-                .applicability()
-                .predicted_count(),
-
-            result
-                .applicability()
-                .context_uninformative_count(),
-
-            result
-                .applicability()
-                .no_effect_opportunity_count(),
-
+            result.applicability().status(),
+            evidence.status(),
+            result.applicability().predicted_count(),
+            result.applicability().context_uninformative_count(),
+            result.applicability().no_effect_opportunity_count(),
             history_before,
-
             transport_before,
         )
     }
 
+    let canonical2 = measure("p4gc3hc16d-canonical-2", 7_600_000, 2);
 
-    let canonical2 =
-        measure(
-            "p4gc3hc16d-canonical-2",
-            7_600_000,
-            2,
-        );
+    let crossover7 = measure("p4gc3hc16d-crossover-7", 7_700_000, 7);
 
-    let crossover7 =
-        measure(
-            "p4gc3hc16d-crossover-7",
-            7_700_000,
-            7,
-        );
-
-    let canonical14 =
-        measure(
-            "p4gc3hc16d-canonical-14",
-            7_800_000,
-            14,
-        );
-
+    let canonical14 = measure("p4gc3hc16d-canonical-14", 7_800_000, 14);
 
     /*
      * R2 corrected an oracle-scope mistake:
@@ -4463,97 +3508,51 @@ fn live_c3h_c16d_combines_structural_current_and_measured_history_without_fabric
      */
     assert_eq!(
         canonical2.0,
-        ApplicabilityStatus::
-            PredictedWithUninformative,
+        ApplicabilityStatus::PredictedWithUninformative,
     );
 
     assert_eq!(
         crossover7.0,
-        ApplicabilityStatus::
-            PredictedWithUninformative,
+        ApplicabilityStatus::PredictedWithUninformative,
     );
 
     assert_eq!(
         canonical14.0,
-        ApplicabilityStatus::
-            PredictedWithUninformative,
+        ApplicabilityStatus::PredictedWithUninformative,
     );
-
 
     /*
      * Exact full-frontier semantic profiles are authority.
      */
     assert_eq!(
-        (
-            canonical2.2,
-            canonical2.3,
-            canonical2.4,
-        ),
-        (
-            4,
-            80,
-            12,
-        ),
+        (canonical2.2, canonical2.3, canonical2.4,),
+        (4, 80, 12,),
         "state2 full frontier must preserve the observed canonical realization profile",
     );
 
     assert_eq!(
-        (
-            canonical14.2,
-            canonical14.3,
-            canonical14.4,
-        ),
-        (
-            4,
-            80,
-            12,
-        ),
+        (canonical14.2, canonical14.3, canonical14.4,),
+        (4, 80, 12,),
         "independent state14 holdout must replicate the canonical realization profile",
     );
 
     assert_eq!(
-        (
-            crossover7.2,
-            crossover7.3,
-            crossover7.4,
-        ),
-        (
-            40,
-            48,
-            8,
-        ),
+        (crossover7.2, crossover7.3, crossover7.4,),
+        (40, 48, 8,),
         "state7 semantic crossover must preserve its distinct full-frontier realization profile",
     );
 
-
     assert_eq!(
-        (
-            canonical2.2,
-            canonical2.3,
-            canonical2.4,
-        ),
-        (
-            canonical14.2,
-            canonical14.3,
-            canonical14.4,
-        ),
+        (canonical2.2, canonical2.3, canonical2.4,),
+        (canonical14.2, canonical14.3, canonical14.4,),
         "canonical C3H holdouts must replicate independently",
     );
 
     assert_ne!(
-        (
-            canonical2.2,
-            canonical2.3,
-            canonical2.4,
-        ),
-        (
-            crossover7.2,
-            crossover7.3,
-            crossover7.4,
-        ),
+        (canonical2.2, canonical2.3, canonical2.4,),
+        (crossover7.2, crossover7.3, crossover7.4,),
         "coarse applicability status must not erase the causal semantic crossover",
     );
-
 
     /*
      * Historical C3G provenance is identical in class here:
@@ -4564,40 +3563,27 @@ fn live_c3h_c16d_combines_structural_current_and_measured_history_without_fabric
      */
     assert_eq!(
         canonical2.1,
-        EvidenceStatus::
-            CurrentPredictionOpportunityWithHistoricalIncrease,
+        EvidenceStatus::CurrentPredictionOpportunityWithHistoricalIncrease,
     );
 
     assert_eq!(
         crossover7.1,
-        EvidenceStatus::
-            CurrentPredictionOpportunityWithHistoricalIncrease,
+        EvidenceStatus::CurrentPredictionOpportunityWithHistoricalIncrease,
     );
 
     assert_eq!(
         canonical14.1,
-        EvidenceStatus::
-            CurrentPredictionOpportunityWithHistoricalIncrease,
+        EvidenceStatus::CurrentPredictionOpportunityWithHistoricalIncrease,
     );
-
 
     /*
      * Query remains observational only.
      */
-    assert_eq!(
-        canonical2.5,
-        1,
-    );
+    assert_eq!(canonical2.5, 1,);
 
-    assert_eq!(
-        crossover7.5,
-        1,
-    );
+    assert_eq!(crossover7.5, 1,);
 
-    assert_eq!(
-        canonical14.5,
-        1,
-    );
+    assert_eq!(canonical14.5, 1,);
 
     println!(
         "C3HC16D_RESULT \
@@ -4612,7 +3598,6 @@ fn live_c3h_c16d_combines_structural_current_and_measured_history_without_fabric
          TRANSPORT_CREATED=0"
     );
 }
-
 
 #[test]
 fn live_reset_cannot_expose_retained_transition_after_as_current_state() {
@@ -4697,18 +3682,12 @@ fn live_reset_cannot_expose_retained_transition_after_as_current_state() {
                     &scene,
                 )
         })
-        .and_then(
-            athlesia_universal_domain_learning::
-                GroundedStateSnapshot::new,
-        );
+        .and_then(athlesia_universal_domain_learning::GroundedStateSnapshot::new);
 
-    let actual_current = runtime
-        .cognitive_runtime()
-        .current_grounded_world_state();
+    let actual_current = runtime.cognitive_runtime().current_grounded_world_state();
 
     assert_eq!(
-        actual_current,
-        expected_current,
+        actual_current, expected_current,
         "post-reset current state must be derived exclusively from current perception",
     );
 
@@ -4728,10 +3707,7 @@ fn live_reset_cannot_expose_retained_transition_after_as_current_state() {
      * Anti-vacuity: perception really advanced to the RESET response.
      */
     assert_eq!(
-        runtime
-            .cognitive_runtime()
-            .observation()
-            .last_action(),
+        runtime.cognitive_runtime().observation().last_action(),
         Some(ArcAgi3Action::reset()),
     );
 }
@@ -4757,26 +3733,14 @@ fn successful_ungrounded_response_fails_closed_instead_of_exposing_stale_current
      */
     mature_runtime(&mut runtime, game);
 
-    real_training_turn(
-        &mut runtime,
-        game,
-        action_two,
-        7_u8,
-    );
+    real_training_turn(&mut runtime, game, action_two, 7_u8);
 
-    real_training_turn(
-        &mut runtime,
-        game,
-        action_one,
-        6_u8,
-    );
+    real_training_turn(&mut runtime, game, action_one, 6_u8);
 
     let pre_ungrounded_current = runtime
         .cognitive_runtime()
         .current_grounded_world_state()
-        .expect(
-            "precondition: state 6 must be genuinely grounded before the adversarial turn",
-        );
+        .expect("precondition: state 6 must be genuinely grounded before the adversarial turn");
 
     let episode_count_before = runtime
         .cognitive_runtime()
@@ -4816,12 +3780,7 @@ fn successful_ungrounded_response_fails_closed_instead_of_exposing_stale_current
      * The environment turn itself is valid and completes, but the latest
      * perceptual state has no selected grounded scene.
      */
-    real_training_turn(
-        &mut runtime,
-        game,
-        action_two,
-        8_u8,
-    );
+    real_training_turn(&mut runtime, game, action_two, 8_u8);
 
     let observation_index_after = runtime
         .cognitive_runtime()
@@ -4835,10 +3794,7 @@ fn successful_ungrounded_response_fails_closed_instead_of_exposing_stale_current
     );
 
     assert_eq!(
-        runtime
-            .cognitive_runtime()
-            .observation()
-            .last_action(),
+        runtime.cognitive_runtime().observation().last_action(),
         Some(action_two),
         "anti-vacuity: ACTION2 -> 8 must complete as a real environment turn",
     );
@@ -4901,8 +3857,7 @@ fn successful_ungrounded_response_fails_closed_instead_of_exposing_stale_current
         .expect("pre-existing transition history remains retained");
 
     assert_eq!(
-        historical_last_after,
-        &historical_last_before,
+        historical_last_after, &historical_last_before,
         "failed grounding must leave prior transition history intact rather than rewrite it",
     );
 
@@ -4913,22 +3868,13 @@ fn successful_ungrounded_response_fails_closed_instead_of_exposing_stale_current
     );
 }
 
-
 #[test]
 fn live_current_successor_frequency_query_matches_explicit_b2b_query() {
-    let game =
-        "c16hb2c-live-current-frequency-binding";
+    let game = "c16hb2c-live-current-frequency-binding";
 
-    let mut runtime =
-        live_runtime(
-            game,
-            7_100_000,
-        );
+    let mut runtime = live_runtime(game, 7_100_000);
 
-    mature_runtime(
-        &mut runtime,
-        game,
-    );
+    mature_runtime(&mut runtime, game);
 
     assert!(
         runtime
@@ -4939,64 +3885,38 @@ fn live_current_successor_frequency_query_matches_explicit_b2b_query() {
         "B2-C live binding test requires genuine retained transition evidence",
     );
 
-    let current =
-        runtime
-            .cognitive_runtime()
-            .current_grounded_world_state()
-            .expect(
-                "mature live runtime must expose a genuinely grounded current representation",
-            );
+    let current = runtime
+        .cognitive_runtime()
+        .current_grounded_world_state()
+        .expect("mature live runtime must expose a genuinely grounded current representation");
 
     let cognitive_action =
-        ArcAgi3CognitiveProtocolBridge::
-            encode_action(
-                action(
-                    ArcAgi3ActionId::Action1,
-                ),
-            );
+        ArcAgi3CognitiveProtocolBridge::encode_action(action(ArcAgi3ActionId::Action1));
 
-    let explicit =
-        runtime
-            .cognitive_runtime()
-            .cognition()
-            .transition_schema_learning()
-            .action_qualified_empirical_successor_frequency(
-                &current,
-                &cognitive_action,
-            );
+    let explicit = runtime
+        .cognitive_runtime()
+        .cognition()
+        .transition_schema_learning()
+        .action_qualified_empirical_successor_frequency(&current, &cognitive_action);
 
-    let live =
-        runtime
-            .cognitive_runtime()
-            .current_action_qualified_empirical_successor_frequency(
-                &cognitive_action,
-            )
-            .expect(
-                "grounded B0 current state must permit the live B2-C query",
-            );
+    let live = runtime
+        .cognitive_runtime()
+        .current_action_qualified_empirical_successor_frequency(&cognitive_action)
+        .expect("grounded B0 current state must permit the live B2-C query");
 
     assert_eq!(
-        live,
-        explicit,
+        live, explicit,
         "live B2-C must be exactly B0 current-state binding into the existing B2-B estimator",
     );
 }
 
 #[test]
 fn live_current_successor_frequency_query_after_reset_cannot_bind_stale_historical_after() {
-    let game =
-        "c16hb2c-live-reset-stale-frequency-guard";
+    let game = "c16hb2c-live-reset-stale-frequency-guard";
 
-    let action_two =
-        action(
-            ArcAgi3ActionId::Action2,
-        );
+    let action_two = action(ArcAgi3ActionId::Action2);
 
-    let mut runtime =
-        live_runtime(
-            game,
-            7_200_000,
-        );
+    let mut runtime = live_runtime(game, 7_200_000);
 
     /*
      * Build genuine retained history first.
@@ -5004,41 +3924,29 @@ fn live_current_successor_frequency_query_after_reset_cannot_bind_stale_historic
      * Anti-vacuity: this test is only meaningful if stale historical
      * successor evidence really exists before RESET.
      */
-    mature_runtime(
-        &mut runtime,
-        game,
-    );
+    mature_runtime(&mut runtime, game);
 
-    real_training_turn(
-        &mut runtime,
-        game,
-        action_two,
-        7_u8,
-    );
+    real_training_turn(&mut runtime, game, action_two, 7_u8);
 
-    let episode_count_before_reset =
-        runtime
-            .cognitive_runtime()
-            .cognition()
-            .transition_episode_count();
+    let episode_count_before_reset = runtime
+        .cognitive_runtime()
+        .cognition()
+        .transition_episode_count();
 
     assert!(
         episode_count_before_reset > 0,
         "B2-C RESET guard requires genuine retained transition evidence",
     );
 
-    let historical_after =
-        runtime
-            .cognitive_runtime()
-            .cognition()
-            .transition_schema_learning()
-            .episodes()
-            .last()
-            .expect(
-                "B2-C RESET guard requires retained historical successor representation",
-            )
-            .after()
-            .clone();
+    let historical_after = runtime
+        .cognitive_runtime()
+        .cognition()
+        .transition_schema_learning()
+        .episodes()
+        .last()
+        .expect("B2-C RESET guard requires retained historical successor representation")
+        .after()
+        .clone();
 
     /*
      * Reuse the frozen B0 RESET fixture semantics.
@@ -5049,27 +3957,15 @@ fn live_current_successor_frequency_query_after_reset_cannot_bind_stale_historic
      * The only legal current-state authority after RESET is current
      * perception. If current grounding fails, B0 returns None.
      */
-    runtime
-        .transport()
-        .push(
-            Ok(
-                normal_observation(
-                    game,
-                    8_u8,
-                    Some(
-                        ArcAgi3Action::reset(),
-                    ),
-                ),
-            ),
-        );
+    runtime.transport().push(Ok(normal_observation(
+        game,
+        8_u8,
+        Some(ArcAgi3Action::reset()),
+    )));
 
     runtime
-        .reset(
-            signal(900),
-        )
-        .expect(
-            "real RESET response must complete",
-        );
+        .reset(signal(900))
+        .expect("real RESET response must complete");
 
     /*
      * Derive the frozen B0 expected result independently through the
@@ -5079,13 +3975,11 @@ fn live_current_successor_frequency_query_after_reset_cannot_bind_stale_historic
      * expected_current is Option<GroundedStateSnapshot>.
      * None is a legitimate fail-closed result.
      */
-    let expected_current =
-        runtime
-            .cognitive_runtime()
-            .current_best_scene_interpretation()
-            .and_then(
-                |scene| {
-                    athlesia_core_knowledge_perceptual_grounding::
+    let expected_current = runtime
+        .cognitive_runtime()
+        .current_best_scene_interpretation()
+        .and_then(|scene| {
+            athlesia_core_knowledge_perceptual_grounding::
                         GroundedPerceptualStateProjector::scene_facts(
                             runtime
                                 .cognitive_runtime()
@@ -5093,40 +3987,25 @@ fn live_current_successor_frequency_query_after_reset_cannot_bind_stale_historic
                                 .latest_frame(),
                             &scene,
                         )
-                },
-            )
-            .and_then(
-                athlesia_universal_domain_learning::
-                    GroundedStateSnapshot::new,
-            );
+        })
+        .and_then(athlesia_universal_domain_learning::GroundedStateSnapshot::new);
 
-    let actual_current =
-        runtime
-            .cognitive_runtime()
-            .current_grounded_world_state();
+    let actual_current = runtime.cognitive_runtime().current_grounded_world_state();
 
     assert_eq!(
-        actual_current,
-        expected_current,
+        actual_current, expected_current,
         "B2-C must inherit frozen B0 current-perception authority exactly",
     );
 
     assert_ne!(
         actual_current,
-        Some(
-            historical_after.clone(),
-        ),
+        Some(historical_after.clone(),),
         "retained historical successor representation must never masquerade as live current state",
     );
 
     assert_eq!(
-        runtime
-            .cognitive_runtime()
-            .observation()
-            .last_action(),
-        Some(
-            ArcAgi3Action::reset(),
-        ),
+        runtime.cognitive_runtime().observation().last_action(),
+        Some(ArcAgi3Action::reset(),),
         "anti-vacuity: RESET must genuinely complete before the live B2-C query",
     );
 
@@ -5140,19 +4019,11 @@ fn live_current_successor_frequency_query_after_reset_cannot_bind_stale_historic
     );
 
     let cognitive_action =
-        ArcAgi3CognitiveProtocolBridge::
-            encode_action(
-                action(
-                    ArcAgi3ActionId::Action1,
-                ),
-            );
+        ArcAgi3CognitiveProtocolBridge::encode_action(action(ArcAgi3ActionId::Action1));
 
-    let live =
-        runtime
-            .cognitive_runtime()
-            .current_action_qualified_empirical_successor_frequency(
-                &cognitive_action,
-            );
+    let live = runtime
+        .cognitive_runtime()
+        .current_action_qualified_empirical_successor_frequency(&cognitive_action);
 
     /*
      * B2-C's outer Option is current-grounding authority.
@@ -5173,21 +4044,15 @@ fn live_current_successor_frequency_query_after_reset_cannot_bind_stale_historic
         }
 
         Some(current) => {
-            let explicit_current =
-                runtime
-                    .cognitive_runtime()
-                    .cognition()
-                    .transition_schema_learning()
-                    .action_qualified_empirical_successor_frequency(
-                        &current,
-                        &cognitive_action,
-                    );
+            let explicit_current = runtime
+                .cognitive_runtime()
+                .cognition()
+                .transition_schema_learning()
+                .action_qualified_empirical_successor_frequency(&current, &cognitive_action);
 
             assert_eq!(
                 live,
-                Some(
-                    explicit_current,
-                ),
+                Some(explicit_current,),
                 "grounded post-RESET query must bind exactly the frozen B0 current representation",
             );
         }

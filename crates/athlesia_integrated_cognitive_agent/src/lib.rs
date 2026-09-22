@@ -1503,13 +1503,11 @@ mod perceptual_grounding_ingestion_tests {
 
         assert!(integrated.integrated());
 
-        assert!(
-            integrated
-                .frame()
-                .unwrap()
-                .contribution(IntegratedCognitiveLayer::PerceptualGrounding)
-                .is_some()
-        );
+        assert!(integrated
+            .frame()
+            .unwrap()
+            .contribution(IntegratedCognitiveLayer::PerceptualGrounding)
+            .is_some());
     }
 
     #[test]
@@ -2166,17 +2164,13 @@ mod universal_domain_learning_ingestion_tests {
 
         let frame = integrated.frame().unwrap();
 
-        assert!(
-            frame
-                .contribution(IntegratedCognitiveLayer::PerceptualGrounding)
-                .is_some()
-        );
+        assert!(frame
+            .contribution(IntegratedCognitiveLayer::PerceptualGrounding)
+            .is_some());
 
-        assert!(
-            frame
-                .contribution(IntegratedCognitiveLayer::UniversalDomainLearning)
-                .is_some()
-        );
+        assert!(frame
+            .contribution(IntegratedCognitiveLayer::UniversalDomainLearning)
+            .is_some());
     }
 
     #[test]
@@ -2858,23 +2852,17 @@ mod executive_agency_ingestion_tests {
 
         let frame = integrated.frame().unwrap();
 
-        assert!(
-            frame
-                .contribution(IntegratedCognitiveLayer::PerceptualGrounding)
-                .is_some()
-        );
+        assert!(frame
+            .contribution(IntegratedCognitiveLayer::PerceptualGrounding)
+            .is_some());
 
-        assert!(
-            frame
-                .contribution(IntegratedCognitiveLayer::UniversalDomainLearning)
-                .is_some()
-        );
+        assert!(frame
+            .contribution(IntegratedCognitiveLayer::UniversalDomainLearning)
+            .is_some());
 
-        assert!(
-            frame
-                .contribution(IntegratedCognitiveLayer::ExecutiveAgency)
-                .is_some()
-        );
+        assert!(frame
+            .contribution(IntegratedCognitiveLayer::ExecutiveAgency)
+            .is_some());
     }
 
     #[test]
@@ -3657,11 +3645,9 @@ mod meta_learning_skill_memory_ingestion_tests {
 
         let frame = integrated.frame().unwrap();
 
-        assert!(
-            frame
-                .contribution(IntegratedCognitiveLayer::MetaLearningSkillMemory)
-                .is_some()
-        );
+        assert!(frame
+            .contribution(IntegratedCognitiveLayer::MetaLearningSkillMemory)
+            .is_some());
     }
 
     #[test]
@@ -5460,34 +5446,28 @@ mod cognitive_cycle_state_transition_tests {
 
     #[test]
     fn transition_request_requires_authority_specific_provenance_contract() {
-        assert!(
-            CognitiveCycleStateTransitionRequest::new(
-                a(1000),
-                CognitiveCycleTransitionAuthority::PreserveAnchor,
-                None,
-            )
-            .is_some()
-        );
+        assert!(CognitiveCycleStateTransitionRequest::new(
+            a(1000),
+            CognitiveCycleTransitionAuthority::PreserveAnchor,
+            None,
+        )
+        .is_some());
 
-        assert!(
-            CognitiveCycleStateTransitionRequest::new(
-                a(1000),
-                CognitiveCycleTransitionAuthority::PreserveAnchor,
-                Some(a(9000)),
-            )
-            .is_none()
-        );
+        assert!(CognitiveCycleStateTransitionRequest::new(
+            a(1000),
+            CognitiveCycleTransitionAuthority::PreserveAnchor,
+            Some(a(9000)),
+        )
+        .is_none());
 
-        assert!(
-            CognitiveCycleStateTransitionRequest::new(
-                a(1000),
-                CognitiveCycleTransitionAuthority::AdoptLayer(
-                    IntegratedCognitiveLayer::ExecutiveAgency,
-                ),
-                None,
-            )
-            .is_none()
-        );
+        assert!(CognitiveCycleStateTransitionRequest::new(
+            a(1000),
+            CognitiveCycleTransitionAuthority::AdoptLayer(
+                IntegratedCognitiveLayer::ExecutiveAgency,
+            ),
+            None,
+        )
+        .is_none());
     }
 
     #[test]
@@ -9134,17 +9114,15 @@ mod perceptual_domain_learning_evidence_bridge_tests {
 
     fn scene(handles: &[u64]) -> SceneInterpretation {
         SceneInterpretation::new(
-            vec![
-                ObjectHypothesis::new(
-                    handles
-                        .iter()
-                        .copied()
-                        .map(PerceptualElementHandle::new)
-                        .collect(),
-                    objecthood(),
-                )
-                .expect("test object is valid"),
-            ],
+            vec![ObjectHypothesis::new(
+                handles
+                    .iter()
+                    .copied()
+                    .map(PerceptualElementHandle::new)
+                    .collect(),
+                objecthood(),
+            )
+            .expect("test object is valid")],
             s(900),
         )
         .expect("test scene is valid")
@@ -9526,24 +9504,20 @@ impl EmpiricalSuccessorRepresentationQualification {
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum EmpiricalSuccessorFrequencyStatus {
-    UnknownRepresentation(
-        EmpiricalSuccessorRepresentationQualificationStatus,
-    ),
+    UnknownRepresentation(EmpiricalSuccessorRepresentationQualificationStatus),
     UnknownNoActionQualifiedSamples,
     QualifiedActionEmpiricalFrequency,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct EmpiricalSuccessorFrequencyEntry {
-    successor_representation:
-        athlesia_universal_domain_learning::GroundedStateSnapshot,
+    successor_representation: athlesia_universal_domain_learning::GroundedStateSnapshot,
     independent_event_count: usize,
 }
 
 impl EmpiricalSuccessorFrequencyEntry {
     fn new(
-        successor_representation:
-            athlesia_universal_domain_learning::GroundedStateSnapshot,
+        successor_representation: athlesia_universal_domain_learning::GroundedStateSnapshot,
     ) -> Self {
         Self {
             successor_representation,
@@ -9570,9 +9544,7 @@ pub struct ActionQualifiedEmpiricalSuccessorFrequency {
 }
 
 impl ActionQualifiedEmpiricalSuccessorFrequency {
-    fn unknown(
-        status: EmpiricalSuccessorFrequencyStatus,
-    ) -> Self {
+    fn unknown(status: EmpiricalSuccessorFrequencyStatus) -> Self {
         Self {
             status,
             independent_action_event_count: 0,
@@ -9585,9 +9557,7 @@ impl ActionQualifiedEmpiricalSuccessorFrequency {
         successor_frequencies: Vec<EmpiricalSuccessorFrequencyEntry>,
     ) -> Self {
         Self {
-            status:
-                EmpiricalSuccessorFrequencyStatus::
-                    QualifiedActionEmpiricalFrequency,
+            status: EmpiricalSuccessorFrequencyStatus::QualifiedActionEmpiricalFrequency,
             independent_action_event_count,
             successor_frequencies,
         }
@@ -9601,9 +9571,7 @@ impl ActionQualifiedEmpiricalSuccessorFrequency {
         self.independent_action_event_count
     }
 
-    pub fn successor_frequencies(
-        &self,
-    ) -> &[EmpiricalSuccessorFrequencyEntry] {
+    pub fn successor_frequencies(&self) -> &[EmpiricalSuccessorFrequencyEntry] {
         &self.successor_frequencies
     }
 
@@ -9612,15 +9580,10 @@ impl ActionQualifiedEmpiricalSuccessorFrequency {
     }
 
     pub fn is_qualified(&self) -> bool {
-        self.status
-            == EmpiricalSuccessorFrequencyStatus::
-                QualifiedActionEmpiricalFrequency
+        self.status == EmpiricalSuccessorFrequencyStatus::QualifiedActionEmpiricalFrequency
     }
 
-
-    pub fn successor_informed_proposal_eligibility(
-        &self,
-    ) -> SuccessorInformedProposalEligibility {
+    pub fn successor_informed_proposal_eligibility(&self) -> SuccessorInformedProposalEligibility {
         /*
          * C16I-A is deliberately narrower than proposal construction.
          *
@@ -9644,16 +9607,13 @@ impl ActionQualifiedEmpiricalSuccessorFrequency {
          */
         if !self.is_qualified() {
             return SuccessorInformedProposalEligibility::ineligible(
-                SuccessorInformedProposalEligibilityStatus::
-                    IneligibleUnqualifiedSuccessorEvidence(
-                        self.status(),
-                    ),
+                SuccessorInformedProposalEligibilityStatus::IneligibleUnqualifiedSuccessorEvidence(
+                    self.status(),
+                ),
             );
         }
 
-        if self.independent_action_event_count == 0
-            || self.successor_frequencies.is_empty()
-        {
+        if self.independent_action_event_count == 0 || self.successor_frequencies.is_empty() {
             return SuccessorInformedProposalEligibility::ineligible(
                 SuccessorInformedProposalEligibilityStatus::
                     IneligibleSuccessorEvidenceInvariantViolation,
@@ -9671,9 +9631,7 @@ impl ActionQualifiedEmpiricalSuccessorFrequency {
             }
 
             let Some(next_count) =
-                counted_event_samples.checked_add(
-                    entry.independent_event_count(),
-                )
+                counted_event_samples.checked_add(entry.independent_event_count())
             else {
                 return SuccessorInformedProposalEligibility::ineligible(
                     SuccessorInformedProposalEligibilityStatus::
@@ -9684,9 +9642,7 @@ impl ActionQualifiedEmpiricalSuccessorFrequency {
             counted_event_samples = next_count;
         }
 
-        if counted_event_samples
-            != self.independent_action_event_count
-        {
+        if counted_event_samples != self.independent_action_event_count {
             return SuccessorInformedProposalEligibility::ineligible(
                 SuccessorInformedProposalEligibilityStatus::
                     IneligibleSuccessorEvidenceInvariantViolation,
@@ -9702,9 +9658,7 @@ impl ActionQualifiedEmpiricalSuccessorFrequency {
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum SuccessorInformedProposalEligibilityStatus {
-    IneligibleUnqualifiedSuccessorEvidence(
-        EmpiricalSuccessorFrequencyStatus,
-    ),
+    IneligibleUnqualifiedSuccessorEvidence(EmpiricalSuccessorFrequencyStatus),
     IneligibleSuccessorEvidenceInvariantViolation,
     EligibleSupplementalSuccessorEvidence,
 }
@@ -9717,9 +9671,7 @@ pub struct SuccessorInformedProposalEligibility {
 }
 
 impl SuccessorInformedProposalEligibility {
-    fn ineligible(
-        status: SuccessorInformedProposalEligibilityStatus,
-    ) -> Self {
+    fn ineligible(status: SuccessorInformedProposalEligibilityStatus) -> Self {
         Self {
             status,
             independent_event_count: 0,
@@ -9727,73 +9679,53 @@ impl SuccessorInformedProposalEligibility {
         }
     }
 
-    fn eligible(
-        independent_event_count: usize,
-        distinct_successor_count: usize,
-    ) -> Self {
+    fn eligible(independent_event_count: usize, distinct_successor_count: usize) -> Self {
         Self {
             status:
-                SuccessorInformedProposalEligibilityStatus::
-                    EligibleSupplementalSuccessorEvidence,
+                SuccessorInformedProposalEligibilityStatus::EligibleSupplementalSuccessorEvidence,
             independent_event_count,
             distinct_successor_count,
         }
     }
 
-    pub fn status(
-        self,
-    ) -> SuccessorInformedProposalEligibilityStatus {
+    pub fn status(self) -> SuccessorInformedProposalEligibilityStatus {
         self.status
     }
 
-    pub fn independent_event_count(
-        self,
-    ) -> usize {
+    pub fn independent_event_count(self) -> usize {
         self.independent_event_count
     }
 
-    pub fn distinct_successor_count(
-        self,
-    ) -> usize {
+    pub fn distinct_successor_count(self) -> usize {
         self.distinct_successor_count
     }
 
-    pub fn eligible_as_supplemental_evidence(
-        self,
-    ) -> bool {
+    pub fn eligible_as_supplemental_evidence(self) -> bool {
         self.status
-            == SuccessorInformedProposalEligibilityStatus::
-                EligibleSupplementalSuccessorEvidence
+            == SuccessorInformedProposalEligibilityStatus::EligibleSupplementalSuccessorEvidence
     }
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct SuccessorInformedEpistemicPriorityBinding {
     priority_candidate:
-        athlesia_autonomous_active_experimentation::
-            EmpiricalEpistemicActionPriorityCandidate,
-    successor_eligibility:
-        SuccessorInformedProposalEligibility,
+        athlesia_autonomous_active_experimentation::EmpiricalEpistemicActionPriorityCandidate,
+    successor_eligibility: SuccessorInformedProposalEligibility,
 }
 
 impl SuccessorInformedEpistemicPriorityBinding {
-
     pub fn priority_candidate(
         &self,
-    ) -> &athlesia_autonomous_active_experimentation::
-        EmpiricalEpistemicActionPriorityCandidate {
+    ) -> &athlesia_autonomous_active_experimentation::EmpiricalEpistemicActionPriorityCandidate
+    {
         &self.priority_candidate
     }
 
-    pub fn successor_eligibility(
-        &self,
-    ) -> SuccessorInformedProposalEligibility {
+    pub fn successor_eligibility(&self) -> SuccessorInformedProposalEligibility {
         self.successor_eligibility
     }
 
-    pub fn eligible_as_supplemental_successor_evidence(
-        &self,
-    ) -> bool {
+    pub fn eligible_as_supplemental_successor_evidence(&self) -> bool {
         self.successor_eligibility
             .eligible_as_supplemental_evidence()
     }
@@ -9802,259 +9734,172 @@ impl SuccessorInformedEpistemicPriorityBinding {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct SuccessorInformedEpistemicPriorityBindingFrontier {
     upstream_priority_status:
-        athlesia_autonomous_active_experimentation::
-            EmpiricalEpistemicActionPriorityStatus,
+        athlesia_autonomous_active_experimentation::EmpiricalEpistemicActionPriorityStatus,
     upstream_input_candidate_count: usize,
     upstream_unique_candidate_count: usize,
-    bindings:
-        Vec<SuccessorInformedEpistemicPriorityBinding>,
+    bindings: Vec<SuccessorInformedEpistemicPriorityBinding>,
 }
 
 impl SuccessorInformedEpistemicPriorityBindingFrontier {
-
     pub fn upstream_priority_status(
         &self,
-    ) -> athlesia_autonomous_active_experimentation::
-        EmpiricalEpistemicActionPriorityStatus {
+    ) -> athlesia_autonomous_active_experimentation::EmpiricalEpistemicActionPriorityStatus {
         self.upstream_priority_status
     }
 
-    pub fn upstream_input_candidate_count(
-        &self,
-    ) -> usize {
+    pub fn upstream_input_candidate_count(&self) -> usize {
         self.upstream_input_candidate_count
     }
 
-    pub fn upstream_unique_candidate_count(
-        &self,
-    ) -> usize {
+    pub fn upstream_unique_candidate_count(&self) -> usize {
         self.upstream_unique_candidate_count
     }
 
-    pub fn bindings(
-        &self,
-    ) -> &[SuccessorInformedEpistemicPriorityBinding] {
+    pub fn bindings(&self) -> &[SuccessorInformedEpistemicPriorityBinding] {
         &self.bindings
     }
 
-    pub fn binding_count(
-        &self,
-    ) -> usize {
+    pub fn binding_count(&self) -> usize {
         self.bindings.len()
     }
 
-    pub fn eligible_binding_count(
-        &self,
-    ) -> usize {
+    pub fn eligible_binding_count(&self) -> usize {
         self.bindings
             .iter()
-            .filter(
-                |binding| {
-                    binding
-                        .eligible_as_supplemental_successor_evidence()
-                },
-            )
+            .filter(|binding| binding.eligible_as_supplemental_successor_evidence())
             .count()
     }
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct SuccessorInformedEpistemicActionIntent {
-    possibility:
-        athlesia_autonomous_active_experimentation::
-            GroundedEpistemicExperimentPossibility,
+    possibility: athlesia_autonomous_active_experimentation::GroundedEpistemicExperimentPossibility,
     priority_candidate:
-        athlesia_autonomous_active_experimentation::
-            EmpiricalEpistemicActionPriorityCandidate,
-    successor_eligibility:
-        SuccessorInformedProposalEligibility,
+        athlesia_autonomous_active_experimentation::EmpiricalEpistemicActionPriorityCandidate,
+    successor_eligibility: SuccessorInformedProposalEligibility,
 }
 
 impl SuccessorInformedEpistemicActionIntent {
     pub fn possibility(
         &self,
-    ) -> &athlesia_autonomous_active_experimentation::
-        GroundedEpistemicExperimentPossibility {
+    ) -> &athlesia_autonomous_active_experimentation::GroundedEpistemicExperimentPossibility {
         &self.possibility
     }
 
     pub fn priority_candidate(
         &self,
-    ) -> &athlesia_autonomous_active_experimentation::
-        EmpiricalEpistemicActionPriorityCandidate {
+    ) -> &athlesia_autonomous_active_experimentation::EmpiricalEpistemicActionPriorityCandidate
+    {
         &self.priority_candidate
     }
 
-    pub fn successor_eligibility(
-        &self,
-    ) -> SuccessorInformedProposalEligibility {
+    pub fn successor_eligibility(&self) -> SuccessorInformedProposalEligibility {
         self.successor_eligibility
     }
 
-    pub fn source_state(
-        &self,
-    ) -> &CognitiveStructure {
-        self.possibility
-            .source_state()
+    pub fn source_state(&self) -> &CognitiveStructure {
+        self.possibility.source_state()
     }
 
-    pub fn action(
-        &self,
-    ) -> &CognitiveStructure {
-        self.possibility
-            .action()
+    pub fn action(&self) -> &CognitiveStructure {
+        self.possibility.action()
     }
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct SuccessorInformedEpistemicActionIntentFrontier {
-    intents:
-        Vec<SuccessorInformedEpistemicActionIntent>,
+    intents: Vec<SuccessorInformedEpistemicActionIntent>,
 }
 
 impl SuccessorInformedEpistemicActionIntentFrontier {
-    pub fn intents(
-        &self,
-    ) -> &[SuccessorInformedEpistemicActionIntent] {
+    pub fn intents(&self) -> &[SuccessorInformedEpistemicActionIntent] {
         &self.intents
     }
 
-    pub fn intent_count(
-        &self,
-    ) -> usize {
+    pub fn intent_count(&self) -> usize {
         self.intents.len()
     }
 
-    pub fn is_empty(
-        &self,
-    ) -> bool {
+    pub fn is_empty(&self) -> bool {
         self.intents.is_empty()
     }
 }
 
-
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct SuccessorInformedNativeProposalInputRequest<'a> {
-    pub state:
-        &'a athlesia_universal_domain_learning::
-            GroundedStateSnapshot,
-    pub actions:
-        &'a [CognitiveStructure],
-    pub version_policy:
-        athlesia_universal_domain_learning::
-            GroundedExplanatoryVersionSpacePolicy,
+    pub state: &'a athlesia_universal_domain_learning::GroundedStateSnapshot,
+    pub actions: &'a [CognitiveStructure],
+    pub version_policy: athlesia_universal_domain_learning::GroundedExplanatoryVersionSpacePolicy,
     pub discrimination_policy:
-        athlesia_autonomous_active_experimentation::
-            EpistemicForecastDiscriminationPolicy,
+        athlesia_autonomous_active_experimentation::EpistemicForecastDiscriminationPolicy,
     pub expectation_policy:
-        athlesia_autonomous_active_experimentation::
-            EmpiricalExpectedEpistemicProgressPolicy,
+        athlesia_autonomous_active_experimentation::EmpiricalExpectedEpistemicProgressPolicy,
     pub priority_policy:
-        athlesia_autonomous_active_experimentation::
-            EmpiricalEpistemicActionPriorityPolicy,
+        athlesia_autonomous_active_experimentation::EmpiricalEpistemicActionPriorityPolicy,
     pub native_possibilities:
-        &'a [
-            athlesia_autonomous_active_experimentation::
-                GroundedExperimentPossibility
-        ],
+        &'a [athlesia_autonomous_active_experimentation::GroundedExperimentPossibility],
 }
 
-
 pub struct SuccessorInformedNativeM50ProposalDelegationRequest<'a> {
-    pub native_input:
-        SuccessorInformedNativeProposalInputRequest<'a>,
-    pub beliefs:
-        &'a [
-            athlesia_autonomous_active_experimentation::
-                HypothesisBeliefState
-        ],
+    pub native_input: SuccessorInformedNativeProposalInputRequest<'a>,
+    pub beliefs: &'a [athlesia_autonomous_active_experimentation::HypothesisBeliefState],
     pub proposal_policy:
-        athlesia_autonomous_active_experimentation::
-            BeliefDrivenExperimentProposalPolicy,
+        athlesia_autonomous_active_experimentation::BeliefDrivenExperimentProposalPolicy,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct SuccessorInformedNativeM50ProposalDelegation {
-    source_state:
-        CognitiveStructure,
-    result:
-        athlesia_autonomous_active_experimentation::
-            BeliefDrivenExperimentProposalResult,
+    source_state: CognitiveStructure,
+    result: athlesia_autonomous_active_experimentation::BeliefDrivenExperimentProposalResult,
 }
 
 impl SuccessorInformedNativeM50ProposalDelegation {
-    pub fn source_state(
-        &self,
-    ) -> &CognitiveStructure {
+    pub fn source_state(&self) -> &CognitiveStructure {
         &self.source_state
     }
 
     pub fn result(
         &self,
-    ) -> &athlesia_autonomous_active_experimentation::
-        BeliefDrivenExperimentProposalResult {
+    ) -> &athlesia_autonomous_active_experimentation::BeliefDrivenExperimentProposalResult {
         &self.result
     }
 }
-
 
 pub struct SuccessorInformedNativeProposalInputFrontier {
     upstream_binding_count: usize,
     successor_eligible_binding_count: usize,
     input_native_possibility_count: usize,
     matched_native_possibilities:
-        Vec<
-            athlesia_autonomous_active_experimentation::
-                GroundedExperimentPossibility,
-        >,
+        Vec<athlesia_autonomous_active_experimentation::GroundedExperimentPossibility>,
 }
 
 impl SuccessorInformedNativeProposalInputFrontier {
-    pub fn upstream_binding_count(
-        &self,
-    ) -> usize {
+    pub fn upstream_binding_count(&self) -> usize {
         self.upstream_binding_count
     }
 
-    pub fn successor_eligible_binding_count(
-        &self,
-    ) -> usize {
+    pub fn successor_eligible_binding_count(&self) -> usize {
         self.successor_eligible_binding_count
     }
 
-    pub fn input_native_possibility_count(
-        &self,
-    ) -> usize {
+    pub fn input_native_possibility_count(&self) -> usize {
         self.input_native_possibility_count
     }
 
     pub fn matched_native_possibilities(
         &self,
-    ) -> &[
-        athlesia_autonomous_active_experimentation::
-            GroundedExperimentPossibility
-    ] {
+    ) -> &[athlesia_autonomous_active_experimentation::GroundedExperimentPossibility] {
         &self.matched_native_possibilities
     }
 
-    pub fn matched_native_possibility_count(
-        &self,
-    ) -> usize {
+    pub fn matched_native_possibility_count(&self) -> usize {
         self.matched_native_possibilities.len()
     }
 
-    pub fn eligible_for_native_m50_delegation(
-        &self,
-    ) -> bool {
-        self.successor_eligible_binding_count > 0
-            && !self.matched_native_possibilities.is_empty()
+    pub fn eligible_for_native_m50_delegation(&self) -> bool {
+        self.successor_eligible_binding_count > 0 && !self.matched_native_possibilities.is_empty()
     }
 }
-
-
-
-
-
 
 impl EndogenousTransitionSchemaLearningState {
     pub fn new() -> Self {
@@ -10077,11 +9922,9 @@ impl EndogenousTransitionSchemaLearningState {
         self.event_provenance.len()
     }
 
-
     pub fn empirical_successor_representation_qualification(
         &self,
-        current_representation:
-            &athlesia_universal_domain_learning::GroundedStateSnapshot,
+        current_representation: &athlesia_universal_domain_learning::GroundedStateSnapshot,
     ) -> EmpiricalSuccessorRepresentationQualification {
         /*
          * B2-A is deliberately representation-qualified rather than
@@ -10106,8 +9949,7 @@ impl EndogenousTransitionSchemaLearningState {
 
         if self.episodes.is_empty() {
             return EmpiricalSuccessorRepresentationQualification::unknown(
-                EmpiricalSuccessorRepresentationQualificationStatus::
-                    UnknownNoRetainedEvidence,
+                EmpiricalSuccessorRepresentationQualificationStatus::UnknownNoRetainedEvidence,
             );
         }
 
@@ -10120,8 +9962,7 @@ impl EndogenousTransitionSchemaLearningState {
          * avoids introducing a second index/store.
          */
         for index in 0..self.event_provenance.len() {
-            let event_index =
-                self.event_provenance[index].event_index;
+            let event_index = self.event_provenance[index].event_index;
 
             if self.event_provenance[..index]
                 .iter()
@@ -10159,16 +10000,12 @@ impl EndogenousTransitionSchemaLearningState {
          * - expected epistemic progress,
          * - action-selection authority.
          */
-        EmpiricalSuccessorRepresentationQualification::qualified(
-            independent_event_count,
-        )
+        EmpiricalSuccessorRepresentationQualification::qualified(independent_event_count)
     }
-
 
     pub fn action_qualified_empirical_successor_frequency(
         &self,
-        current_representation:
-            &athlesia_universal_domain_learning::GroundedStateSnapshot,
+        current_representation: &athlesia_universal_domain_learning::GroundedStateSnapshot,
         action: &CognitiveStructure,
     ) -> ActionQualifiedEmpiricalSuccessorFrequency {
         /*
@@ -10179,9 +10016,7 @@ impl EndogenousTransitionSchemaLearningState {
          * extrapolate from subset/superset/similarity.
          */
         let representation_qualification =
-            self.empirical_successor_representation_qualification(
-                current_representation,
-            );
+            self.empirical_successor_representation_qualification(current_representation);
 
         if !representation_qualification.is_qualified() {
             return ActionQualifiedEmpiricalSuccessorFrequency::unknown(
@@ -10210,15 +10045,9 @@ impl EndogenousTransitionSchemaLearningState {
          */
         let mut independent_action_event_count = 0_usize;
 
-        let mut successor_frequencies:
-            Vec<EmpiricalSuccessorFrequencyEntry> =
-                Vec::new();
+        let mut successor_frequencies: Vec<EmpiricalSuccessorFrequencyEntry> = Vec::new();
 
-        for (episode, _event_provenance) in self
-            .episodes
-            .iter()
-            .zip(self.event_provenance.iter())
-        {
+        for (episode, _event_provenance) in self.episodes.iter().zip(self.event_provenance.iter()) {
             if episode.before() != current_representation {
                 continue;
             }
@@ -10229,28 +10058,21 @@ impl EndogenousTransitionSchemaLearningState {
 
             independent_action_event_count += 1;
 
-            if let Some(existing) =
-                successor_frequencies
-                    .iter_mut()
-                    .find(|entry| {
-                        entry.successor_representation()
-                            == episode.after()
-                    })
+            if let Some(existing) = successor_frequencies
+                .iter_mut()
+                .find(|entry| entry.successor_representation() == episode.after())
             {
                 existing.independent_event_count += 1;
             } else {
-                successor_frequencies.push(
-                    EmpiricalSuccessorFrequencyEntry::new(
-                        episode.after().clone(),
-                    ),
-                );
+                successor_frequencies.push(EmpiricalSuccessorFrequencyEntry::new(
+                    episode.after().clone(),
+                ));
             }
         }
 
         if independent_action_event_count == 0 {
             return ActionQualifiedEmpiricalSuccessorFrequency::unknown(
-                EmpiricalSuccessorFrequencyStatus::
-                    UnknownNoActionQualifiedSamples,
+                EmpiricalSuccessorFrequencyStatus::UnknownNoActionQualifiedSamples,
             );
         }
 
@@ -10389,10 +10211,7 @@ impl EndogenousTransitionSchemaLearningCycle {
             .push(controlled_evidence.episode().clone());
         next_state.event_provenance.push(event_provenance);
 
-        debug_assert_eq!(
-            next_state.episodes.len(),
-            next_state.event_provenance.len(),
-        );
+        debug_assert_eq!(next_state.episodes.len(), next_state.event_provenance.len(),);
 
         let induction =
             athlesia_universal_domain_learning::UniversalTransitionSchemaInduction::evaluate(
@@ -10654,7 +10473,6 @@ pub struct OnlinePersistentCognitiveState {
         athlesia_core_knowledge_perceptual_grounding::PerceptualGroupingAppearanceEvidenceState,
 }
 
-
 // ============================================================================
 // P4G-C3H-C15B — SEMANTIC PROVENANCE + DYNAMIC FORECAST REALIZATION
 // ============================================================================
@@ -10680,9 +10498,7 @@ pub struct OnlinePersistentCognitiveState {
 pub struct GroundedEpistemicForecastSemanticProvenance {
     forecast_index: usize,
     hypothesis_identity: CognitiveStructure,
-    hypothesis:
-        athlesia_universal_domain_learning::
-            GroundedExplanatoryHypothesis,
+    hypothesis: athlesia_universal_domain_learning::GroundedExplanatoryHypothesis,
 }
 
 impl GroundedEpistemicForecastSemanticProvenance {
@@ -10690,28 +10506,20 @@ impl GroundedEpistemicForecastSemanticProvenance {
         self.forecast_index
     }
 
-    pub fn hypothesis_identity(
-        &self,
-    ) -> &CognitiveStructure {
+    pub fn hypothesis_identity(&self) -> &CognitiveStructure {
         &self.hypothesis_identity
     }
 
-    pub fn hypothesis(
-        &self,
-    ) -> &athlesia_universal_domain_learning::
-        GroundedExplanatoryHypothesis {
+    pub fn hypothesis(&self) -> &athlesia_universal_domain_learning::GroundedExplanatoryHypothesis {
         &self.hypothesis
     }
 }
-
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct GroundedDynamicEpistemicForecastRealization {
     forecast_index: usize,
     hypothesis_identity: CognitiveStructure,
-    prediction:
-        athlesia_universal_domain_learning::
-            GroundedExplanatoryPrediction,
+    prediction: athlesia_universal_domain_learning::GroundedExplanatoryPrediction,
 }
 
 impl GroundedDynamicEpistemicForecastRealization {
@@ -10719,50 +10527,32 @@ impl GroundedDynamicEpistemicForecastRealization {
         self.forecast_index
     }
 
-    pub fn hypothesis_identity(
-        &self,
-    ) -> &CognitiveStructure {
+    pub fn hypothesis_identity(&self) -> &CognitiveStructure {
         &self.hypothesis_identity
     }
 
-    pub fn prediction(
-        &self,
-    ) -> &athlesia_universal_domain_learning::
-        GroundedExplanatoryPrediction {
+    pub fn prediction(&self) -> &athlesia_universal_domain_learning::GroundedExplanatoryPrediction {
         &self.prediction
     }
 }
 
-
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct GroundedDynamicEpistemicPossibilityRealization {
-    state:
-        athlesia_universal_domain_learning::
-            GroundedStateSnapshot,
+    state: athlesia_universal_domain_learning::GroundedStateSnapshot,
     action: CognitiveStructure,
-    forecasts:
-        Vec<
-            GroundedDynamicEpistemicForecastRealization,
-        >,
+    forecasts: Vec<GroundedDynamicEpistemicForecastRealization>,
 }
 
 impl GroundedDynamicEpistemicPossibilityRealization {
-    pub fn state(
-        &self,
-    ) -> &athlesia_universal_domain_learning::
-        GroundedStateSnapshot {
+    pub fn state(&self) -> &athlesia_universal_domain_learning::GroundedStateSnapshot {
         &self.state
     }
 
-    pub fn action(
-        &self,
-    ) -> &CognitiveStructure {
+    pub fn action(&self) -> &CognitiveStructure {
         &self.action
     }
 
-    pub fn forecasts(
-        &self,
-    ) -> &[GroundedDynamicEpistemicForecastRealization] {
+    pub fn forecasts(&self) -> &[GroundedDynamicEpistemicForecastRealization] {
         &self.forecasts
     }
 
@@ -10770,8 +10560,6 @@ impl GroundedDynamicEpistemicPossibilityRealization {
         self.forecasts.len()
     }
 }
-
-
 
 // ============================================================================
 // P4G-C3H-C16C — REALIZATION-CONDITIONED TRANSFER APPLICABILITY SCAFFOLD
@@ -10803,11 +10591,9 @@ pub enum GroundedRealizationConditionedTransferApplicabilityStatus {
     MixedUninformativeOnly,
 }
 
-
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct GroundedRealizationConditionedTransferApplicability {
-    status:
-        GroundedRealizationConditionedTransferApplicabilityStatus,
+    status: GroundedRealizationConditionedTransferApplicabilityStatus,
 
     forecast_count: usize,
     predicted_count: usize,
@@ -10816,32 +10602,22 @@ pub struct GroundedRealizationConditionedTransferApplicability {
 }
 
 impl GroundedRealizationConditionedTransferApplicability {
-    fn from_prediction_statuses<I>(
-        statuses: I,
-    ) -> Option<Self>
+    fn from_prediction_statuses<I>(statuses: I) -> Option<Self>
     where
         I: IntoIterator<
-            Item =
-                athlesia_universal_domain_learning::
-                    GroundedExplanatoryPredictionStatus,
+            Item = athlesia_universal_domain_learning::GroundedExplanatoryPredictionStatus,
         >,
     {
-        let mut forecast_count =
-            0_usize;
+        let mut forecast_count = 0_usize;
 
-        let mut predicted_count =
-            0_usize;
+        let mut predicted_count = 0_usize;
 
-        let mut context_uninformative_count =
-            0_usize;
+        let mut context_uninformative_count = 0_usize;
 
-        let mut no_effect_opportunity_count =
-            0_usize;
+        let mut no_effect_opportunity_count = 0_usize;
 
         for status in statuses {
-            forecast_count =
-                forecast_count
-                    .saturating_add(1);
+            forecast_count = forecast_count.saturating_add(1);
 
             match status {
                 athlesia_universal_domain_learning::
@@ -10888,29 +10664,17 @@ impl GroundedRealizationConditionedTransferApplicability {
             return None;
         }
 
-        let status =
-            if predicted_count
-                == forecast_count
-            {
-                GroundedRealizationConditionedTransferApplicabilityStatus::
-                    PredictedOnly
-            } else if predicted_count > 0 {
-                GroundedRealizationConditionedTransferApplicabilityStatus::
-                    PredictedWithUninformative
-            } else if context_uninformative_count
-                == forecast_count
-            {
-                GroundedRealizationConditionedTransferApplicabilityStatus::
-                    ContextUninformativeOnly
-            } else if no_effect_opportunity_count
-                == forecast_count
-            {
-                GroundedRealizationConditionedTransferApplicabilityStatus::
-                    NoEffectOpportunityOnly
-            } else {
-                GroundedRealizationConditionedTransferApplicabilityStatus::
-                    MixedUninformativeOnly
-            };
+        let status = if predicted_count == forecast_count {
+            GroundedRealizationConditionedTransferApplicabilityStatus::PredictedOnly
+        } else if predicted_count > 0 {
+            GroundedRealizationConditionedTransferApplicabilityStatus::PredictedWithUninformative
+        } else if context_uninformative_count == forecast_count {
+            GroundedRealizationConditionedTransferApplicabilityStatus::ContextUninformativeOnly
+        } else if no_effect_opportunity_count == forecast_count {
+            GroundedRealizationConditionedTransferApplicabilityStatus::NoEffectOpportunityOnly
+        } else {
+            GroundedRealizationConditionedTransferApplicabilityStatus::MixedUninformativeOnly
+        };
 
         Some(Self {
             status,
@@ -10922,50 +10686,33 @@ impl GroundedRealizationConditionedTransferApplicability {
     }
 
     pub fn from_realization(
-        realization:
-            &GroundedDynamicEpistemicPossibilityRealization,
+        realization: &GroundedDynamicEpistemicPossibilityRealization,
     ) -> Option<Self> {
         Self::from_prediction_statuses(
             realization
                 .forecasts()
                 .iter()
-                .map(
-                    |forecast| {
-                        forecast
-                            .prediction()
-                            .status()
-                    },
-                ),
+                .map(|forecast| forecast.prediction().status()),
         )
     }
 
-    pub fn status(
-        &self,
-    ) -> GroundedRealizationConditionedTransferApplicabilityStatus {
+    pub fn status(&self) -> GroundedRealizationConditionedTransferApplicabilityStatus {
         self.status
     }
 
-    pub fn forecast_count(
-        &self,
-    ) -> usize {
+    pub fn forecast_count(&self) -> usize {
         self.forecast_count
     }
 
-    pub fn predicted_count(
-        &self,
-    ) -> usize {
+    pub fn predicted_count(&self) -> usize {
         self.predicted_count
     }
 
-    pub fn context_uninformative_count(
-        &self,
-    ) -> usize {
+    pub fn context_uninformative_count(&self) -> usize {
         self.context_uninformative_count
     }
 
-    pub fn no_effect_opportunity_count(
-        &self,
-    ) -> usize {
+    pub fn no_effect_opportunity_count(&self) -> usize {
         self.no_effect_opportunity_count
     }
 
@@ -10977,20 +10724,14 @@ impl GroundedRealizationConditionedTransferApplicability {
      *
      * It DOES NOT mean historical progress is transferable.
      */
-    pub fn has_current_prediction_opportunity(
-        &self,
-    ) -> bool {
+    pub fn has_current_prediction_opportunity(&self) -> bool {
         self.predicted_count > 0
     }
 
-    pub fn entirely_uninformative_in_current_state(
-        &self,
-    ) -> bool {
+    pub fn entirely_uninformative_in_current_state(&self) -> bool {
         self.predicted_count == 0
     }
 }
-
-
 
 // ============================================================================
 // P4G-C3H-C16D — STRUCTURAL + CURRENT-REALIZATION + MEASURED-HISTORY EVIDENCE
@@ -11012,7 +10753,6 @@ pub enum GroundedHistoricalEpistemicProgressClass {
     IncreaseObserved,
 }
 
-
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub enum GroundedRealizationConditionedTransferEvidenceStatus {
     CurrentUninformative,
@@ -11021,29 +10761,22 @@ pub enum GroundedRealizationConditionedTransferEvidenceStatus {
     CurrentPredictionOpportunityWithHistoricalIncrease,
 }
 
-
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct GroundedRealizationConditionedTransferEvidence {
     historical_transfer_identity:
-        athlesia_autonomous_active_experimentation::
-            EmpiricalEpistemicTransferIdentity,
+        athlesia_autonomous_active_experimentation::EmpiricalEpistemicTransferIdentity,
 
     current_transfer_identity:
-        athlesia_autonomous_active_experimentation::
-            EmpiricalEpistemicTransferIdentity,
+        athlesia_autonomous_active_experimentation::EmpiricalEpistemicTransferIdentity,
 
-    applicability:
-        GroundedRealizationConditionedTransferApplicability,
+    applicability: GroundedRealizationConditionedTransferApplicability,
 
     historical_sample:
-        athlesia_autonomous_active_experimentation::
-            EpistemicResolutionProgressSample,
+        athlesia_autonomous_active_experimentation::EpistemicResolutionProgressSample,
 
-    historical_progress_class:
-        GroundedHistoricalEpistemicProgressClass,
+    historical_progress_class: GroundedHistoricalEpistemicProgressClass,
 
-    status:
-        GroundedRealizationConditionedTransferEvidenceStatus,
+    status: GroundedRealizationConditionedTransferEvidenceStatus,
 }
 
 impl GroundedRealizationConditionedTransferEvidence {
@@ -11056,20 +10789,11 @@ impl GroundedRealizationConditionedTransferEvidence {
         }
 
         if reduction > 0 {
-            Some(
-                GroundedHistoricalEpistemicProgressClass::
-                    ReductionObserved,
-            )
+            Some(GroundedHistoricalEpistemicProgressClass::ReductionObserved)
         } else if increase > 0 {
-            Some(
-                GroundedHistoricalEpistemicProgressClass::
-                    IncreaseObserved,
-            )
+            Some(GroundedHistoricalEpistemicProgressClass::IncreaseObserved)
         } else {
-            Some(
-                GroundedHistoricalEpistemicProgressClass::
-                    NeutralObserved,
-            )
+            Some(GroundedHistoricalEpistemicProgressClass::NeutralObserved)
         }
     }
 
@@ -11084,8 +10808,7 @@ impl GroundedRealizationConditionedTransferEvidence {
             athlesia_autonomous_active_experimentation::
                 EmpiricalEpistemicTransferIdentity,
 
-        applicability:
-            GroundedRealizationConditionedTransferApplicability,
+        applicability: GroundedRealizationConditionedTransferApplicability,
 
         historical_sample:
             athlesia_autonomous_active_experimentation::
@@ -11095,23 +10818,15 @@ impl GroundedRealizationConditionedTransferEvidence {
             return None;
         }
 
-        let historical_progress_class =
-            Self::classify_historical_progress(
-                historical_sample
-                    .realized_separation_reduction(),
+        let historical_progress_class = Self::classify_historical_progress(
+            historical_sample.realized_separation_reduction(),
+            historical_sample.realized_separation_increase(),
+        )?;
 
-                historical_sample
-                    .realized_separation_increase(),
-            )?;
-
-        let status =
-            if applicability
-                .entirely_uninformative_in_current_state()
-            {
-                GroundedRealizationConditionedTransferEvidenceStatus::
-                    CurrentUninformative
-            } else {
-                match historical_progress_class {
+        let status = if applicability.entirely_uninformative_in_current_state() {
+            GroundedRealizationConditionedTransferEvidenceStatus::CurrentUninformative
+        } else {
+            match historical_progress_class {
                     GroundedHistoricalEpistemicProgressClass::
                         ReductionObserved =>
                     {
@@ -11133,7 +10848,7 @@ impl GroundedRealizationConditionedTransferEvidence {
                             CurrentPredictionOpportunityWithHistoricalIncrease
                     }
                 }
-            };
+        };
 
         Some(Self {
             historical_transfer_identity,
@@ -11147,48 +10862,36 @@ impl GroundedRealizationConditionedTransferEvidence {
 
     pub fn historical_transfer_identity(
         &self,
-    ) -> &athlesia_autonomous_active_experimentation::
-        EmpiricalEpistemicTransferIdentity {
+    ) -> &athlesia_autonomous_active_experimentation::EmpiricalEpistemicTransferIdentity {
         &self.historical_transfer_identity
     }
 
     pub fn current_transfer_identity(
         &self,
-    ) -> &athlesia_autonomous_active_experimentation::
-        EmpiricalEpistemicTransferIdentity {
+    ) -> &athlesia_autonomous_active_experimentation::EmpiricalEpistemicTransferIdentity {
         &self.current_transfer_identity
     }
 
-    pub fn applicability(
-        &self,
-    ) -> &GroundedRealizationConditionedTransferApplicability {
+    pub fn applicability(&self) -> &GroundedRealizationConditionedTransferApplicability {
         &self.applicability
     }
 
     pub fn historical_sample(
         &self,
-    ) -> &athlesia_autonomous_active_experimentation::
-        EpistemicResolutionProgressSample {
+    ) -> &athlesia_autonomous_active_experimentation::EpistemicResolutionProgressSample {
         &self.historical_sample
     }
 
-    pub fn historical_progress_class(
-        &self,
-    ) -> GroundedHistoricalEpistemicProgressClass {
+    pub fn historical_progress_class(&self) -> GroundedHistoricalEpistemicProgressClass {
         self.historical_progress_class
     }
 
-    pub fn status(
-        &self,
-    ) -> GroundedRealizationConditionedTransferEvidenceStatus {
+    pub fn status(&self) -> GroundedRealizationConditionedTransferEvidenceStatus {
         self.status
     }
 
-    pub fn has_current_prediction_opportunity(
-        &self,
-    ) -> bool {
-        self.applicability
-            .has_current_prediction_opportunity()
+    pub fn has_current_prediction_opportunity(&self) -> bool {
+        self.applicability.has_current_prediction_opportunity()
     }
 
     /*
@@ -11204,76 +10907,54 @@ impl GroundedRealizationConditionedTransferEvidence {
      */
 }
 
-
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct GroundedRealizationConditionedTransferEvidenceFrontier {
-    applicability:
-        GroundedRealizationConditionedTransferApplicability,
+    applicability: GroundedRealizationConditionedTransferApplicability,
 
     retained_history_count: usize,
     structurally_corresponding_history_count: usize,
 
-    evidence:
-        Vec<GroundedRealizationConditionedTransferEvidence>,
+    evidence: Vec<GroundedRealizationConditionedTransferEvidence>,
 }
 
 impl GroundedRealizationConditionedTransferEvidenceFrontier {
-    pub fn applicability(
-        &self,
-    ) -> &GroundedRealizationConditionedTransferApplicability {
+    pub fn applicability(&self) -> &GroundedRealizationConditionedTransferApplicability {
         &self.applicability
     }
 
-    pub fn retained_history_count(
-        &self,
-    ) -> usize {
+    pub fn retained_history_count(&self) -> usize {
         self.retained_history_count
     }
 
-    pub fn structurally_corresponding_history_count(
-        &self,
-    ) -> usize {
+    pub fn structurally_corresponding_history_count(&self) -> usize {
         self.structurally_corresponding_history_count
     }
 
-    pub fn evidence(
-        &self,
-    ) -> &[GroundedRealizationConditionedTransferEvidence] {
+    pub fn evidence(&self) -> &[GroundedRealizationConditionedTransferEvidence] {
         &self.evidence
     }
 
-    pub fn evidence_count(
-        &self,
-    ) -> usize {
+    pub fn evidence_count(&self) -> usize {
         self.evidence.len()
     }
 
-    pub fn abstained(
-        &self,
-    ) -> bool {
+    pub fn abstained(&self) -> bool {
         self.evidence.is_empty()
     }
 }
-
 
 #[derive(Clone, Copy, Debug, Default, Eq, Hash, PartialEq)]
 pub struct GroundedRealizationConditionedTransferEvidenceSynthesis;
 
 impl GroundedRealizationConditionedTransferEvidenceSynthesis {
     pub fn derive(
-        owner:
-            &OnlinePersistentCognitiveState,
+        owner: &OnlinePersistentCognitiveState,
 
-        state:
-            &athlesia_universal_domain_learning::
-                GroundedStateSnapshot,
+        state: &athlesia_universal_domain_learning::GroundedStateSnapshot,
 
-        action:
-            &CognitiveStructure,
+        action: &CognitiveStructure,
 
-        version_policy:
-            athlesia_universal_domain_learning::
-                GroundedExplanatoryVersionSpacePolicy,
+        version_policy: athlesia_universal_domain_learning::GroundedExplanatoryVersionSpacePolicy,
 
         transfer_identity_policy:
             athlesia_autonomous_active_experimentation::
@@ -11283,11 +10964,8 @@ impl GroundedRealizationConditionedTransferEvidenceSynthesis {
             athlesia_autonomous_active_experimentation::
                 SchemaLevelTargetTransferIdentityPolicy,
 
-        max_history_events:
-            usize,
-    ) -> Option<
-        GroundedRealizationConditionedTransferEvidenceFrontier,
-    > {
+        max_history_events: usize,
+    ) -> Option<GroundedRealizationConditionedTransferEvidenceFrontier> {
         if max_history_events == 0 {
             return None;
         }
@@ -11297,24 +10975,12 @@ impl GroundedRealizationConditionedTransferEvidenceSynthesis {
          * use C15B typed provenance and M47 predict().
          */
         let semantic =
-            owner
-                .current_semantic_m50_epistemic_possibility(
-                    state,
-                    action,
-                    version_policy,
-                )?;
+            owner.current_semantic_m50_epistemic_possibility(state, action, version_policy)?;
 
-        let realization =
-            semantic
-                .realize_at_state(
-                    state,
-                )?;
+        let realization = semantic.realize_at_state(state)?;
 
         let applicability =
-            GroundedRealizationConditionedTransferApplicability::
-                from_realization(
-                    &realization,
-                )?;
+            GroundedRealizationConditionedTransferApplicability::from_realization(&realization)?;
 
         /*
          * CURRENT C3G identity is representation/provenance only.
@@ -11331,9 +10997,7 @@ impl GroundedRealizationConditionedTransferEvidenceSynthesis {
                     .identity()?
                     .clone();
 
-        let history =
-            owner
-                .epistemic_transfer_progress_history();
+        let history = owner.epistemic_transfer_progress_history();
 
         /*
          * Hard bound:
@@ -11343,15 +11007,12 @@ impl GroundedRealizationConditionedTransferEvidenceSynthesis {
             return None;
         }
 
-        let mut evidence =
-            Vec::new();
+        let mut evidence = Vec::new();
 
-        let mut structurally_corresponding_history_count =
-            0_usize;
+        let mut structurally_corresponding_history_count = 0_usize;
 
         for event in history {
-            let sample =
-                event.sample();
+            let sample = event.sample();
 
             if sample.action() != action {
                 continue;
@@ -11373,64 +11034,39 @@ impl GroundedRealizationConditionedTransferEvidenceSynthesis {
                             target_transfer_policy,
                         );
 
-            if !target_transfer
-                .derived()
-            {
+            if !target_transfer.derived() {
                 continue;
             }
 
             structurally_corresponding_history_count =
-                structurally_corresponding_history_count
-                    .saturating_add(1);
+                structurally_corresponding_history_count.saturating_add(1);
 
-            let candidate =
-                GroundedRealizationConditionedTransferEvidence::
-                    new(
-                        action,
+            let candidate = GroundedRealizationConditionedTransferEvidence::new(
+                action,
+                event.transfer_identity().clone(),
+                current_transfer_identity.clone(),
+                applicability.clone(),
+                sample.clone(),
+            )?;
 
-                        event
-                            .transfer_identity()
-                            .clone(),
-
-                        current_transfer_identity
-                            .clone(),
-
-                        applicability
-                            .clone(),
-
-                        sample
-                            .clone(),
-                    )?;
-
-            evidence.push(
-                candidate,
-            );
+            evidence.push(candidate);
         }
 
-        Some(
-            GroundedRealizationConditionedTransferEvidenceFrontier {
-                applicability,
-                retained_history_count:
-                    history.len(),
+        Some(GroundedRealizationConditionedTransferEvidenceFrontier {
+            applicability,
+            retained_history_count: history.len(),
 
-                structurally_corresponding_history_count,
+            structurally_corresponding_history_count,
 
-                evidence,
-            },
-        )
+            evidence,
+        })
     }
 }
 
-
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct GroundedSemanticEpistemicExperimentPossibility {
-    possibility:
-        athlesia_autonomous_active_experimentation::
-            GroundedEpistemicExperimentPossibility,
-    semantic_provenance:
-        Vec<
-            GroundedEpistemicForecastSemanticProvenance,
-        >,
+    possibility: athlesia_autonomous_active_experimentation::GroundedEpistemicExperimentPossibility,
+    semantic_provenance: Vec<GroundedEpistemicForecastSemanticProvenance>,
 }
 
 impl GroundedSemanticEpistemicExperimentPossibility {
@@ -11438,49 +11074,24 @@ impl GroundedSemanticEpistemicExperimentPossibility {
         possibility:
             athlesia_autonomous_active_experimentation::
                 GroundedEpistemicExperimentPossibility,
-        semantic_provenance:
-            Vec<
-                GroundedEpistemicForecastSemanticProvenance,
-            >,
+        semantic_provenance: Vec<GroundedEpistemicForecastSemanticProvenance>,
     ) -> Option<Self> {
-        if possibility.forecasts().len()
-            != semantic_provenance.len()
-        {
+        if possibility.forecasts().len() != semantic_provenance.len() {
             return None;
         }
 
-        for (
-            expected_index,
-            provenance,
-        ) in semantic_provenance
-            .iter()
-            .enumerate()
-        {
-            if provenance.forecast_index
-                != expected_index
-            {
+        for (expected_index, provenance) in semantic_provenance.iter().enumerate() {
+            if provenance.forecast_index != expected_index {
                 return None;
             }
 
-            let forecast =
-                possibility
-                    .forecasts()
-                    .get(
-                        provenance.forecast_index,
-                    )?;
+            let forecast = possibility.forecasts().get(provenance.forecast_index)?;
 
-            if forecast.hypothesis()
-                != &provenance
-                    .hypothesis_identity
-            {
+            if forecast.hypothesis() != &provenance.hypothesis_identity {
                 return None;
             }
 
-            if provenance
-                .hypothesis
-                .transformation()
-                != possibility.action()
-            {
+            if provenance.hypothesis.transformation() != possibility.action() {
                 return None;
             }
         }
@@ -11493,85 +11104,45 @@ impl GroundedSemanticEpistemicExperimentPossibility {
 
     pub fn m50_possibility(
         &self,
-    ) -> &athlesia_autonomous_active_experimentation::
-        GroundedEpistemicExperimentPossibility {
+    ) -> &athlesia_autonomous_active_experimentation::GroundedEpistemicExperimentPossibility {
         &self.possibility
     }
 
-    pub fn semantic_provenance(
-        &self,
-    ) -> &[GroundedEpistemicForecastSemanticProvenance] {
+    pub fn semantic_provenance(&self) -> &[GroundedEpistemicForecastSemanticProvenance] {
         &self.semantic_provenance
     }
 
     pub fn forecast_count(&self) -> usize {
-        self.possibility
-            .forecasts()
-            .len()
+        self.possibility.forecasts().len()
     }
 
     pub fn realize_at_state(
         &self,
-        state:
-            &athlesia_universal_domain_learning::
-                GroundedStateSnapshot,
-    ) -> Option<
-        GroundedDynamicEpistemicPossibilityRealization,
-    > {
-        if self
-            .semantic_provenance
-            .len()
-            != self
-                .possibility
-                .forecasts()
-                .len()
-        {
+        state: &athlesia_universal_domain_learning::GroundedStateSnapshot,
+    ) -> Option<GroundedDynamicEpistemicPossibilityRealization> {
+        if self.semantic_provenance.len() != self.possibility.forecasts().len() {
             return None;
         }
 
-        let mut forecasts =
-            Vec::with_capacity(
-                self.semantic_provenance.len(),
-            );
+        let mut forecasts = Vec::with_capacity(self.semantic_provenance.len());
 
-        for provenance in
-            &self.semantic_provenance
-        {
-            let forecast =
-                self
-                    .possibility
-                    .forecasts()
-                    .get(
-                        provenance
-                            .forecast_index,
-                    )?;
+        for provenance in &self.semantic_provenance {
+            let forecast = self
+                .possibility
+                .forecasts()
+                .get(provenance.forecast_index)?;
 
-            if forecast.hypothesis()
-                != &provenance
-                    .hypothesis_identity
-            {
+            if forecast.hypothesis() != &provenance.hypothesis_identity {
                 return None;
             }
 
-            if provenance
+            if provenance.hypothesis.transformation() != self.possibility.action() {
+                return None;
+            }
+
+            let prediction = provenance
                 .hypothesis
-                .transformation()
-                != self
-                    .possibility
-                    .action()
-            {
-                return None;
-            }
-
-            let prediction =
-                provenance
-                    .hypothesis
-                    .predict(
-                        state,
-                        self
-                            .possibility
-                            .action(),
-                    );
+                .predict(state, self.possibility.action());
 
             if prediction.status()
                 == athlesia_universal_domain_learning::
@@ -11581,35 +11152,20 @@ impl GroundedSemanticEpistemicExperimentPossibility {
                 return None;
             }
 
-            forecasts.push(
-                GroundedDynamicEpistemicForecastRealization {
-                    forecast_index:
-                        provenance
-                            .forecast_index,
-                    hypothesis_identity:
-                        provenance
-                            .hypothesis_identity
-                            .clone(),
-                    prediction,
-                },
-            );
+            forecasts.push(GroundedDynamicEpistemicForecastRealization {
+                forecast_index: provenance.forecast_index,
+                hypothesis_identity: provenance.hypothesis_identity.clone(),
+                prediction,
+            });
         }
 
-        Some(
-            GroundedDynamicEpistemicPossibilityRealization {
-                state: state.clone(),
-                action:
-                    self
-                        .possibility
-                        .action()
-                        .clone(),
-                forecasts,
-            },
-        )
+        Some(GroundedDynamicEpistemicPossibilityRealization {
+            state: state.clone(),
+            action: self.possibility.action().clone(),
+            forecasts,
+        })
     }
 }
-
-
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct StructuralPredictionEmpiricalAuthority {
@@ -11618,68 +11174,45 @@ pub struct StructuralPredictionEmpiricalAuthority {
 }
 
 impl StructuralPredictionEmpiricalAuthority {
-    pub fn evidence_confidence(
-        self,
-    ) -> CognitiveSignal {
+    pub fn evidence_confidence(self) -> CognitiveSignal {
         self.evidence_confidence
     }
 
-    pub fn controllability(
-        self,
-    ) -> CognitiveSignal {
+    pub fn controllability(self) -> CognitiveSignal {
         self.controllability
     }
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct EmpiricallyAuthorizedStructuralPrediction {
-    prediction:
-        athlesia_universal_domain_learning::
-            GroundedStructuralPrediction,
-    authority:
-        StructuralPredictionEmpiricalAuthority,
+    prediction: athlesia_universal_domain_learning::GroundedStructuralPrediction,
+    authority: StructuralPredictionEmpiricalAuthority,
 }
 
 impl EmpiricallyAuthorizedStructuralPrediction {
-    pub fn prediction(
-        &self,
-    ) -> &athlesia_universal_domain_learning::
-        GroundedStructuralPrediction {
+    pub fn prediction(&self) -> &athlesia_universal_domain_learning::GroundedStructuralPrediction {
         &self.prediction
     }
 
-    pub fn evidence_confidence(
-        &self,
-    ) -> CognitiveSignal {
-        self.authority
-            .evidence_confidence()
+    pub fn evidence_confidence(&self) -> CognitiveSignal {
+        self.authority.evidence_confidence()
     }
 
-    pub fn controllability(
-        &self,
-    ) -> CognitiveSignal {
-        self.authority
-            .controllability()
+    pub fn controllability(&self) -> CognitiveSignal {
+        self.authority.controllability()
     }
 }
 
-
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ExecutiveCandidateProvenanceBinding {
-    source_state:
-        CognitiveStructure,
-    candidate:
-        athlesia_executive_agency::
-            GroundedExecutiveActionCandidate,
+    source_state: CognitiveStructure,
+    candidate: athlesia_executive_agency::GroundedExecutiveActionCandidate,
 }
 
 impl ExecutiveCandidateProvenanceBinding {
     pub fn new(
-        source_state:
-            CognitiveStructure,
-        candidate:
-            athlesia_executive_agency::
-                GroundedExecutiveActionCandidate,
+        source_state: CognitiveStructure,
+        candidate: athlesia_executive_agency::GroundedExecutiveActionCandidate,
     ) -> Self {
         Self {
             source_state,
@@ -11687,50 +11220,35 @@ impl ExecutiveCandidateProvenanceBinding {
         }
     }
 
-    pub fn source_state(
-        &self,
-    ) -> &CognitiveStructure {
+    pub fn source_state(&self) -> &CognitiveStructure {
         &self.source_state
     }
 
-    pub fn candidate(
-        &self,
-    ) -> &athlesia_executive_agency::
-        GroundedExecutiveActionCandidate {
+    pub fn candidate(&self) -> &athlesia_executive_agency::GroundedExecutiveActionCandidate {
         &self.candidate
     }
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct SelectedExecutiveCandidateProvenance {
-    source_state:
-        CognitiveStructure,
-    candidate:
-        athlesia_executive_agency::
-            GroundedExecutiveActionCandidate,
+    source_state: CognitiveStructure,
+    candidate: athlesia_executive_agency::GroundedExecutiveActionCandidate,
 }
 
 impl SelectedExecutiveCandidateProvenance {
-    pub fn source_state(
-        &self,
-    ) -> &CognitiveStructure {
+    pub fn source_state(&self) -> &CognitiveStructure {
         &self.source_state
     }
 
-    pub fn candidate(
-        &self,
-    ) -> &athlesia_executive_agency::
-        GroundedExecutiveActionCandidate {
+    pub fn candidate(&self) -> &athlesia_executive_agency::GroundedExecutiveActionCandidate {
         &self.candidate
     }
 }
-
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum ExperimentProposalSourceBindingError {
     SourceStateMismatch,
 }
-
 
 impl OnlinePersistentCognitiveState {
     pub fn new() -> Self {
@@ -11836,9 +11354,7 @@ impl OnlinePersistentCognitiveState {
     }
 
     pub fn grounded_execution_source_state_identity(
-        state:
-            &athlesia_universal_domain_learning::
-                GroundedStateSnapshot,
+        state: &athlesia_universal_domain_learning::GroundedStateSnapshot,
     ) -> CognitiveStructure {
         /*
          * Generic direct-execution provenance identity.
@@ -11854,14 +11370,8 @@ impl OnlinePersistentCognitiveState {
          * Direct execution provenance and epistemic possibility identity
          * are therefore explicit, distinct semantic contracts.
          */
-        CognitiveStructure::unordered(
-            state
-                .facts()
-                .to_vec(),
-        )
-        .expect(
-            "grounded execution source state contains at least one fact",
-        )
+        CognitiveStructure::unordered(state.facts().to_vec())
+            .expect("grounded execution source state contains at least one fact")
     }
 
     fn c3b_source_state_identity(
@@ -11875,71 +11385,27 @@ impl OnlinePersistentCognitiveState {
 
     pub fn current_semantic_m50_epistemic_possibility(
         &self,
-        state:
-            &athlesia_universal_domain_learning::
-                GroundedStateSnapshot,
+        state: &athlesia_universal_domain_learning::GroundedStateSnapshot,
         action: &CognitiveStructure,
-        version_policy:
-            athlesia_universal_domain_learning::
-                GroundedExplanatoryVersionSpacePolicy,
-    ) -> Option<
-        GroundedSemanticEpistemicExperimentPossibility,
-    > {
-        let possibility =
-            self.current_m50_epistemic_possibility(
-                state,
-                action,
-                version_policy,
-            )?;
+        version_policy: athlesia_universal_domain_learning::GroundedExplanatoryVersionSpacePolicy,
+    ) -> Option<GroundedSemanticEpistemicExperimentPossibility> {
+        let possibility = self.current_m50_epistemic_possibility(state, action, version_policy)?;
 
-        let version_space =
-            self.current_explanatory_version_space(
-                version_policy,
-            );
+        let version_space = self.current_explanatory_version_space(version_policy);
 
-        if version_space.evaluation_truncated()
-            || version_space.frontier_truncated()
-        {
+        if version_space.evaluation_truncated() || version_space.frontier_truncated() {
             return None;
         }
 
-        let mut semantic_provenance =
-            Vec::with_capacity(
-                possibility
-                    .forecasts()
-                    .len(),
-            );
+        let mut semantic_provenance = Vec::with_capacity(possibility.forecasts().len());
 
-        for (
-            forecast_index,
-            forecast,
-        ) in possibility
-            .forecasts()
-            .iter()
-            .enumerate()
-        {
-            let mut matching =
-                version_space
-                    .active()
-                    .iter()
-                    .filter(
-                        |hypothesis| {
-                            hypothesis
-                                .transformation()
-                                == action
-                                && Self::
-                                    c3b_hypothesis_identity(
-                                        hypothesis,
-                                    )
-                                    == *forecast
-                                        .hypothesis()
-                        },
-                    );
+        for (forecast_index, forecast) in possibility.forecasts().iter().enumerate() {
+            let mut matching = version_space.active().iter().filter(|hypothesis| {
+                hypothesis.transformation() == action
+                    && Self::c3b_hypothesis_identity(hypothesis) == *forecast.hypothesis()
+            });
 
-            let hypothesis =
-                matching
-                    .next()?
-                    .clone();
+            let hypothesis = matching.next()?.clone();
 
             /*
              * Exact encoded identity must identify exactly one active
@@ -11950,25 +11416,15 @@ impl OnlinePersistentCognitiveState {
                 return None;
             }
 
-            semantic_provenance.push(
-                GroundedEpistemicForecastSemanticProvenance {
-                    forecast_index,
-                    hypothesis_identity:
-                        forecast
-                            .hypothesis()
-                            .clone(),
-                    hypothesis,
-                },
-            );
+            semantic_provenance.push(GroundedEpistemicForecastSemanticProvenance {
+                forecast_index,
+                hypothesis_identity: forecast.hypothesis().clone(),
+                hypothesis,
+            });
         }
 
-        GroundedSemanticEpistemicExperimentPossibility::
-            new(
-                possibility,
-                semantic_provenance,
-            )
+        GroundedSemanticEpistemicExperimentPossibility::new(possibility, semantic_provenance)
     }
-
 
     pub fn current_m50_epistemic_possibility(
         &self,
@@ -12229,16 +11685,11 @@ impl OnlinePersistentCognitiveState {
     }
     pub fn current_empirically_coherent_groupings(
         &self,
-        current_frame:
-            &athlesia_core_knowledge_perceptual_grounding::
-                PerceptualFrame,
+        current_frame: &athlesia_core_knowledge_perceptual_grounding::PerceptualFrame,
         policy:
             athlesia_core_knowledge_perceptual_grounding::
                 PerceptualGroupingBehaviorRetentionPolicy,
-    ) -> Vec<
-        athlesia_core_knowledge_perceptual_grounding::
-            PerceptualGroupingCandidate
-    > {
+    ) -> Vec<athlesia_core_knowledge_perceptual_grounding::PerceptualGroupingCandidate> {
         /*
          * Retained common-change behavior is M51-owned empirical state.
          *
@@ -12252,27 +11703,13 @@ impl OnlinePersistentCognitiveState {
          * Current grounding retracts stale hypotheses without destroying
          * retained history.
          */
-        let mut candidates =
-            self
-                .perceptual_grouping_behavior_evidence()
-                .supported_records(policy)
-                .into_iter()
-                .map(
-                    |record| {
-                        record
-                            .candidate()
-                            .clone()
-                    },
-                )
-                .filter(
-                    |candidate| {
-                        candidate
-                            .is_grounded_in(
-                                current_frame,
-                            )
-                    },
-                )
-                .collect::<Vec<_>>();
+        let mut candidates = self
+            .perceptual_grouping_behavior_evidence()
+            .supported_records(policy)
+            .into_iter()
+            .map(|record| record.candidate().clone())
+            .filter(|candidate| candidate.is_grounded_in(current_frame))
+            .collect::<Vec<_>>();
 
         candidates.sort();
         candidates.dedup();
@@ -12288,15 +11725,10 @@ impl OnlinePersistentCognitiveState {
         temporal_policy:
             athlesia_core_knowledge_perceptual_grounding::
                 PerceptualProposalTemporalEvidencePolicy,
-    ) -> Vec<
-        athlesia_core_knowledge_perceptual_grounding::
-            PerceptualGroupingCandidate
-    > {
+    ) -> Vec<athlesia_core_knowledge_perceptual_grounding::PerceptualGroupingCandidate> {
         use athlesia_core_knowledge_perceptual_grounding::{
-            PerceptualObjectPromotionEvidence,
-            PerceptualObjectPromotionGate,
-            PerceptualObjectProposal,
-            PerceptualProposalTemporalSupportStatus,
+            PerceptualObjectPromotionEvidence, PerceptualObjectPromotionGate,
+            PerceptualObjectProposal, PerceptualProposalTemporalSupportStatus,
         };
 
         let mut eligible = Vec::new();
@@ -12309,61 +11741,29 @@ impl OnlinePersistentCognitiveState {
          * Therefore common_change=true below is derived from that upstream
          * semantic qualification, not from ARC appearance or geometry.
          */
-        for observation in
-            empirically_coherent_visual_observations
-        {
-            let grouping =
-                observation.candidate();
+        for observation in empirically_coherent_visual_observations {
+            let grouping = observation.candidate();
 
-            let temporal_persistence =
-                grouping
-                    .members()
-                    .iter()
-                    .all(
-                        |handle| {
-                            let proposal =
-                                PerceptualObjectProposal::
-                                    new(
-                                        vec![*handle],
-                                    )
-                                    .expect(
-                                        "one grouping member forms one valid atomic proposal",
-                                    );
+            let temporal_persistence = grouping.members().iter().all(|handle| {
+                let proposal = PerceptualObjectProposal::new(vec![*handle])
+                    .expect("one grouping member forms one valid atomic proposal");
 
-                            self
-                                .perceptual_temporal_evidence()
-                                .support_status(
-                                    &proposal,
-                                    temporal_policy,
-                                )
-                                == PerceptualProposalTemporalSupportStatus::
-                                    Supported
-                        },
-                    );
+                self.perceptual_temporal_evidence()
+                    .support_status(&proposal, temporal_policy)
+                    == PerceptualProposalTemporalSupportStatus::Supported
+            });
 
-            let evidence =
-                PerceptualObjectPromotionEvidence::
-                    new(
-                        temporal_persistence,
-                        true,
-                        observation
-                            .appearance_cohesion_supported(),
-                        observation
-                            .contrast_boundary_supported(),
-                    );
+            let evidence = PerceptualObjectPromotionEvidence::new(
+                temporal_persistence,
+                true,
+                observation.appearance_cohesion_supported(),
+                observation.contrast_boundary_supported(),
+            );
 
             if let Some(candidate) =
-                PerceptualObjectPromotionGate::
-                    evaluate(
-                        grouping.clone(),
-                        evidence,
-                    )
+                PerceptualObjectPromotionGate::evaluate(grouping.clone(), evidence)
             {
-                eligible.push(
-                    candidate
-                        .grouping()
-                        .clone(),
-                );
+                eligible.push(candidate.grouping().clone());
             }
         }
 
@@ -12375,25 +11775,15 @@ impl OnlinePersistentCognitiveState {
 
     pub fn current_provisional_object_hypotheses_from_groupings(
         &self,
-        frame:
-            &athlesia_core_knowledge_perceptual_grounding::
-                PerceptualFrame,
-        groupings:
-            &[athlesia_core_knowledge_perceptual_grounding::
-                PerceptualGroupingCandidate],
+        frame: &athlesia_core_knowledge_perceptual_grounding::PerceptualFrame,
+        groupings: &[athlesia_core_knowledge_perceptual_grounding::PerceptualGroupingCandidate],
         appearance_policy:
             athlesia_core_knowledge_perceptual_grounding::
                 PerceptualGroupingAppearanceRetentionPolicy,
-    ) -> Vec<
-        athlesia_core_knowledge_perceptual_grounding::
-            ObjectHypothesis
-    > {
+    ) -> Vec<athlesia_core_knowledge_perceptual_grounding::ObjectHypothesis> {
         use athlesia_core_knowledge_perceptual_grounding::{
-            EmpiricalObjecthoodSignalCalibration,
-            ObjectHypothesis,
-            ObjecthoodEvidence,
-            PerceptualGroupingAppearanceSupportStatus,
-            PerceptualObjectProposal,
+            EmpiricalObjecthoodSignalCalibration, ObjectHypothesis, ObjecthoodEvidence,
+            PerceptualGroupingAppearanceSupportStatus, PerceptualObjectProposal,
         };
 
         let mut hypotheses = Vec::new();
@@ -12401,181 +11791,109 @@ impl OnlinePersistentCognitiveState {
         for grouping in groupings {
             if self
                 .perceptual_grouping_appearance_evidence()
-                .support_status(
-                    grouping,
-                    appearance_policy,
-                )
+                .support_status(grouping, appearance_policy)
                 != PerceptualGroupingAppearanceSupportStatus::Supported
             {
                 continue;
             }
 
-            let Some(appearance_record) =
-                self
-                    .perceptual_grouping_appearance_evidence()
-                    .record(grouping)
+            let Some(appearance_record) = self
+                .perceptual_grouping_appearance_evidence()
+                .record(grouping)
             else {
                 continue;
             };
 
-            let Some(behavior_record) =
-                self
-                    .perceptual_grouping_behavior_evidence()
-                    .record(grouping)
+            let Some(behavior_record) = self
+                .perceptual_grouping_behavior_evidence()
+                .record(grouping)
             else {
                 continue;
             };
 
-            let behavioral_opportunities =
-                behavior_record
-                    .uniform_changed_count()
-                    .saturating_add(
-                        behavior_record
-                            .mixed_count(),
-                    );
+            let behavioral_opportunities = behavior_record
+                .uniform_changed_count()
+                .saturating_add(behavior_record.mixed_count());
 
-            let Some(common_change) =
-                EmpiricalObjecthoodSignalCalibration::
-                    from_counts(
-                        behavior_record
-                            .uniform_changed_count(),
-                        behavioral_opportunities,
-                    )
-            else {
+            let Some(common_change) = EmpiricalObjecthoodSignalCalibration::from_counts(
+                behavior_record.uniform_changed_count(),
+                behavioral_opportunities,
+            ) else {
                 continue;
             };
 
-            let Some(cohesion) =
-                EmpiricalObjecthoodSignalCalibration::
-                    from_counts(
-                        appearance_record
-                            .appearance_cohesion_support_count(),
-                        appearance_record
-                            .observation_count(),
-                    )
-            else {
+            let Some(cohesion) = EmpiricalObjecthoodSignalCalibration::from_counts(
+                appearance_record.appearance_cohesion_support_count(),
+                appearance_record.observation_count(),
+            ) else {
                 continue;
             };
 
-            let Some(boundary) =
-                EmpiricalObjecthoodSignalCalibration::
-                    from_counts(
-                        appearance_record
-                            .contrast_boundary_support_count(),
-                        appearance_record
-                            .observation_count(),
-                    )
-            else {
+            let Some(boundary) = EmpiricalObjecthoodSignalCalibration::from_counts(
+                appearance_record.contrast_boundary_support_count(),
+                appearance_record.observation_count(),
+            ) else {
                 continue;
             };
 
-            let mut persistence:
-                Option<CognitiveSignal> =
-                None;
+            let mut persistence: Option<CognitiveSignal> = None;
 
             let mut valid_members = true;
 
             for handle in grouping.members() {
-                let proposal =
-                    PerceptualObjectProposal::new(
-                        vec![*handle],
-                    )
-                    .expect(
-                        "one grouping member is one valid atomic proposal",
-                    );
+                let proposal = PerceptualObjectProposal::new(vec![*handle])
+                    .expect("one grouping member is one valid atomic proposal");
 
-                let Some(record) =
-                    self
-                        .perceptual_temporal_evidence()
-                        .record(&proposal)
-                else {
+                let Some(record) = self.perceptual_temporal_evidence().record(&proposal) else {
                     valid_members = false;
                     break;
                 };
 
-                let Some(member_signal) =
-                    EmpiricalObjecthoodSignalCalibration::
-                        from_counts(
-                            record
-                                .cross_frame_presence_count(),
-                            record
-                                .observation_count(),
-                        )
-                else {
+                let Some(member_signal) = EmpiricalObjecthoodSignalCalibration::from_counts(
+                    record.cross_frame_presence_count(),
+                    record.observation_count(),
+                ) else {
                     valid_members = false;
                     break;
                 };
 
-                persistence =
-                    Some(
-                        match persistence {
-                            Some(current) =>
-                                current.min(
-                                    member_signal,
-                                ),
+                persistence = Some(match persistence {
+                    Some(current) => current.min(member_signal),
 
-                            None =>
-                                member_signal,
-                        },
-                    );
+                    None => member_signal,
+                });
             }
 
             if !valid_members {
                 continue;
             }
 
-            let Some(persistence) =
-                persistence
+            let Some(persistence) = persistence else {
+                continue;
+            };
+
+            let evidence = ObjecthoodEvidence::new(
+                cohesion,
+                persistence,
+                common_change,
+                boundary,
+                CognitiveSignal::zero(),
+                CognitiveSignal::zero(),
+            );
+
+            let Some(hypothesis) = ObjectHypothesis::new(grouping.members().to_vec(), evidence)
             else {
                 continue;
             };
 
-            let evidence =
-                ObjecthoodEvidence::new(
-                    cohesion,
-                    persistence,
-                    common_change,
-                    boundary,
-                    CognitiveSignal::zero(),
-                    CognitiveSignal::zero(),
-                );
-
-            let Some(hypothesis) =
-                ObjectHypothesis::new(
-                    grouping
-                        .members()
-                        .to_vec(),
-                    evidence,
-                )
-            else {
-                continue;
-            };
-
-            if hypothesis
-                .is_grounded_in(frame)
-            {
-                hypotheses.push(
-                    hypothesis,
-                );
+            if hypothesis.is_grounded_in(frame) {
+                hypotheses.push(hypothesis);
             }
         }
 
-        hypotheses.sort_by(
-            |left, right| {
-                left
-                    .members()
-                    .cmp(
-                        right.members(),
-                    )
-            },
-        );
+        hypotheses.sort_by(|left, right| left.members().cmp(right.members()));
 
-        hypotheses.dedup_by(
-            |left, right| {
-                left.members()
-                    == right.members()
-            },
-        );
+        hypotheses.dedup_by(|left, right| left.members() == right.members());
 
         hypotheses
     }
@@ -12860,13 +12178,9 @@ impl OnlinePersistentCognitiveState {
 
     pub fn current_successor_informed_epistemic_priority_binding_frontier(
         &self,
-        state:
-            &athlesia_universal_domain_learning::
-                GroundedStateSnapshot,
+        state: &athlesia_universal_domain_learning::GroundedStateSnapshot,
         actions: &[CognitiveStructure],
-        version_policy:
-            athlesia_universal_domain_learning::
-                GroundedExplanatoryVersionSpacePolicy,
+        version_policy: athlesia_universal_domain_learning::GroundedExplanatoryVersionSpacePolicy,
         discrimination_policy:
             athlesia_autonomous_active_experimentation::
                 EpistemicForecastDiscriminationPolicy,
@@ -12889,63 +12203,44 @@ impl OnlinePersistentCognitiveState {
          *
          * No candidate is filtered or re-ranked here.
          */
-        let priority_frontier =
-            self.current_empirical_epistemic_action_priority_frontier(
-                state,
-                actions,
-                version_policy,
-                discrimination_policy,
-                expectation_policy,
-                priority_policy,
-            );
+        let priority_frontier = self.current_empirical_epistemic_action_priority_frontier(
+            state,
+            actions,
+            version_policy,
+            discrimination_policy,
+            expectation_policy,
+            priority_policy,
+        );
 
-        let mut bindings =
-            Vec::with_capacity(
-                priority_frontier.ranked().len(),
-            );
+        let mut bindings = Vec::with_capacity(priority_frontier.ranked().len());
 
         for candidate in priority_frontier.ranked() {
-            let successor_frequency =
-                self.transition_schema_learning
-                    .action_qualified_empirical_successor_frequency(
-                        state,
-                        candidate.action(),
-                    );
+            let successor_frequency = self
+                .transition_schema_learning
+                .action_qualified_empirical_successor_frequency(state, candidate.action());
 
             let successor_eligibility =
-                successor_frequency
-                    .successor_informed_proposal_eligibility();
+                successor_frequency.successor_informed_proposal_eligibility();
 
-            bindings.push(
-                SuccessorInformedEpistemicPriorityBinding {
-                    priority_candidate:
-                        candidate.clone(),
-                    successor_eligibility,
-                },
-            );
+            bindings.push(SuccessorInformedEpistemicPriorityBinding {
+                priority_candidate: candidate.clone(),
+                successor_eligibility,
+            });
         }
 
         SuccessorInformedEpistemicPriorityBindingFrontier {
-            upstream_priority_status:
-                priority_frontier.status(),
-            upstream_input_candidate_count:
-                priority_frontier.input_candidate_count(),
-            upstream_unique_candidate_count:
-                priority_frontier.unique_candidate_count(),
+            upstream_priority_status: priority_frontier.status(),
+            upstream_input_candidate_count: priority_frontier.input_candidate_count(),
+            upstream_unique_candidate_count: priority_frontier.unique_candidate_count(),
             bindings,
         }
     }
 
     pub fn current_successor_informed_epistemic_action_intent_frontier(
         &self,
-        state:
-            &athlesia_universal_domain_learning::
-                GroundedStateSnapshot,
-        actions:
-            &[CognitiveStructure],
-        version_policy:
-            athlesia_universal_domain_learning::
-                GroundedExplanatoryVersionSpacePolicy,
+        state: &athlesia_universal_domain_learning::GroundedStateSnapshot,
+        actions: &[CognitiveStructure],
+        version_policy: athlesia_universal_domain_learning::GroundedExplanatoryVersionSpacePolicy,
         discrimination_policy:
             athlesia_autonomous_active_experimentation::
                 EpistemicForecastDiscriminationPolicy,
@@ -12955,9 +12250,7 @@ impl OnlinePersistentCognitiveState {
         priority_policy:
             athlesia_autonomous_active_experimentation::
                 EmpiricalEpistemicActionPriorityPolicy,
-    ) -> Option<
-        SuccessorInformedEpistemicActionIntentFrontier
-    > {
+    ) -> Option<SuccessorInformedEpistemicActionIntentFrontier> {
         /*
          * C16J-B:
          *
@@ -12976,51 +12269,32 @@ impl OnlinePersistentCognitiveState {
          * No probability, confidence, EIG, utility, controllability or
          * execution cost is synthesized here.
          */
-        let bindings =
-            self
-                .current_successor_informed_epistemic_priority_binding_frontier(
-                    state,
-                    actions,
-                    version_policy,
-                    discrimination_policy,
-                    expectation_policy,
-                    priority_policy,
-                );
+        let bindings = self.current_successor_informed_epistemic_priority_binding_frontier(
+            state,
+            actions,
+            version_policy,
+            discrimination_policy,
+            expectation_policy,
+            priority_policy,
+        );
 
-        let eligible =
-            bindings
-                .bindings()
-                .iter()
-                .filter(
-                    |binding| {
-                        binding
-                            .eligible_as_supplemental_successor_evidence()
-                    },
-                )
-                .collect::<Vec<_>>();
+        let eligible = bindings
+            .bindings()
+            .iter()
+            .filter(|binding| binding.eligible_as_supplemental_successor_evidence())
+            .collect::<Vec<_>>();
 
         if eligible.is_empty() {
             return None;
         }
 
-        let mut intents =
-            Vec::with_capacity(
-                eligible.len(),
-            );
+        let mut intents = Vec::with_capacity(eligible.len());
 
         for binding in eligible {
-            let priority =
-                binding
-                    .priority_candidate();
+            let priority = binding.priority_candidate();
 
             let possibility =
-                self
-                    .current_m50_epistemic_possibility(
-                        state,
-                        priority
-                            .action(),
-                        version_policy,
-                    )?;
+                self.current_m50_epistemic_possibility(state, priority.action(), version_policy)?;
 
             /*
              * Exact causal identity must survive the re-resolution.
@@ -13028,52 +12302,32 @@ impl OnlinePersistentCognitiveState {
              * A current epistemic possibility for another source/action
              * cannot inherit the retained empirical priority binding.
              */
-            if possibility
-                .source_state()
-                != priority
-                    .source_state()
-                || possibility
-                    .action()
-                    != priority
-                        .action()
+            if possibility.source_state() != priority.source_state()
+                || possibility.action() != priority.action()
             {
                 return None;
             }
 
-            intents.push(
-                SuccessorInformedEpistemicActionIntent {
-                    possibility,
-                    priority_candidate:
-                        priority.clone(),
-                    successor_eligibility:
-                        binding
-                            .successor_eligibility(),
-                },
-            );
+            intents.push(SuccessorInformedEpistemicActionIntent {
+                possibility,
+                priority_candidate: priority.clone(),
+                successor_eligibility: binding.successor_eligibility(),
+            });
         }
 
         /*
          * Never expose a partial authority frontier.
          */
-        if intents.len()
-            != bindings
-                .eligible_binding_count()
-        {
+        if intents.len() != bindings.eligible_binding_count() {
             return None;
         }
 
-        Some(
-            SuccessorInformedEpistemicActionIntentFrontier {
-                intents,
-            },
-        )
+        Some(SuccessorInformedEpistemicActionIntentFrontier { intents })
     }
-
 
     pub fn current_successor_informed_native_proposal_input_frontier(
         &self,
-        request:
-            SuccessorInformedNativeProposalInputRequest<'_>,
+        request: SuccessorInformedNativeProposalInputRequest<'_>,
     ) -> SuccessorInformedNativeProposalInputFrontier {
         let SuccessorInformedNativeProposalInputRequest {
             state,
@@ -13113,50 +12367,29 @@ impl OnlinePersistentCognitiveState {
          * No proposal, evidence signal, belief confidence, policy threshold,
          * predicted outcome, EIG, utility or executive choice is synthesized.
          */
-        let bindings =
-            self.current_successor_informed_epistemic_priority_binding_frontier(
-                state,
-                actions,
-                version_policy,
-                discrimination_policy,
-                expectation_policy,
-                priority_policy,
-            );
+        let bindings = self.current_successor_informed_epistemic_priority_binding_frontier(
+            state,
+            actions,
+            version_policy,
+            discrimination_policy,
+            expectation_policy,
+            priority_policy,
+        );
 
-        let successor_eligible_binding_count =
-            bindings
-                .bindings()
-                .iter()
-                .filter(
-                    |binding| {
-                        binding
-                            .eligible_as_supplemental_successor_evidence()
-                    },
-                )
-                .count();
+        let successor_eligible_binding_count = bindings
+            .bindings()
+            .iter()
+            .filter(|binding| binding.eligible_as_supplemental_successor_evidence())
+            .count();
 
-        let mut matched_native_possibilities =
-            Vec::new();
+        let mut matched_native_possibilities = Vec::new();
 
         for native in native_possibilities {
-            let binding_matches =
-                bindings
-                    .bindings()
-                    .iter()
-                    .any(
-                        |binding| {
-                            binding
-                                .eligible_as_supplemental_successor_evidence()
-                                && binding
-                                    .priority_candidate()
-                                    .source_state()
-                                    == native.source_state()
-                                && binding
-                                    .priority_candidate()
-                                    .action()
-                                    == native.action()
-                        },
-                    );
+            let binding_matches = bindings.bindings().iter().any(|binding| {
+                binding.eligible_as_supplemental_successor_evidence()
+                    && binding.priority_candidate().source_state() == native.source_state()
+                    && binding.priority_candidate().action() == native.action()
+            });
 
             if !binding_matches {
                 continue;
@@ -13173,82 +12406,48 @@ impl OnlinePersistentCognitiveState {
              * valid source/action pair.
              */
             let Some(current_epistemic) =
-                self
-                    .current_m50_epistemic_possibility(
-                        state,
-                        native.action(),
-                        version_policy,
-                    )
+                self.current_m50_epistemic_possibility(state, native.action(), version_policy)
             else {
                 continue;
             };
 
-            if current_epistemic
-                .source_state()
-                != native.source_state()
-            {
+            if current_epistemic.source_state() != native.source_state() {
                 continue;
             }
 
-            let hypotheses_match =
-                native
-                    .predictions()
+            let hypotheses_match = native.predictions().iter().all(|prediction| {
+                current_epistemic
+                    .forecasts()
                     .iter()
-                    .all(
-                        |prediction| {
-                            current_epistemic
-                                .forecasts()
-                                .iter()
-                                .any(
-                                    |forecast| {
-                                        forecast
-                                            .hypothesis()
-                                            == prediction
-                                                .hypothesis()
-                                    },
-                                )
-                        },
-                    );
+                    .any(|forecast| forecast.hypothesis() == prediction.hypothesis())
+            });
 
             if hypotheses_match {
-                matched_native_possibilities.push(
-                    native.clone(),
-                );
+                matched_native_possibilities.push(native.clone());
             }
         }
 
         SuccessorInformedNativeProposalInputFrontier {
-            upstream_binding_count:
-                bindings.binding_count(),
+            upstream_binding_count: bindings.binding_count(),
             successor_eligible_binding_count,
-            input_native_possibility_count:
-                native_possibilities.len(),
+            input_native_possibility_count: native_possibilities.len(),
             matched_native_possibilities,
         }
     }
 
     pub fn current_successor_informed_native_m50_proposal_delegation(
         &self,
-        request:
-            SuccessorInformedNativeM50ProposalDelegationRequest<'_>,
-    ) -> Option<
-        SuccessorInformedNativeM50ProposalDelegation
-    > {
+        request: SuccessorInformedNativeM50ProposalDelegationRequest<'_>,
+    ) -> Option<SuccessorInformedNativeM50ProposalDelegation> {
         let SuccessorInformedNativeM50ProposalDelegationRequest {
             native_input,
             beliefs,
             proposal_policy,
         } = request;
 
-        let gated =
-            self
-                .current_successor_informed_native_proposal_input_frontier(
-                    native_input,
-                );
+        let gated = self.current_successor_informed_native_proposal_input_frontier(native_input);
 
-        if !gated
-            .eligible_for_native_m50_delegation()
-        {
+        if !gated.eligible_for_native_m50_delegation() {
             return None;
         }
 
@@ -13262,39 +12461,22 @@ impl OnlinePersistentCognitiveState {
          * identity. Distinct surviving sources are provenance ambiguity
          * and therefore fail closed.
          */
-        let mut source_states =
-            Vec::<CognitiveStructure>::new();
+        let mut source_states = Vec::<CognitiveStructure>::new();
 
-        for possibility in
-            gated
-                .matched_native_possibilities()
-        {
+        for possibility in gated.matched_native_possibilities() {
             if !source_states
                 .iter()
-                .any(
-                    |source_state| {
-                        source_state
-                            == possibility
-                                .source_state()
-                    },
-                )
+                .any(|source_state| source_state == possibility.source_state())
             {
-                source_states.push(
-                    possibility
-                        .source_state()
-                        .clone(),
-                );
+                source_states.push(possibility.source_state().clone());
             }
         }
 
-        let source_state =
-            match source_states.as_slice() {
-                [source_state] =>
-                    source_state.clone(),
+        let source_state = match source_states.as_slice() {
+            [source_state] => source_state.clone(),
 
-                _ =>
-                    return None,
-            };
+            _ => return None,
+        };
 
         let result =
             athlesia_autonomous_active_experimentation::
@@ -13315,26 +12497,16 @@ impl OnlinePersistentCognitiveState {
         if result
             .generated()
             .iter()
-            .any(
-                |candidate| {
-                    candidate
-                        .experiment()
-                        .source_state()
-                        != &source_state
-                },
-            )
+            .any(|candidate| candidate.experiment().source_state() != &source_state)
         {
             return None;
         }
 
-        Some(
-            SuccessorInformedNativeM50ProposalDelegation {
-                source_state,
-                result,
-            },
-        )
+        Some(SuccessorInformedNativeM50ProposalDelegation {
+            source_state,
+            result,
+        })
     }
-
 
     /*
      * Exact structural prediction encoding for M48 predicted_outcome.
@@ -13342,111 +12514,57 @@ impl OnlinePersistentCognitiveState {
      * These tags are generic cognitive transport identity, not ARC protocol
      * identity and not additional empirical evidence.
      */
-    const MODEL_PREDICTION_TAG: u64 =
-        0x5034_4742_3200_0001;
+    const MODEL_PREDICTION_TAG: u64 = 0x5034_4742_3200_0001;
 
-    const MODEL_ADDITION_TAG: u64 =
-        0x5034_4742_3200_0002;
+    const MODEL_ADDITION_TAG: u64 = 0x5034_4742_3200_0002;
 
-    const MODEL_REMOVAL_TAG: u64 =
-        0x5034_4742_3200_0003;
+    const MODEL_REMOVAL_TAG: u64 = 0x5034_4742_3200_0003;
 
     fn structural_prediction_outcome_identity(
-        prediction:
-            &athlesia_universal_domain_learning::
-                GroundedStructuralPrediction,
-    ) -> Option<
-        CognitiveStructure
-    > {
+        prediction: &athlesia_universal_domain_learning::GroundedStructuralPrediction,
+    ) -> Option<CognitiveStructure> {
         if !prediction.predicted() {
             return None;
         }
 
-        let mut terms =
-            Vec::with_capacity(
-                2_usize
-                    .saturating_add(
-                        prediction
-                            .additions()
-                            .len(),
-                    )
-                    .saturating_add(
-                        prediction
-                            .removals()
-                            .len(),
-                    ),
-            );
-
-        terms.push(
-            CognitiveStructure::atom(
-                Self::MODEL_PREDICTION_TAG,
-            ),
+        let mut terms = Vec::with_capacity(
+            2_usize
+                .saturating_add(prediction.additions().len())
+                .saturating_add(prediction.removals().len()),
         );
 
-        terms.push(
-            prediction
-                .transformation()
-                .clone(),
-        );
+        terms.push(CognitiveStructure::atom(Self::MODEL_PREDICTION_TAG));
 
-        for fact in
-            prediction.additions()
-        {
-            let effect =
-                CognitiveStructure::ordered(
-                    vec![
-                        CognitiveStructure::atom(
-                            Self::MODEL_ADDITION_TAG,
-                        ),
-                        fact.clone(),
-                    ],
-                )?;
+        terms.push(prediction.transformation().clone());
 
-            terms.push(
-                effect,
-            );
+        for fact in prediction.additions() {
+            let effect = CognitiveStructure::ordered(vec![
+                CognitiveStructure::atom(Self::MODEL_ADDITION_TAG),
+                fact.clone(),
+            ])?;
+
+            terms.push(effect);
         }
 
-        for fact in
-            prediction.removals()
-        {
-            let effect =
-                CognitiveStructure::ordered(
-                    vec![
-                        CognitiveStructure::atom(
-                            Self::MODEL_REMOVAL_TAG,
-                        ),
-                        fact.clone(),
-                    ],
-                )?;
+        for fact in prediction.removals() {
+            let effect = CognitiveStructure::ordered(vec![
+                CognitiveStructure::atom(Self::MODEL_REMOVAL_TAG),
+                fact.clone(),
+            ])?;
 
-            terms.push(
-                effect,
-            );
+            terms.push(effect);
         }
 
-        CognitiveStructure::ordered(
-            terms,
-        )
+        CognitiveStructure::ordered(terms)
     }
 
     pub fn current_structural_prediction(
         &self,
-        state:
-            &athlesia_universal_domain_learning::
-                GroundedStateSnapshot,
-        transformation:
-            &CognitiveStructure,
-        schema_policy:
-            athlesia_universal_domain_learning::
-                TransitionSchemaPolicy,
-        model_policy:
-            athlesia_universal_domain_learning::
-                GroundedExecutableWorldModelPolicy,
-    ) -> Option<
-        athlesia_universal_domain_learning::
-            GroundedStructuralPrediction
-    > {
+        state: &athlesia_universal_domain_learning::GroundedStateSnapshot,
+        transformation: &CognitiveStructure,
+        schema_policy: athlesia_universal_domain_learning::TransitionSchemaPolicy,
+        model_policy: athlesia_universal_domain_learning::GroundedExecutableWorldModelPolicy,
+    ) -> Option<athlesia_universal_domain_learning::GroundedStructuralPrediction> {
         /*
          * M51 owns the retained transition evidence and the executable
          * model derived from it.
@@ -13454,36 +12572,18 @@ impl OnlinePersistentCognitiveState {
          * Structural prediction therefore belongs here rather than in a
          * protocol adapter.
          */
-        let model =
-            self.current_executable_world_model(
-                schema_policy,
-                model_policy,
-            )?;
+        let model = self.current_executable_world_model(schema_policy, model_policy)?;
 
-        Some(
-            model.predict(
-                state,
-                transformation,
-            ),
-        )
+        Some(model.predict(state, transformation))
     }
 
     pub fn empirical_authority_for_structural_prediction(
         &self,
-        prediction:
-            &athlesia_universal_domain_learning::
-                GroundedStructuralPrediction,
-        schema_policy:
-            athlesia_universal_domain_learning::
-                TransitionSchemaPolicy,
-        model_policy:
-            athlesia_universal_domain_learning::
-                GroundedExecutableWorldModelPolicy,
-    ) -> Option<
-        StructuralPredictionEmpiricalAuthority
-    > {
-        use athlesia_universal_domain_learning::
-            TransitionEffectKind;
+        prediction: &athlesia_universal_domain_learning::GroundedStructuralPrediction,
+        schema_policy: athlesia_universal_domain_learning::TransitionSchemaPolicy,
+        model_policy: athlesia_universal_domain_learning::GroundedExecutableWorldModelPolicy,
+    ) -> Option<StructuralPredictionEmpiricalAuthority> {
+        use athlesia_universal_domain_learning::TransitionEffectKind;
 
         if !prediction.predicted() {
             return None;
@@ -13493,40 +12593,23 @@ impl OnlinePersistentCognitiveState {
          * Reconstruct the current executable model from M51-owned retained
          * evidence. The adapter is not allowed to inspect schema support.
          */
-        let model =
-            self.current_executable_world_model(
-                schema_policy,
-                model_policy,
-            )?;
+        let model = self.current_executable_world_model(schema_policy, model_policy)?;
 
-        let supporting =
-            model
-                .schemas()
-                .iter()
-                .filter(
-                    |schema| {
-                        if schema.transformation()
-                            != prediction.transformation()
-                        {
-                            return false;
-                        }
+        let supporting = model
+            .schemas()
+            .iter()
+            .filter(|schema| {
+                if schema.transformation() != prediction.transformation() {
+                    return false;
+                }
 
-                        match schema.effect_kind() {
-                            TransitionEffectKind::Added =>
-                                prediction
-                                    .predicts_addition(
-                                        schema.fact(),
-                                    ),
+                match schema.effect_kind() {
+                    TransitionEffectKind::Added => prediction.predicts_addition(schema.fact()),
 
-                            TransitionEffectKind::Removed =>
-                                prediction
-                                    .predicts_removal(
-                                        schema.fact(),
-                                    ),
-                        }
-                    },
-                )
-                .collect::<Vec<_>>();
+                    TransitionEffectKind::Removed => prediction.predicts_removal(schema.fact()),
+                }
+            })
+            .collect::<Vec<_>>();
 
         if supporting.is_empty() {
             return None;
@@ -13538,105 +12621,57 @@ impl OnlinePersistentCognitiveState {
          * A multi-effect prediction cannot inherit stronger confidence or
          * controllability than its least-supported predicted component.
          */
-        let evidence_confidence =
-            supporting
-                .iter()
-                .map(
-                    |schema| {
-                        schema.precision()
-                    },
-                )
-                .min()?;
+        let evidence_confidence = supporting.iter().map(|schema| schema.precision()).min()?;
 
-        let controllability =
-            supporting
-                .iter()
-                .map(
-                    |schema| {
-                        schema.association_lift()
-                    },
-                )
-                .min()?;
+        let controllability = supporting
+            .iter()
+            .map(|schema| schema.association_lift())
+            .min()?;
 
-        if evidence_confidence
-                == CognitiveSignal::zero()
-            || controllability
-                == CognitiveSignal::zero()
+        if evidence_confidence == CognitiveSignal::zero()
+            || controllability == CognitiveSignal::zero()
         {
             return None;
         }
 
-        Some(
-            StructuralPredictionEmpiricalAuthority {
-                evidence_confidence,
-                controllability,
-            },
-        )
+        Some(StructuralPredictionEmpiricalAuthority {
+            evidence_confidence,
+            controllability,
+        })
     }
 
     pub fn current_empirically_authorized_structural_prediction(
         &self,
-        state:
-            &athlesia_universal_domain_learning::
-                GroundedStateSnapshot,
-        transformation:
-            &CognitiveStructure,
-        schema_policy:
-            athlesia_universal_domain_learning::
-                TransitionSchemaPolicy,
-        model_policy:
-            athlesia_universal_domain_learning::
-                GroundedExecutableWorldModelPolicy,
-    ) -> Option<
-        EmpiricallyAuthorizedStructuralPrediction
-    > {
+        state: &athlesia_universal_domain_learning::GroundedStateSnapshot,
+        transformation: &CognitiveStructure,
+        schema_policy: athlesia_universal_domain_learning::TransitionSchemaPolicy,
+        model_policy: athlesia_universal_domain_learning::GroundedExecutableWorldModelPolicy,
+    ) -> Option<EmpiricallyAuthorizedStructuralPrediction> {
         let prediction =
-            self.current_structural_prediction(
-                state,
-                transformation,
-                schema_policy,
-                model_policy,
-            )?;
+            self.current_structural_prediction(state, transformation, schema_policy, model_policy)?;
 
-        let authority =
-            self.empirical_authority_for_structural_prediction(
-                &prediction,
-                schema_policy,
-                model_policy,
-            )?;
+        let authority = self.empirical_authority_for_structural_prediction(
+            &prediction,
+            schema_policy,
+            model_policy,
+        )?;
 
-        Some(
-            EmpiricallyAuthorizedStructuralPrediction {
-                prediction,
-                authority,
-            },
-        )
+        Some(EmpiricallyAuthorizedStructuralPrediction {
+            prediction,
+            authority,
+        })
     }
 
     pub fn current_model_grounded_executive_candidate(
         &self,
-        state:
-            &athlesia_universal_domain_learning::
-                GroundedStateSnapshot,
-        transformation:
-            &CognitiveStructure,
-        goal:
-            &athlesia_executive_agency::
-                ExecutiveGoal,
-        goal_alignment:
-            CognitiveSignal,
-        execution_cost:
-            CognitiveSignal,
-        schema_policy:
-            athlesia_universal_domain_learning::
-                TransitionSchemaPolicy,
-        model_policy:
-            athlesia_universal_domain_learning::
-                GroundedExecutableWorldModelPolicy,
-    ) -> Option<
-        athlesia_executive_agency::
-            GroundedExecutiveActionCandidate
-    > {
+        state: &athlesia_universal_domain_learning::GroundedStateSnapshot,
+        transformation: &CognitiveStructure,
+        goal: &athlesia_executive_agency::ExecutiveGoal,
+        goal_alignment: CognitiveSignal,
+        execution_cost: CognitiveSignal,
+        schema_policy: athlesia_universal_domain_learning::TransitionSchemaPolicy,
+        model_policy: athlesia_universal_domain_learning::GroundedExecutableWorldModelPolicy,
+    ) -> Option<athlesia_executive_agency::GroundedExecutiveActionCandidate> {
         /*
          * Learned causal interpretation, empirical authority and conversion
          * into a generic M48 candidate are all cognitive-layer semantics.
@@ -13649,53 +12684,39 @@ impl OnlinePersistentCognitiveState {
          * - explicit execution cost,
          * - bounded runtime policies.
          */
-        let authorized_prediction =
-            self.current_empirically_authorized_structural_prediction(
-                state,
-                transformation,
-                schema_policy,
-                model_policy,
-            )?;
+        let authorized_prediction = self.current_empirically_authorized_structural_prediction(
+            state,
+            transformation,
+            schema_policy,
+            model_policy,
+        )?;
 
         let predicted_outcome =
-            Self::structural_prediction_outcome_identity(
-                authorized_prediction
-                    .prediction(),
-            )?;
+            Self::structural_prediction_outcome_identity(authorized_prediction.prediction())?;
 
         Some(
-            athlesia_executive_agency::
-                GroundedExecutiveActionCandidate::
-                    new(
-                        goal.identity().clone(),
-                        transformation.clone(),
-                        predicted_outcome,
-                        goal_alignment,
-                        authorized_prediction
-                            .controllability(),
-                        authorized_prediction
-                            .evidence_confidence(),
-                        /*
-                         * Learned-model exploitation is not an epistemic
-                         * experiment. Information gain remains zero rather
-                         * than being invented by an adapter.
-                         */
-                        CognitiveSignal::zero(),
-                        execution_cost,
-                    ),
+            athlesia_executive_agency::GroundedExecutiveActionCandidate::new(
+                goal.identity().clone(),
+                transformation.clone(),
+                predicted_outcome,
+                goal_alignment,
+                authorized_prediction.controllability(),
+                authorized_prediction.evidence_confidence(),
+                /*
+                 * Learned-model exploitation is not an epistemic
+                 * experiment. Information gain remains zero rather
+                 * than being invented by an adapter.
+                 */
+                CognitiveSignal::zero(),
+                execution_cost,
+            ),
         )
     }
 
     pub fn validate_experiment_proposal_source_state(
-        expected_source_state:
-            &CognitiveStructure,
-        proposal:
-            &athlesia_autonomous_active_experimentation::
-                AutonomousExperimentProposal,
-    ) -> Result<
-        (),
-        ExperimentProposalSourceBindingError
-    > {
+        expected_source_state: &CognitiveStructure,
+        proposal: &athlesia_autonomous_active_experimentation::AutonomousExperimentProposal,
+    ) -> Result<(), ExperimentProposalSourceBindingError> {
         /*
          * Exact M50 provenance is generic cognitive authority.
          *
@@ -13703,29 +12724,18 @@ impl OnlinePersistentCognitiveState {
          * to another state merely because its action remains executable in
          * the external protocol.
          */
-        if proposal.source_state()
-            != expected_source_state
-        {
-            return Err(
-                ExperimentProposalSourceBindingError::
-                    SourceStateMismatch,
-            );
+        if proposal.source_state() != expected_source_state {
+            return Err(ExperimentProposalSourceBindingError::SourceStateMismatch);
         }
 
         Ok(())
     }
 
     pub fn experiment_proposal_executive_candidate(
-        goal:
-            &athlesia_executive_agency::
-                ExecutiveGoal,
-        goal_alignment:
-            CognitiveSignal,
-        proposal:
-            &athlesia_autonomous_active_experimentation::
-                AutonomousExperimentProposal,
-    ) -> athlesia_executive_agency::
-        GroundedExecutiveActionCandidate {
+        goal: &athlesia_executive_agency::ExecutiveGoal,
+        goal_alignment: CognitiveSignal,
+        proposal: &athlesia_autonomous_active_experimentation::AutonomousExperimentProposal,
+    ) -> athlesia_executive_agency::GroundedExecutiveActionCandidate {
         /*
          * Generic M50 -> M48 semantic translation.
          *
@@ -13741,44 +12751,26 @@ impl OnlinePersistentCognitiveState {
          * M51 preserves those values exactly when forming the generic
          * executive candidate. No protocol adapter may reinterpret them.
          */
-        let evidence =
-            proposal.evidence();
+        let evidence = proposal.evidence();
 
-        athlesia_executive_agency::
-            GroundedExecutiveActionCandidate::
-                new(
-                    goal.identity().clone(),
-                    proposal
-                        .action()
-                        .clone(),
-                    proposal
-                        .predicted_outcome()
-                        .clone(),
-                    goal_alignment,
-                    evidence
-                        .controllability(),
-                    evidence
-                        .grounding_confidence(),
-                    evidence
-                        .expected_information_gain(),
-                    evidence
-                        .execution_cost(),
-                )
+        athlesia_executive_agency::GroundedExecutiveActionCandidate::new(
+            goal.identity().clone(),
+            proposal.action().clone(),
+            proposal.predicted_outcome().clone(),
+            goal_alignment,
+            evidence.controllability(),
+            evidence.grounding_confidence(),
+            evidence.expected_information_gain(),
+            evidence.execution_cost(),
+        )
     }
 
     pub fn current_selected_executive_candidate_with_provenance(
         &self,
-        bindings:
-            &[ExecutiveCandidateProvenanceBinding],
-        goal:
-            &athlesia_executive_agency::
-                ExecutiveGoal,
-        policy:
-            athlesia_executive_agency::
-                ExecutiveAgencyPolicy,
-    ) -> Option<
-        SelectedExecutiveCandidateProvenance
-    > {
+        bindings: &[ExecutiveCandidateProvenanceBinding],
+        goal: &athlesia_executive_agency::ExecutiveGoal,
+        policy: athlesia_executive_agency::ExecutiveAgencyPolicy,
+    ) -> Option<SelectedExecutiveCandidateProvenance> {
         if bindings.is_empty() {
             return None;
         }
@@ -13790,38 +12782,18 @@ impl OnlinePersistentCognitiveState {
          * cognitive candidates, but distinct source states remain explicit.
          */
         let mut candidates =
-            Vec::<
-                athlesia_executive_agency::
-                    GroundedExecutiveActionCandidate
-            >::new();
+            Vec::<athlesia_executive_agency::GroundedExecutiveActionCandidate>::new();
 
-        for binding in
-            bindings
-        {
+        for binding in bindings {
             if !candidates
                 .iter()
-                .any(
-                    |candidate| {
-                        candidate
-                            == binding
-                                .candidate()
-                    },
-                )
+                .any(|candidate| candidate == binding.candidate())
             {
-                candidates.push(
-                    binding
-                        .candidate()
-                        .clone(),
-                );
+                candidates.push(binding.candidate().clone());
             }
         }
 
-        let selected =
-            self.current_selected_executive_candidate(
-                &candidates,
-                goal,
-                policy,
-            )?;
+        let selected = self.current_selected_executive_candidate(&candidates, goal, policy)?;
 
         /*
          * Provenance is fail-closed.
@@ -13832,70 +12804,38 @@ impl OnlinePersistentCognitiveState {
          * But if the selected candidate is bound to two distinct source
          * states, no caller may arbitrarily choose one causal origin.
          */
-        let mut source_states =
-            Vec::<CognitiveStructure>::new();
+        let mut source_states = Vec::<CognitiveStructure>::new();
 
-        for binding in
-            bindings
-                .iter()
-                .filter(
-                    |binding| {
-                        binding.candidate()
-                            == &selected
-                    },
-                )
+        for binding in bindings
+            .iter()
+            .filter(|binding| binding.candidate() == &selected)
         {
             if !source_states
                 .iter()
-                .any(
-                    |source_state| {
-                        source_state
-                            == binding
-                                .source_state()
-                    },
-                )
+                .any(|source_state| source_state == binding.source_state())
             {
-                source_states.push(
-                    binding
-                        .source_state()
-                        .clone(),
-                );
+                source_states.push(binding.source_state().clone());
             }
         }
 
-        let source_state =
-            match source_states.as_slice() {
-                [source_state] =>
-                    source_state.clone(),
+        let source_state = match source_states.as_slice() {
+            [source_state] => source_state.clone(),
 
-                _ =>
-                    return None,
-            };
+            _ => return None,
+        };
 
-        Some(
-            SelectedExecutiveCandidateProvenance {
-                source_state,
-                candidate:
-                    selected,
-            },
-        )
+        Some(SelectedExecutiveCandidateProvenance {
+            source_state,
+            candidate: selected,
+        })
     }
 
     pub fn current_selected_executive_candidate(
         &self,
-        candidates:
-            &[athlesia_executive_agency::
-                GroundedExecutiveActionCandidate],
-        goal:
-            &athlesia_executive_agency::
-                ExecutiveGoal,
-        policy:
-            athlesia_executive_agency::
-                ExecutiveAgencyPolicy,
-    ) -> Option<
-        athlesia_executive_agency::
-            GroundedExecutiveActionCandidate
-    > {
+        candidates: &[athlesia_executive_agency::GroundedExecutiveActionCandidate],
+        goal: &athlesia_executive_agency::ExecutiveGoal,
+        policy: athlesia_executive_agency::ExecutiveAgencyPolicy,
+    ) -> Option<athlesia_executive_agency::GroundedExecutiveActionCandidate> {
         if candidates.is_empty() {
             return None;
         }
@@ -13907,21 +12847,13 @@ impl OnlinePersistentCognitiveState {
          * currently executable, but they must not own utility evaluation,
          * ranking, thresholding, or final cognitive selection.
          */
-        let executive =
-            athlesia_executive_agency::
-                UniversalExecutiveAgency::
-                    evaluate(
-                        std::slice::from_ref(
-                            goal,
-                        ),
-                        candidates,
-                        policy,
-                    );
+        let executive = athlesia_executive_agency::UniversalExecutiveAgency::evaluate(
+            std::slice::from_ref(goal),
+            candidates,
+            policy,
+        );
 
-        let selected =
-            executive
-                .selected()
-                .first()?;
+        let selected = executive.selected().first()?;
 
         /*
          * Recover the complete selected candidate identity from the M48
@@ -13930,54 +12862,28 @@ impl OnlinePersistentCognitiveState {
          * This matters when two candidates share the same action/outcome
          * identity but differ in evidence, information gain or cost.
          */
-        let selected_candidate =
-            athlesia_executive_agency::
-                GroundedExecutiveActionCandidate::
-                    new(
-                        selected
-                            .goal_identity()
-                            .clone(),
-                        selected
-                            .action()
-                            .clone(),
-                        selected
-                            .predicted_outcome()
-                            .clone(),
-                        selected
-                            .goal_alignment(),
-                        selected
-                            .controllability(),
-                        selected
-                            .evidence_confidence(),
-                        selected
-                            .information_gain(),
-                        selected
-                            .execution_cost(),
-                    );
+        let selected_candidate = athlesia_executive_agency::GroundedExecutiveActionCandidate::new(
+            selected.goal_identity().clone(),
+            selected.action().clone(),
+            selected.predicted_outcome().clone(),
+            selected.goal_alignment(),
+            selected.controllability(),
+            selected.evidence_confidence(),
+            selected.information_gain(),
+            selected.execution_cost(),
+        );
 
         candidates
             .iter()
-            .find(
-                |candidate| {
-                    *candidate
-                        == &selected_candidate
-                },
-            )
+            .find(|candidate| *candidate == &selected_candidate)
             .cloned()
     }
 
     pub fn current_executable_world_model(
         &self,
-        schema_policy:
-            athlesia_universal_domain_learning::
-                TransitionSchemaPolicy,
-        model_policy:
-            athlesia_universal_domain_learning::
-                GroundedExecutableWorldModelPolicy,
-    ) -> Option<
-        athlesia_universal_domain_learning::
-            GroundedExecutableWorldModel
-    > {
+        schema_policy: athlesia_universal_domain_learning::TransitionSchemaPolicy,
+        model_policy: athlesia_universal_domain_learning::GroundedExecutableWorldModelPolicy,
+    ) -> Option<athlesia_universal_domain_learning::GroundedExecutableWorldModel> {
         /*
          * M51 owns retained transition experience.
          *
@@ -13987,38 +12893,28 @@ impl OnlinePersistentCognitiveState {
          *
          * One observed transition cannot self-confirm an executable model.
          */
-        let episodes =
-            self
-                .transition_schema_learning()
-                .episodes();
+        let episodes = self.transition_schema_learning().episodes();
 
         if episodes.len() < 2 {
             return None;
         }
 
         let induction =
-            athlesia_universal_domain_learning::
-                UniversalTransitionSchemaInduction::
-                    evaluate(
-                        episodes,
-                        &[],
-                        schema_policy,
-                    );
+            athlesia_universal_domain_learning::UniversalTransitionSchemaInduction::evaluate(
+                episodes,
+                &[],
+                schema_policy,
+            );
 
-        if induction
-            .selected()
-            .is_empty()
-        {
+        if induction.selected().is_empty() {
             return None;
         }
 
         Some(
-            athlesia_universal_domain_learning::
-                UniversalGroundedExecutableWorldModel::
-                    build(
-                        induction.selected(),
-                        model_policy,
-                    ),
+            athlesia_universal_domain_learning::UniversalGroundedExecutableWorldModel::build(
+                induction.selected(),
+                model_policy,
+            ),
         )
     }
 
@@ -14048,79 +12944,46 @@ mod executive_candidate_provenance_tests {
     use super::*;
 
     use athlesia_executive_agency::{
-        ExecutiveAgencyPolicy,
-        ExecutiveGoal,
-        ExecutiveSelectionThresholds,
-        ExecutiveUtilityWeights,
-        GroundedExecutiveActionCandidate,
+        ExecutiveAgencyPolicy, ExecutiveGoal, ExecutiveSelectionThresholds,
+        ExecutiveUtilityWeights, GroundedExecutiveActionCandidate,
     };
 
-    fn signal(
-        value: u16,
-    ) -> CognitiveSignal {
-        CognitiveSignal::new(
-            value,
-        )
-        .expect(
-            "test signal is valid",
-        )
+    fn signal(value: u16) -> CognitiveSignal {
+        CognitiveSignal::new(value).expect("test signal is valid")
     }
 
-    fn atom(
-        value: u64,
-    ) -> CognitiveStructure {
-        CognitiveStructure::atom(
-            value,
-        )
+    fn atom(value: u64) -> CognitiveStructure {
+        CognitiveStructure::atom(value)
     }
 
-    fn goal(
-    ) -> ExecutiveGoal {
+    fn goal() -> ExecutiveGoal {
         ExecutiveGoal::new(
-            atom(
-                0x5034_4743_3132_474F,
-            ),
+            atom(0x5034_4743_3132_474F),
             signal(900),
             CognitiveSignal::zero(),
         )
     }
 
-    fn candidate(
-        goal:
-            &ExecutiveGoal,
-    ) -> GroundedExecutiveActionCandidate {
-        GroundedExecutiveActionCandidate::
-            new(
-                goal.identity().clone(),
-                atom(
-                    0x5034_4743_3132_4143,
-                ),
-                atom(
-                    0x5034_4743_3132_4F55,
-                ),
-                signal(900),
-                signal(800),
-                signal(800),
-                signal(700),
-                CognitiveSignal::zero(),
-            )
+    fn candidate(goal: &ExecutiveGoal) -> GroundedExecutiveActionCandidate {
+        GroundedExecutiveActionCandidate::new(
+            goal.identity().clone(),
+            atom(0x5034_4743_3132_4143),
+            atom(0x5034_4743_3132_4F55),
+            signal(900),
+            signal(800),
+            signal(800),
+            signal(700),
+            CognitiveSignal::zero(),
+        )
     }
 
-    fn policy(
-    ) -> ExecutiveAgencyPolicy {
+    fn policy() -> ExecutiveAgencyPolicy {
         ExecutiveAgencyPolicy::new(
             1,
             8,
             16,
             1,
-            ExecutiveUtilityWeights::new(
-                0,
-                0,
-                0,
-                1000,
-                0,
-            )
-            .unwrap(),
+            ExecutiveUtilityWeights::new(0, 0, 0, 1000, 0).unwrap(),
             ExecutiveSelectionThresholds::new(
                 signal(1),
                 signal(1),
@@ -14134,166 +12997,82 @@ mod executive_candidate_provenance_tests {
     }
 
     #[test]
-    fn repeated_same_candidate_same_source_preserves_authority(
-    ) {
-        let owner =
-            OnlinePersistentCognitiveState::
-                new();
+    fn repeated_same_candidate_same_source_preserves_authority() {
+        let owner = OnlinePersistentCognitiveState::new();
 
-        let goal =
-            goal();
+        let goal = goal();
 
-        let candidate =
-            candidate(
-                &goal,
-            );
+        let candidate = candidate(&goal);
 
-        let source =
-            atom(
-                0x5034_4743_3132_5351,
-            );
+        let source = atom(0x5034_4743_3132_5351);
 
-        let bindings =
-            vec![
-                ExecutiveCandidateProvenanceBinding::
-                    new(
-                        source.clone(),
-                        candidate.clone(),
-                    ),
-                ExecutiveCandidateProvenanceBinding::
-                    new(
-                        source.clone(),
-                        candidate.clone(),
-                    ),
-            ];
+        let bindings = vec![
+            ExecutiveCandidateProvenanceBinding::new(source.clone(), candidate.clone()),
+            ExecutiveCandidateProvenanceBinding::new(source.clone(), candidate.clone()),
+        ];
 
-        let selected =
-            owner
-                .current_selected_executive_candidate_with_provenance(
-                    &bindings,
-                    &goal,
-                    policy(),
-                )
-                .expect(
-                    "repeated identical provenance is not ambiguous",
-                );
+        let selected = owner
+            .current_selected_executive_candidate_with_provenance(&bindings, &goal, policy())
+            .expect("repeated identical provenance is not ambiguous");
 
-        assert_eq!(
-            selected.source_state(),
-            &source,
-        );
+        assert_eq!(selected.source_state(), &source,);
 
-        assert_eq!(
-            selected.candidate(),
-            &candidate,
-        );
+        assert_eq!(selected.candidate(), &candidate,);
     }
 
     #[test]
-    fn same_candidate_from_distinct_sources_fails_closed(
-    ) {
-        let owner =
-            OnlinePersistentCognitiveState::
-                new();
+    fn same_candidate_from_distinct_sources_fails_closed() {
+        let owner = OnlinePersistentCognitiveState::new();
 
-        let goal =
-            goal();
+        let goal = goal();
 
-        let candidate =
-            candidate(
-                &goal,
-            );
+        let candidate = candidate(&goal);
 
-        let bindings =
-            vec![
-                ExecutiveCandidateProvenanceBinding::
-                    new(
-                        atom(
-                            0x5034_4743_3132_5351,
-                        ),
-                        candidate.clone(),
-                    ),
-                ExecutiveCandidateProvenanceBinding::
-                    new(
-                        atom(
-                            0x5034_4743_3132_5352,
-                        ),
-                        candidate,
-                    ),
-            ];
+        let bindings = vec![
+            ExecutiveCandidateProvenanceBinding::new(
+                atom(0x5034_4743_3132_5351),
+                candidate.clone(),
+            ),
+            ExecutiveCandidateProvenanceBinding::new(atom(0x5034_4743_3132_5352), candidate),
+        ];
 
         assert_eq!(
-            owner
-                .current_selected_executive_candidate_with_provenance(
-                    &bindings,
-                    &goal,
-                    policy(),
-                ),
+            owner.current_selected_executive_candidate_with_provenance(&bindings, &goal, policy(),),
             None,
             "one selected candidate with conflicting causal source states must abstain",
         );
     }
 }
 
-
 #[cfg(test)]
 mod grounded_execution_source_state_identity_tests {
     use super::*;
 
-    fn a(
-        value: u64,
-    ) -> CognitiveStructure {
-        CognitiveStructure::atom(
-            value,
-        )
+    fn a(value: u64) -> CognitiveStructure {
+        CognitiveStructure::atom(value)
     }
 
     #[test]
-    fn direct_execution_provenance_preserves_grounded_state_without_c3b_epistemic_tag(
-    ) {
-        let state =
-            athlesia_universal_domain_learning::
-                GroundedStateSnapshot::new(
-                    vec![
-                        a(
-                            0x5034_4743_3133_0001,
-                        ),
-                        a(
-                            0x5034_4743_3133_0002,
-                        ),
-                    ],
-                )
-                .expect(
-                    "test state must be grounded",
-                );
+    fn direct_execution_provenance_preserves_grounded_state_without_c3b_epistemic_tag() {
+        let state = athlesia_universal_domain_learning::GroundedStateSnapshot::new(vec![
+            a(0x5034_4743_3133_0001),
+            a(0x5034_4743_3133_0002),
+        ])
+        .expect("test state must be grounded");
 
         let execution_identity =
-            OnlinePersistentCognitiveState::
-                grounded_execution_source_state_identity(
-                    &state,
-                );
+            OnlinePersistentCognitiveState::grounded_execution_source_state_identity(&state);
 
-        let expected =
-            CognitiveStructure::unordered(
-                state
-                    .facts()
-                    .to_vec(),
-            )
-            .expect(
-                "grounded test state contains facts",
-            );
+        let expected = CognitiveStructure::unordered(state.facts().to_vec())
+            .expect("grounded test state contains facts");
 
         assert_eq!(
-            execution_identity,
-            expected,
+            execution_identity, expected,
             "direct execution provenance must preserve exact grounded fact-set identity",
         );
 
         let c3b_epistemic_identity =
-            OnlinePersistentCognitiveState::
-                c3b_source_state_identity(
-                    &state,
-                );
+            OnlinePersistentCognitiveState::c3b_source_state_identity(&state);
 
         assert_ne!(
             execution_identity,
@@ -14303,39 +13082,23 @@ mod grounded_execution_source_state_identity_tests {
     }
 }
 
-
 #[cfg(test)]
 mod m50_source_state_binding_tests {
     use super::*;
 
     use athlesia_autonomous_active_experimentation::{
-        AutonomousExperimentProposal,
-        ExperimentEvidence,
+        AutonomousExperimentProposal, ExperimentEvidence,
     };
 
-    fn signal(
-        value: u16,
-    ) -> CognitiveSignal {
-        CognitiveSignal::new(
-            value,
-        )
-        .expect(
-            "test signal is valid",
-        )
+    fn signal(value: u16) -> CognitiveSignal {
+        CognitiveSignal::new(value).expect("test signal is valid")
     }
 
-    fn proposal(
-        source_state:
-            CognitiveStructure,
-    ) -> AutonomousExperimentProposal {
+    fn proposal(source_state: CognitiveStructure) -> AutonomousExperimentProposal {
         AutonomousExperimentProposal::new(
             source_state,
-            CognitiveStructure::atom(
-                0x5034_4743_3131_4143,
-            ),
-            CognitiveStructure::atom(
-                0x5034_4743_3131_4F55,
-            ),
+            CognitiveStructure::atom(0x5034_4743_3131_4143),
+            CognitiveStructure::atom(0x5034_4743_3131_4F55),
             ExperimentEvidence::new(
                 signal(700),
                 signal(800),
@@ -14343,178 +13106,100 @@ mod m50_source_state_binding_tests {
                 signal(650),
                 signal(100),
             )
-            .expect(
-                "test experiment evidence is valid",
-            ),
+            .expect("test experiment evidence is valid"),
         )
     }
 
     #[test]
-    fn exact_source_state_is_accepted(
-    ) {
-        let expected =
-            CognitiveStructure::atom(
-                0x5034_4743_3131_5352,
-            );
+    fn exact_source_state_is_accepted() {
+        let expected = CognitiveStructure::atom(0x5034_4743_3131_5352);
 
-        let proposal =
-            proposal(
-                expected.clone(),
-            );
+        let proposal = proposal(expected.clone());
 
         assert_eq!(
-            OnlinePersistentCognitiveState::
-                validate_experiment_proposal_source_state(
-                    &expected,
-                    &proposal,
-                ),
+            OnlinePersistentCognitiveState::validate_experiment_proposal_source_state(
+                &expected, &proposal,
+            ),
             Ok(()),
         );
     }
 
     #[test]
-    fn stale_source_state_fails_closed(
-    ) {
-        let expected =
-            CognitiveStructure::atom(
-                0x5034_4743_3131_5352,
-            );
+    fn stale_source_state_fails_closed() {
+        let expected = CognitiveStructure::atom(0x5034_4743_3131_5352);
 
-        let stale =
-            CognitiveStructure::atom(
-                0x5034_4743_3131_5353,
-            );
+        let stale = CognitiveStructure::atom(0x5034_4743_3131_5353);
 
-        let proposal =
-            proposal(
-                stale,
-            );
+        let proposal = proposal(stale);
 
         assert_eq!(
-            OnlinePersistentCognitiveState::
-                validate_experiment_proposal_source_state(
-                    &expected,
-                    &proposal,
-                ),
-            Err(
-                ExperimentProposalSourceBindingError::
-                    SourceStateMismatch,
+            OnlinePersistentCognitiveState::validate_experiment_proposal_source_state(
+                &expected, &proposal,
             ),
+            Err(ExperimentProposalSourceBindingError::SourceStateMismatch,),
         );
     }
 }
-
 
 #[cfg(test)]
 mod m50_to_m48_candidate_grounding_tests {
     use super::*;
 
     use athlesia_autonomous_active_experimentation::{
-        AutonomousExperimentProposal,
-        ExperimentEvidence,
+        AutonomousExperimentProposal, ExperimentEvidence,
     };
 
-    use athlesia_executive_agency::
-        ExecutiveGoal;
+    use athlesia_executive_agency::ExecutiveGoal;
 
-    fn signal(
-        value: u16,
-    ) -> CognitiveSignal {
-        CognitiveSignal::new(
-            value,
-        )
-        .expect(
-            "test signal is valid",
-        )
+    fn signal(value: u16) -> CognitiveSignal {
+        CognitiveSignal::new(value).expect("test signal is valid")
     }
 
-    fn atom(
-        value: u64,
-    ) -> CognitiveStructure {
-        CognitiveStructure::atom(
-            value,
-        )
+    fn atom(value: u64) -> CognitiveStructure {
+        CognitiveStructure::atom(value)
     }
 
     #[test]
-    fn exact_m50_evidence_becomes_m48_candidate_without_reinterpretation(
-    ) {
-        let goal =
-            ExecutiveGoal::new(
-                atom(
-                    0x5034_4743_3130_474F,
-                ),
-                signal(900),
-                signal(100),
-            );
+    fn exact_m50_evidence_becomes_m48_candidate_without_reinterpretation() {
+        let goal = ExecutiveGoal::new(atom(0x5034_4743_3130_474F), signal(900), signal(100));
 
-        let action =
-            atom(
-                0x5034_4743_3130_4143,
-            );
+        let action = atom(0x5034_4743_3130_4143);
 
-        let predicted_outcome =
-            atom(
-                0x5034_4743_3130_4F55,
-            );
+        let predicted_outcome = atom(0x5034_4743_3130_4F55);
 
-        let evidence =
-            ExperimentEvidence::new(
-                signal(710),
-                signal(820),
-                signal(730),
-                signal(640),
-                signal(190),
-            )
-            .expect(
-                "explicit evidence is valid",
-            );
+        let evidence = ExperimentEvidence::new(
+            signal(710),
+            signal(820),
+            signal(730),
+            signal(640),
+            signal(190),
+        )
+        .expect("explicit evidence is valid");
 
-        let proposal =
-            AutonomousExperimentProposal::new(
-                atom(
-                    0x5034_4743_3130_5352,
-                ),
-                action.clone(),
-                predicted_outcome.clone(),
-                evidence,
-            );
-
-        let goal_alignment =
-            signal(555);
-
-        let candidate =
-            OnlinePersistentCognitiveState::
-                experiment_proposal_executive_candidate(
-                    &goal,
-                    goal_alignment,
-                    &proposal,
-                );
-
-        assert_eq!(
-            candidate.goal_identity(),
-            goal.identity(),
+        let proposal = AutonomousExperimentProposal::new(
+            atom(0x5034_4743_3130_5352),
+            action.clone(),
+            predicted_outcome.clone(),
+            evidence,
         );
 
-        assert_eq!(
-            candidate.action(),
-            &action,
-        );
+        let goal_alignment = signal(555);
 
-        assert_eq!(
-            candidate.predicted_outcome(),
-            &predicted_outcome,
-        );
-
-        assert_eq!(
-            candidate.goal_alignment(),
+        let candidate = OnlinePersistentCognitiveState::experiment_proposal_executive_candidate(
+            &goal,
             goal_alignment,
+            &proposal,
         );
 
-        assert_eq!(
-            candidate.controllability(),
-            evidence.controllability(),
-        );
+        assert_eq!(candidate.goal_identity(), goal.identity(),);
+
+        assert_eq!(candidate.action(), &action,);
+
+        assert_eq!(candidate.predicted_outcome(), &predicted_outcome,);
+
+        assert_eq!(candidate.goal_alignment(), goal_alignment,);
+
+        assert_eq!(candidate.controllability(), evidence.controllability(),);
 
         assert_eq!(
             candidate.evidence_confidence(),
@@ -14526,70 +13211,40 @@ mod m50_to_m48_candidate_grounding_tests {
             evidence.expected_information_gain(),
         );
 
-        assert_eq!(
-            candidate.execution_cost(),
-            evidence.execution_cost(),
-        );
+        assert_eq!(candidate.execution_cost(), evidence.execution_cost(),);
     }
 }
-
 
 #[cfg(test)]
 mod m48_selection_owner_tests {
     use super::*;
 
     use athlesia_executive_agency::{
-        ExecutiveAgencyPolicy,
-        ExecutiveGoal,
-        ExecutiveSelectionThresholds,
-        ExecutiveUtilityWeights,
-        GroundedExecutiveActionCandidate,
+        ExecutiveAgencyPolicy, ExecutiveGoal, ExecutiveSelectionThresholds,
+        ExecutiveUtilityWeights, GroundedExecutiveActionCandidate,
     };
 
-    fn signal(
-        value: u16,
-    ) -> CognitiveSignal {
-        CognitiveSignal::new(
-            value,
-        )
-        .expect(
-            "test signal is valid",
-        )
+    fn signal(value: u16) -> CognitiveSignal {
+        CognitiveSignal::new(value).expect("test signal is valid")
     }
 
-    fn atom(
-        value: u64,
-    ) -> CognitiveStructure {
-        CognitiveStructure::atom(
-            value,
-        )
+    fn atom(value: u64) -> CognitiveStructure {
+        CognitiveStructure::atom(value)
     }
 
     #[test]
-    fn same_action_and_outcome_preserve_full_selected_candidate_identity(
-    ) {
-        let state =
-            OnlinePersistentCognitiveState::
-                new();
+    fn same_action_and_outcome_preserve_full_selected_candidate_identity() {
+        let state = OnlinePersistentCognitiveState::new();
 
-        let goal =
-            ExecutiveGoal::new(
-                atom(
-                    0x5034_4743_3954_474F,
-                ),
-                signal(900),
-                CognitiveSignal::zero(),
-            );
+        let goal = ExecutiveGoal::new(
+            atom(0x5034_4743_3954_474F),
+            signal(900),
+            CognitiveSignal::zero(),
+        );
 
-        let action =
-            atom(
-                0x5034_4743_3941_4354,
-            );
+        let action = atom(0x5034_4743_3941_4354);
 
-        let predicted_outcome =
-            atom(
-                0x5034_4743_394F_5554,
-            );
+        let predicted_outcome = atom(0x5034_4743_394F_5554);
 
         /*
          * SAME goal/action/outcome/controllability.
@@ -14599,87 +13254,64 @@ mod m48_selection_owner_tests {
          *
          * An action+outcome-only reverse binding cannot distinguish them.
          */
-        let evidence_candidate =
-            GroundedExecutiveActionCandidate::
-                new(
-                    goal.identity().clone(),
-                    action.clone(),
-                    predicted_outcome.clone(),
-                    signal(900),
-                    signal(900),
-                    signal(900),
-                    signal(100),
-                    CognitiveSignal::zero(),
-                );
+        let evidence_candidate = GroundedExecutiveActionCandidate::new(
+            goal.identity().clone(),
+            action.clone(),
+            predicted_outcome.clone(),
+            signal(900),
+            signal(900),
+            signal(900),
+            signal(100),
+            CognitiveSignal::zero(),
+        );
 
-        let information_candidate =
-            GroundedExecutiveActionCandidate::
-                new(
-                    goal.identity().clone(),
-                    action,
-                    predicted_outcome,
-                    signal(900),
-                    signal(900),
-                    signal(600),
-                    signal(900),
-                    CognitiveSignal::zero(),
-                );
+        let information_candidate = GroundedExecutiveActionCandidate::new(
+            goal.identity().clone(),
+            action,
+            predicted_outcome,
+            signal(900),
+            signal(900),
+            signal(600),
+            signal(900),
+            CognitiveSignal::zero(),
+        );
 
-        let policy =
-            ExecutiveAgencyPolicy::new(
-                1,
-                8,
-                16,
-                1,
-                ExecutiveUtilityWeights::new(
-                    0,
-                    0,
-                    0,
-                    1000,
-                    0,
-                )
-                .unwrap(),
-                ExecutiveSelectionThresholds::new(
-                    signal(1),
-                    signal(1),
-                    signal(1),
-                    signal(1),
-                    signal(1),
-                )
-                .unwrap(),
+        let policy = ExecutiveAgencyPolicy::new(
+            1,
+            8,
+            16,
+            1,
+            ExecutiveUtilityWeights::new(0, 0, 0, 1000, 0).unwrap(),
+            ExecutiveSelectionThresholds::new(
+                signal(1),
+                signal(1),
+                signal(1),
+                signal(1),
+                signal(1),
             )
-            .unwrap();
+            .unwrap(),
+        )
+        .unwrap();
 
-        let selected =
-            state
-                .current_selected_executive_candidate(
-                    &[
-                        evidence_candidate
-                            .clone(),
-                        information_candidate
-                            .clone(),
-                    ],
-                    &goal,
-                    policy,
-                )
-                .expect(
-                    "M48 must select one candidate",
-                );
+        let selected = state
+            .current_selected_executive_candidate(
+                &[evidence_candidate.clone(), information_candidate.clone()],
+                &goal,
+                policy,
+            )
+            .expect("M48 must select one candidate");
 
         assert_eq!(
-            selected,
-            information_candidate,
+            selected, information_candidate,
             "full M48 candidate identity must survive final selection",
         );
 
         assert_ne!(
-            selected,
-            evidence_candidate,
+            selected, evidence_candidate,
             "same action/outcome must not collapse distinct authority",
         );
     }
 }
-
 
 #[cfg(test)]
 mod retained_grouping_behavior_owner_tests {
@@ -14822,17 +13454,15 @@ mod endogenous_transition_schema_learning_tests {
 
     fn scene(handles: &[u64]) -> SceneInterpretation {
         SceneInterpretation::new(
-            vec![
-                ObjectHypothesis::new(
-                    handles
-                        .iter()
-                        .copied()
-                        .map(PerceptualElementHandle::new)
-                        .collect(),
-                    objecthood(),
-                )
-                .expect("test object hypothesis is valid"),
-            ],
+            vec![ObjectHypothesis::new(
+                handles
+                    .iter()
+                    .copied()
+                    .map(PerceptualElementHandle::new)
+                    .collect(),
+                objecthood(),
+            )
+            .expect("test object hypothesis is valid")],
             s(900),
         )
         .expect("test scene is valid")
@@ -14920,16 +13550,11 @@ mod endogenous_transition_schema_learning_tests {
             .expect("learning policy is valid")
     }
 
-
     fn representation_snapshot(
         facts: &[u64],
     ) -> athlesia_universal_domain_learning::GroundedStateSnapshot {
         athlesia_universal_domain_learning::GroundedStateSnapshot::new(
-            facts
-                .iter()
-                .copied()
-                .map(a)
-                .collect(),
+            facts.iter().copied().map(a).collect(),
         )
         .expect("representation fixture requires at least one grounded fact")
     }
@@ -14962,14 +13587,11 @@ mod endogenous_transition_schema_learning_tests {
         let state = EndogenousTransitionSchemaLearningState::new();
 
         let result =
-            state.empirical_successor_representation_qualification(
-                &representation_snapshot(&[10]),
-            );
+            state.empirical_successor_representation_qualification(&representation_snapshot(&[10]));
 
         assert_eq!(
             result.status(),
-            EmpiricalSuccessorRepresentationQualificationStatus::
-                UnknownNoRetainedEvidence,
+            EmpiricalSuccessorRepresentationQualificationStatus::UnknownNoRetainedEvidence,
         );
         assert_eq!(result.independent_event_count(), 0);
         assert!(!result.is_qualified());
@@ -14977,23 +13599,15 @@ mod endogenous_transition_schema_learning_tests {
 
     #[test]
     fn empirical_successor_representation_exact_before_match_is_qualified() {
-        let (episode, provenance) =
-            representation_sample(
-                10,
-                &[10, 20],
-                &[10, 30],
-                500,
-            );
+        let (episode, provenance) = representation_sample(10, &[10, 20], &[10, 30], 500);
 
         let state = EndogenousTransitionSchemaLearningState {
             episodes: vec![episode],
             event_provenance: vec![provenance],
         };
 
-        let result =
-            state.empirical_successor_representation_qualification(
-                &representation_snapshot(&[20, 10]),
-            );
+        let result = state
+            .empirical_successor_representation_qualification(&representation_snapshot(&[20, 10]));
 
         assert_eq!(
             result.status(),
@@ -15006,37 +13620,17 @@ mod endogenous_transition_schema_learning_tests {
 
     #[test]
     fn empirical_successor_representation_distinct_events_are_independent_support() {
-        let (episode_one, provenance_one) =
-            representation_sample(
-                10,
-                &[10, 20],
-                &[30],
-                500,
-            );
+        let (episode_one, provenance_one) = representation_sample(10, &[10, 20], &[30], 500);
 
-        let (episode_two, provenance_two) =
-            representation_sample(
-                11,
-                &[20, 10],
-                &[40],
-                501,
-            );
+        let (episode_two, provenance_two) = representation_sample(11, &[20, 10], &[40], 501);
 
         let state = EndogenousTransitionSchemaLearningState {
-            episodes: vec![
-                episode_one,
-                episode_two,
-            ],
-            event_provenance: vec![
-                provenance_one,
-                provenance_two,
-            ],
+            episodes: vec![episode_one, episode_two],
+            event_provenance: vec![provenance_one, provenance_two],
         };
 
-        let result =
-            state.empirical_successor_representation_qualification(
-                &representation_snapshot(&[10, 20]),
-            );
+        let result = state
+            .empirical_successor_representation_qualification(&representation_snapshot(&[10, 20]));
 
         assert_eq!(
             result.status(),
@@ -15052,13 +13646,7 @@ mod endogenous_transition_schema_learning_tests {
 
     #[test]
     fn empirical_successor_representation_partial_subset_cannot_be_promoted_to_exact_support() {
-        let (episode, provenance) =
-            representation_sample(
-                10,
-                &[10, 20],
-                &[30],
-                500,
-            );
+        let (episode, provenance) = representation_sample(10, &[10, 20], &[30], 500);
 
         let state = EndogenousTransitionSchemaLearningState {
             episodes: vec![episode],
@@ -15066,9 +13654,7 @@ mod endogenous_transition_schema_learning_tests {
         };
 
         let result =
-            state.empirical_successor_representation_qualification(
-                &representation_snapshot(&[10]),
-            );
+            state.empirical_successor_representation_qualification(&representation_snapshot(&[10]));
 
         assert_eq!(
             result.status(),
@@ -15081,13 +13667,7 @@ mod endogenous_transition_schema_learning_tests {
 
     #[test]
     fn empirical_successor_representation_historical_after_state_cannot_qualify_current_query() {
-        let (episode, provenance) =
-            representation_sample(
-                10,
-                &[10],
-                &[20],
-                500,
-            );
+        let (episode, provenance) = representation_sample(10, &[10], &[20], 500);
 
         let state = EndogenousTransitionSchemaLearningState {
             episodes: vec![episode],
@@ -15095,9 +13675,7 @@ mod endogenous_transition_schema_learning_tests {
         };
 
         let result =
-            state.empirical_successor_representation_qualification(
-                &representation_snapshot(&[20]),
-            );
+            state.empirical_successor_representation_qualification(&representation_snapshot(&[20]));
 
         assert_eq!(
             result.status(),
@@ -15110,23 +13688,15 @@ mod endogenous_transition_schema_learning_tests {
 
     #[test]
     fn empirical_successor_representation_cardinality_corruption_fails_closed() {
-        let (episode, _provenance) =
-            representation_sample(
-                10,
-                &[10],
-                &[20],
-                500,
-            );
+        let (episode, _provenance) = representation_sample(10, &[10], &[20], 500);
 
         let malformed = EndogenousTransitionSchemaLearningState {
             episodes: vec![episode],
             event_provenance: Vec::new(),
         };
 
-        let result =
-            malformed.empirical_successor_representation_qualification(
-                &representation_snapshot(&[10]),
-            );
+        let result = malformed
+            .empirical_successor_representation_qualification(&representation_snapshot(&[10]));
 
         assert_eq!(
             result.status(),
@@ -15139,21 +13709,9 @@ mod endogenous_transition_schema_learning_tests {
 
     #[test]
     fn empirical_successor_representation_duplicate_event_identity_fails_closed() {
-        let (episode_one, provenance_one) =
-            representation_sample(
-                10,
-                &[10],
-                &[20],
-                500,
-            );
+        let (episode_one, provenance_one) = representation_sample(10, &[10], &[20], 500);
 
-        let (episode_two, mut provenance_two) =
-            representation_sample(
-                11,
-                &[10],
-                &[30],
-                501,
-            );
+        let (episode_two, mut provenance_two) = representation_sample(11, &[10], &[30], 501);
 
         /*
          * Construct an impossible retained state deliberately.
@@ -15161,24 +13719,15 @@ mod endogenous_transition_schema_learning_tests {
          * instead of silently double-counting if the invariant is ever
          * violated by future code.
          */
-        provenance_two.event_index =
-            provenance_one.event_index;
+        provenance_two.event_index = provenance_one.event_index;
 
         let malformed = EndogenousTransitionSchemaLearningState {
-            episodes: vec![
-                episode_one,
-                episode_two,
-            ],
-            event_provenance: vec![
-                provenance_one,
-                provenance_two,
-            ],
+            episodes: vec![episode_one, episode_two],
+            event_provenance: vec![provenance_one, provenance_two],
         };
 
-        let result =
-            malformed.empirical_successor_representation_qualification(
-                &representation_snapshot(&[10]),
-            );
+        let result = malformed
+            .empirical_successor_representation_qualification(&representation_snapshot(&[10]));
 
         assert_eq!(
             result.status(),
@@ -15189,207 +13738,116 @@ mod endogenous_transition_schema_learning_tests {
         assert!(!result.is_qualified());
     }
 
-
     fn successor_frequency_count(
         result: &ActionQualifiedEmpiricalSuccessorFrequency,
         successor_facts: &[u64],
     ) -> Option<usize> {
-        let successor =
-            representation_snapshot(successor_facts);
+        let successor = representation_snapshot(successor_facts);
 
         result
             .successor_frequencies()
             .iter()
-            .find(|entry| {
-                entry.successor_representation()
-                    == &successor
-            })
-            .map(
-                EmpiricalSuccessorFrequencyEntry::
-                    independent_event_count,
-            )
+            .find(|entry| entry.successor_representation() == &successor)
+            .map(EmpiricalSuccessorFrequencyEntry::independent_event_count)
     }
 
     #[test]
     fn empirical_successor_frequency_fresh_state_abstains_without_representation_support() {
-        let state =
-            EndogenousTransitionSchemaLearningState::new();
+        let state = EndogenousTransitionSchemaLearningState::new();
 
-        let result =
-            state.action_qualified_empirical_successor_frequency(
-                &representation_snapshot(&[10]),
-                &a(500),
-            );
+        let result = state.action_qualified_empirical_successor_frequency(
+            &representation_snapshot(&[10]),
+            &a(500),
+        );
 
         assert_eq!(
             result.status(),
-            EmpiricalSuccessorFrequencyStatus::
-                UnknownRepresentation(
-                    EmpiricalSuccessorRepresentationQualificationStatus::
-                        UnknownNoRetainedEvidence,
-                ),
+            EmpiricalSuccessorFrequencyStatus::UnknownRepresentation(
+                EmpiricalSuccessorRepresentationQualificationStatus::UnknownNoRetainedEvidence,
+            ),
         );
 
-        assert_eq!(
-            result.independent_action_event_count(),
-            0,
-        );
+        assert_eq!(result.independent_action_event_count(), 0,);
 
-        assert_eq!(
-            result.distinct_successor_count(),
-            0,
-        );
+        assert_eq!(result.distinct_successor_count(), 0,);
 
         assert!(!result.is_qualified());
     }
 
     #[test]
-    fn empirical_successor_frequency_requires_exact_action_support_after_representation_qualification() {
-        let (episode, provenance) =
-            representation_sample(
-                10,
-                &[10],
-                &[20],
-                500,
-            );
+    fn empirical_successor_frequency_requires_exact_action_support_after_representation_qualification(
+    ) {
+        let (episode, provenance) = representation_sample(10, &[10], &[20], 500);
 
-        let state =
-            EndogenousTransitionSchemaLearningState {
-                episodes: vec![episode],
-                event_provenance: vec![provenance],
-            };
+        let state = EndogenousTransitionSchemaLearningState {
+            episodes: vec![episode],
+            event_provenance: vec![provenance],
+        };
 
-        let result =
-            state.action_qualified_empirical_successor_frequency(
-                &representation_snapshot(&[10]),
-                &a(600),
-            );
+        let result = state.action_qualified_empirical_successor_frequency(
+            &representation_snapshot(&[10]),
+            &a(600),
+        );
 
         assert_eq!(
             result.status(),
-            EmpiricalSuccessorFrequencyStatus::
-                UnknownNoActionQualifiedSamples,
+            EmpiricalSuccessorFrequencyStatus::UnknownNoActionQualifiedSamples,
         );
 
-        assert_eq!(
-            result.independent_action_event_count(),
-            0,
-        );
+        assert_eq!(result.independent_action_event_count(), 0,);
 
-        assert_eq!(
-            result.distinct_successor_count(),
-            0,
-        );
+        assert_eq!(result.distinct_successor_count(), 0,);
 
         assert!(!result.is_qualified());
     }
 
     #[test]
     fn empirical_successor_frequency_counts_distinct_successors_for_exact_state_and_action() {
-        let (episode_one, provenance_one) =
-            representation_sample(
-                10,
-                &[10],
-                &[20],
-                500,
-            );
+        let (episode_one, provenance_one) = representation_sample(10, &[10], &[20], 500);
 
-        let (episode_two, provenance_two) =
-            representation_sample(
-                11,
-                &[10],
-                &[30],
-                500,
-            );
+        let (episode_two, provenance_two) = representation_sample(11, &[10], &[30], 500);
 
-        let state =
-            EndogenousTransitionSchemaLearningState {
-                episodes: vec![
-                    episode_one,
-                    episode_two,
-                ],
-                event_provenance: vec![
-                    provenance_one,
-                    provenance_two,
-                ],
-            };
+        let state = EndogenousTransitionSchemaLearningState {
+            episodes: vec![episode_one, episode_two],
+            event_provenance: vec![provenance_one, provenance_two],
+        };
 
-        let result =
-            state.action_qualified_empirical_successor_frequency(
-                &representation_snapshot(&[10]),
-                &a(500),
-            );
+        let result = state.action_qualified_empirical_successor_frequency(
+            &representation_snapshot(&[10]),
+            &a(500),
+        );
 
         assert_eq!(
             result.status(),
-            EmpiricalSuccessorFrequencyStatus::
-                QualifiedActionEmpiricalFrequency,
+            EmpiricalSuccessorFrequencyStatus::QualifiedActionEmpiricalFrequency,
         );
 
-        assert_eq!(
-            result.independent_action_event_count(),
-            2,
-        );
+        assert_eq!(result.independent_action_event_count(), 2,);
 
-        assert_eq!(
-            result.distinct_successor_count(),
-            2,
-        );
+        assert_eq!(result.distinct_successor_count(), 2,);
 
-        assert_eq!(
-            successor_frequency_count(
-                &result,
-                &[20],
-            ),
-            Some(1),
-        );
+        assert_eq!(successor_frequency_count(&result, &[20],), Some(1),);
 
-        assert_eq!(
-            successor_frequency_count(
-                &result,
-                &[30],
-            ),
-            Some(1),
-        );
+        assert_eq!(successor_frequency_count(&result, &[30],), Some(1),);
 
         assert!(result.is_qualified());
     }
 
     #[test]
     fn empirical_successor_frequency_identical_successor_from_distinct_events_counts_twice() {
-        let (episode_one, provenance_one) =
-            representation_sample(
-                10,
-                &[10],
-                &[20],
-                500,
-            );
+        let (episode_one, provenance_one) = representation_sample(10, &[10], &[20], 500);
 
-        let (episode_two, provenance_two) =
-            representation_sample(
-                11,
-                &[10],
-                &[20],
-                500,
-            );
+        let (episode_two, provenance_two) = representation_sample(11, &[10], &[20], 500);
 
-        let state =
-            EndogenousTransitionSchemaLearningState {
-                episodes: vec![
-                    episode_one,
-                    episode_two,
-                ],
-                event_provenance: vec![
-                    provenance_one,
-                    provenance_two,
-                ],
-            };
+        let state = EndogenousTransitionSchemaLearningState {
+            episodes: vec![episode_one, episode_two],
+            event_provenance: vec![provenance_one, provenance_two],
+        };
 
-        let result =
-            state.action_qualified_empirical_successor_frequency(
-                &representation_snapshot(&[10]),
-                &a(500),
-            );
+        let result = state.action_qualified_empirical_successor_frequency(
+            &representation_snapshot(&[10]),
+            &a(500),
+        );
 
         assert_eq!(
             result.independent_action_event_count(),
@@ -15397,73 +13855,34 @@ mod endogenous_transition_schema_learning_tests {
             "two B1-unique environment events are two legitimate samples",
         );
 
-        assert_eq!(
-            result.distinct_successor_count(),
-            1,
-        );
+        assert_eq!(result.distinct_successor_count(), 1,);
 
-        assert_eq!(
-            successor_frequency_count(
-                &result,
-                &[20],
-            ),
-            Some(2),
-        );
+        assert_eq!(successor_frequency_count(&result, &[20],), Some(2),);
     }
 
     #[test]
     fn empirical_successor_frequency_never_mixes_other_actions_into_requested_action_counts() {
         let (action_500_episode, action_500_provenance) =
-            representation_sample(
-                10,
-                &[10],
-                &[20],
-                500,
-            );
+            representation_sample(10, &[10], &[20], 500);
 
         let (action_600_episode, action_600_provenance) =
-            representation_sample(
-                11,
-                &[10],
-                &[30],
-                600,
-            );
+            representation_sample(11, &[10], &[30], 600);
 
-        let state =
-            EndogenousTransitionSchemaLearningState {
-                episodes: vec![
-                    action_500_episode,
-                    action_600_episode,
-                ],
-                event_provenance: vec![
-                    action_500_provenance,
-                    action_600_provenance,
-                ],
-            };
+        let state = EndogenousTransitionSchemaLearningState {
+            episodes: vec![action_500_episode, action_600_episode],
+            event_provenance: vec![action_500_provenance, action_600_provenance],
+        };
 
-        let result =
-            state.action_qualified_empirical_successor_frequency(
-                &representation_snapshot(&[10]),
-                &a(500),
-            );
-
-        assert_eq!(
-            result.independent_action_event_count(),
-            1,
+        let result = state.action_qualified_empirical_successor_frequency(
+            &representation_snapshot(&[10]),
+            &a(500),
         );
 
-        assert_eq!(
-            result.distinct_successor_count(),
-            1,
-        );
+        assert_eq!(result.independent_action_event_count(), 1,);
 
-        assert_eq!(
-            successor_frequency_count(
-                &result,
-                &[20],
-            ),
-            Some(1),
-        );
+        assert_eq!(result.distinct_successor_count(), 1,);
+
+        assert_eq!(successor_frequency_count(&result, &[20],), Some(1),);
 
         assert_eq!(
             successor_frequency_count(
@@ -15477,25 +13896,17 @@ mod endogenous_transition_schema_learning_tests {
 
     #[test]
     fn empirical_successor_frequency_partial_representation_cannot_borrow_exact_action_history() {
-        let (episode, provenance) =
-            representation_sample(
-                10,
-                &[10, 20],
-                &[30],
-                500,
-            );
+        let (episode, provenance) = representation_sample(10, &[10, 20], &[30], 500);
 
-        let state =
-            EndogenousTransitionSchemaLearningState {
-                episodes: vec![episode],
-                event_provenance: vec![provenance],
-            };
+        let state = EndogenousTransitionSchemaLearningState {
+            episodes: vec![episode],
+            event_provenance: vec![provenance],
+        };
 
-        let result =
-            state.action_qualified_empirical_successor_frequency(
-                &representation_snapshot(&[10]),
-                &a(500),
-            );
+        let result = state.action_qualified_empirical_successor_frequency(
+            &representation_snapshot(&[10]),
+            &a(500),
+        );
 
         assert_eq!(
             result.status(),
@@ -15506,55 +13917,28 @@ mod endogenous_transition_schema_learning_tests {
                 ),
         );
 
-        assert_eq!(
-            result.independent_action_event_count(),
-            0,
-        );
+        assert_eq!(result.independent_action_event_count(), 0,);
 
-        assert_eq!(
-            result.distinct_successor_count(),
-            0,
-        );
+        assert_eq!(result.distinct_successor_count(), 0,);
     }
 
     #[test]
     fn empirical_successor_frequency_cannot_bypass_b1_duplicate_event_invariant() {
-        let (episode_one, provenance_one) =
-            representation_sample(
-                10,
-                &[10],
-                &[20],
-                500,
-            );
+        let (episode_one, provenance_one) = representation_sample(10, &[10], &[20], 500);
 
-        let (episode_two, mut provenance_two) =
-            representation_sample(
-                11,
-                &[10],
-                &[30],
-                500,
-            );
+        let (episode_two, mut provenance_two) = representation_sample(11, &[10], &[30], 500);
 
-        provenance_two.event_index =
-            provenance_one.event_index;
+        provenance_two.event_index = provenance_one.event_index;
 
-        let malformed =
-            EndogenousTransitionSchemaLearningState {
-                episodes: vec![
-                    episode_one,
-                    episode_two,
-                ],
-                event_provenance: vec![
-                    provenance_one,
-                    provenance_two,
-                ],
-            };
+        let malformed = EndogenousTransitionSchemaLearningState {
+            episodes: vec![episode_one, episode_two],
+            event_provenance: vec![provenance_one, provenance_two],
+        };
 
-        let result =
-            malformed.action_qualified_empirical_successor_frequency(
-                &representation_snapshot(&[10]),
-                &a(500),
-            );
+        let result = malformed.action_qualified_empirical_successor_frequency(
+            &representation_snapshot(&[10]),
+            &a(500),
+        );
 
         assert_eq!(
             result.status(),
@@ -15565,15 +13949,9 @@ mod endogenous_transition_schema_learning_tests {
                 ),
         );
 
-        assert_eq!(
-            result.independent_action_event_count(),
-            0,
-        );
+        assert_eq!(result.independent_action_event_count(), 0,);
 
-        assert_eq!(
-            result.distinct_successor_count(),
-            0,
-        );
+        assert_eq!(result.distinct_successor_count(), 0,);
 
         assert!(
             !result.is_qualified(),
@@ -15581,141 +13959,85 @@ mod endogenous_transition_schema_learning_tests {
         );
     }
 
-
     #[test]
     fn successor_informed_proposal_eligibility_abstains_when_b2_frequency_is_unqualified() {
-        let state =
-            EndogenousTransitionSchemaLearningState::new();
+        let state = EndogenousTransitionSchemaLearningState::new();
 
-        let frequency =
-            state.action_qualified_empirical_successor_frequency(
-                &representation_snapshot(&[10]),
-                &a(500),
-            );
+        let frequency = state.action_qualified_empirical_successor_frequency(
+            &representation_snapshot(&[10]),
+            &a(500),
+        );
 
-        let eligibility =
-            frequency.successor_informed_proposal_eligibility();
+        let eligibility = frequency.successor_informed_proposal_eligibility();
 
         assert_eq!(
             eligibility.status(),
-            SuccessorInformedProposalEligibilityStatus::
-                IneligibleUnqualifiedSuccessorEvidence(
-                    frequency.status(),
-                ),
+            SuccessorInformedProposalEligibilityStatus::IneligibleUnqualifiedSuccessorEvidence(
+                frequency.status(),
+            ),
         );
 
-        assert_eq!(
-            eligibility.independent_event_count(),
-            0,
-        );
+        assert_eq!(eligibility.independent_event_count(), 0,);
 
-        assert_eq!(
-            eligibility.distinct_successor_count(),
-            0,
-        );
+        assert_eq!(eligibility.distinct_successor_count(), 0,);
 
-        assert!(
-            !eligibility
-                .eligible_as_supplemental_evidence(),
-        );
+        assert!(!eligibility.eligible_as_supplemental_evidence(),);
     }
 
     #[test]
-    fn successor_informed_proposal_eligibility_accepts_one_real_retained_event_without_inventing_a_minimum_sample_threshold() {
-        let (episode, provenance) =
-            representation_sample(
-                10,
-                &[10],
-                &[20],
-                500,
-            );
+    fn successor_informed_proposal_eligibility_accepts_one_real_retained_event_without_inventing_a_minimum_sample_threshold(
+    ) {
+        let (episode, provenance) = representation_sample(10, &[10], &[20], 500);
 
-        let state =
-            EndogenousTransitionSchemaLearningState {
-                episodes: vec![episode],
-                event_provenance: vec![provenance],
-            };
+        let state = EndogenousTransitionSchemaLearningState {
+            episodes: vec![episode],
+            event_provenance: vec![provenance],
+        };
 
-        let frequency =
-            state.action_qualified_empirical_successor_frequency(
-                &representation_snapshot(&[10]),
-                &a(500),
-            );
+        let frequency = state.action_qualified_empirical_successor_frequency(
+            &representation_snapshot(&[10]),
+            &a(500),
+        );
 
-        let eligibility =
-            frequency.successor_informed_proposal_eligibility();
+        let eligibility = frequency.successor_informed_proposal_eligibility();
 
         assert_eq!(
             eligibility.status(),
-            SuccessorInformedProposalEligibilityStatus::
-                EligibleSupplementalSuccessorEvidence,
+            SuccessorInformedProposalEligibilityStatus::EligibleSupplementalSuccessorEvidence,
         );
 
-        assert_eq!(
-            eligibility.independent_event_count(),
-            1,
-        );
+        assert_eq!(eligibility.independent_event_count(), 1,);
 
-        assert_eq!(
-            eligibility.distinct_successor_count(),
-            1,
-        );
+        assert_eq!(eligibility.distinct_successor_count(), 1,);
 
-        assert!(
-            eligibility
-                .eligible_as_supplemental_evidence(),
-        );
+        assert!(eligibility.eligible_as_supplemental_evidence(),);
     }
 
     #[test]
-    fn successor_informed_proposal_eligibility_preserves_multiple_successors_as_empirical_diversity_without_selecting_one() {
-        let (episode_one, provenance_one) =
-            representation_sample(
-                10,
-                &[10],
-                &[20],
-                500,
-            );
+    fn successor_informed_proposal_eligibility_preserves_multiple_successors_as_empirical_diversity_without_selecting_one(
+    ) {
+        let (episode_one, provenance_one) = representation_sample(10, &[10], &[20], 500);
 
-        let (episode_two, provenance_two) =
-            representation_sample(
-                11,
-                &[10],
-                &[30],
-                500,
-            );
+        let (episode_two, provenance_two) = representation_sample(11, &[10], &[30], 500);
 
-        let state =
-            EndogenousTransitionSchemaLearningState {
-                episodes: vec![
-                    episode_one,
-                    episode_two,
-                ],
-                event_provenance: vec![
-                    provenance_one,
-                    provenance_two,
-                ],
-            };
+        let state = EndogenousTransitionSchemaLearningState {
+            episodes: vec![episode_one, episode_two],
+            event_provenance: vec![provenance_one, provenance_two],
+        };
 
-        let frequency =
-            state.action_qualified_empirical_successor_frequency(
-                &representation_snapshot(&[10]),
-                &a(500),
-            );
+        let frequency = state.action_qualified_empirical_successor_frequency(
+            &representation_snapshot(&[10]),
+            &a(500),
+        );
 
-        let eligibility =
-            frequency.successor_informed_proposal_eligibility();
+        let eligibility = frequency.successor_informed_proposal_eligibility();
 
         assert_eq!(
             eligibility.status(),
-            SuccessorInformedProposalEligibilityStatus::
-                EligibleSupplementalSuccessorEvidence,
+            SuccessorInformedProposalEligibilityStatus::EligibleSupplementalSuccessorEvidence,
         );
 
-        assert_eq!(
-            eligibility.independent_event_count(),
-            2,
-        );
+        assert_eq!(eligibility.independent_event_count(), 2,);
 
         assert_eq!(
             eligibility.distinct_successor_count(),
@@ -15725,43 +14047,23 @@ mod endogenous_transition_schema_learning_tests {
     }
 
     #[test]
-    fn successor_informed_proposal_eligibility_counts_distinct_events_with_identical_successor_as_two_samples_not_two_outcomes() {
-        let (episode_one, provenance_one) =
-            representation_sample(
-                10,
-                &[10],
-                &[20],
-                500,
-            );
+    fn successor_informed_proposal_eligibility_counts_distinct_events_with_identical_successor_as_two_samples_not_two_outcomes(
+    ) {
+        let (episode_one, provenance_one) = representation_sample(10, &[10], &[20], 500);
 
-        let (episode_two, provenance_two) =
-            representation_sample(
-                11,
-                &[10],
-                &[20],
-                500,
-            );
+        let (episode_two, provenance_two) = representation_sample(11, &[10], &[20], 500);
 
-        let state =
-            EndogenousTransitionSchemaLearningState {
-                episodes: vec![
-                    episode_one,
-                    episode_two,
-                ],
-                event_provenance: vec![
-                    provenance_one,
-                    provenance_two,
-                ],
-            };
+        let state = EndogenousTransitionSchemaLearningState {
+            episodes: vec![episode_one, episode_two],
+            event_provenance: vec![provenance_one, provenance_two],
+        };
 
-        let frequency =
-            state.action_qualified_empirical_successor_frequency(
-                &representation_snapshot(&[10]),
-                &a(500),
-            );
+        let frequency = state.action_qualified_empirical_successor_frequency(
+            &representation_snapshot(&[10]),
+            &a(500),
+        );
 
-        let eligibility =
-            frequency.successor_informed_proposal_eligibility();
+        let eligibility = frequency.successor_informed_proposal_eligibility();
 
         assert_eq!(
             eligibility.independent_event_count(),
@@ -15777,25 +14079,18 @@ mod endogenous_transition_schema_learning_tests {
     }
 
     #[test]
-    fn successor_informed_proposal_eligibility_fails_closed_on_internal_frequency_accounting_corruption() {
-        let malformed =
-            ActionQualifiedEmpiricalSuccessorFrequency {
-                status:
-                    EmpiricalSuccessorFrequencyStatus::
-                        QualifiedActionEmpiricalFrequency,
-                independent_action_event_count: 2,
-                successor_frequencies: vec![
-                    EmpiricalSuccessorFrequencyEntry {
-                        successor_representation:
-                            representation_snapshot(&[20]),
-                        independent_event_count: 1,
-                    },
-                ],
-            };
+    fn successor_informed_proposal_eligibility_fails_closed_on_internal_frequency_accounting_corruption(
+    ) {
+        let malformed = ActionQualifiedEmpiricalSuccessorFrequency {
+            status: EmpiricalSuccessorFrequencyStatus::QualifiedActionEmpiricalFrequency,
+            independent_action_event_count: 2,
+            successor_frequencies: vec![EmpiricalSuccessorFrequencyEntry {
+                successor_representation: representation_snapshot(&[20]),
+                independent_event_count: 1,
+            }],
+        };
 
-        let eligibility =
-            malformed
-                .successor_informed_proposal_eligibility();
+        let eligibility = malformed.successor_informed_proposal_eligibility();
 
         assert_eq!(
             eligibility.status(),
@@ -15803,20 +14098,11 @@ mod endogenous_transition_schema_learning_tests {
                 IneligibleSuccessorEvidenceInvariantViolation,
         );
 
-        assert_eq!(
-            eligibility.independent_event_count(),
-            0,
-        );
+        assert_eq!(eligibility.independent_event_count(), 0,);
 
-        assert_eq!(
-            eligibility.distinct_successor_count(),
-            0,
-        );
+        assert_eq!(eligibility.distinct_successor_count(), 0,);
 
-        assert!(
-            !eligibility
-                .eligible_as_supplemental_evidence(),
-        );
+        assert!(!eligibility.eligible_as_supplemental_evidence(),);
     }
 
     #[test]
@@ -15961,8 +14247,7 @@ mod endogenous_transition_schema_learning_tests {
         let initial = EndogenousTransitionSchemaLearningState::new();
 
         let input = perceptual_input(1, 3, true);
-        let evidence =
-            environment_evidence(42, ActionSource::SelfGenerated, 500, 600);
+        let evidence = environment_evidence(42, ActionSource::SelfGenerated, 500, 600);
 
         let first = EndogenousTransitionSchemaLearningCycle::observe(
             &initial,
@@ -16001,12 +14286,7 @@ mod endogenous_transition_schema_learning_tests {
             &initial,
             &perceptual_input(1, 3, true),
             context(),
-            &environment_evidence(
-                42,
-                ActionSource::SelfGenerated,
-                500,
-                600,
-            ),
+            &environment_evidence(42, ActionSource::SelfGenerated, 500, 600),
             policy(8),
         );
 
@@ -16014,12 +14294,7 @@ mod endogenous_transition_schema_learning_tests {
             first.state(),
             &perceptual_input(4, 6, false),
             context(),
-            &environment_evidence(
-                42,
-                ActionSource::SelfGenerated,
-                501,
-                601,
-            ),
+            &environment_evidence(42, ActionSource::SelfGenerated, 501, 601),
             policy(8),
         );
 
@@ -16043,12 +14318,7 @@ mod endogenous_transition_schema_learning_tests {
             &initial,
             &input,
             context(),
-            &environment_evidence(
-                42,
-                ActionSource::SelfGenerated,
-                500,
-                600,
-            ),
+            &environment_evidence(42, ActionSource::SelfGenerated, 500, 600),
             policy(8),
         );
 
@@ -16056,12 +14326,7 @@ mod endogenous_transition_schema_learning_tests {
             first.state(),
             &input,
             context(),
-            &environment_evidence(
-                43,
-                ActionSource::SelfGenerated,
-                500,
-                600,
-            ),
+            &environment_evidence(43, ActionSource::SelfGenerated, 500, 600),
             policy(8),
         );
 
@@ -16111,19 +14376,11 @@ mod endogenous_transition_schema_learning_tests {
                 &state,
                 &input,
                 context(),
-                &environment_evidence(
-                    event_index,
-                    ActionSource::SelfGenerated,
-                    500,
-                    600,
-                ),
+                &environment_evidence(event_index, ActionSource::SelfGenerated, 500, 600),
                 policy(CAP),
             );
 
-            assert_eq!(
-                result.state().episode_count(),
-                event_index as usize,
-            );
+            assert_eq!(result.state().episode_count(), event_index as usize,);
             assert_eq!(
                 result.state().event_provenance_count(),
                 event_index as usize,
@@ -16143,12 +14400,7 @@ mod endogenous_transition_schema_learning_tests {
             &state,
             &input,
             context(),
-            &environment_evidence(
-                4,
-                ActionSource::SelfGenerated,
-                500,
-                600,
-            ),
+            &environment_evidence(4, ActionSource::SelfGenerated, 500, 600),
             policy(CAP),
         );
 
@@ -16167,12 +14419,7 @@ mod endogenous_transition_schema_learning_tests {
             &state,
             &perceptual_input(4, 6, false),
             context(),
-            &environment_evidence(
-                4,
-                ActionSource::SelfGenerated,
-                501,
-                601,
-            ),
+            &environment_evidence(4, ActionSource::SelfGenerated, 501, 601),
             policy(CAP),
         );
 
@@ -16191,12 +14438,7 @@ mod endogenous_transition_schema_learning_tests {
             &state,
             &input,
             context(),
-            &environment_evidence(
-                9,
-                ActionSource::SelfGenerated,
-                500,
-                600,
-            ),
+            &environment_evidence(9, ActionSource::SelfGenerated, 500, 600),
             policy(CAP),
         );
 
@@ -16893,11 +15135,9 @@ mod p4g_c3b_exact_m47_m50_epistemic_bridge_tests {
             "M47 ContextNotSatisfied must remain first-class abstention",
         );
 
-        assert!(
-            predicted
-                .iter()
-                .all(|forecast| { forecast.predicted_outcome().is_some() }),
-        );
+        assert!(predicted
+            .iter()
+            .all(|forecast| { forecast.predicted_outcome().is_some() }),);
 
         assert!(
             abstained
@@ -17376,17 +15616,13 @@ mod p4g_c3e_retained_epistemic_progress_history_tests {
 
         let policy = RetainedEpistemicProgressHistoryPolicy::new(2).unwrap();
 
-        assert!(
-            owner
-                .retain_epistemic_progress_event(10, sample(true), policy,)
-                .retained(),
-        );
+        assert!(owner
+            .retain_epistemic_progress_event(10, sample(true), policy,)
+            .retained(),);
 
-        assert!(
-            owner
-                .retain_epistemic_progress_event(11, sample(true), policy,)
-                .retained(),
-        );
+        assert!(owner
+            .retain_epistemic_progress_event(11, sample(true), policy,)
+            .retained(),);
 
         let overflow = owner.retain_epistemic_progress_event(12, sample(true), policy);
 
@@ -17459,16 +15695,11 @@ mod p4g_c3f_endogenous_priority_frontier_bridge_tests {
         owner
     }
 
-    fn c16i_b1_valid_owner(
-    ) -> OnlinePersistentCognitiveState {
-        let mut owner =
-            owner();
+    fn c16i_b1_valid_owner() -> OnlinePersistentCognitiveState {
+        let mut owner = owner();
 
         assert_eq!(
-            owner
-                .transition_schema_learning
-                .episodes
-                .len(),
+            owner.transition_schema_learning.episodes.len(),
             2,
             "C16I B1-valid fixture authority assumes the two frozen explanatory baseline episodes",
         );
@@ -17481,37 +15712,27 @@ mod p4g_c3f_endogenous_priority_frontier_bridge_tests {
             "legacy C3F owner fixture intentionally has no B1 sidecar; C16I must add it explicitly rather than silently rely on an invariant violation",
         );
 
-        owner
-            .transition_schema_learning
-            .event_provenance =
-            vec![
-                RetainedTransitionEventProvenance {
-                    event_index: 880,
-                    previous_observation_index: 1760,
-                    current_observation_index: 1761,
-                },
-                RetainedTransitionEventProvenance {
-                    event_index: 881,
-                    previous_observation_index: 1762,
-                    current_observation_index: 1763,
-                },
-            ];
+        owner.transition_schema_learning.event_provenance = vec![
+            RetainedTransitionEventProvenance {
+                event_index: 880,
+                previous_observation_index: 1760,
+                current_observation_index: 1761,
+            },
+            RetainedTransitionEventProvenance {
+                event_index: 881,
+                previous_observation_index: 1762,
+                current_observation_index: 1763,
+            },
+        ];
 
         assert_eq!(
-            owner
-                .transition_schema_learning
-                .episodes
-                .len(),
-            owner
-                .transition_schema_learning
-                .event_provenance
-                .len(),
+            owner.transition_schema_learning.episodes.len(),
+            owner.transition_schema_learning.event_provenance.len(),
             "B1 requires one retained provenance record per retained transition episode",
         );
 
         owner
     }
-
 
     fn version_policy() -> GroundedExplanatoryVersionSpacePolicy {
         GroundedExplanatoryVersionSpacePolicy::new(1, 16, 128, 64)
@@ -17665,8 +15886,8 @@ mod p4g_c3f_endogenous_priority_frontier_bridge_tests {
     }
 
     #[test]
-    fn no_retained_history_means_no_endogenous_priority_even_when_action_is_epistemically_informative()
-     {
+    fn no_retained_history_means_no_endogenous_priority_even_when_action_is_epistemically_informative(
+    ) {
         let owner = owner();
         let current = state(&[1]);
 
@@ -17770,44 +15991,36 @@ mod p4g_c3f_endogenous_priority_frontier_bridge_tests {
         assert_eq!(direct, reversed);
     }
 
-
     #[test]
-    fn successor_informed_priority_binding_cannot_create_candidates_without_existing_c3f_priority() {
+    fn successor_informed_priority_binding_cannot_create_candidates_without_existing_c3f_priority()
+    {
         let owner = owner();
         let current = state(&[1]);
 
-        let upstream =
-            owner
-                .current_empirical_epistemic_action_priority_frontier(
-                    &current,
-                    &[a(100)],
-                    version_policy(),
-                    discrimination_policy(),
-                    expectation_policy(),
-                    priority_policy(),
-                );
+        let upstream = owner.current_empirical_epistemic_action_priority_frontier(
+            &current,
+            &[a(100)],
+            version_policy(),
+            discrimination_policy(),
+            expectation_policy(),
+            priority_policy(),
+        );
 
-        let bound =
-            owner
-                .current_successor_informed_epistemic_priority_binding_frontier(
-                    &current,
-                    &[a(100)],
-                    version_policy(),
-                    discrimination_policy(),
-                    expectation_policy(),
-                    priority_policy(),
-                );
-
-        assert_eq!(
-            upstream.status(),
-            EmpiricalEpistemicActionPriorityStatus::
-                NoPositiveEmpiricalPriority,
+        let bound = owner.current_successor_informed_epistemic_priority_binding_frontier(
+            &current,
+            &[a(100)],
+            version_policy(),
+            discrimination_policy(),
+            expectation_policy(),
+            priority_policy(),
         );
 
         assert_eq!(
-            bound.upstream_priority_status(),
             upstream.status(),
+            EmpiricalEpistemicActionPriorityStatus::NoPositiveEmpiricalPriority,
         );
+
+        assert_eq!(bound.upstream_priority_status(), upstream.status(),);
 
         assert_eq!(
             bound.binding_count(),
@@ -17815,71 +16028,52 @@ mod p4g_c3f_endogenous_priority_frontier_bridge_tests {
             "successor evidence binding cannot manufacture a priority candidate when C3F supplied none",
         );
 
-        assert_eq!(
-            bound.eligible_binding_count(),
-            0,
-        );
+        assert_eq!(bound.eligible_binding_count(), 0,);
     }
 
     #[test]
-    fn successor_informed_priority_binding_preserves_every_upstream_candidate_exactly_and_only_adds_b2_eligibility() {
+    fn successor_informed_priority_binding_preserves_every_upstream_candidate_exactly_and_only_adds_b2_eligibility(
+    ) {
         let mut owner = owner();
         let current = state(&[1]);
         let action = a(100);
 
-        let possibility =
-            owner
-                .current_m50_epistemic_possibility(
-                    &current,
-                    &action,
-                    version_policy(),
-                )
-                .expect(
-                    "fixture action must be epistemically grounded",
-                );
+        let possibility = owner
+            .current_m50_epistemic_possibility(&current, &action, version_policy())
+            .expect("fixture action must be epistemically grounded");
 
         owner.retain_epistemic_progress_event(
             810,
             reduction_sample(&possibility),
-            RetainedEpistemicProgressHistoryPolicy::
-                new(8)
-                .unwrap(),
+            RetainedEpistemicProgressHistoryPolicy::new(8).unwrap(),
         );
 
-        let actions =
-            [a(200), action.clone()];
+        let actions = [a(200), action.clone()];
 
-        let upstream =
-            owner
-                .current_empirical_epistemic_action_priority_frontier(
-                    &current,
-                    &actions,
-                    version_policy(),
-                    discrimination_policy(),
-                    expectation_policy(),
-                    priority_policy(),
-                );
+        let upstream = owner.current_empirical_epistemic_action_priority_frontier(
+            &current,
+            &actions,
+            version_policy(),
+            discrimination_policy(),
+            expectation_policy(),
+            priority_policy(),
+        );
 
-        let bound =
-            owner
-                .current_successor_informed_epistemic_priority_binding_frontier(
-                    &current,
-                    &actions,
-                    version_policy(),
-                    discrimination_policy(),
-                    expectation_policy(),
-                    priority_policy(),
-                );
+        let bound = owner.current_successor_informed_epistemic_priority_binding_frontier(
+            &current,
+            &actions,
+            version_policy(),
+            discrimination_policy(),
+            expectation_policy(),
+            priority_policy(),
+        );
 
         assert!(
             upstream.ranked_successfully(),
             "fixture must produce genuine existing C3F priority",
         );
 
-        assert_eq!(
-            bound.upstream_priority_status(),
-            upstream.status(),
-        );
+        assert_eq!(bound.upstream_priority_status(), upstream.status(),);
 
         assert_eq!(
             bound.upstream_input_candidate_count(),
@@ -17897,29 +16091,18 @@ mod p4g_c3f_endogenous_priority_frontier_bridge_tests {
             "C16I-B must neither filter nor manufacture ranked candidates",
         );
 
-        for (binding, candidate) in
-            bound
-                .bindings()
-                .iter()
-                .zip(upstream.ranked())
-        {
+        for (binding, candidate) in bound.bindings().iter().zip(upstream.ranked()) {
             assert_eq!(
                 binding.priority_candidate(),
                 candidate,
                 "the exact upstream C3F candidate payload must survive unchanged",
             );
 
-            let explicit_frequency =
-                owner
-                    .transition_schema_learning()
-                    .action_qualified_empirical_successor_frequency(
-                        &current,
-                        candidate.action(),
-                    );
+            let explicit_frequency = owner
+                .transition_schema_learning()
+                .action_qualified_empirical_successor_frequency(&current, candidate.action());
 
-            let explicit_eligibility =
-                explicit_frequency
-                    .successor_informed_proposal_eligibility();
+            let explicit_eligibility = explicit_frequency.successor_informed_proposal_eligibility();
 
             assert_eq!(
                 binding.successor_eligibility(),
@@ -17930,49 +16113,39 @@ mod p4g_c3f_endogenous_priority_frontier_bridge_tests {
     }
 
     #[test]
-    fn successor_informed_priority_binding_preserves_existing_rank_order_under_action_input_permutation() {
+    fn successor_informed_priority_binding_preserves_existing_rank_order_under_action_input_permutation(
+    ) {
         let mut owner = owner();
         let current = state(&[1]);
         let action = a(100);
 
-        let possibility =
-            owner
-                .current_m50_epistemic_possibility(
-                    &current,
-                    &action,
-                    version_policy(),
-                )
-                .unwrap();
+        let possibility = owner
+            .current_m50_epistemic_possibility(&current, &action, version_policy())
+            .unwrap();
 
         owner.retain_epistemic_progress_event(
             811,
             reduction_sample(&possibility),
-            RetainedEpistemicProgressHistoryPolicy::
-                new(8)
-                .unwrap(),
+            RetainedEpistemicProgressHistoryPolicy::new(8).unwrap(),
         );
 
-        let direct =
-            owner
-                .current_successor_informed_epistemic_priority_binding_frontier(
-                    &current,
-                    &[a(200), action.clone()],
-                    version_policy(),
-                    discrimination_policy(),
-                    expectation_policy(),
-                    priority_policy(),
-                );
+        let direct = owner.current_successor_informed_epistemic_priority_binding_frontier(
+            &current,
+            &[a(200), action.clone()],
+            version_policy(),
+            discrimination_policy(),
+            expectation_policy(),
+            priority_policy(),
+        );
 
-        let reversed =
-            owner
-                .current_successor_informed_epistemic_priority_binding_frontier(
-                    &current,
-                    &[action, a(200)],
-                    version_policy(),
-                    discrimination_policy(),
-                    expectation_policy(),
-                    priority_policy(),
-                );
+        let reversed = owner.current_successor_informed_epistemic_priority_binding_frontier(
+            &current,
+            &[action, a(200)],
+            version_policy(),
+            discrimination_policy(),
+            expectation_policy(),
+            priority_policy(),
+        );
 
         assert_eq!(
             direct,
@@ -17982,49 +16155,36 @@ mod p4g_c3f_endogenous_priority_frontier_bridge_tests {
     }
 
     #[test]
-    fn successor_informed_priority_binding_is_read_only_for_both_progress_and_transition_evidence() {
+    fn successor_informed_priority_binding_is_read_only_for_both_progress_and_transition_evidence()
+    {
         let mut owner = owner();
         let current = state(&[1]);
         let action = a(100);
 
-        let possibility =
-            owner
-                .current_m50_epistemic_possibility(
-                    &current,
-                    &action,
-                    version_policy(),
-                )
-                .unwrap();
+        let possibility = owner
+            .current_m50_epistemic_possibility(&current, &action, version_policy())
+            .unwrap();
 
         owner.retain_epistemic_progress_event(
             812,
             reduction_sample(&possibility),
-            RetainedEpistemicProgressHistoryPolicy::
-                new(8)
-                .unwrap(),
+            RetainedEpistemicProgressHistoryPolicy::new(8).unwrap(),
         );
 
-        let progress_before =
-            owner.epistemic_progress_event_count();
+        let progress_before = owner.epistemic_progress_event_count();
 
-        let transition_before =
-            owner.transition_episode_count();
+        let transition_before = owner.transition_episode_count();
 
-        let provenance_before =
-            owner
-                .transition_schema_learning()
-                .event_provenance_count();
+        let provenance_before = owner.transition_schema_learning().event_provenance_count();
 
-        let _ =
-            owner
-                .current_successor_informed_epistemic_priority_binding_frontier(
-                    &current,
-                    &[a(200), action],
-                    version_policy(),
-                    discrimination_policy(),
-                    expectation_policy(),
-                    priority_policy(),
-                );
+        let _ = owner.current_successor_informed_epistemic_priority_binding_frontier(
+            &current,
+            &[a(200), action],
+            version_policy(),
+            discrimination_policy(),
+            expectation_policy(),
+            priority_policy(),
+        );
 
         assert_eq!(
             owner.epistemic_progress_event_count(),
@@ -18039,53 +16199,35 @@ mod p4g_c3f_endogenous_priority_frontier_bridge_tests {
         );
 
         assert_eq!(
-            owner
-                .transition_schema_learning()
-                .event_provenance_count(),
+            owner.transition_schema_learning().event_provenance_count(),
             provenance_before,
             "C16I-B query cannot append event provenance",
         );
     }
 
-
-
-    fn c16i_native_signal(
-        value: u16,
-    ) -> CognitiveSignal {
-        CognitiveSignal::new(value)
-            .expect("positive bounded C16I native signal")
+    fn c16i_native_signal(value: u16) -> CognitiveSignal {
+        CognitiveSignal::new(value).expect("positive bounded C16I native signal")
     }
 
     fn c16i_native_possibility(
         source_state: CognitiveStructure,
         action: CognitiveStructure,
         first_outcome: u64,
-    ) -> athlesia_autonomous_active_experimentation::
-        GroundedExperimentPossibility {
+    ) -> athlesia_autonomous_active_experimentation::GroundedExperimentPossibility {
         use athlesia_autonomous_active_experimentation::{
-            CompetingHypothesisPrediction,
-            GroundedExperimentPossibility,
+            CompetingHypothesisPrediction, GroundedExperimentPossibility,
         };
 
-        let confidence =
-            c16i_native_signal(900);
+        let confidence = c16i_native_signal(900);
 
         GroundedExperimentPossibility::new(
             source_state,
             action,
             vec![
-                CompetingHypothesisPrediction::new(
-                    a(100),
-                    a(first_outcome),
-                    confidence,
-                )
-                .expect("first native prediction"),
-                CompetingHypothesisPrediction::new(
-                    a(101),
-                    a(first_outcome + 1),
-                    confidence,
-                )
-                .expect("second native prediction"),
+                CompetingHypothesisPrediction::new(a(100), a(first_outcome), confidence)
+                    .expect("first native prediction"),
+                CompetingHypothesisPrediction::new(a(101), a(first_outcome + 1), confidence)
+                    .expect("second native prediction"),
             ],
             c16i_native_signal(900),
             c16i_native_signal(900),
@@ -18095,50 +16237,24 @@ mod p4g_c3f_endogenous_priority_frontier_bridge_tests {
     }
 
     fn c16i_grounded_native_possibility(
-        owner:
-            &OnlinePersistentCognitiveState,
-        current:
-            &GroundedStateSnapshot,
-        source_state:
-            CognitiveStructure,
-        action:
-            CognitiveStructure,
-        first_outcome:
-            u64,
-    ) -> athlesia_autonomous_active_experimentation::
-        GroundedExperimentPossibility {
-        let epistemic =
-            owner
-                .current_m50_epistemic_possibility(
-                    current,
-                    &action,
-                    version_policy(),
-                )
-                .expect(
-                    "positive native fixture requires current M50 forecasts",
-                );
+        owner: &OnlinePersistentCognitiveState,
+        current: &GroundedStateSnapshot,
+        source_state: CognitiveStructure,
+        action: CognitiveStructure,
+        first_outcome: u64,
+    ) -> athlesia_autonomous_active_experimentation::GroundedExperimentPossibility {
+        let epistemic = owner
+            .current_m50_epistemic_possibility(current, &action, version_policy())
+            .expect("positive native fixture requires current M50 forecasts");
 
-        let mut hypotheses =
-            Vec::<CognitiveStructure>::new();
+        let mut hypotheses = Vec::<CognitiveStructure>::new();
 
-        for forecast in
-            epistemic.forecasts()
-        {
+        for forecast in epistemic.forecasts() {
             if !hypotheses
                 .iter()
-                .any(
-                    |existing| {
-                        existing
-                            == forecast
-                                .hypothesis()
-                    },
-                )
+                .any(|existing| existing == forecast.hypothesis())
             {
-                hypotheses.push(
-                    forecast
-                        .hypothesis()
-                        .clone(),
-                );
+                hypotheses.push(forecast.hypothesis().clone());
             }
         }
 
@@ -18148,48 +16264,34 @@ mod p4g_c3f_endogenous_priority_frontier_bridge_tests {
         );
 
         use athlesia_autonomous_active_experimentation::{
-            CompetingHypothesisPrediction,
-            GroundedExperimentPossibility,
+            CompetingHypothesisPrediction, GroundedExperimentPossibility,
         };
 
-        let confidence =
-            c16i_native_signal(900);
+        let confidence = c16i_native_signal(900);
 
         GroundedExperimentPossibility::new(
             source_state,
             action,
             vec![
                 CompetingHypothesisPrediction::new(
-                    hypotheses[0]
-                        .clone(),
+                    hypotheses[0].clone(),
                     a(first_outcome),
                     confidence,
                 )
-                .expect(
-                    "first grounded native prediction",
-                ),
+                .expect("first grounded native prediction"),
                 CompetingHypothesisPrediction::new(
-                    hypotheses[1]
-                        .clone(),
-                    a(
-                        first_outcome
-                            .saturating_add(1),
-                    ),
+                    hypotheses[1].clone(),
+                    a(first_outcome.saturating_add(1)),
                     confidence,
                 )
-                .expect(
-                    "second grounded native prediction",
-                ),
+                .expect("second grounded native prediction"),
             ],
             c16i_native_signal(900),
             c16i_native_signal(900),
             c16i_native_signal(100),
         )
-        .expect(
-            "grounded native experiment possibility",
-        )
+        .expect("grounded native experiment possibility")
     }
-
 
     fn c16i_retain_b2_sample(
         owner: &mut OnlinePersistentCognitiveState,
@@ -18200,35 +16302,25 @@ mod p4g_c3f_endogenous_priority_frontier_bridge_tests {
         owner
             .transition_schema_learning
             .episodes
-            .push(
-                GroundedTransformationEpisode::new(
-                    current.clone(),
-                    state(&[1, 900]),
-                    action.clone(),
-                ),
-            );
+            .push(GroundedTransformationEpisode::new(
+                current.clone(),
+                state(&[1, 900]),
+                action.clone(),
+            ));
 
         owner
             .transition_schema_learning
             .event_provenance
-            .push(
-                RetainedTransitionEventProvenance {
-                    event_index,
-                    previous_observation_index:
-                        event_index.saturating_mul(2),
-                    current_observation_index:
-                        event_index
-                            .saturating_mul(2)
-                            .saturating_add(1),
-                },
-            );
+            .push(RetainedTransitionEventProvenance {
+                event_index,
+                previous_observation_index: event_index.saturating_mul(2),
+                current_observation_index: event_index.saturating_mul(2).saturating_add(1),
+            });
     }
 
     fn c16i_current_pattern_reduction_sample(
-        possibility:
-            &GroundedEpistemicExperimentPossibility,
-    ) -> athlesia_autonomous_active_experimentation::
-        EpistemicResolutionProgressSample {
+        possibility: &GroundedEpistemicExperimentPossibility,
+    ) -> athlesia_autonomous_active_experimentation::EpistemicResolutionProgressSample {
         let current_discrimination =
             athlesia_autonomous_active_experimentation::
                 AutonomousEpistemicForecastDiscrimination::
@@ -18242,149 +16334,87 @@ mod p4g_c3f_endogenous_priority_frontier_bridge_tests {
             "post-B2 current fixture must remain genuinely epistemically informative before C3F progress can exist",
         );
 
-        let mut observed_targets =
-            Vec::new();
+        let mut observed_targets = Vec::new();
 
         for forecast in possibility.forecasts() {
             if !observed_targets
                 .iter()
-                .any(
-                    |existing: &EpistemicTargetObservation| {
-                        existing.target()
-                            == forecast.target()
-                    },
-                )
+                .any(|existing: &EpistemicTargetObservation| existing.target() == forecast.target())
             {
-                observed_targets.push(
-                    EpistemicTargetObservation::new(
-                        forecast.target().clone(),
-                        true,
-                    ),
-                );
+                observed_targets.push(EpistemicTargetObservation::new(
+                    forecast.target().clone(),
+                    true,
+                ));
             }
         }
 
-        let observation =
-            GroundedEpistemicOutcomeObservation::new(
-                possibility.source_state().clone(),
-                possibility.action().clone(),
-                observed_targets,
-            )
-            .expect(
-                "C16I current-pattern fixture observation must be grounded",
-            );
+        let observation = GroundedEpistemicOutcomeObservation::new(
+            possibility.source_state().clone(),
+            possibility.action().clone(),
+            observed_targets,
+        )
+        .expect("C16I current-pattern fixture observation must be grounded");
 
-        let outcome =
-            AutonomousEpistemicOutcomeResolution::
-                evaluate(
-                    possibility,
-                    &observation,
-                    EpistemicOutcomeResolutionPolicy::
-                        new(32, 32)
-                        .unwrap(),
-                );
+        let outcome = AutonomousEpistemicOutcomeResolution::evaluate(
+            possibility,
+            &observation,
+            EpistemicOutcomeResolutionPolicy::new(32, 32).unwrap(),
+        );
 
-        let post_forecasts =
-            possibility
-                .forecasts()
-                .iter()
-                .map(
-                    |forecast| {
-                        let canonical_outcome =
-                            possibility
-                                .forecasts()
-                                .iter()
-                                .find(
-                                    |candidate| {
-                                        candidate.target()
-                                            == forecast.target()
-                                            && candidate
-                                                .predicted_outcome()
-                                                .is_some()
-                                    },
-                                )
-                                .and_then(
-                                    |candidate| {
-                                        candidate
-                                            .predicted_outcome()
-                                    },
-                                )
-                                .cloned()
-                                .unwrap_or_else(
-                                    || {
-                                        CognitiveStructure::
-                                            Ordered(
-                                                vec![
-                                                    a(
-                                                        0x4331_3649_4333_504f,
-                                                    ),
-                                                    forecast
-                                                        .target()
-                                                        .clone(),
-                                                ],
-                                            )
-                                    },
-                                );
+        let post_forecasts = possibility
+            .forecasts()
+            .iter()
+            .map(|forecast| {
+                let canonical_outcome = possibility
+                    .forecasts()
+                    .iter()
+                    .find(|candidate| {
+                        candidate.target() == forecast.target()
+                            && candidate.predicted_outcome().is_some()
+                    })
+                    .and_then(|candidate| candidate.predicted_outcome())
+                    .cloned()
+                    .unwrap_or_else(|| {
+                        CognitiveStructure::Ordered(vec![
+                            a(0x4331_3649_4333_504f),
+                            forecast.target().clone(),
+                        ])
+                    });
 
-                        if forecast
-                            .predicted_outcome()
-                            .is_some()
-                            || forecast.status()
-                                == EpistemicHypothesisForecastStatus::
-                                    ContextAbstained
-                        {
-                            EpistemicHypothesisForecast::
-                                predicted(
-                                    forecast
-                                        .hypothesis()
-                                        .clone(),
-                                    forecast
-                                        .target()
-                                        .clone(),
-                                    canonical_outcome,
-                                    forecast.evidence(),
-                                )
-                                .expect(
-                                    "C16I converged post-model prediction",
-                                )
-                        } else {
-                            forecast.clone()
-                        }
-                    },
-                )
-                .collect::<Vec<_>>();
+                if forecast.predicted_outcome().is_some()
+                    || forecast.status() == EpistemicHypothesisForecastStatus::ContextAbstained
+                {
+                    EpistemicHypothesisForecast::predicted(
+                        forecast.hypothesis().clone(),
+                        forecast.target().clone(),
+                        canonical_outcome,
+                        forecast.evidence(),
+                    )
+                    .expect("C16I converged post-model prediction")
+                } else {
+                    forecast.clone()
+                }
+            })
+            .collect::<Vec<_>>();
 
-        let post =
-            GroundedEpistemicExperimentPossibility::
-                new(
-                    possibility
-                        .source_state()
-                        .clone(),
-                    possibility
-                        .action()
-                        .clone(),
-                    post_forecasts,
-                )
-                .expect(
-                    "C16I current-pattern post possibility",
-                );
+        let post = GroundedEpistemicExperimentPossibility::new(
+            possibility.source_state().clone(),
+            possibility.action().clone(),
+            post_forecasts,
+        )
+        .expect("C16I current-pattern post possibility");
 
-        let progress =
-            AutonomousEpistemicResolutionProgress::
-                measure(
-                    possibility,
-                    &outcome,
-                    &post,
-                    discrimination_policy(),
-                );
+        let progress = AutonomousEpistemicResolutionProgress::measure(
+            possibility,
+            &outcome,
+            &post,
+            discrimination_policy(),
+        );
 
-        let sample =
-            progress
-                .sample()
-                .expect(
-                    "C16I current-pattern fixture must produce measured progress",
-                )
-                .clone();
+        let sample = progress
+            .sample()
+            .expect("C16I current-pattern fixture must produce measured progress")
+            .clone();
 
         assert!(
             sample.realized_separation_reduction() > 0,
@@ -18394,120 +16424,70 @@ mod p4g_c3f_endogenous_priority_frontier_bridge_tests {
         sample
     }
 
-
     fn c16i_authorize_priority(
         owner: &mut OnlinePersistentCognitiveState,
         event_index: u64,
         current: &GroundedStateSnapshot,
         action: &CognitiveStructure,
     ) {
-        let possibility =
-            owner
-                .current_m50_epistemic_possibility(
-                    current,
-                    action,
-                    version_policy(),
-                )
-                .expect(
-                    "fixture action must have existing M50 epistemic possibility",
-                );
+        let possibility = owner
+            .current_m50_epistemic_possibility(current, action, version_policy())
+            .expect("fixture action must have existing M50 epistemic possibility");
 
         owner.retain_epistemic_progress_event(
             event_index,
             c16i_current_pattern_reduction_sample(&possibility),
-            RetainedEpistemicProgressHistoryPolicy::
-                new(8)
-                .unwrap(),
+            RetainedEpistemicProgressHistoryPolicy::new(8).unwrap(),
         );
     }
 
     #[test]
     fn successor_informed_epistemic_action_intent_preserves_abstention_without_native_prediction_fabrication(
     ) {
-        let mut owner =
-            c16i_b1_valid_owner();
+        let mut owner = c16i_b1_valid_owner();
 
-        let current =
-            state(&[1]);
+        let current = state(&[1]);
 
-        let action =
-            a(100);
+        let action = a(100);
 
-        c16i_retain_b2_sample(
-            &mut owner,
-            9_160,
-            &current,
-            &action,
-        );
+        c16i_retain_b2_sample(&mut owner, 9_160, &current, &action);
 
-        c16i_authorize_priority(
-            &mut owner,
-            9_161,
-            &current,
-            &action,
-        );
+        c16i_authorize_priority(&mut owner, 9_161, &current, &action);
 
-        let progress_before =
-            owner
-                .epistemic_progress_event_count();
+        let progress_before = owner.epistemic_progress_event_count();
 
-        let transitions_before =
-            owner
-                .transition_episode_count();
+        let transitions_before = owner.transition_episode_count();
 
-        let frontier =
-            owner
-                .current_successor_informed_epistemic_action_intent_frontier(
-                    &current,
-                    std::slice::from_ref(
-                        &action,
-                    ),
-                    version_policy(),
-                    discrimination_policy(),
-                    expectation_policy(),
-                    priority_policy(),
-                )
-                .expect(
-                    "real C3F+B2 authority must expose evidence-faithful intent",
-                );
+        let frontier = owner
+            .current_successor_informed_epistemic_action_intent_frontier(
+                &current,
+                std::slice::from_ref(&action),
+                version_policy(),
+                discrimination_policy(),
+                expectation_policy(),
+                priority_policy(),
+            )
+            .expect("real C3F+B2 authority must expose evidence-faithful intent");
 
-        assert_eq!(
-            frontier.intent_count(),
-            1,
-        );
+        assert_eq!(frontier.intent_count(), 1,);
 
-        assert!(
-            !frontier.is_empty(),
-        );
+        assert!(!frontier.is_empty(),);
 
-        let intent =
-            &frontier.intents()[0];
+        let intent = &frontier.intents()[0];
 
         assert_eq!(
             intent.source_state(),
-            intent
-                .priority_candidate()
-                .source_state(),
+            intent.priority_candidate().source_state(),
         );
 
-        assert_eq!(
-            intent.action(),
-            intent
-                .priority_candidate()
-                .action(),
-        );
+        assert_eq!(intent.action(), intent.priority_candidate().action(),);
+
+        assert!(intent
+            .successor_eligibility()
+            .eligible_as_supplemental_evidence(),);
 
         assert!(
-            intent
-                .successor_eligibility()
-                .eligible_as_supplemental_evidence(),
-        );
-
-        assert!(
-            intent
-                .priority_candidate()
-                .qualifying_sample_count()
-                > 0,
+            intent.priority_candidate().qualifying_sample_count() > 0,
             "epistemic intent must carry real empirical C3F support",
         );
 
@@ -18538,33 +16518,21 @@ mod p4g_c3f_endogenous_priority_frontier_bridge_tests {
         );
 
         assert!(
-            intent
-                .possibility()
-                .forecasts()
-                .iter()
-                .any(
-                    |forecast| {
-                        forecast.status()
-                            == EpistemicHypothesisForecastStatus::
-                                Predicted
-                            && forecast
-                                .predicted_outcome()
-                                .is_some()
-                    },
-                ),
+            intent.possibility().forecasts().iter().any(|forecast| {
+                forecast.status() == EpistemicHypothesisForecastStatus::Predicted
+                    && forecast.predicted_outcome().is_some()
+            },),
             "real concrete M50 predictions must remain concrete",
         );
 
         assert_eq!(
-            owner
-                .epistemic_progress_event_count(),
+            owner.epistemic_progress_event_count(),
             progress_before,
             "intent query cannot manufacture empirical progress evidence",
         );
 
         assert_eq!(
-            owner
-                .transition_episode_count(),
+            owner.transition_episode_count(),
             transitions_before,
             "intent query cannot manufacture transition evidence",
         );
@@ -18573,38 +16541,26 @@ mod p4g_c3f_endogenous_priority_frontier_bridge_tests {
     #[test]
     fn successor_informed_epistemic_action_intent_requires_b2_eligibility_in_addition_to_c3f_priority(
     ) {
-        let mut owner =
-            c16i_b1_valid_owner();
+        let mut owner = c16i_b1_valid_owner();
 
-        let current =
-            state(&[3]);
+        let current = state(&[3]);
 
-        let action =
-            a(100);
+        let action = a(100);
 
         /*
          * Give the action genuine C3F authority but deliberately do not
          * retain B2 successor evidence for this current representation.
          */
-        c16i_authorize_priority(
-            &mut owner,
-            882,
-            &current,
-            &action,
-        );
+        c16i_authorize_priority(&mut owner, 882, &current, &action);
 
-        let result =
-            owner
-                .current_successor_informed_epistemic_action_intent_frontier(
-                    &current,
-                    std::slice::from_ref(
-                        &action,
-                    ),
-                    version_policy(),
-                    discrimination_policy(),
-                    expectation_policy(),
-                    priority_policy(),
-                );
+        let result = owner.current_successor_informed_epistemic_action_intent_frontier(
+            &current,
+            std::slice::from_ref(&action),
+            version_policy(),
+            discrimination_policy(),
+            expectation_policy(),
+            priority_policy(),
+        );
 
         assert_eq!(
             result,
@@ -18613,51 +16569,33 @@ mod p4g_c3f_endogenous_priority_frontier_bridge_tests {
         );
     }
 
-
     #[test]
-    fn successor_informed_native_input_gate_cannot_create_native_inputs_without_existing_c3f_priority() {
+    fn successor_informed_native_input_gate_cannot_create_native_inputs_without_existing_c3f_priority(
+    ) {
         let owner = c16i_b1_valid_owner();
         let current = state(&[1]);
 
-        let native =
-            c16i_native_possibility(
-                a(1),
-                a(100),
-                700,
-            );
+        let native = c16i_native_possibility(a(1), a(100), 700);
 
-        let result =
-            owner
-                .current_successor_informed_native_proposal_input_frontier(
-                    SuccessorInformedNativeProposalInputRequest {
-                        state: &current,
-                        actions: &[a(100)],
-                        version_policy: version_policy(),
-                        discrimination_policy: discrimination_policy(),
-                        expectation_policy: expectation_policy(),
-                        priority_policy: priority_policy(),
-                        native_possibilities: &[native],
-                    }
-                );
-
-        assert_eq!(
-            result.upstream_binding_count(),
-            0,
+        let result = owner.current_successor_informed_native_proposal_input_frontier(
+            SuccessorInformedNativeProposalInputRequest {
+                state: &current,
+                actions: &[a(100)],
+                version_policy: version_policy(),
+                discrimination_policy: discrimination_policy(),
+                expectation_policy: expectation_policy(),
+                priority_policy: priority_policy(),
+                native_possibilities: &[native],
+            },
         );
 
-        assert_eq!(
-            result.successor_eligible_binding_count(),
-            0,
-        );
+        assert_eq!(result.upstream_binding_count(), 0,);
 
-        assert_eq!(
-            result.matched_native_possibility_count(),
-            0,
-        );
+        assert_eq!(result.successor_eligible_binding_count(), 0,);
 
-        assert!(
-            !result.eligible_for_native_m50_delegation(),
-        );
+        assert_eq!(result.matched_native_possibility_count(), 0,);
+
+        assert!(!result.eligible_for_native_m50_delegation(),);
     }
 
     #[test]
@@ -18666,28 +16604,18 @@ mod p4g_c3f_endogenous_priority_frontier_bridge_tests {
         let current = state(&[3]);
         let action = a(100);
 
-        c16i_authorize_priority(
-            &mut owner,
-            900,
+        c16i_authorize_priority(&mut owner, 900, &current, &action);
+
+        let binding = owner.current_successor_informed_epistemic_priority_binding_frontier(
             &current,
-            &action,
+            std::slice::from_ref(&action),
+            version_policy(),
+            discrimination_policy(),
+            expectation_policy(),
+            priority_policy(),
         );
 
-        let binding =
-            owner
-                .current_successor_informed_epistemic_priority_binding_frontier(
-                    &current,
-                    std::slice::from_ref(&action),
-                    version_policy(),
-                    discrimination_policy(),
-                    expectation_policy(),
-                    priority_policy(),
-                );
-
-        assert_eq!(
-            binding.binding_count(),
-            1,
-        );
+        assert_eq!(binding.binding_count(), 1,);
 
         assert_eq!(
             binding.eligible_binding_count(),
@@ -18695,45 +16623,31 @@ mod p4g_c3f_endogenous_priority_frontier_bridge_tests {
             "C3F priority alone cannot authorize native proposal input without B2 successor support",
         );
 
-        let priority =
-            binding.bindings()[0]
-                .priority_candidate();
+        let priority = binding.bindings()[0].priority_candidate();
 
-        let native =
-            c16i_native_possibility(
-                priority.source_state().clone(),
-                priority.action().clone(),
-                700,
-            );
-
-        let result =
-            owner
-                .current_successor_informed_native_proposal_input_frontier(
-                    SuccessorInformedNativeProposalInputRequest {
-                        state: &current,
-                        actions: std::slice::from_ref(&action),
-                        version_policy: version_policy(),
-                        discrimination_policy: discrimination_policy(),
-                        expectation_policy: expectation_policy(),
-                        priority_policy: priority_policy(),
-                        native_possibilities: &[native],
-                    }
-                );
-
-        assert_eq!(
-            result.upstream_binding_count(),
-            1,
+        let native = c16i_native_possibility(
+            priority.source_state().clone(),
+            priority.action().clone(),
+            700,
         );
 
-        assert_eq!(
-            result.successor_eligible_binding_count(),
-            0,
+        let result = owner.current_successor_informed_native_proposal_input_frontier(
+            SuccessorInformedNativeProposalInputRequest {
+                state: &current,
+                actions: std::slice::from_ref(&action),
+                version_policy: version_policy(),
+                discrimination_policy: discrimination_policy(),
+                expectation_policy: expectation_policy(),
+                priority_policy: priority_policy(),
+                native_possibilities: &[native],
+            },
         );
 
-        assert_eq!(
-            result.matched_native_possibility_count(),
-            0,
-        );
+        assert_eq!(result.upstream_binding_count(), 1,);
+
+        assert_eq!(result.successor_eligible_binding_count(), 0,);
+
+        assert_eq!(result.matched_native_possibility_count(), 0,);
     }
 
     #[test]
@@ -18742,85 +16656,50 @@ mod p4g_c3f_endogenous_priority_frontier_bridge_tests {
         let current = state(&[1]);
         let action = a(100);
 
-        c16i_retain_b2_sample(
-            &mut owner,
-            902,
+        c16i_retain_b2_sample(&mut owner, 902, &current, &action);
+        c16i_authorize_priority(&mut owner, 901, &current, &action);
+
+        let binding = owner.current_successor_informed_epistemic_priority_binding_frontier(
             &current,
-            &action,
-        );
-        c16i_authorize_priority(
-            &mut owner,
-            901,
-            &current,
-            &action,
+            std::slice::from_ref(&action),
+            version_policy(),
+            discrimination_policy(),
+            expectation_policy(),
+            priority_policy(),
         );
 
-        let binding =
-            owner
-                .current_successor_informed_epistemic_priority_binding_frontier(
-                    &current,
-                    std::slice::from_ref(&action),
-                    version_policy(),
-                    discrimination_policy(),
-                    expectation_policy(),
-                    priority_policy(),
-                );
+        assert_eq!(binding.eligible_binding_count(), 1,);
 
-        assert_eq!(
-            binding.eligible_binding_count(),
-            1,
-        );
+        let priority = binding.bindings()[0].priority_candidate();
 
-        let priority =
-            binding.bindings()[0]
-                .priority_candidate();
-
-        let wrong_source =
-            c16i_native_possibility(
-                a(0xC16C_0001),
-                priority.action().clone(),
-                710,
-            );
+        let wrong_source = c16i_native_possibility(a(0xC16C_0001), priority.action().clone(), 710);
 
         let wrong_action =
-            c16i_native_possibility(
-                priority.source_state().clone(),
-                a(0xC16C_0002),
-                720,
-            );
+            c16i_native_possibility(priority.source_state().clone(), a(0xC16C_0002), 720);
 
-        let exact =
-            c16i_grounded_native_possibility(
-                &owner,
-                &current,
-                priority.source_state().clone(),
-                priority.action().clone(),
-                730,
-            );
-
-        let result =
-            owner
-                .current_successor_informed_native_proposal_input_frontier(
-                    SuccessorInformedNativeProposalInputRequest {
-                        state: &current,
-                        actions: std::slice::from_ref(&action),
-                        version_policy: version_policy(),
-                        discrimination_policy: discrimination_policy(),
-                        expectation_policy: expectation_policy(),
-                        priority_policy: priority_policy(),
-                        native_possibilities: &[ wrong_source, exact.clone(), wrong_action, ],
-                    }
-                );
-
-        assert_eq!(
-            result.successor_eligible_binding_count(),
-            1,
+        let exact = c16i_grounded_native_possibility(
+            &owner,
+            &current,
+            priority.source_state().clone(),
+            priority.action().clone(),
+            730,
         );
 
-        assert_eq!(
-            result.input_native_possibility_count(),
-            3,
+        let result = owner.current_successor_informed_native_proposal_input_frontier(
+            SuccessorInformedNativeProposalInputRequest {
+                state: &current,
+                actions: std::slice::from_ref(&action),
+                version_policy: version_policy(),
+                discrimination_policy: discrimination_policy(),
+                expectation_policy: expectation_policy(),
+                priority_policy: priority_policy(),
+                native_possibilities: &[wrong_source, exact.clone(), wrong_action],
+            },
         );
+
+        assert_eq!(result.successor_eligible_binding_count(), 1,);
+
+        assert_eq!(result.input_native_possibility_count(), 3,);
 
         assert_eq!(
             result.matched_native_possibilities(),
@@ -18828,59 +16707,34 @@ mod p4g_c3f_endogenous_priority_frontier_bridge_tests {
             "only exact existing M50 source_state + action identity may cross the C16I gate",
         );
 
-        assert!(
-            result.eligible_for_native_m50_delegation(),
-        );
+        assert!(result.eligible_for_native_m50_delegation(),);
     }
 
     #[test]
     fn successor_informed_native_input_gate_rejects_foreign_hypothesis_identity_even_when_source_action_match(
     ) {
-        let mut owner =
-            c16i_b1_valid_owner();
+        let mut owner = c16i_b1_valid_owner();
 
-        let current =
-            state(&[1]);
+        let current = state(&[1]);
 
-        let action =
-            a(100);
+        let action = a(100);
 
-        c16i_retain_b2_sample(
-            &mut owner,
-            904,
+        c16i_retain_b2_sample(&mut owner, 904, &current, &action);
+
+        c16i_authorize_priority(&mut owner, 905, &current, &action);
+
+        let binding = owner.current_successor_informed_epistemic_priority_binding_frontier(
             &current,
-            &action,
+            std::slice::from_ref(&action),
+            version_policy(),
+            discrimination_policy(),
+            expectation_policy(),
+            priority_policy(),
         );
 
-        c16i_authorize_priority(
-            &mut owner,
-            905,
-            &current,
-            &action,
-        );
+        assert_eq!(binding.eligible_binding_count(), 1,);
 
-        let binding =
-            owner
-                .current_successor_informed_epistemic_priority_binding_frontier(
-                    &current,
-                    std::slice::from_ref(
-                        &action,
-                    ),
-                    version_policy(),
-                    discrimination_policy(),
-                    expectation_policy(),
-                    priority_policy(),
-                );
-
-        assert_eq!(
-            binding.eligible_binding_count(),
-            1,
-        );
-
-        let priority =
-            binding
-                .bindings()[0]
-                .priority_candidate();
+        let priority = binding.bindings()[0].priority_candidate();
 
         /*
          * Existing legacy helper intentionally carries foreign
@@ -18889,74 +16743,37 @@ mod p4g_c3f_endogenous_priority_frontier_bridge_tests {
          * Source and action below are exact and fully eligible, so this
          * fixture isolates hypothesis identity authority.
          */
-        let foreign =
-            c16i_native_possibility(
-                priority
-                    .source_state()
-                    .clone(),
-                priority
-                    .action()
-                    .clone(),
-                735,
-            );
+        let foreign = c16i_native_possibility(
+            priority.source_state().clone(),
+            priority.action().clone(),
+            735,
+        );
 
-        let current_epistemic =
-            owner
-                .current_m50_epistemic_possibility(
-                    &current,
-                    &action,
-                    version_policy(),
-                )
-                .expect(
-                    "current M50 frontier must exist",
-                );
+        let current_epistemic = owner
+            .current_m50_epistemic_possibility(&current, &action, version_policy())
+            .expect("current M50 frontier must exist");
 
         assert!(
-            foreign
-                .predictions()
-                .iter()
-                .any(
-                    |prediction| {
-                        !current_epistemic
-                            .forecasts()
-                            .iter()
-                            .any(
-                                |forecast| {
-                                    forecast
-                                        .hypothesis()
-                                        == prediction
-                                            .hypothesis()
-                                },
-                            )
-                    },
-                ),
+            foreign.predictions().iter().any(|prediction| {
+                !current_epistemic
+                    .forecasts()
+                    .iter()
+                    .any(|forecast| forecast.hypothesis() == prediction.hypothesis())
+            },),
             "fixture must actually contain a foreign hypothesis identity",
         );
 
-        let result =
-            owner
-                .current_successor_informed_native_proposal_input_frontier(
-                    SuccessorInformedNativeProposalInputRequest {
-                        state:
-                            &current,
-                        actions:
-                            std::slice::from_ref(
-                                &action,
-                            ),
-                        version_policy:
-                            version_policy(),
-                        discrimination_policy:
-                            discrimination_policy(),
-                        expectation_policy:
-                            expectation_policy(),
-                        priority_policy:
-                            priority_policy(),
-                        native_possibilities:
-                            std::slice::from_ref(
-                                &foreign,
-                            ),
-                    },
-                );
+        let result = owner.current_successor_informed_native_proposal_input_frontier(
+            SuccessorInformedNativeProposalInputRequest {
+                state: &current,
+                actions: std::slice::from_ref(&action),
+                version_policy: version_policy(),
+                discrimination_policy: discrimination_policy(),
+                expectation_policy: expectation_policy(),
+                priority_policy: priority_policy(),
+                native_possibilities: std::slice::from_ref(&foreign),
+            },
+        );
 
         assert_eq!(
             result.successor_eligible_binding_count(),
@@ -18971,78 +16788,58 @@ mod p4g_c3f_endogenous_priority_frontier_bridge_tests {
         );
     }
 
-
     #[test]
-    fn successor_informed_native_input_gate_preserves_caller_native_order_and_payload_without_rewriting_m50_signals() {
+    fn successor_informed_native_input_gate_preserves_caller_native_order_and_payload_without_rewriting_m50_signals(
+    ) {
         let mut owner = c16i_b1_valid_owner();
         let current = state(&[1]);
         let action = a(100);
 
-        c16i_retain_b2_sample(
-            &mut owner,
-            904,
+        c16i_retain_b2_sample(&mut owner, 904, &current, &action);
+        c16i_authorize_priority(&mut owner, 903, &current, &action);
+
+        let binding = owner.current_successor_informed_epistemic_priority_binding_frontier(
             &current,
-            &action,
+            std::slice::from_ref(&action),
+            version_policy(),
+            discrimination_policy(),
+            expectation_policy(),
+            priority_policy(),
         );
-        c16i_authorize_priority(
-            &mut owner,
-            903,
+
+        let priority = binding.bindings()[0].priority_candidate();
+
+        let first = c16i_grounded_native_possibility(
+            &owner,
             &current,
-            &action,
+            priority.source_state().clone(),
+            priority.action().clone(),
+            740,
         );
 
-        let binding =
-            owner
-                .current_successor_informed_epistemic_priority_binding_frontier(
-                    &current,
-                    std::slice::from_ref(&action),
-                    version_policy(),
-                    discrimination_policy(),
-                    expectation_policy(),
-                    priority_policy(),
-                );
+        let second = c16i_grounded_native_possibility(
+            &owner,
+            &current,
+            priority.source_state().clone(),
+            priority.action().clone(),
+            750,
+        );
 
-        let priority =
-            binding.bindings()[0]
-                .priority_candidate();
+        let before_progress = owner.epistemic_progress_event_count();
 
-        let first =
-            c16i_grounded_native_possibility(
-                &owner,
-                &current,
-                priority.source_state().clone(),
-                priority.action().clone(),
-                740,
-            );
+        let before_transitions = owner.transition_episode_count();
 
-        let second =
-            c16i_grounded_native_possibility(
-                &owner,
-                &current,
-                priority.source_state().clone(),
-                priority.action().clone(),
-                750,
-            );
-
-        let before_progress =
-            owner.epistemic_progress_event_count();
-
-        let before_transitions =
-            owner.transition_episode_count();
-
-        let result =
-            owner
-                .current_successor_informed_native_proposal_input_frontier(
-                    SuccessorInformedNativeProposalInputRequest {
-                        state: &current,
-                        actions: std::slice::from_ref(&action),
-                        version_policy: version_policy(),
-                        discrimination_policy: discrimination_policy(),
-                        expectation_policy: expectation_policy(),
-                        priority_policy: priority_policy(),
-                        native_possibilities: &[ first.clone(), second.clone(), ],
-                    }
-                );
+        let result = owner.current_successor_informed_native_proposal_input_frontier(
+            SuccessorInformedNativeProposalInputRequest {
+                state: &current,
+                actions: std::slice::from_ref(&action),
+                version_policy: version_policy(),
+                discrimination_policy: discrimination_policy(),
+                expectation_policy: expectation_policy(),
+                priority_policy: priority_policy(),
+                native_possibilities: &[first.clone(), second.clone()],
+            },
+        );
 
         assert_eq!(
             result.matched_native_possibilities(),
@@ -19053,107 +16850,80 @@ mod p4g_c3f_endogenous_priority_frontier_bridge_tests {
             "C16I-C3 may gate native M50 possibilities but may not sort, deduplicate or rewrite their native payload",
         );
 
-        assert_eq!(
-            owner.epistemic_progress_event_count(),
-            before_progress,
-        );
+        assert_eq!(owner.epistemic_progress_event_count(), before_progress,);
 
-        assert_eq!(
-            owner.transition_episode_count(),
-            before_transitions,
-        );
+        assert_eq!(owner.transition_episode_count(), before_transitions,);
     }
 
-
-
     fn c16i_native_beliefs(
-        possibility:
-            &athlesia_autonomous_active_experimentation::
-                GroundedExperimentPossibility,
-    ) -> Vec<
-        athlesia_autonomous_active_experimentation::
-            HypothesisBeliefState
-    > {
+        possibility: &athlesia_autonomous_active_experimentation::GroundedExperimentPossibility,
+    ) -> Vec<athlesia_autonomous_active_experimentation::HypothesisBeliefState> {
         possibility
             .predictions()
             .iter()
             .map(|prediction| {
-                athlesia_autonomous_active_experimentation::
-                    HypothesisBeliefState::new(
-                        prediction
-                            .hypothesis()
-                            .clone(),
-                        c16i_native_signal(800),
-                    )
-                    .expect(
-                        "caller-native C16I-D belief fixture",
-                    )
+                athlesia_autonomous_active_experimentation::HypothesisBeliefState::new(
+                    prediction.hypothesis().clone(),
+                    c16i_native_signal(800),
+                )
+                .expect("caller-native C16I-D belief fixture")
             })
             .collect()
     }
 
     fn c16i_native_proposal_policy(
-    ) -> athlesia_autonomous_active_experimentation::
-        BeliefDrivenExperimentProposalPolicy {
-        athlesia_autonomous_active_experimentation::BeliefDrivenExperimentProposalPolicy::new(athlesia_autonomous_active_experimentation::ActiveExperimentPolicy::new(athlesia_autonomous_active_experimentation::ActiveExperimentBounds::new(16, 16, 16).unwrap(), athlesia_autonomous_active_experimentation::ActiveExperimentThresholds::new(c16i_native_signal(500), c16i_native_signal(500), c16i_native_signal(500), c16i_native_signal(500)).unwrap()), athlesia_autonomous_active_experimentation::BeliefDrivenExperimentProposalBounds::new(16, 16, 16, 16).unwrap(), c16i_native_signal(500), c16i_native_signal(500)).unwrap()
+    ) -> athlesia_autonomous_active_experimentation::BeliefDrivenExperimentProposalPolicy {
+        athlesia_autonomous_active_experimentation::BeliefDrivenExperimentProposalPolicy::new(
+            athlesia_autonomous_active_experimentation::ActiveExperimentPolicy::new(
+                athlesia_autonomous_active_experimentation::ActiveExperimentBounds::new(16, 16, 16)
+                    .unwrap(),
+                athlesia_autonomous_active_experimentation::ActiveExperimentThresholds::new(
+                    c16i_native_signal(500),
+                    c16i_native_signal(500),
+                    c16i_native_signal(500),
+                    c16i_native_signal(500),
+                )
+                .unwrap(),
+            ),
+            athlesia_autonomous_active_experimentation::BeliefDrivenExperimentProposalBounds::new(
+                16, 16, 16, 16,
+            )
+            .unwrap(),
+            c16i_native_signal(500),
+            c16i_native_signal(500),
+        )
+        .unwrap()
     }
 
     #[test]
-    fn successor_informed_native_m50_delegation_abstains_before_builder_when_c16i_gate_is_empty(
-    ) {
-        let owner =
-            c16i_b1_valid_owner();
+    fn successor_informed_native_m50_delegation_abstains_before_builder_when_c16i_gate_is_empty() {
+        let owner = c16i_b1_valid_owner();
 
-        let current =
-            state(&[1]);
+        let current = state(&[1]);
 
-        let action =
-            a(100);
+        let action = a(100);
 
-        let native =
-            c16i_native_possibility(
-                a(1),
-                action.clone(),
-                760,
-            );
+        let native = c16i_native_possibility(a(1), action.clone(), 760);
 
-        let beliefs =
-            c16i_native_beliefs(
-                &native,
-            );
+        let beliefs = c16i_native_beliefs(&native);
 
-        let native_inputs =
-            [native];
+        let native_inputs = [native];
 
-        let result =
-            owner
-                .current_successor_informed_native_m50_proposal_delegation(
-                    SuccessorInformedNativeM50ProposalDelegationRequest {
-                        native_input:
-                            SuccessorInformedNativeProposalInputRequest {
-                                state:
-                                    &current,
-                                actions:
-                                    std::slice::from_ref(
-                                        &action,
-                                    ),
-                                version_policy:
-                                    version_policy(),
-                                discrimination_policy:
-                                    discrimination_policy(),
-                                expectation_policy:
-                                    expectation_policy(),
-                                priority_policy:
-                                    priority_policy(),
-                                native_possibilities:
-                                    &native_inputs,
-                            },
-                        beliefs:
-                            &beliefs,
-                        proposal_policy:
-                            c16i_native_proposal_policy(),
-                    },
-                );
+        let result = owner.current_successor_informed_native_m50_proposal_delegation(
+            SuccessorInformedNativeM50ProposalDelegationRequest {
+                native_input: SuccessorInformedNativeProposalInputRequest {
+                    state: &current,
+                    actions: std::slice::from_ref(&action),
+                    version_policy: version_policy(),
+                    discrimination_policy: discrimination_policy(),
+                    expectation_policy: expectation_policy(),
+                    priority_policy: priority_policy(),
+                    native_possibilities: &native_inputs,
+                },
+                beliefs: &beliefs,
+                proposal_policy: c16i_native_proposal_policy(),
+            },
+        );
 
         assert!(
             result.is_none(),
@@ -19164,100 +16934,54 @@ mod p4g_c3f_endogenous_priority_frontier_bridge_tests {
     #[test]
     fn successor_informed_native_m50_delegation_is_exactly_equal_to_direct_native_builder_on_gated_inputs(
     ) {
-        let mut owner =
-            c16i_b1_valid_owner();
+        let mut owner = c16i_b1_valid_owner();
 
-        let current =
-            state(&[1]);
+        let current = state(&[1]);
 
-        let action =
-            a(100);
+        let action = a(100);
 
-        c16i_retain_b2_sample(
-            &mut owner,
-            920,
+        c16i_retain_b2_sample(&mut owner, 920, &current, &action);
+
+        c16i_authorize_priority(&mut owner, 921, &current, &action);
+
+        let binding = owner.current_successor_informed_epistemic_priority_binding_frontier(
             &current,
-            &action,
+            std::slice::from_ref(&action),
+            version_policy(),
+            discrimination_policy(),
+            expectation_policy(),
+            priority_policy(),
         );
 
-        c16i_authorize_priority(
-            &mut owner,
-            921,
+        assert_eq!(binding.eligible_binding_count(), 1,);
+
+        let priority = binding.bindings()[0].priority_candidate();
+
+        let native = c16i_grounded_native_possibility(
+            &owner,
             &current,
-            &action,
+            priority.source_state().clone(),
+            priority.action().clone(),
+            770,
         );
 
-        let binding =
-            owner
-                .current_successor_informed_epistemic_priority_binding_frontier(
-                    &current,
-                    std::slice::from_ref(
-                        &action,
-                    ),
-                    version_policy(),
-                    discrimination_policy(),
-                    expectation_policy(),
-                    priority_policy(),
-                );
+        let beliefs = c16i_native_beliefs(&native);
 
-        assert_eq!(
-            binding.eligible_binding_count(),
-            1,
+        let native_inputs = [native];
+
+        let gated = owner.current_successor_informed_native_proposal_input_frontier(
+            SuccessorInformedNativeProposalInputRequest {
+                state: &current,
+                actions: std::slice::from_ref(&action),
+                version_policy: version_policy(),
+                discrimination_policy: discrimination_policy(),
+                expectation_policy: expectation_policy(),
+                priority_policy: priority_policy(),
+                native_possibilities: &native_inputs,
+            },
         );
 
-        let priority =
-            binding
-                .bindings()[0]
-                .priority_candidate();
-
-        let native =
-            c16i_grounded_native_possibility(
-                &owner,
-                &current,
-                priority
-                    .source_state()
-                    .clone(),
-                priority
-                    .action()
-                    .clone(),
-                770,
-            );
-
-        let beliefs =
-            c16i_native_beliefs(
-                &native,
-            );
-
-        let native_inputs =
-            [native];
-
-        let gated =
-            owner
-                .current_successor_informed_native_proposal_input_frontier(
-                    SuccessorInformedNativeProposalInputRequest {
-                        state:
-                            &current,
-                        actions:
-                            std::slice::from_ref(
-                                &action,
-                            ),
-                        version_policy:
-                            version_policy(),
-                        discrimination_policy:
-                            discrimination_policy(),
-                        expectation_policy:
-                            expectation_policy(),
-                        priority_policy:
-                            priority_policy(),
-                        native_possibilities:
-                            &native_inputs,
-                    },
-                );
-
-        assert!(
-            gated
-                .eligible_for_native_m50_delegation(),
-        );
+        assert!(gated.eligible_for_native_m50_delegation(),);
 
         let direct =
             athlesia_autonomous_active_experimentation::
@@ -19269,51 +16993,29 @@ mod p4g_c3f_endogenous_priority_frontier_bridge_tests {
                         c16i_native_proposal_policy(),
                     );
 
-        let progress_before =
-            owner
-                .epistemic_progress_event_count();
+        let progress_before = owner.epistemic_progress_event_count();
 
-        let transitions_before =
-            owner
-                .transition_episode_count();
+        let transitions_before = owner.transition_episode_count();
 
-        let provenance_before =
-            owner
-                .transition_schema_learning()
-                .event_provenance_count();
+        let provenance_before = owner.transition_schema_learning().event_provenance_count();
 
-        let delegated =
-            owner
-                .current_successor_informed_native_m50_proposal_delegation(
-                    SuccessorInformedNativeM50ProposalDelegationRequest {
-                        native_input:
-                            SuccessorInformedNativeProposalInputRequest {
-                                state:
-                                    &current,
-                                actions:
-                                    std::slice::from_ref(
-                                        &action,
-                                    ),
-                                version_policy:
-                                    version_policy(),
-                                discrimination_policy:
-                                    discrimination_policy(),
-                                expectation_policy:
-                                    expectation_policy(),
-                                priority_policy:
-                                    priority_policy(),
-                                native_possibilities:
-                                    &native_inputs,
-                            },
-                        beliefs:
-                            &beliefs,
-                        proposal_policy:
-                            c16i_native_proposal_policy(),
+        let delegated = owner
+            .current_successor_informed_native_m50_proposal_delegation(
+                SuccessorInformedNativeM50ProposalDelegationRequest {
+                    native_input: SuccessorInformedNativeProposalInputRequest {
+                        state: &current,
+                        actions: std::slice::from_ref(&action),
+                        version_policy: version_policy(),
+                        discrimination_policy: discrimination_policy(),
+                        expectation_policy: expectation_policy(),
+                        priority_policy: priority_policy(),
+                        native_possibilities: &native_inputs,
                     },
-                )
-                .expect(
-                    "eligible C16I gate must delegate to native M50 builder",
-                );
+                    beliefs: &beliefs,
+                    proposal_policy: c16i_native_proposal_policy(),
+                },
+            )
+            .expect("eligible C16I gate must delegate to native M50 builder");
 
         assert_eq!(
             delegated.source_state(),
@@ -19328,22 +17030,12 @@ mod p4g_c3f_endogenous_priority_frontier_bridge_tests {
             "C16I-D must return the exact native M50 builder result without reinterpretation",
         );
 
-        assert_eq!(
-            owner
-                .epistemic_progress_event_count(),
-            progress_before,
-        );
+        assert_eq!(owner.epistemic_progress_event_count(), progress_before,);
+
+        assert_eq!(owner.transition_episode_count(), transitions_before,);
 
         assert_eq!(
-            owner
-                .transition_episode_count(),
-            transitions_before,
-        );
-
-        assert_eq!(
-            owner
-                .transition_schema_learning()
-                .event_provenance_count(),
+            owner.transition_schema_learning().event_provenance_count(),
             provenance_before,
         );
     }
@@ -19351,105 +17043,60 @@ mod p4g_c3f_endogenous_priority_frontier_bridge_tests {
     #[test]
     fn successor_informed_native_m50_delegation_preserves_native_builder_abstention_as_a_real_builder_result(
     ) {
-        let mut owner =
-            c16i_b1_valid_owner();
+        let mut owner = c16i_b1_valid_owner();
 
-        let current =
-            state(&[1]);
+        let current = state(&[1]);
 
-        let action =
-            a(100);
+        let action = a(100);
 
-        c16i_retain_b2_sample(
-            &mut owner,
-            922,
+        c16i_retain_b2_sample(&mut owner, 922, &current, &action);
+
+        c16i_authorize_priority(&mut owner, 923, &current, &action);
+
+        let binding = owner.current_successor_informed_epistemic_priority_binding_frontier(
             &current,
-            &action,
+            std::slice::from_ref(&action),
+            version_policy(),
+            discrimination_policy(),
+            expectation_policy(),
+            priority_policy(),
         );
 
-        c16i_authorize_priority(
-            &mut owner,
-            923,
+        let priority = binding.bindings()[0].priority_candidate();
+
+        let native = c16i_grounded_native_possibility(
+            &owner,
             &current,
-            &action,
+            priority.source_state().clone(),
+            priority.action().clone(),
+            780,
         );
 
-        let binding =
-            owner
-                .current_successor_informed_epistemic_priority_binding_frontier(
-                    &current,
-                    std::slice::from_ref(
-                        &action,
-                    ),
-                    version_policy(),
-                    discrimination_policy(),
-                    expectation_policy(),
-                    priority_policy(),
-                );
-
-        let priority =
-            binding
-                .bindings()[0]
-                .priority_candidate();
-
-        let native =
-            c16i_grounded_native_possibility(
-                &owner,
-                &current,
-                priority
-                    .source_state()
-                    .clone(),
-                priority
-                    .action()
-                    .clone(),
-                780,
-            );
-
-        let all_beliefs =
-            c16i_native_beliefs(
-                &native,
-            );
+        let all_beliefs = c16i_native_beliefs(&native);
 
         assert!(
             all_beliefs.len() >= 2,
             "native fixture must expose genuine competing predictions",
         );
 
-        let single_belief =
-            vec![
-                all_beliefs[0]
-                    .clone()
-            ];
+        let single_belief = vec![all_beliefs[0].clone()];
 
-        let native_inputs =
-            [native];
+        let native_inputs = [native];
 
-        let gated =
-            owner
-                .current_successor_informed_native_proposal_input_frontier(
-                    SuccessorInformedNativeProposalInputRequest {
-                        state:
-                            &current,
-                        actions:
-                            std::slice::from_ref(
-                                &action,
-                            ),
-                        version_policy:
-                            version_policy(),
-                        discrimination_policy:
-                            discrimination_policy(),
-                        expectation_policy:
-                            expectation_policy(),
-                        priority_policy:
-                            priority_policy(),
-                        native_possibilities:
-                            &native_inputs,
-                    },
-                );
+        let gated = owner.current_successor_informed_native_proposal_input_frontier(
+            SuccessorInformedNativeProposalInputRequest {
+                state: &current,
+                actions: std::slice::from_ref(&action),
+                version_policy: version_policy(),
+                discrimination_policy: discrimination_policy(),
+                expectation_policy: expectation_policy(),
+                priority_policy: priority_policy(),
+                native_possibilities: &native_inputs,
+            },
+        );
 
         assert!(
-            gated
-                .eligible_for_native_m50_delegation(),
+            gated.eligible_for_native_m50_delegation(),
             "C16I gate must be eligible independently of downstream belief competition",
         );
 
@@ -19612,29 +17259,25 @@ mod p4g_c3g_retained_structural_transfer_progress_tests {
 
         let second = possibility(999, 10);
 
-        assert!(
-            owner
-                .retain_epistemic_transfer_progress_event(
-                    100,
-                    &first,
-                    reduction_sample(1, 10,),
-                    identity_policy(),
-                    history_policy(8),
-                )
-                .retained(),
-        );
+        assert!(owner
+            .retain_epistemic_transfer_progress_event(
+                100,
+                &first,
+                reduction_sample(1, 10,),
+                identity_policy(),
+                history_policy(8),
+            )
+            .retained(),);
 
-        assert!(
-            owner
-                .retain_epistemic_transfer_progress_event(
-                    101,
-                    &second,
-                    reduction_sample(999, 10,),
-                    identity_policy(),
-                    history_policy(8),
-                )
-                .retained(),
-        );
+        assert!(owner
+            .retain_epistemic_transfer_progress_event(
+                101,
+                &second,
+                reduction_sample(999, 10,),
+                identity_policy(),
+                history_policy(8),
+            )
+            .retained(),);
 
         let history = owner.epistemic_transfer_progress_history();
 
@@ -19694,17 +17337,15 @@ mod p4g_c3g_retained_structural_transfer_progress_tests {
 
         let reduction = reduction_sample(1, 10);
 
-        assert!(
-            owner
-                .retain_epistemic_transfer_progress_event(
-                    300,
-                    &pre,
-                    reduction.clone(),
-                    identity_policy(),
-                    history_policy(8),
-                )
-                .retained(),
-        );
+        assert!(owner
+            .retain_epistemic_transfer_progress_event(
+                300,
+                &pre,
+                reduction.clone(),
+                identity_policy(),
+                history_policy(8),
+            )
+            .retained(),);
 
         let duplicate = owner.retain_epistemic_transfer_progress_event(
             300,
@@ -19743,17 +17384,15 @@ mod p4g_c3g_retained_structural_transfer_progress_tests {
 
         let pre = possibility(1, 10);
 
-        assert!(
-            owner
-                .retain_epistemic_transfer_progress_event(
-                    400,
-                    &pre,
-                    reduction_sample(1, 10,),
-                    identity_policy(),
-                    history_policy(1),
-                )
-                .retained(),
-        );
+        assert!(owner
+            .retain_epistemic_transfer_progress_event(
+                400,
+                &pre,
+                reduction_sample(1, 10,),
+                identity_policy(),
+                history_policy(1),
+            )
+            .retained(),);
 
         let overflow = owner.retain_epistemic_transfer_progress_event(
             401,
@@ -19865,23 +17504,21 @@ mod p4g_c3g_empirical_transfer_expectation_bridge_tests {
     }
 
     #[test]
-    fn owner_retained_other_source_progress_feeds_transfer_estimator_without_populating_exact_history()
-     {
+    fn owner_retained_other_source_progress_feeds_transfer_estimator_without_populating_exact_history(
+    ) {
         let mut owner = OnlinePersistentCognitiveState::new();
 
         let historical = possibility(1);
 
-        assert!(
-            owner
-                .retain_epistemic_transfer_progress_event(
-                    100,
-                    &historical,
-                    sample(1),
-                    identity_policy(),
-                    RetainedEpistemicTransferProgressHistoryPolicy::new(8,).unwrap(),
-                )
-                .retained(),
-        );
+        assert!(owner
+            .retain_epistemic_transfer_progress_event(
+                100,
+                &historical,
+                sample(1),
+                identity_policy(),
+                RetainedEpistemicTransferProgressHistoryPolicy::new(8,).unwrap(),
+            )
+            .retained(),);
 
         assert_eq!(owner.epistemic_progress_event_count(), 0,);
 
@@ -19943,264 +17580,122 @@ mod p4g_c3g_empirical_transfer_expectation_bridge_tests {
     }
 }
 
-
 #[cfg(test)]
 mod p4g_c3h_c15b_semantic_provenance_bridge_tests {
     use super::*;
 
-    fn a(
-        value: u64,
-    ) -> CognitiveStructure {
-        CognitiveStructure::atom(
-            value,
-        )
+    fn a(value: u64) -> CognitiveStructure {
+        CognitiveStructure::atom(value)
     }
 
-    fn state(
-        facts: &[u64],
-    ) -> athlesia_universal_domain_learning::
-        GroundedStateSnapshot {
-        athlesia_universal_domain_learning::
-            GroundedStateSnapshot::new(
-                facts
-                    .iter()
-                    .copied()
-                    .map(a)
-                    .collect(),
-            )
-            .expect(
-                "nonempty state",
-            )
+    fn state(facts: &[u64]) -> athlesia_universal_domain_learning::GroundedStateSnapshot {
+        athlesia_universal_domain_learning::GroundedStateSnapshot::new(
+            facts.iter().copied().map(a).collect(),
+        )
+        .expect("nonempty state")
     }
 
     fn episode(
         before: &[u64],
         after: &[u64],
         action: u64,
-    ) -> athlesia_universal_domain_learning::
-        GroundedTransformationEpisode {
-        athlesia_universal_domain_learning::
-            GroundedTransformationEpisode::
-                new(
-                    state(before),
-                    state(after),
-                    a(action),
-                )
+    ) -> athlesia_universal_domain_learning::GroundedTransformationEpisode {
+        athlesia_universal_domain_learning::GroundedTransformationEpisode::new(
+            state(before),
+            state(after),
+            a(action),
+        )
     }
 
-    fn version_policy(
-    ) -> athlesia_universal_domain_learning::
-        GroundedExplanatoryVersionSpacePolicy {
-        athlesia_universal_domain_learning::
-            GroundedExplanatoryVersionSpacePolicy::
-                new(
-                    1,
-                    16,
-                    128,
-                    64,
-                )
-                .expect(
-                    "positive explanatory bounds",
-                )
+    fn version_policy() -> athlesia_universal_domain_learning::GroundedExplanatoryVersionSpacePolicy
+    {
+        athlesia_universal_domain_learning::GroundedExplanatoryVersionSpacePolicy::new(
+            1, 16, 128, 64,
+        )
+        .expect("positive explanatory bounds")
     }
 
-    fn owner(
-    ) -> OnlinePersistentCognitiveState {
-        let mut owner =
-            OnlinePersistentCognitiveState::
-                new();
+    fn owner() -> OnlinePersistentCognitiveState {
+        let mut owner = OnlinePersistentCognitiveState::new();
 
-        owner
-            .transition_schema_learning
-            .episodes =
-            vec![
-                episode(
-                    &[1],
-                    &[1, 900],
-                    100,
-                ),
-                episode(
-                    &[2],
-                    &[2, 900],
-                    100,
-                ),
-            ];
+        owner.transition_schema_learning.episodes =
+            vec![episode(&[1], &[1, 900], 100), episode(&[2], &[2, 900], 100)];
 
         owner
     }
 
     #[test]
     fn semantic_sidecar_preserves_exact_frozen_m50_possibility() {
-        let owner =
-            owner();
+        let owner = owner();
 
-        let current =
-            state(
-                &[1],
-            );
+        let current = state(&[1]);
 
-        let action =
-            a(
-                100,
-            );
+        let action = a(100);
 
-        let frozen =
-            owner
-                .current_m50_epistemic_possibility(
-                    &current,
-                    &action,
-                    version_policy(),
-                )
-                .expect(
-                    "fixture must expose M50 possibility",
-                );
+        let frozen = owner
+            .current_m50_epistemic_possibility(&current, &action, version_policy())
+            .expect("fixture must expose M50 possibility");
 
-        let semantic =
-            owner
-                .current_semantic_m50_epistemic_possibility(
-                    &current,
-                    &action,
-                    version_policy(),
-                )
-                .expect(
-                    "typed semantic provenance must align exactly",
-                );
+        let semantic = owner
+            .current_semantic_m50_epistemic_possibility(&current, &action, version_policy())
+            .expect("typed semantic provenance must align exactly");
 
         assert_eq!(
-            semantic
-                .m50_possibility(),
+            semantic.m50_possibility(),
             &frozen,
             "C15B must not alter frozen M50 representation",
         );
 
-        assert_eq!(
-            semantic
-                .forecast_count(),
-            frozen
-                .forecasts()
-                .len(),
-        );
+        assert_eq!(semantic.forecast_count(), frozen.forecasts().len(),);
 
         assert_eq!(
-            semantic
-                .semantic_provenance()
-                .len(),
-            frozen
-                .forecasts()
-                .len(),
+            semantic.semantic_provenance().len(),
+            frozen.forecasts().len(),
         );
 
-        for (
-            index,
-            provenance,
-        ) in semantic
-            .semantic_provenance()
-            .iter()
-            .enumerate()
-        {
-            assert_eq!(
-                provenance
-                    .forecast_index(),
-                index,
-            );
+        for (index, provenance) in semantic.semantic_provenance().iter().enumerate() {
+            assert_eq!(provenance.forecast_index(), index,);
 
             assert_eq!(
-                provenance
-                    .hypothesis_identity(),
-                frozen
-                    .forecasts()[
-                        index
-                    ]
-                    .hypothesis(),
+                provenance.hypothesis_identity(),
+                frozen.forecasts()[index].hypothesis(),
             );
 
-            assert_eq!(
-                provenance
-                    .hypothesis()
-                    .transformation(),
-                &action,
-            );
+            assert_eq!(provenance.hypothesis().transformation(), &action,);
         }
     }
 
     #[test]
     fn typed_semantic_provenance_reuses_m47_predict_for_new_state() {
-        let owner =
-            owner();
+        let owner = owner();
 
-        let before =
-            state(
-                &[1],
-            );
+        let before = state(&[1]);
 
-        let after =
-            state(
-                &[1, 900],
-            );
+        let after = state(&[1, 900]);
 
-        let action =
-            a(
-                100,
-            );
+        let action = a(100);
 
-        let transfer_history_before =
-            owner
-                .epistemic_transfer_progress_event_count();
+        let transfer_history_before = owner.epistemic_transfer_progress_event_count();
 
-        let semantic =
-            owner
-                .current_semantic_m50_epistemic_possibility(
-                    &before,
-                    &action,
-                    version_policy(),
-                )
-                .expect(
-                    "semantic possibility",
-                );
+        let semantic = owner
+            .current_semantic_m50_epistemic_possibility(&before, &action, version_policy())
+            .expect("semantic possibility");
 
-        let realized_before =
-            semantic
-                .realize_at_state(
-                    &before,
-                )
-                .expect(
-                    "before-state realization",
-                );
+        let realized_before = semantic
+            .realize_at_state(&before)
+            .expect("before-state realization");
 
-        let realized_after =
-            semantic
-                .realize_at_state(
-                    &after,
-                )
-                .expect(
-                    "after-state realization",
-                );
+        let realized_after = semantic
+            .realize_at_state(&after)
+            .expect("after-state realization");
 
-        assert_eq!(
-            realized_before
-                .forecast_count(),
-            semantic
-                .forecast_count(),
-        );
+        assert_eq!(realized_before.forecast_count(), semantic.forecast_count(),);
 
-        assert_eq!(
-            realized_after
-                .forecast_count(),
-            semantic
-                .forecast_count(),
-        );
+        assert_eq!(realized_after.forecast_count(), semantic.forecast_count(),);
 
-        assert_eq!(
-            realized_before
-                .action(),
-            &action,
-        );
+        assert_eq!(realized_before.action(), &action,);
 
-        assert_eq!(
-            realized_after
-                .action(),
-            &action,
-        );
+        assert_eq!(realized_after.action(), &action,);
 
         assert!(
             realized_before
@@ -20227,264 +17722,158 @@ mod p4g_c3h_c15b_semantic_provenance_bridge_tests {
         );
 
         assert_eq!(
-            owner
-                .epistemic_transfer_progress_event_count(),
+            owner.epistemic_transfer_progress_event_count(),
             transfer_history_before,
             "semantic queries must not mutate retained transfer history",
         );
     }
 }
 
-
 #[cfg(test)]
 mod p4g_c3h_c16c_realization_conditioned_transfer_applicability_tests {
     use super::*;
 
-    type Status =
-        athlesia_universal_domain_learning::
-            GroundedExplanatoryPredictionStatus;
+    type Status = athlesia_universal_domain_learning::GroundedExplanatoryPredictionStatus;
 
-    fn profile(
-        statuses: &[Status],
-    ) -> GroundedRealizationConditionedTransferApplicability {
-        GroundedRealizationConditionedTransferApplicability::
-            from_prediction_statuses(
-                statuses
-                    .iter()
-                    .copied(),
-            )
-            .expect(
-                "fixture must define a valid nonempty current realization",
-            )
+    fn profile(statuses: &[Status]) -> GroundedRealizationConditionedTransferApplicability {
+        GroundedRealizationConditionedTransferApplicability::from_prediction_statuses(
+            statuses.iter().copied(),
+        )
+        .expect("fixture must define a valid nonempty current realization")
     }
 
     #[test]
     fn empty_realization_fails_closed() {
         assert!(
-            GroundedRealizationConditionedTransferApplicability::
-                from_prediction_statuses(
-                    std::iter::empty(),
-                )
-                .is_none(),
+            GroundedRealizationConditionedTransferApplicability::from_prediction_statuses(
+                std::iter::empty(),
+            )
+            .is_none(),
         );
     }
 
     #[test]
     fn irrelevant_transformation_fails_closed() {
         assert!(
-            GroundedRealizationConditionedTransferApplicability::
-                from_prediction_statuses(
-                    [
-                        Status::Predicted,
-                        Status::IrrelevantTransformation,
-                    ],
-                )
-                .is_none(),
+            GroundedRealizationConditionedTransferApplicability::from_prediction_statuses([
+                Status::Predicted,
+                Status::IrrelevantTransformation,
+            ],)
+            .is_none(),
         );
     }
 
     #[test]
     fn predicted_only_is_current_prediction_opportunity_not_transfer_value() {
-        let result =
-            profile(
-                &[
-                    Status::Predicted,
-                    Status::Predicted,
-                    Status::Predicted,
-                ],
-            );
+        let result = profile(&[Status::Predicted, Status::Predicted, Status::Predicted]);
 
         assert_eq!(
             result.status(),
-            GroundedRealizationConditionedTransferApplicabilityStatus::
-                PredictedOnly,
+            GroundedRealizationConditionedTransferApplicabilityStatus::PredictedOnly,
         );
 
-        assert_eq!(
-            result.forecast_count(),
-            3,
-        );
+        assert_eq!(result.forecast_count(), 3,);
 
-        assert_eq!(
-            result.predicted_count(),
-            3,
-        );
+        assert_eq!(result.predicted_count(), 3,);
 
-        assert_eq!(
-            result.context_uninformative_count(),
-            0,
-        );
+        assert_eq!(result.context_uninformative_count(), 0,);
 
-        assert_eq!(
-            result.no_effect_opportunity_count(),
-            0,
-        );
+        assert_eq!(result.no_effect_opportunity_count(), 0,);
 
-        assert!(
-            result
-                .has_current_prediction_opportunity(),
-        );
+        assert!(result.has_current_prediction_opportunity(),);
 
-        assert!(
-            !result
-                .entirely_uninformative_in_current_state(),
-        );
+        assert!(!result.entirely_uninformative_in_current_state(),);
     }
 
     #[test]
     fn context_abstention_is_not_prediction_or_falsification() {
-        let result =
-            profile(
-                &[
-                    Status::ContextNotSatisfied,
-                    Status::ContextNotSatisfied,
-                ],
-            );
+        let result = profile(&[Status::ContextNotSatisfied, Status::ContextNotSatisfied]);
 
         assert_eq!(
             result.status(),
-            GroundedRealizationConditionedTransferApplicabilityStatus::
-                ContextUninformativeOnly,
+            GroundedRealizationConditionedTransferApplicabilityStatus::ContextUninformativeOnly,
         );
 
-        assert_eq!(
-            result.predicted_count(),
-            0,
-        );
+        assert_eq!(result.predicted_count(), 0,);
 
-        assert_eq!(
-            result.context_uninformative_count(),
-            2,
-        );
+        assert_eq!(result.context_uninformative_count(), 2,);
 
-        assert!(
-            result
-                .entirely_uninformative_in_current_state(),
-        );
+        assert!(result.entirely_uninformative_in_current_state(),);
     }
 
     #[test]
     fn no_effect_opportunity_is_not_negative_progress_evidence() {
-        let result =
-            profile(
-                &[
-                    Status::NoEffectOpportunity,
-                    Status::NoEffectOpportunity,
-                ],
-            );
+        let result = profile(&[Status::NoEffectOpportunity, Status::NoEffectOpportunity]);
 
         assert_eq!(
             result.status(),
-            GroundedRealizationConditionedTransferApplicabilityStatus::
-                NoEffectOpportunityOnly,
+            GroundedRealizationConditionedTransferApplicabilityStatus::NoEffectOpportunityOnly,
         );
 
-        assert_eq!(
-            result.no_effect_opportunity_count(),
-            2,
-        );
+        assert_eq!(result.no_effect_opportunity_count(), 2,);
 
-        assert!(
-            result
-                .entirely_uninformative_in_current_state(),
-        );
+        assert!(result.entirely_uninformative_in_current_state(),);
     }
 
     #[test]
     fn mixed_uninformative_realization_remains_abstention() {
-        let result =
-            profile(
-                &[
-                    Status::ContextNotSatisfied,
-                    Status::NoEffectOpportunity,
-                    Status::ContextNotSatisfied,
-                ],
-            );
+        let result = profile(&[
+            Status::ContextNotSatisfied,
+            Status::NoEffectOpportunity,
+            Status::ContextNotSatisfied,
+        ]);
 
         assert_eq!(
             result.status(),
-            GroundedRealizationConditionedTransferApplicabilityStatus::
-                MixedUninformativeOnly,
+            GroundedRealizationConditionedTransferApplicabilityStatus::MixedUninformativeOnly,
         );
 
-        assert_eq!(
-            result.predicted_count(),
-            0,
-        );
+        assert_eq!(result.predicted_count(), 0,);
 
-        assert_eq!(
-            result.context_uninformative_count(),
-            2,
-        );
+        assert_eq!(result.context_uninformative_count(), 2,);
 
-        assert_eq!(
-            result.no_effect_opportunity_count(),
-            1,
-        );
+        assert_eq!(result.no_effect_opportunity_count(), 1,);
 
-        assert!(
-            result
-                .entirely_uninformative_in_current_state(),
-        );
+        assert!(result.entirely_uninformative_in_current_state(),);
     }
 
     #[test]
     fn mixed_prediction_and_abstention_is_distinct_from_predicted_only() {
-        let result =
-            profile(
-                &[
-                    Status::Predicted,
-                    Status::ContextNotSatisfied,
-                    Status::NoEffectOpportunity,
-                ],
-            );
+        let result = profile(&[
+            Status::Predicted,
+            Status::ContextNotSatisfied,
+            Status::NoEffectOpportunity,
+        ]);
 
         assert_eq!(
             result.status(),
-            GroundedRealizationConditionedTransferApplicabilityStatus::
-                PredictedWithUninformative,
+            GroundedRealizationConditionedTransferApplicabilityStatus::PredictedWithUninformative,
         );
 
-        assert_eq!(
-            result.predicted_count(),
-            1,
-        );
+        assert_eq!(result.predicted_count(), 1,);
 
-        assert!(
-            result
-                .has_current_prediction_opportunity(),
-        );
+        assert!(result.has_current_prediction_opportunity(),);
     }
 
     #[test]
     fn applicability_profile_is_order_invariant() {
-        let left =
-            profile(
-                &[
-                    Status::Predicted,
-                    Status::ContextNotSatisfied,
-                    Status::NoEffectOpportunity,
-                    Status::Predicted,
-                ],
-            );
+        let left = profile(&[
+            Status::Predicted,
+            Status::ContextNotSatisfied,
+            Status::NoEffectOpportunity,
+            Status::Predicted,
+        ]);
 
-        let right =
-            profile(
-                &[
-                    Status::NoEffectOpportunity,
-                    Status::Predicted,
-                    Status::Predicted,
-                    Status::ContextNotSatisfied,
-                ],
-            );
+        let right = profile(&[
+            Status::NoEffectOpportunity,
+            Status::Predicted,
+            Status::Predicted,
+            Status::ContextNotSatisfied,
+        ]);
 
-        assert_eq!(
-            left,
-            right,
-        );
+        assert_eq!(left, right,);
     }
 }
-
 
 #[cfg(test)]
 mod p4g_c3h_c16d_realization_conditioned_transfer_evidence_tests {
@@ -20493,50 +17882,25 @@ mod p4g_c3h_c16d_realization_conditioned_transfer_evidence_tests {
     #[test]
     fn historical_progress_class_distinguishes_reduction_neutrality_and_increase() {
         assert_eq!(
-            GroundedRealizationConditionedTransferEvidence::
-                classify_historical_progress(
-                    5,
-                    0,
-                ),
-            Some(
-                GroundedHistoricalEpistemicProgressClass::
-                    ReductionObserved,
-            ),
+            GroundedRealizationConditionedTransferEvidence::classify_historical_progress(5, 0,),
+            Some(GroundedHistoricalEpistemicProgressClass::ReductionObserved,),
         );
 
         assert_eq!(
-            GroundedRealizationConditionedTransferEvidence::
-                classify_historical_progress(
-                    0,
-                    0,
-                ),
-            Some(
-                GroundedHistoricalEpistemicProgressClass::
-                    NeutralObserved,
-            ),
+            GroundedRealizationConditionedTransferEvidence::classify_historical_progress(0, 0,),
+            Some(GroundedHistoricalEpistemicProgressClass::NeutralObserved,),
         );
 
         assert_eq!(
-            GroundedRealizationConditionedTransferEvidence::
-                classify_historical_progress(
-                    0,
-                    5,
-                ),
-            Some(
-                GroundedHistoricalEpistemicProgressClass::
-                    IncreaseObserved,
-            ),
+            GroundedRealizationConditionedTransferEvidence::classify_historical_progress(0, 5,),
+            Some(GroundedHistoricalEpistemicProgressClass::IncreaseObserved,),
         );
     }
 
     #[test]
     fn impossible_simultaneous_reduction_and_increase_fails_closed() {
         assert!(
-            GroundedRealizationConditionedTransferEvidence::
-                classify_historical_progress(
-                    1,
-                    1,
-                )
+            GroundedRealizationConditionedTransferEvidence::classify_historical_progress(1, 1,)
                 .is_none(),
         );
     }
@@ -20550,14 +17914,8 @@ mod p4g_c3h_c16d_realization_conditioned_transfer_evidence_tests {
          * Positive-value synthesis belongs to a later empirically
          * justified layer, not C16D.
          */
-        let _ =
-            std::mem::size_of::<
-                GroundedRealizationConditionedTransferEvidence
-            >();
+        let _ = std::mem::size_of::<GroundedRealizationConditionedTransferEvidence>();
 
-        let _ =
-            std::mem::size_of::<
-                GroundedRealizationConditionedTransferEvidenceFrontier
-            >();
+        let _ = std::mem::size_of::<GroundedRealizationConditionedTransferEvidenceFrontier>();
     }
 }

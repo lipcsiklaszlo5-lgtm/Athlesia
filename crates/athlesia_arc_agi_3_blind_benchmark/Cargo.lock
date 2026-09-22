@@ -11,6 +11,7 @@ dependencies = [
  "athlesia_executive_agency",
  "athlesia_integrated_cognitive_agent",
  "athlesia_mindstone_sparse_cognition",
+ "athlesia_universal_domain_learning",
  "reqwest",
  "serde",
  "serde_json",

@@ -1,9 +1,9 @@
 use crate::{
-    ArcAgi3Action, ArcAgi3ActionAuthorizationStatus, ArcAgi3ActionId, ArcAgi3GameState,
-    ArcAgi3Observation, ArcAgi3Protocol,
     cognitive_protocol_bridge::{
         ArcAgi3CognitiveBridgeError, ArcAgi3CognitiveCodecError, ArcAgi3CognitiveProtocolBridge,
     },
+    ArcAgi3Action, ArcAgi3ActionAuthorizationStatus, ArcAgi3ActionId, ArcAgi3GameState,
+    ArcAgi3Observation, ArcAgi3Protocol,
 };
 use athlesia_integrated_cognitive_agent::{
     EnvironmentActionDispatch, EnvironmentInteractionEvidence,

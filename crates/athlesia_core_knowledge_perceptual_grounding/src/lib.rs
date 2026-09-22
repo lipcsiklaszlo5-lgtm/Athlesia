@@ -2838,14 +2838,10 @@ impl PerceptualGroundingPolicy {
 pub struct SceneInterpretationConstruction;
 
 impl SceneInterpretationConstruction {
-    fn provisional_object_scene_support(
-        hypothesis: &ObjectHypothesis,
-    ) -> Option<CognitiveSignal> {
-        let evidence =
-            hypothesis.evidence();
+    fn provisional_object_scene_support(hypothesis: &ObjectHypothesis) -> Option<CognitiveSignal> {
+        let evidence = hypothesis.evidence();
 
-        let zero =
-            CognitiveSignal::zero();
+        let zero = CognitiveSignal::zero();
 
         [
             evidence.cohesion(),
@@ -2856,27 +2852,15 @@ impl SceneInterpretationConstruction {
             evidence.topology(),
         ]
         .into_iter()
-        .filter(
-            |signal| {
-                *signal > zero
-            },
-        )
+        .filter(|signal| *signal > zero)
         .min()
     }
 
-    fn hypotheses_overlap(
-        left: &ObjectHypothesis,
-        right: &ObjectHypothesis,
-    ) -> bool {
-        left
-            .members()
+    fn hypotheses_overlap(left: &ObjectHypothesis, right: &ObjectHypothesis) -> bool {
+        left.members()
             .iter()
             .copied()
-            .any(
-                |member| {
-                    right.contains(member)
-                },
-            )
+            .any(|member| right.contains(member))
     }
 
     fn explanatory_support(
@@ -2888,15 +2872,12 @@ impl SceneInterpretationConstruction {
             return None;
         }
 
-        let reliability_floor =
-            hypotheses
-                .iter()
-                .map(
-                    Self::provisional_object_scene_support,
-                )
-                .collect::<Option<Vec<_>>>()?
-                .into_iter()
-                .min()?;
+        let reliability_floor = hypotheses
+            .iter()
+            .map(Self::provisional_object_scene_support)
+            .collect::<Option<Vec<_>>>()?
+            .into_iter()
+            .min()?;
 
         /*
          * Scene coverage is defined only over explicitly eligible perceptual
@@ -2905,27 +2886,17 @@ impl SceneInterpretationConstruction {
          * Domain adapters may exclude protocol/meta elements, but core owns
          * all interpretation of the resulting coverage ratio.
          */
-        let mut excluded =
-            excluded_handles.to_vec();
+        let mut excluded = excluded_handles.to_vec();
 
         excluded.sort_unstable();
         excluded.dedup();
 
-        let mut eligible_handles =
-            frame
-                .elements()
-                .iter()
-                .map(
-                    PerceptualElement::handle,
-                )
-                .filter(
-                    |handle| {
-                        excluded
-                            .binary_search(handle)
-                            .is_err()
-                    },
-                )
-                .collect::<Vec<_>>();
+        let mut eligible_handles = frame
+            .elements()
+            .iter()
+            .map(PerceptualElement::handle)
+            .filter(|handle| excluded.binary_search(handle).is_err())
+            .collect::<Vec<_>>();
 
         eligible_handles.sort_unstable();
         eligible_handles.dedup();
@@ -2934,32 +2905,22 @@ impl SceneInterpretationConstruction {
             return None;
         }
 
-        let mut covered =
-            std::collections::BTreeSet::new();
+        let mut covered = std::collections::BTreeSet::new();
 
         for hypothesis in hypotheses {
             for &member in hypothesis.members() {
-                if eligible_handles
-                    .binary_search(&member)
-                    .is_ok()
-                {
+                if eligible_handles.binary_search(&member).is_ok() {
                     covered.insert(member);
                 }
             }
         }
 
-        let coverage =
-            EmpiricalObjecthoodSignalCalibration::
-                from_counts(
-                    covered.len(),
-                    eligible_handles.len(),
-                )?;
+        let coverage = EmpiricalObjecthoodSignalCalibration::from_counts(
+            covered.len(),
+            eligible_handles.len(),
+        )?;
 
-        Some(
-            reliability_floor.min(
-                coverage,
-            ),
-        )
+        Some(reliability_floor.min(coverage))
     }
 
     pub fn evaluate_hypotheses(
@@ -2979,77 +2940,41 @@ impl SceneInterpretationConstruction {
          * Competing overlapping object identities therefore remain separate
          * scene candidates rather than being silently merged.
          */
-        let mut candidates =
-            Vec::new();
+        let mut candidates = Vec::new();
 
         for seed_index in 0..hypotheses.len() {
-            let mut scene_hypotheses =
-                vec![
-                    hypotheses[seed_index]
-                        .clone(),
-                ];
+            let mut scene_hypotheses = vec![hypotheses[seed_index].clone()];
 
-            for (
-                candidate_index,
-                candidate,
-            ) in hypotheses
-                .iter()
-                .enumerate()
-            {
-                if candidate_index
-                    == seed_index
-                {
+            for (candidate_index, candidate) in hypotheses.iter().enumerate() {
+                if candidate_index == seed_index {
                     continue;
                 }
 
-                if scene_hypotheses.len()
-                    >= policy
-                        .max_object_hypotheses_per_scene()
-                {
+                if scene_hypotheses.len() >= policy.max_object_hypotheses_per_scene() {
                     break;
                 }
 
-                let overlaps_existing =
-                    scene_hypotheses
-                        .iter()
-                        .any(
-                            |existing| {
-                                Self::hypotheses_overlap(
-                                    existing,
-                                    candidate,
-                                )
-                            },
-                        );
+                let overlaps_existing = scene_hypotheses
+                    .iter()
+                    .any(|existing| Self::hypotheses_overlap(existing, candidate));
 
                 if !overlaps_existing {
-                    scene_hypotheses.push(
-                        candidate.clone(),
-                    );
+                    scene_hypotheses.push(candidate.clone());
                 }
             }
 
             let Some(explanatory_support) =
-                Self::explanatory_support(
-                    frame,
-                    &scene_hypotheses,
-                    excluded_handles,
-                )
+                Self::explanatory_support(frame, &scene_hypotheses, excluded_handles)
             else {
                 continue;
             };
 
-            let Some(scene) =
-                SceneInterpretation::new(
-                    scene_hypotheses,
-                    explanatory_support,
-                )
+            let Some(scene) = SceneInterpretation::new(scene_hypotheses, explanatory_support)
             else {
                 continue;
             };
 
-            if scene
-                .contains_overlapping_hypotheses()
-            {
+            if scene.contains_overlapping_hypotheses() {
                 continue;
             }
 
@@ -3106,9 +3031,7 @@ impl SceneCompetitionResult {
      * truth. Downstream authoritative state therefore exists only when
      * exactly one scene remains selected.
      */
-    pub fn unique_selected_scene(
-        &self,
-    ) -> Option<&SceneInterpretation> {
+    pub fn unique_selected_scene(&self) -> Option<&SceneInterpretation> {
         match self.selected.as_slice() {
             [scene] => Some(scene),
             _ => None,
@@ -3213,11 +3136,8 @@ impl CoreKnowledgePerceptualGrounding {
 mod unique_scene_authority_tests {
     use super::*;
 
-    fn signal(
-        value: u16,
-    ) -> CognitiveSignal {
-        CognitiveSignal::new(value)
-            .unwrap()
+    fn signal(value: u16) -> CognitiveSignal {
+        CognitiveSignal::new(value).unwrap()
     }
 
     fn frame() -> PerceptualFrame {
@@ -3237,13 +3157,9 @@ mod unique_scene_authority_tests {
         .unwrap()
     }
 
-    fn hypothesis(
-        handle: u64,
-    ) -> ObjectHypothesis {
+    fn hypothesis(handle: u64) -> ObjectHypothesis {
         ObjectHypothesis::new(
-            vec![
-                PerceptualElementHandle::new(handle),
-            ],
+            vec![PerceptualElementHandle::new(handle)],
             ObjecthoodEvidence::new(
                 signal(900),
                 signal(900),
@@ -3256,76 +3172,35 @@ mod unique_scene_authority_tests {
         .unwrap()
     }
 
-    fn scene(
-        handle: u64,
-    ) -> SceneInterpretation {
-        SceneInterpretation::new(
-            vec![
-                hypothesis(handle),
-            ],
-            signal(900),
-        )
-        .unwrap()
+    fn scene(handle: u64) -> SceneInterpretation {
+        SceneInterpretation::new(vec![hypothesis(handle)], signal(900)).unwrap()
     }
 
-    fn policy(
-    ) -> PerceptualGroundingPolicy {
-        PerceptualGroundingPolicy::new(
-            8,
-            8,
-        )
-        .unwrap()
+    fn policy() -> PerceptualGroundingPolicy {
+        PerceptualGroundingPolicy::new(8, 8).unwrap()
     }
 
     #[test]
     fn exactly_one_selected_scene_is_authoritative() {
-        let frame =
-            frame();
+        let frame = frame();
 
-        let result =
-            CompetingSceneInterpretations::select(
-                &frame,
-                &[
-                    scene(1),
-                ],
-                policy(),
-            );
+        let result = CompetingSceneInterpretations::select(&frame, &[scene(1)], policy());
 
-        assert_eq!(
-            result.selected_count(),
-            1,
-        );
+        assert_eq!(result.selected_count(), 1,);
+
+        assert!(result.unique_selected_scene().is_some(),);
 
         assert!(
-            result
-                .unique_selected_scene()
-                .is_some(),
-        );
-
-        assert!(
-            GroundedPerceptualStateProjector::
-                unique_selected_scene_facts(
-                    &frame,
-                    &result,
-                )
+            GroundedPerceptualStateProjector::unique_selected_scene_facts(&frame, &result,)
                 .is_some(),
         );
     }
 
     #[test]
     fn multiple_selected_scenes_fail_closed() {
-        let frame =
-            frame();
+        let frame = frame();
 
-        let result =
-            CompetingSceneInterpretations::select(
-                &frame,
-                &[
-                    scene(1),
-                    scene(2),
-                ],
-                policy(),
-            );
+        let result = CompetingSceneInterpretations::select(&frame, &[scene(1), scene(2)], policy());
 
         assert_eq!(
             result.selected_count(),
@@ -3334,18 +3209,12 @@ mod unique_scene_authority_tests {
         );
 
         assert!(
-            result
-                .unique_selected_scene()
-                .is_none(),
+            result.unique_selected_scene().is_none(),
             "ranking must not silently convert ambiguity into authority",
         );
 
         assert!(
-            GroundedPerceptualStateProjector::
-                unique_selected_scene_facts(
-                    &frame,
-                    &result,
-                )
+            GroundedPerceptualStateProjector::unique_selected_scene_facts(&frame, &result,)
                 .is_none(),
             "ambiguous scenes must not project authoritative facts",
         );
@@ -3353,33 +3222,16 @@ mod unique_scene_authority_tests {
 
     #[test]
     fn no_selected_scene_fails_closed() {
-        let frame =
-            frame();
+        let frame = frame();
 
-        let result =
-            CompetingSceneInterpretations::select(
-                &frame,
-                &[],
-                policy(),
-            );
+        let result = CompetingSceneInterpretations::select(&frame, &[], policy());
 
-        assert_eq!(
-            result.selected_count(),
-            0,
-        );
+        assert_eq!(result.selected_count(), 0,);
+
+        assert!(result.unique_selected_scene().is_none(),);
 
         assert!(
-            result
-                .unique_selected_scene()
-                .is_none(),
-        );
-
-        assert!(
-            GroundedPerceptualStateProjector::
-                unique_selected_scene_facts(
-                    &frame,
-                    &result,
-                )
+            GroundedPerceptualStateProjector::unique_selected_scene_facts(&frame, &result,)
                 .is_none(),
         );
     }
@@ -5601,14 +5453,9 @@ impl GroundedPerceptualStateProjector {
         frame: &PerceptualFrame,
         competition: &SceneCompetitionResult,
     ) -> Option<Vec<CognitiveStructure>> {
-        let scene =
-            competition
-                .unique_selected_scene()?;
+        let scene = competition.unique_selected_scene()?;
 
-        Self::scene_facts(
-            frame,
-            scene,
-        )
+        Self::scene_facts(frame, scene)
     }
 
     pub fn scene_facts(
@@ -5919,25 +5766,17 @@ mod grounded_perceptual_state_projection_tests {
 
     #[test]
     fn single_scene_facts_project_exact_grounded_current_scene() {
-        let current = frame(
-            41,
-            &[(1001, 10), (1002, 20)],
-        );
+        let current = frame(41, &[(1001, 10), (1002, 20)]);
         let current_scene = scene(&[vec![1001, 1002]]);
 
-        let facts =
-            GroundedPerceptualStateProjector::scene_facts(
-                &current,
-                &current_scene,
-            )
+        let facts = GroundedPerceptualStateProjector::scene_facts(&current, &current_scene)
             .expect("grounded current scene must project exact perceptual facts");
 
         assert!(facts.contains(&a(10)));
         assert!(facts.contains(&a(20)));
 
-        let object_fact =
-            CognitiveStructure::unordered(vec![a(10), a(20)])
-                .expect("grounded object fact is valid");
+        let object_fact = CognitiveStructure::unordered(vec![a(10), a(20)])
+            .expect("grounded object fact is valid");
 
         assert!(
             facts.contains(&object_fact),
@@ -5947,18 +5786,11 @@ mod grounded_perceptual_state_projection_tests {
 
     #[test]
     fn single_scene_facts_reject_scene_not_grounded_in_current_frame() {
-        let current = frame(
-            51,
-            &[(1001, 10)],
-        );
+        let current = frame(51, &[(1001, 10)]);
         let stale_scene = scene(&[vec![1001, 1002]]);
 
         assert!(
-            GroundedPerceptualStateProjector::scene_facts(
-                &current,
-                &stale_scene,
-            )
-            .is_none(),
+            GroundedPerceptualStateProjector::scene_facts(&current, &stale_scene,).is_none(),
             "historical or stale scene must not become current grounded state",
         );
     }

@@ -1,11 +1,11 @@
 use athlesia_arc_agi_3_adapter::{
-    ArcAgi3AvailableActions, ArcAgi3FrameSequence, ArcAgi3GameId, ArcAgi3GameState, ArcAgi3Grid,
-    ArcAgi3Observation,
     cognitive_protocol_bridge::ArcAgi3CognitiveProtocolBridge,
     perceptual_ingestion_bridge::{
         ArcAgi3PerceptualBridgeError, ArcAgi3PerceptualElementSignature,
         ArcAgi3PerceptualIngestionBridge, UniversalArcAgi3PerceptualIngestionBridge,
     },
+    ArcAgi3AvailableActions, ArcAgi3FrameSequence, ArcAgi3GameId, ArcAgi3GameState, ArcAgi3Grid,
+    ArcAgi3Observation,
 };
 use athlesia_core_knowledge_perceptual_grounding::{
     IntegratedPerceptualWorldContext, IntegratedPerceptualWorldInput, PerceptualElementHandle,

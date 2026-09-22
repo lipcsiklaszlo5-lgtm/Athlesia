@@ -3,8 +3,7 @@ use crate::{
     ArcAgi3Action, ArcAgi3ActionAuthorizationStatus, ArcAgi3ActionId, ArcAgi3Observation,
     ArcAgi3Protocol,
 };
-use athlesia_autonomous_active_experimentation::
-    AutonomousExperimentProposal;
+use athlesia_autonomous_active_experimentation::AutonomousExperimentProposal;
 use athlesia_executive_agency::{ExecutiveGoal, GroundedExecutiveActionCandidate};
 use athlesia_mindstone_sparse_cognition::{CognitiveSignal, CognitiveStructure};
 
@@ -110,10 +109,7 @@ impl ArcAgi3ActionGroundingBridge {
         observation: &ArcAgi3Observation,
         expected_source_state: &CognitiveStructure,
         proposal: &AutonomousExperimentProposal,
-    ) -> Result<
-        ArcAgi3AuthorizedExperimentProposal,
-        ArcAgi3ActionGroundingError
-    > {
+    ) -> Result<ArcAgi3AuthorizedExperimentProposal, ArcAgi3ActionGroundingError> {
         /*
          * Source-state provenance is generic cognition.
          *
@@ -141,19 +137,12 @@ impl ArcAgi3ActionGroundingBridge {
                     },
                 )?;
 
-        let action =
-            Self::authorize_environment_action(
-                observation,
-                proposal.action(),
-            )?;
+        let action = Self::authorize_environment_action(observation, proposal.action())?;
 
-        Ok(
-            ArcAgi3AuthorizedExperimentProposal {
-                action,
-                proposal:
-                    proposal.clone(),
-            },
-        )
+        Ok(ArcAgi3AuthorizedExperimentProposal {
+            action,
+            proposal: proposal.clone(),
+        })
     }
 
     pub fn ground_experiment_for_goal(
@@ -162,10 +151,7 @@ impl ArcAgi3ActionGroundingBridge {
         goal: &ExecutiveGoal,
         goal_alignment: CognitiveSignal,
         proposal: &AutonomousExperimentProposal,
-    ) -> Result<
-        GroundedExecutiveActionCandidate,
-        ArcAgi3ActionGroundingError
-    > {
+    ) -> Result<GroundedExecutiveActionCandidate, ArcAgi3ActionGroundingError> {
         /*
          * Generic source-state provenance is validated by M51 through
          * authorize_experiment_proposal().
@@ -180,11 +166,7 @@ impl ArcAgi3ActionGroundingBridge {
          * also remain in the integrated cognitive layer.
          */
         let authorized =
-            Self::authorize_experiment_proposal(
-                observation,
-                expected_source_state,
-                proposal,
-            )?;
+            Self::authorize_experiment_proposal(observation, expected_source_state, proposal)?;
 
         Ok(
             athlesia_integrated_cognitive_agent::
@@ -202,13 +184,8 @@ impl ArcAgi3ActionGroundingBridge {
         expected_source_state: &CognitiveStructure,
         goal: &ExecutiveGoal,
         goal_alignment: CognitiveSignal,
-        result:
-            &athlesia_autonomous_active_experimentation::
-                BeliefDrivenExperimentProposalResult,
-    ) -> Result<
-        Vec<GroundedExecutiveActionCandidate>,
-        ArcAgi3ActionGroundingError,
-    > {
+        result: &athlesia_autonomous_active_experimentation::BeliefDrivenExperimentProposalResult,
+    ) -> Result<Vec<GroundedExecutiveActionCandidate>, ArcAgi3ActionGroundingError> {
         result
             .generated()
             .iter()
@@ -223,7 +200,6 @@ impl ArcAgi3ActionGroundingBridge {
             })
             .collect::<Result<Vec<_>, _>>()
     }
-
 }
 
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
@@ -258,21 +234,14 @@ impl UniversalArcAgi3ActionGroundingBridge {
         expected_source_state: &CognitiveStructure,
         goal: &ExecutiveGoal,
         goal_alignment: CognitiveSignal,
-        result:
-            &athlesia_autonomous_active_experimentation::
-                BeliefDrivenExperimentProposalResult,
-    ) -> Result<
-        Vec<GroundedExecutiveActionCandidate>,
-        ArcAgi3ActionGroundingError,
-    > {
-        ArcAgi3ActionGroundingBridge::
-            ground_belief_driven_proposal_frontier_for_goal(
-                observation,
-                expected_source_state,
-                goal,
-                goal_alignment,
-                result,
-            )
+        result: &athlesia_autonomous_active_experimentation::BeliefDrivenExperimentProposalResult,
+    ) -> Result<Vec<GroundedExecutiveActionCandidate>, ArcAgi3ActionGroundingError> {
+        ArcAgi3ActionGroundingBridge::ground_belief_driven_proposal_frontier_for_goal(
+            observation,
+            expected_source_state,
+            goal,
+            goal_alignment,
+            result,
+        )
     }
-
 }

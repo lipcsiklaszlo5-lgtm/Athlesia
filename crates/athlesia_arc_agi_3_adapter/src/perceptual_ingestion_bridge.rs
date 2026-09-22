@@ -1,6 +1,6 @@
 use crate::{
-    ArcAgi3Grid, ArcAgi3Observation,
     cognitive_protocol_bridge::{ArcAgi3CognitiveCodecError, ArcAgi3CognitiveProtocolBridge},
+    ArcAgi3Grid, ArcAgi3Observation,
 };
 use athlesia_core_knowledge_perceptual_grounding::{
     IntegratedPerceptualWorldCandidates, IntegratedPerceptualWorldContext,

@@ -2,12 +2,12 @@ use std::cell::{Cell, RefCell};
 use std::collections::VecDeque;
 
 use athlesia_arc_agi_3_adapter::{
-    ArcAgi3Action, ArcAgi3ActionId, ArcAgi3AvailableActions, ArcAgi3FrameSequence, ArcAgi3GameId,
-    ArcAgi3GameState, ArcAgi3Grid, ArcAgi3Observation,
     cognitive_protocol_bridge::ArcAgi3CognitiveProtocolBridge,
     environment_transport_boundary::{ArcAgi3EnvironmentTransport, ArcAgi3TransportError},
     interactive_session_runtime::ArcAgi3SessionCommand,
     live_environment_runtime::{ArcAgi3LiveEnvironmentRuntime, ArcAgi3LiveUnifiedActionRequest},
+    ArcAgi3Action, ArcAgi3ActionId, ArcAgi3AvailableActions, ArcAgi3FrameSequence, ArcAgi3GameId,
+    ArcAgi3GameState, ArcAgi3Grid, ArcAgi3Observation,
 };
 use athlesia_executive_agency::{
     ExecutiveAgencyPolicy, ExecutiveGoal, ExecutiveSelectionThresholds, ExecutiveUtilityWeights,
@@ -633,9 +633,7 @@ fn multiframe_first_response_is_causal_but_latest_response_is_current_state() {
     let pre_action_current = runtime
         .cognitive_runtime()
         .current_grounded_world_state()
-        .expect(
-            "canonical mature P4G runtime must expose a grounded current state",
-        );
+        .expect("canonical mature P4G runtime must expose a grounded current state");
 
     let episode_count_before = runtime
         .cognitive_runtime()
@@ -654,45 +652,32 @@ fn multiframe_first_response_is_causal_but_latest_response_is_current_state() {
      * then combine only their already-valid grids into one multiframe
      * environment response.
      */
-    let causal_template =
-        normal_observation(game, 6_u8, Some(action_one));
+    let causal_template = normal_observation(game, 6_u8, Some(action_one));
 
-    let latest_template =
-        normal_observation(game, 7_u8, Some(action_one));
+    let latest_template = normal_observation(game, 7_u8, Some(action_one));
 
-    let causal_grid =
-        causal_template.frames().latest().clone();
+    let causal_grid = causal_template.frames().latest().clone();
 
-    let latest_grid =
-        latest_template.frames().latest().clone();
+    let latest_grid = latest_template.frames().latest().clone();
 
     let multiframe = ArcAgi3Observation::new(
         causal_template.game_id().clone(),
         causal_template.state(),
-        ArcAgi3FrameSequence::new(vec![
-            causal_grid,
-            latest_grid,
-        ])
-        .expect("two canonical grids form a valid multiframe response"),
+        ArcAgi3FrameSequence::new(vec![causal_grid, latest_grid])
+            .expect("two canonical grids form a valid multiframe response"),
         causal_template.levels_completed(),
         causal_template.win_levels(),
         causal_template.available_actions().clone(),
         Some(action_one),
     );
 
-    runtime
-        .transport()
-        .push(Ok(multiframe));
+    runtime.transport().push(Ok(multiframe));
 
-    let cognitive_action =
-        ArcAgi3CognitiveProtocolBridge::encode_action(action_one);
+    let cognitive_action = ArcAgi3CognitiveProtocolBridge::encode_action(action_one);
 
     let completed = runtime
         .execute_with(signal(900), |cognitive| {
-            m51_fixture::begin_arc(
-                cognitive,
-                cognitive_action,
-            )
+            m51_fixture::begin_arc(cognitive, cognitive_action)
         })
         .expect("grounded multiframe ACTION1 turn must execute");
 
@@ -716,15 +701,13 @@ fn multiframe_first_response_is_causal_but_latest_response_is_current_state() {
         "one real action must create exactly one new direct causal episode",
     );
 
-    let frames =
-        completed.completion().perception().frames();
+    let frames = completed.completion().perception().frames();
 
     let causal_frame = &frames[0];
     let latest_frame = &frames[1];
 
     assert!(
-        causal_frame.observation_index()
-            < latest_frame.observation_index(),
+        causal_frame.observation_index() < latest_frame.observation_index(),
         "first and latest response frames must have ordered observation indices",
     );
 
@@ -738,9 +721,7 @@ fn multiframe_first_response_is_causal_but_latest_response_is_current_state() {
     let scene = runtime
         .cognitive_runtime()
         .current_best_scene_interpretation()
-        .expect(
-            "latest multiframe response must expose a grounded current scene",
-        );
+        .expect("latest multiframe response must expose a grounded current scene");
 
     let causal_state =
         athlesia_core_knowledge_perceptual_grounding::
@@ -771,14 +752,12 @@ fn multiframe_first_response_is_causal_but_latest_response_is_current_state() {
             );
 
     assert_ne!(
-        causal_state,
-        latest_state,
+        causal_state, latest_state,
         "causal response state and latest response state must be observably distinct",
     );
 
     assert_ne!(
-        pre_action_current,
-        latest_state,
+        pre_action_current, latest_state,
         "multiframe response must genuinely advance the represented current state",
     );
 
@@ -795,8 +774,7 @@ fn multiframe_first_response_is_causal_but_latest_response_is_current_state() {
         .after();
 
     assert_eq!(
-        retained_after,
-        &causal_state,
+        retained_after, &causal_state,
         "retained direct action consequence must terminate at FIRST response frame",
     );
 
@@ -806,25 +784,20 @@ fn multiframe_first_response_is_causal_but_latest_response_is_current_state() {
     let live_current = runtime
         .cognitive_runtime()
         .current_grounded_world_state()
-        .expect(
-            "latest multiframe response must expose current grounded state",
-        );
+        .expect("latest multiframe response must expose current grounded state");
 
     assert_eq!(
-        live_current,
-        latest_state,
+        live_current, latest_state,
         "live current state must represent LATEST response frame",
     );
 
     assert_ne!(
-        live_current,
-        causal_state,
+        live_current, causal_state,
         "FIRST causal response cannot masquerade as latest live state",
     );
 
     assert_ne!(
-        &live_current,
-        retained_after,
+        &live_current, retained_after,
         "retained transition history cannot alias live current-state authority",
     );
 }
@@ -850,8 +823,7 @@ fn transition_capacity_saturation_does_not_freeze_live_current_grounded_state() 
         .transition_episode_count();
 
     assert!(
-        initial_count > 0
-            && initial_count < LIVE_TRANSITION_EPISODE_CAP,
+        initial_count > 0 && initial_count < LIVE_TRANSITION_EPISODE_CAP,
         "fixture must begin with real evidence below the live frontier",
     );
 
@@ -871,8 +843,7 @@ fn transition_capacity_saturation_does_not_freeze_live_current_grounded_state() 
      * frontier, checking every admission so a rejected turn cannot produce
      * a false saturation result.
      */
-    let remaining =
-        LIVE_TRANSITION_EPISODE_CAP - initial_count;
+    let remaining = LIVE_TRANSITION_EPISODE_CAP - initial_count;
 
     for index in 0..remaining {
         let before = runtime
@@ -880,12 +851,7 @@ fn transition_capacity_saturation_does_not_freeze_live_current_grounded_state() 
             .cognition()
             .transition_episode_count();
 
-        real_training_turn(
-            &mut runtime,
-            game,
-            action_two,
-            5_u8,
-        );
+        real_training_turn(&mut runtime, game, action_two, 5_u8);
 
         let after = runtime
             .cognitive_runtime()
@@ -911,9 +877,7 @@ fn transition_capacity_saturation_does_not_freeze_live_current_grounded_state() 
     let pre_saturation_current = runtime
         .cognitive_runtime()
         .current_grounded_world_state()
-        .expect(
-            "full transition memory must still expose a grounded current state",
-        );
+        .expect("full transition memory must still expose a grounded current state");
 
     let historical_last_before = runtime
         .cognitive_runtime()
@@ -931,12 +895,7 @@ fn transition_capacity_saturation_does_not_freeze_live_current_grounded_state() 
      * mature fixture. M51 cannot retain episode 257, but perception and
      * current-state authority must still advance.
      */
-    real_training_turn(
-        &mut runtime,
-        game,
-        action_one,
-        6_u8,
-    );
+    real_training_turn(&mut runtime, game, action_one, 6_u8);
 
     assert_eq!(
         runtime
@@ -956,8 +915,7 @@ fn transition_capacity_saturation_does_not_freeze_live_current_grounded_state() 
         .expect("bounded history remains nonempty");
 
     assert_eq!(
-        historical_last_after,
-        &historical_last_before,
+        historical_last_after, &historical_last_before,
         "frontier-exceeded turn must not overwrite or fabricate retained transition history",
     );
 
@@ -968,9 +926,7 @@ fn transition_capacity_saturation_does_not_freeze_live_current_grounded_state() 
     let current_scene = runtime
         .cognitive_runtime()
         .current_best_scene_interpretation()
-        .expect(
-            "familiar post-saturation response must retain a grounded current scene",
-        );
+        .expect("familiar post-saturation response must retain a grounded current scene");
 
     let expected_current =
         athlesia_core_knowledge_perceptual_grounding::
@@ -992,9 +948,7 @@ fn transition_capacity_saturation_does_not_freeze_live_current_grounded_state() 
     let live_current = runtime
         .cognitive_runtime()
         .current_grounded_world_state()
-        .expect(
-            "transition-memory saturation must not erase live current state",
-        );
+        .expect("transition-memory saturation must not erase live current state");
 
     assert_eq!(
         live_current,
@@ -1003,8 +957,7 @@ fn transition_capacity_saturation_does_not_freeze_live_current_grounded_state() 
     );
 
     assert_ne!(
-        live_current,
-        pre_saturation_current,
+        live_current, pre_saturation_current,
         "post-frontier ACTION1 -> 6 must genuinely advance current state",
     );
 
@@ -1015,10 +968,7 @@ fn transition_capacity_saturation_does_not_freeze_live_current_grounded_state() 
     );
 
     assert_eq!(
-        runtime
-            .cognitive_runtime()
-            .observation()
-            .last_action(),
+        runtime.cognitive_runtime().observation().last_action(),
         Some(action_one),
         "anti-vacuity: the post-frontier environment action must actually complete",
     );
@@ -1035,16 +985,13 @@ fn live_completed_turn_event_identity_is_bound_one_to_one_to_retained_transition
      */
     mature_runtime(&mut runtime, game);
 
-    let cognition_before =
-        runtime.cognitive_runtime().cognition();
+    let cognition_before = runtime.cognitive_runtime().cognition();
 
-    let episode_count_before =
-        cognition_before.transition_episode_count();
+    let episode_count_before = cognition_before.transition_episode_count();
 
-    let provenance_count_before =
-        cognition_before
-            .transition_schema_learning()
-            .event_provenance_count();
+    let provenance_count_before = cognition_before
+        .transition_schema_learning()
+        .event_provenance_count();
 
     assert!(
         episode_count_before > 0,
@@ -1052,18 +999,13 @@ fn live_completed_turn_event_identity_is_bound_one_to_one_to_retained_transition
     );
 
     assert_eq!(
-        episode_count_before,
-        provenance_count_before,
+        episode_count_before, provenance_count_before,
         "every pre-existing retained episode must already have exactly one provenance record",
     );
 
-    let action_one =
-        action(ArcAgi3ActionId::Action1);
+    let action_one = action(ArcAgi3ActionId::Action1);
 
-    let cognitive_action =
-        ArcAgi3CognitiveProtocolBridge::encode_action(
-            action_one,
-        );
+    let cognitive_action = ArcAgi3CognitiveProtocolBridge::encode_action(action_one);
 
     /*
      * Execute one REAL live environment turn directly instead of using
@@ -1072,45 +1014,28 @@ fn live_completed_turn_event_identity_is_bound_one_to_one_to_retained_transition
      */
     runtime
         .transport()
-        .push(Ok(normal_observation(
-            game,
-            6_u8,
-            Some(action_one),
-        )));
+        .push(Ok(normal_observation(game, 6_u8, Some(action_one))));
 
     let completed = runtime
         .execute_with(signal(900), |cognitive| {
-            m51_fixture::begin_arc(
-                cognitive,
-                cognitive_action.clone(),
-            )
+            m51_fixture::begin_arc(cognitive, cognitive_action.clone())
         })
-        .expect(
-            "live grounded ACTION1 consequence must execute",
-        );
+        .expect("live grounded ACTION1 consequence must execute");
 
     assert!(
         completed.completion().has_cognitive_feedback(),
         "real live action must produce canonical environment evidence",
     );
 
-    let completed_turn =
-        completed.completion().turn();
+    let completed_turn = completed.completion().turn();
 
-    let completed_event_index =
-        completed_turn.event_index();
+    let completed_event_index = completed_turn.event_index();
 
-    let evidence =
-        completed_turn
-            .evidence()
-            .expect(
-                "real completed action must retain environment interaction evidence",
-            );
+    let evidence = completed_turn
+        .evidence()
+        .expect("real completed action must retain environment interaction evidence");
 
-    let evidence_event_index =
-        evidence
-            .action_observation()
-            .event_index();
+    let evidence_event_index = evidence.action_observation().event_index();
 
     assert_eq!(
         evidence_event_index,
@@ -1118,20 +1043,15 @@ fn live_completed_turn_event_identity_is_bound_one_to_one_to_retained_transition
         "session completed-turn identity must survive unchanged into EnvironmentInteractionEvidence",
     );
 
-    let causal_transition =
-        completed
-            .completion()
-            .perception()
-            .causal_environment_transition()
-            .expect(
-                "real live action response must expose its direct causal perceptual transition",
-            );
+    let causal_transition = completed
+        .completion()
+        .perception()
+        .causal_environment_transition()
+        .expect("real live action response must expose its direct causal perceptual transition");
 
-    let cognition_after =
-        runtime.cognitive_runtime().cognition();
+    let cognition_after = runtime.cognitive_runtime().cognition();
 
-    let learning_state =
-        cognition_after.transition_schema_learning();
+    let learning_state = cognition_after.transition_schema_learning();
 
     assert_eq!(
         cognition_after.transition_episode_count(),
@@ -1151,21 +1071,15 @@ fn live_completed_turn_event_identity_is_bound_one_to_one_to_retained_transition
         "retained episode and provenance frontiers must remain exactly one-to-one",
     );
 
-    let retained_episode =
-        learning_state
-            .episodes()
-            .last()
-            .expect(
-                "newly admitted live event must retain its M47 episode",
-            );
+    let retained_episode = learning_state
+        .episodes()
+        .last()
+        .expect("newly admitted live event must retain its M47 episode");
 
-    let retained_provenance =
-        learning_state
-            .event_provenance()
-            .last()
-            .expect(
-                "newly admitted live event must retain provenance beside its episode",
-            );
+    let retained_provenance = learning_state
+        .event_provenance()
+        .last()
+        .expect("newly admitted live event must retain provenance beside its episode");
 
     assert_eq!(
         retained_provenance.event_index(),
@@ -1175,17 +1089,13 @@ fn live_completed_turn_event_identity_is_bound_one_to_one_to_retained_transition
 
     assert_eq!(
         retained_provenance.previous_observation_index(),
-        causal_transition
-            .previous_frame()
-            .observation_index(),
+        causal_transition.previous_frame().observation_index(),
         "retained provenance must bind to the exact causal predecessor frame",
     );
 
     assert_eq!(
         retained_provenance.current_observation_index(),
-        causal_transition
-            .current_frame()
-            .observation_index(),
+        causal_transition.current_frame().observation_index(),
         "retained provenance must bind to the exact first causal response frame",
     );
 
@@ -1203,12 +1113,8 @@ fn live_completed_turn_event_identity_is_bound_one_to_one_to_retained_transition
      * perceptual observation_index.
      */
     assert_eq!(
-        learning_state
-            .episodes()
-            .len(),
-        learning_state
-            .event_provenance()
-            .len(),
+        learning_state.episodes().len(),
+        learning_state.event_provenance().len(),
         "index-aligned episode/provenance storage must remain structurally one-to-one",
     );
 }
@@ -1223,12 +1129,7 @@ fn live_reset_cannot_append_transition_event_provenance() {
 
     let action_two = action(ArcAgi3ActionId::Action2);
 
-    real_training_turn(
-        &mut runtime,
-        game,
-        action_two,
-        7_u8,
-    );
+    real_training_turn(&mut runtime, game, action_two, 7_u8);
 
     let state_before = runtime
         .cognitive_runtime()
@@ -1288,7 +1189,6 @@ fn live_reset_cannot_append_transition_event_provenance() {
     );
 }
 
-
 #[test]
 fn live_transition_capacity_saturates_episode_and_provenance_atomically() {
     const LIVE_TRANSITION_EPISODE_CAP: usize = 256;
@@ -1316,13 +1216,11 @@ fn live_transition_capacity_saturates_episode_and_provenance_atomically() {
     );
 
     assert!(
-        initial_episode_count > 0
-            && initial_episode_count < LIVE_TRANSITION_EPISODE_CAP,
+        initial_episode_count > 0 && initial_episode_count < LIVE_TRANSITION_EPISODE_CAP,
         "fixture must begin below the production transition frontier",
     );
 
-    let remaining =
-        LIVE_TRANSITION_EPISODE_CAP - initial_episode_count;
+    let remaining = LIVE_TRANSITION_EPISODE_CAP - initial_episode_count;
 
     for index in 0..remaining {
         let before = runtime
@@ -1334,17 +1232,11 @@ fn live_transition_capacity_saturates_episode_and_provenance_atomically() {
         let before_provenance = before.event_provenance_count();
 
         assert_eq!(
-            before_episodes,
-            before_provenance,
+            before_episodes, before_provenance,
             "pre-admission owner must remain one-to-one at fill index {index}",
         );
 
-        real_training_turn(
-            &mut runtime,
-            game,
-            action_two,
-            5_u8,
-        );
+        real_training_turn(&mut runtime, game, action_two, 5_u8);
 
         let after = runtime
             .cognitive_runtime()
@@ -1369,15 +1261,9 @@ fn live_transition_capacity_saturates_episode_and_provenance_atomically() {
         .cognition()
         .transition_schema_learning();
 
-    assert_eq!(
-        full.episode_count(),
-        LIVE_TRANSITION_EPISODE_CAP,
-    );
+    assert_eq!(full.episode_count(), LIVE_TRANSITION_EPISODE_CAP,);
 
-    assert_eq!(
-        full.event_provenance_count(),
-        LIVE_TRANSITION_EPISODE_CAP,
-    );
+    assert_eq!(full.event_provenance_count(), LIVE_TRANSITION_EPISODE_CAP,);
 
     let last_episode_before = full
         .episodes()
@@ -1394,12 +1280,7 @@ fn live_transition_capacity_saturates_episode_and_provenance_atomically() {
      * A 257th genuine live event completes in the environment but cannot
      * partially append either side of the retained transition record.
      */
-    real_training_turn(
-        &mut runtime,
-        game,
-        action_one,
-        6_u8,
-    );
+    real_training_turn(&mut runtime, game, action_one, 6_u8);
 
     let after_frontier = runtime
         .cognitive_runtime()

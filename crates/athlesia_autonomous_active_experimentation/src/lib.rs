@@ -2831,16 +2831,14 @@ impl UniversalAutonomousEmpiricalEpistemicTransferIdentity {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct GroundedEpistemicTransferProgressEvidence {
     evidence_identity: CognitiveStructure,
-    transfer_identity:
-        EmpiricalEpistemicTransferIdentity,
+    transfer_identity: EmpiricalEpistemicTransferIdentity,
     sample: EpistemicResolutionProgressSample,
 }
 
 impl GroundedEpistemicTransferProgressEvidence {
     pub fn new(
         evidence_identity: CognitiveStructure,
-        transfer_identity:
-            EmpiricalEpistemicTransferIdentity,
+        transfer_identity: EmpiricalEpistemicTransferIdentity,
         sample: EpistemicResolutionProgressSample,
     ) -> Self {
         Self {
@@ -2850,21 +2848,15 @@ impl GroundedEpistemicTransferProgressEvidence {
         }
     }
 
-    pub fn evidence_identity(
-        &self,
-    ) -> &CognitiveStructure {
+    pub fn evidence_identity(&self) -> &CognitiveStructure {
         &self.evidence_identity
     }
 
-    pub fn transfer_identity(
-        &self,
-    ) -> &EmpiricalEpistemicTransferIdentity {
+    pub fn transfer_identity(&self) -> &EmpiricalEpistemicTransferIdentity {
         &self.transfer_identity
     }
 
-    pub fn sample(
-        &self,
-    ) -> &EpistemicResolutionProgressSample {
+    pub fn sample(&self) -> &EpistemicResolutionProgressSample {
         &self.sample
     }
 }
@@ -2885,10 +2877,8 @@ impl EmpiricalExpectedEpistemicTransferProgressPolicy {
         if max_input_evidence == 0
             || max_matching_evidence == 0
             || minimum_matching_evidence == 0
-            || minimum_matching_evidence
-                > max_matching_evidence
-            || max_matching_evidence
-                > max_input_evidence
+            || minimum_matching_evidence > max_matching_evidence
+            || max_matching_evidence > max_input_evidence
         {
             return None;
         }
@@ -2908,9 +2898,7 @@ impl EmpiricalExpectedEpistemicTransferProgressPolicy {
         self.max_matching_evidence
     }
 
-    pub fn minimum_matching_evidence(
-        self,
-    ) -> usize {
+    pub fn minimum_matching_evidence(self) -> usize {
         self.minimum_matching_evidence
     }
 }
@@ -2918,8 +2906,7 @@ impl EmpiricalExpectedEpistemicTransferProgressPolicy {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct EmpiricalExpectedEpistemicTransferProgressEstimate {
     current_source_state: CognitiveStructure,
-    transfer_identity:
-        EmpiricalEpistemicTransferIdentity,
+    transfer_identity: EmpiricalEpistemicTransferIdentity,
     qualifying_sample_count: usize,
     distinct_source_state_count: usize,
     total_reduction: u128,
@@ -2931,75 +2918,51 @@ pub struct EmpiricalExpectedEpistemicTransferProgressEstimate {
 }
 
 impl EmpiricalExpectedEpistemicTransferProgressEstimate {
-    pub fn current_source_state(
-        &self,
-    ) -> &CognitiveStructure {
+    pub fn current_source_state(&self) -> &CognitiveStructure {
         &self.current_source_state
     }
 
-    pub fn transfer_identity(
-        &self,
-    ) -> &EmpiricalEpistemicTransferIdentity {
+    pub fn transfer_identity(&self) -> &EmpiricalEpistemicTransferIdentity {
         &self.transfer_identity
     }
 
-    pub fn qualifying_sample_count(
-        &self,
-    ) -> usize {
+    pub fn qualifying_sample_count(&self) -> usize {
         self.qualifying_sample_count
     }
 
-    pub fn distinct_source_state_count(
-        &self,
-    ) -> usize {
+    pub fn distinct_source_state_count(&self) -> usize {
         self.distinct_source_state_count
     }
 
-    pub fn expected_reduction_numerator(
-        &self,
-    ) -> u128 {
+    pub fn expected_reduction_numerator(&self) -> u128 {
         self.total_reduction
     }
 
-    pub fn expected_reduction_denominator(
-        &self,
-    ) -> usize {
+    pub fn expected_reduction_denominator(&self) -> usize {
         self.qualifying_sample_count
     }
 
-    pub fn expected_increase_numerator(
-        &self,
-    ) -> u128 {
+    pub fn expected_increase_numerator(&self) -> u128 {
         self.total_increase
     }
 
-    pub fn expected_increase_denominator(
-        &self,
-    ) -> usize {
+    pub fn expected_increase_denominator(&self) -> usize {
         self.qualifying_sample_count
     }
 
-    pub fn reduction_sample_count(
-        &self,
-    ) -> usize {
+    pub fn reduction_sample_count(&self) -> usize {
         self.reduction_sample_count
     }
 
-    pub fn increase_sample_count(
-        &self,
-    ) -> usize {
+    pub fn increase_sample_count(&self) -> usize {
         self.increase_sample_count
     }
 
-    pub fn unchanged_sample_count(
-        &self,
-    ) -> usize {
+    pub fn unchanged_sample_count(&self) -> usize {
         self.unchanged_sample_count
     }
 
-    pub fn direction(
-        &self,
-    ) -> EmpiricalEpistemicProgressDirection {
+    pub fn direction(&self) -> EmpiricalEpistemicProgressDirection {
         self.direction
     }
 }
@@ -3022,21 +2985,16 @@ pub enum EmpiricalExpectedEpistemicTransferProgressStatus {
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct EmpiricalExpectedEpistemicTransferProgressResult {
-    status:
-        EmpiricalExpectedEpistemicTransferProgressStatus,
+    status: EmpiricalExpectedEpistemicTransferProgressStatus,
     input_evidence_count: usize,
     matching_identity_evidence_count: usize,
     cross_state_matching_evidence_count: usize,
-    estimate:
-        Option<
-            EmpiricalExpectedEpistemicTransferProgressEstimate,
-        >,
+    estimate: Option<EmpiricalExpectedEpistemicTransferProgressEstimate>,
 }
 
 impl EmpiricalExpectedEpistemicTransferProgressResult {
     fn rejected(
-        status:
-            EmpiricalExpectedEpistemicTransferProgressStatus,
+        status: EmpiricalExpectedEpistemicTransferProgressStatus,
         input_evidence_count: usize,
         matching_identity_evidence_count: usize,
         cross_state_matching_evidence_count: usize,
@@ -3050,41 +3008,27 @@ impl EmpiricalExpectedEpistemicTransferProgressResult {
         }
     }
 
-    pub fn status(
-        &self,
-    ) -> EmpiricalExpectedEpistemicTransferProgressStatus {
+    pub fn status(&self) -> EmpiricalExpectedEpistemicTransferProgressStatus {
         self.status
     }
 
     pub fn estimated(&self) -> bool {
-        self.status
-            == EmpiricalExpectedEpistemicTransferProgressStatus::
-                Estimated
+        self.status == EmpiricalExpectedEpistemicTransferProgressStatus::Estimated
     }
 
-    pub fn input_evidence_count(
-        &self,
-    ) -> usize {
+    pub fn input_evidence_count(&self) -> usize {
         self.input_evidence_count
     }
 
-    pub fn matching_identity_evidence_count(
-        &self,
-    ) -> usize {
+    pub fn matching_identity_evidence_count(&self) -> usize {
         self.matching_identity_evidence_count
     }
 
-    pub fn cross_state_matching_evidence_count(
-        &self,
-    ) -> usize {
+    pub fn cross_state_matching_evidence_count(&self) -> usize {
         self.cross_state_matching_evidence_count
     }
 
-    pub fn estimate(
-        &self,
-    ) -> Option<
-        &EmpiricalExpectedEpistemicTransferProgressEstimate,
-    > {
+    pub fn estimate(&self) -> Option<&EmpiricalExpectedEpistemicTransferProgressEstimate> {
         self.estimate.as_ref()
     }
 }
@@ -3094,88 +3038,56 @@ pub struct AutonomousEmpiricalExpectedEpistemicTransferProgress;
 
 impl AutonomousEmpiricalExpectedEpistemicTransferProgress {
     pub fn estimate(
-        current:
-            &GroundedEpistemicExperimentPossibility,
-        history:
-            &[GroundedEpistemicTransferProgressEvidence],
-        identity_policy:
-            EmpiricalEpistemicTransferIdentityPolicy,
-        discrimination_policy:
-            EpistemicForecastDiscriminationPolicy,
-        policy:
-            EmpiricalExpectedEpistemicTransferProgressPolicy,
+        current: &GroundedEpistemicExperimentPossibility,
+        history: &[GroundedEpistemicTransferProgressEvidence],
+        identity_policy: EmpiricalEpistemicTransferIdentityPolicy,
+        discrimination_policy: EpistemicForecastDiscriminationPolicy,
+        policy: EmpiricalExpectedEpistemicTransferProgressPolicy,
     ) -> EmpiricalExpectedEpistemicTransferProgressResult {
-        let input_evidence_count =
-            history.len();
+        let input_evidence_count = history.len();
 
         let discrimination =
-            AutonomousEpistemicForecastDiscrimination::
-                evaluate(
-                    current,
-                    discrimination_policy,
-                );
+            AutonomousEpistemicForecastDiscrimination::evaluate(current, discrimination_policy);
 
-        if discrimination
-            .forecast_frontier_truncated()
-            || discrimination
-                .target_frontier_truncated()
+        if discrimination.forecast_frontier_truncated()
+            || discrimination.target_frontier_truncated()
         {
-            return
-                EmpiricalExpectedEpistemicTransferProgressResult::
-                    rejected(
-                        EmpiricalExpectedEpistemicTransferProgressStatus::
-                            CurrentForecastFrontierTruncated,
-                        input_evidence_count,
-                        0,
-                        0,
-                    );
+            return EmpiricalExpectedEpistemicTransferProgressResult::rejected(
+                EmpiricalExpectedEpistemicTransferProgressStatus::CurrentForecastFrontierTruncated,
+                input_evidence_count,
+                0,
+                0,
+            );
         }
 
         if !discrimination.informative() {
-            return
-                EmpiricalExpectedEpistemicTransferProgressResult::
-                    rejected(
-                        EmpiricalExpectedEpistemicTransferProgressStatus::
-                            CurrentNotInformative,
-                        input_evidence_count,
-                        0,
-                        0,
-                    );
+            return EmpiricalExpectedEpistemicTransferProgressResult::rejected(
+                EmpiricalExpectedEpistemicTransferProgressStatus::CurrentNotInformative,
+                input_evidence_count,
+                0,
+                0,
+            );
         }
 
         let current_identity_result =
-            AutonomousEmpiricalEpistemicTransferIdentity::
-                derive(
-                    current,
-                    identity_policy,
-                );
+            AutonomousEmpiricalEpistemicTransferIdentity::derive(current, identity_policy);
 
-        let Some(current_identity) =
-            current_identity_result.identity().cloned()
-        else {
-            return
-                EmpiricalExpectedEpistemicTransferProgressResult::
-                    rejected(
-                        EmpiricalExpectedEpistemicTransferProgressStatus::
-                            CurrentTransferIdentityRejected,
-                        input_evidence_count,
-                        0,
-                        0,
-                    );
+        let Some(current_identity) = current_identity_result.identity().cloned() else {
+            return EmpiricalExpectedEpistemicTransferProgressResult::rejected(
+                EmpiricalExpectedEpistemicTransferProgressStatus::CurrentTransferIdentityRejected,
+                input_evidence_count,
+                0,
+                0,
+            );
         };
 
-        if input_evidence_count
-            > policy.max_input_evidence()
-        {
-            return
-                EmpiricalExpectedEpistemicTransferProgressResult::
-                    rejected(
-                        EmpiricalExpectedEpistemicTransferProgressStatus::
-                            InputEvidenceFrontierExceeded,
-                        input_evidence_count,
-                        0,
-                        0,
-                    );
+        if input_evidence_count > policy.max_input_evidence() {
+            return EmpiricalExpectedEpistemicTransferProgressResult::rejected(
+                EmpiricalExpectedEpistemicTransferProgressStatus::InputEvidenceFrontierExceeded,
+                input_evidence_count,
+                0,
+                0,
+            );
         }
 
         /*
@@ -3186,30 +3098,21 @@ impl AutonomousEmpiricalExpectedEpistemicTransferProgress {
          * No sorting is needed because all later arithmetic is
          * commutative and exact structural equality controls identity.
          */
-        let mut unique:
-            Vec<&GroundedEpistemicTransferProgressEvidence> =
-            Vec::new();
+        let mut unique: Vec<&GroundedEpistemicTransferProgressEvidence> = Vec::new();
 
         for evidence in history {
-            if evidence.sample().action()
-                != evidence.transfer_identity().action()
-            {
-                return
-                    EmpiricalExpectedEpistemicTransferProgressResult::
-                        rejected(
-                            EmpiricalExpectedEpistemicTransferProgressStatus::
-                                EvidenceActionMismatch,
-                            input_evidence_count,
-                            0,
-                            0,
-                        );
+            if evidence.sample().action() != evidence.transfer_identity().action() {
+                return EmpiricalExpectedEpistemicTransferProgressResult::rejected(
+                    EmpiricalExpectedEpistemicTransferProgressStatus::EvidenceActionMismatch,
+                    input_evidence_count,
+                    0,
+                    0,
+                );
             }
 
-            if let Some(existing) =
-                unique.iter().find(|existing| {
-                    existing.evidence_identity()
-                        == evidence.evidence_identity()
-                })
+            if let Some(existing) = unique
+                .iter()
+                .find(|existing| existing.evidence_identity() == evidence.evidence_identity())
             {
                 if *existing != evidence {
                     return
@@ -3232,25 +3135,18 @@ impl AutonomousEmpiricalExpectedEpistemicTransferProgress {
         let matching_identity = unique
             .iter()
             .copied()
-            .filter(|evidence| {
-                evidence.transfer_identity()
-                    == &current_identity
-            })
+            .filter(|evidence| evidence.transfer_identity() == &current_identity)
             .collect::<Vec<_>>();
 
-        let matching_identity_evidence_count =
-            matching_identity.len();
+        let matching_identity_evidence_count = matching_identity.len();
 
         if matching_identity_evidence_count == 0 {
-            return
-                EmpiricalExpectedEpistemicTransferProgressResult::
-                    rejected(
-                        EmpiricalExpectedEpistemicTransferProgressStatus::
-                            NoMatchingTransferIdentity,
-                        input_evidence_count,
-                        0,
-                        0,
-                    );
+            return EmpiricalExpectedEpistemicTransferProgressResult::rejected(
+                EmpiricalExpectedEpistemicTransferProgressStatus::NoMatchingTransferIdentity,
+                input_evidence_count,
+                0,
+                0,
+            );
         }
 
         /*
@@ -3259,53 +3155,36 @@ impl AutonomousEmpiricalExpectedEpistemicTransferProgress {
          */
         let cross_state = matching_identity
             .into_iter()
-            .filter(|evidence| {
-                evidence.sample().source_state()
-                    != current.source_state()
-            })
+            .filter(|evidence| evidence.sample().source_state() != current.source_state())
             .collect::<Vec<_>>();
 
-        let cross_state_matching_evidence_count =
-            cross_state.len();
+        let cross_state_matching_evidence_count = cross_state.len();
 
         if cross_state_matching_evidence_count == 0 {
-            return
-                EmpiricalExpectedEpistemicTransferProgressResult::
-                    rejected(
-                        EmpiricalExpectedEpistemicTransferProgressStatus::
-                            NoCrossStateMatchingEvidence,
-                        input_evidence_count,
-                        matching_identity_evidence_count,
-                        0,
-                    );
+            return EmpiricalExpectedEpistemicTransferProgressResult::rejected(
+                EmpiricalExpectedEpistemicTransferProgressStatus::NoCrossStateMatchingEvidence,
+                input_evidence_count,
+                matching_identity_evidence_count,
+                0,
+            );
         }
 
-        if cross_state_matching_evidence_count
-            > policy.max_matching_evidence()
-        {
-            return
-                EmpiricalExpectedEpistemicTransferProgressResult::
-                    rejected(
-                        EmpiricalExpectedEpistemicTransferProgressStatus::
-                            MatchingEvidenceFrontierExceeded,
-                        input_evidence_count,
-                        matching_identity_evidence_count,
-                        cross_state_matching_evidence_count,
-                    );
+        if cross_state_matching_evidence_count > policy.max_matching_evidence() {
+            return EmpiricalExpectedEpistemicTransferProgressResult::rejected(
+                EmpiricalExpectedEpistemicTransferProgressStatus::MatchingEvidenceFrontierExceeded,
+                input_evidence_count,
+                matching_identity_evidence_count,
+                cross_state_matching_evidence_count,
+            );
         }
 
-        if cross_state_matching_evidence_count
-            < policy.minimum_matching_evidence()
-        {
-            return
-                EmpiricalExpectedEpistemicTransferProgressResult::
-                    rejected(
-                        EmpiricalExpectedEpistemicTransferProgressStatus::
-                            InsufficientMatchingEvidence,
-                        input_evidence_count,
-                        matching_identity_evidence_count,
-                        cross_state_matching_evidence_count,
-                    );
+        if cross_state_matching_evidence_count < policy.minimum_matching_evidence() {
+            return EmpiricalExpectedEpistemicTransferProgressResult::rejected(
+                EmpiricalExpectedEpistemicTransferProgressStatus::InsufficientMatchingEvidence,
+                input_evidence_count,
+                matching_identity_evidence_count,
+                cross_state_matching_evidence_count,
+            );
         }
 
         let mut total_reduction = 0_u128;
@@ -3315,50 +3194,36 @@ impl AutonomousEmpiricalExpectedEpistemicTransferProgress {
         let mut increase_sample_count = 0_usize;
         let mut unchanged_sample_count = 0_usize;
 
-        let mut distinct_source_states:
-            Vec<&CognitiveStructure> =
-            Vec::new();
+        let mut distinct_source_states: Vec<&CognitiveStructure> = Vec::new();
 
         for evidence in cross_state {
             let sample = evidence.sample();
 
-            total_reduction = match total_reduction
-                .checked_add(
-                    sample.realized_separation_reduction() as u128,
-                )
-            {
-                Some(value) => value,
-                None => {
-                    return
-                        EmpiricalExpectedEpistemicTransferProgressResult::
-                            rejected(
-                                EmpiricalExpectedEpistemicTransferProgressStatus::
-                                    ArithmeticOverflow,
-                                input_evidence_count,
-                                matching_identity_evidence_count,
-                                cross_state_matching_evidence_count,
-                            );
-                }
-            };
+            total_reduction =
+                match total_reduction.checked_add(sample.realized_separation_reduction() as u128) {
+                    Some(value) => value,
+                    None => {
+                        return EmpiricalExpectedEpistemicTransferProgressResult::rejected(
+                            EmpiricalExpectedEpistemicTransferProgressStatus::ArithmeticOverflow,
+                            input_evidence_count,
+                            matching_identity_evidence_count,
+                            cross_state_matching_evidence_count,
+                        );
+                    }
+                };
 
-            total_increase = match total_increase
-                .checked_add(
-                    sample.realized_separation_increase() as u128,
-                )
-            {
-                Some(value) => value,
-                None => {
-                    return
-                        EmpiricalExpectedEpistemicTransferProgressResult::
-                            rejected(
-                                EmpiricalExpectedEpistemicTransferProgressStatus::
-                                    ArithmeticOverflow,
-                                input_evidence_count,
-                                matching_identity_evidence_count,
-                                cross_state_matching_evidence_count,
-                            );
-                }
-            };
+            total_increase =
+                match total_increase.checked_add(sample.realized_separation_increase() as u128) {
+                    Some(value) => value,
+                    None => {
+                        return EmpiricalExpectedEpistemicTransferProgressResult::rejected(
+                            EmpiricalExpectedEpistemicTransferProgressStatus::ArithmeticOverflow,
+                            input_evidence_count,
+                            matching_identity_evidence_count,
+                            cross_state_matching_evidence_count,
+                        );
+                    }
+                };
 
             if sample.realized_separation_reduction() > 0 {
                 reduction_sample_count += 1;
@@ -3376,53 +3241,37 @@ impl AutonomousEmpiricalExpectedEpistemicTransferProgress {
 
             if !distinct_source_states
                 .iter()
-                .any(|existing| {
-                    *existing
-                        == sample.source_state()
-                })
+                .any(|existing| *existing == sample.source_state())
             {
-                distinct_source_states
-                    .push(sample.source_state());
+                distinct_source_states.push(sample.source_state());
             }
         }
 
-        let direction =
-            if total_reduction > total_increase {
-                EmpiricalEpistemicProgressDirection::
-                    ReductionDominant
-            } else if total_increase > total_reduction {
-                EmpiricalEpistemicProgressDirection::
-                    IncreaseDominant
-            } else {
-                EmpiricalEpistemicProgressDirection::
-                    Balanced
-            };
+        let direction = if total_reduction > total_increase {
+            EmpiricalEpistemicProgressDirection::ReductionDominant
+        } else if total_increase > total_reduction {
+            EmpiricalEpistemicProgressDirection::IncreaseDominant
+        } else {
+            EmpiricalEpistemicProgressDirection::Balanced
+        };
 
         EmpiricalExpectedEpistemicTransferProgressResult {
-            status:
-                EmpiricalExpectedEpistemicTransferProgressStatus::
-                    Estimated,
+            status: EmpiricalExpectedEpistemicTransferProgressStatus::Estimated,
             input_evidence_count,
             matching_identity_evidence_count,
             cross_state_matching_evidence_count,
-            estimate: Some(
-                EmpiricalExpectedEpistemicTransferProgressEstimate {
-                    current_source_state:
-                        current.source_state().clone(),
-                    transfer_identity:
-                        current_identity,
-                    qualifying_sample_count:
-                        cross_state_matching_evidence_count,
-                    distinct_source_state_count:
-                        distinct_source_states.len(),
-                    total_reduction,
-                    total_increase,
-                    reduction_sample_count,
-                    increase_sample_count,
-                    unchanged_sample_count,
-                    direction,
-                },
-            ),
+            estimate: Some(EmpiricalExpectedEpistemicTransferProgressEstimate {
+                current_source_state: current.source_state().clone(),
+                transfer_identity: current_identity,
+                qualifying_sample_count: cross_state_matching_evidence_count,
+                distinct_source_state_count: distinct_source_states.len(),
+                total_reduction,
+                total_increase,
+                reduction_sample_count,
+                increase_sample_count,
+                unchanged_sample_count,
+                direction,
+            }),
         }
     }
 }
@@ -3432,28 +3281,21 @@ pub struct UniversalAutonomousEmpiricalExpectedEpistemicTransferProgress;
 
 impl UniversalAutonomousEmpiricalExpectedEpistemicTransferProgress {
     pub fn estimate(
-        current:
-            &GroundedEpistemicExperimentPossibility,
-        history:
-            &[GroundedEpistemicTransferProgressEvidence],
-        identity_policy:
-            EmpiricalEpistemicTransferIdentityPolicy,
-        discrimination_policy:
-            EpistemicForecastDiscriminationPolicy,
-        policy:
-            EmpiricalExpectedEpistemicTransferProgressPolicy,
+        current: &GroundedEpistemicExperimentPossibility,
+        history: &[GroundedEpistemicTransferProgressEvidence],
+        identity_policy: EmpiricalEpistemicTransferIdentityPolicy,
+        discrimination_policy: EpistemicForecastDiscriminationPolicy,
+        policy: EmpiricalExpectedEpistemicTransferProgressPolicy,
     ) -> EmpiricalExpectedEpistemicTransferProgressResult {
-        AutonomousEmpiricalExpectedEpistemicTransferProgress::
-            estimate(
-                current,
-                history,
-                identity_policy,
-                discrimination_policy,
-                policy,
-            )
+        AutonomousEmpiricalExpectedEpistemicTransferProgress::estimate(
+            current,
+            history,
+            identity_policy,
+            discrimination_policy,
+            policy,
+        )
     }
 }
-
 
 // ============================================================================
 // P4G-C3H-A — ROLE-PRESERVING TARGET STRUCTURAL SCHEMA
@@ -3508,25 +3350,15 @@ pub struct RolePreservingTargetStructuralSchema {
 }
 
 impl RolePreservingTargetStructuralSchema {
-    fn new(
-        root: RolePreservingTargetSchemaNode,
-        role_count: usize,
-    ) -> Self {
-        Self {
-            root,
-            role_count,
-        }
+    fn new(root: RolePreservingTargetSchemaNode, role_count: usize) -> Self {
+        Self { root, role_count }
     }
 
-    pub fn root(
-        &self,
-    ) -> &RolePreservingTargetSchemaNode {
+    pub fn root(&self) -> &RolePreservingTargetSchemaNode {
         &self.root
     }
 
-    pub fn role_count(
-        &self,
-    ) -> usize {
+    pub fn role_count(&self) -> usize {
         self.role_count
     }
 }
@@ -3540,11 +3372,7 @@ pub struct RolePreservingTargetAtomBinding {
 }
 
 impl RolePreservingTargetAtomBinding {
-    fn new(
-        role_index: usize,
-        historical_atom: u64,
-        current_atom: u64,
-    ) -> Self {
+    fn new(role_index: usize, historical_atom: u64, current_atom: u64) -> Self {
         Self {
             role_index,
             historical_atom,
@@ -3553,27 +3381,19 @@ impl RolePreservingTargetAtomBinding {
         }
     }
 
-    pub fn role_index(
-        &self,
-    ) -> usize {
+    pub fn role_index(&self) -> usize {
         self.role_index
     }
 
-    pub fn historical_atom(
-        &self,
-    ) -> u64 {
+    pub fn historical_atom(&self) -> u64 {
         self.historical_atom
     }
 
-    pub fn current_atom(
-        &self,
-    ) -> u64 {
+    pub fn current_atom(&self) -> u64 {
         self.current_atom
     }
 
-    pub fn occurrence_count(
-        &self,
-    ) -> usize {
+    pub fn occurrence_count(&self) -> usize {
         self.occurrence_count
     }
 }
@@ -3585,13 +3405,8 @@ pub struct RolePreservingTargetSchemaPolicy {
 }
 
 impl RolePreservingTargetSchemaPolicy {
-    pub fn new(
-        max_nodes: usize,
-        max_roles: usize,
-    ) -> Option<Self> {
-        if max_nodes == 0
-            || max_roles == 0
-        {
+    pub fn new(max_nodes: usize, max_roles: usize) -> Option<Self> {
+        if max_nodes == 0 || max_roles == 0 {
             return None;
         }
 
@@ -3601,15 +3416,11 @@ impl RolePreservingTargetSchemaPolicy {
         })
     }
 
-    pub fn max_nodes(
-        self,
-    ) -> usize {
+    pub fn max_nodes(self) -> usize {
         self.max_nodes
     }
 
-    pub fn max_roles(
-        self,
-    ) -> usize {
+    pub fn max_roles(self) -> usize {
         self.max_roles
     }
 }
@@ -3627,28 +3438,17 @@ pub enum RolePreservingTargetSchemaStatus {
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct RolePreservingTargetSchemaResult {
-    status:
-        RolePreservingTargetSchemaStatus,
+    status: RolePreservingTargetSchemaStatus,
 
     visited_node_count: usize,
 
-    schema:
-        Option<
-            RolePreservingTargetStructuralSchema,
-        >,
+    schema: Option<RolePreservingTargetStructuralSchema>,
 
-    bindings:
-        Vec<
-            RolePreservingTargetAtomBinding,
-        >,
+    bindings: Vec<RolePreservingTargetAtomBinding>,
 }
 
 impl RolePreservingTargetSchemaResult {
-    fn rejected(
-        status:
-            RolePreservingTargetSchemaStatus,
-        visited_node_count: usize,
-    ) -> Self {
+    fn rejected(status: RolePreservingTargetSchemaStatus, visited_node_count: usize) -> Self {
         Self {
             status,
             visited_node_count,
@@ -3657,63 +3457,37 @@ impl RolePreservingTargetSchemaResult {
         }
     }
 
-    pub fn status(
-        &self,
-    ) -> RolePreservingTargetSchemaStatus {
+    pub fn status(&self) -> RolePreservingTargetSchemaStatus {
         self.status
     }
 
-    pub fn derived(
-        &self,
-    ) -> bool {
-        self.status
-            == RolePreservingTargetSchemaStatus::
-                Derived
+    pub fn derived(&self) -> bool {
+        self.status == RolePreservingTargetSchemaStatus::Derived
     }
 
-    pub fn visited_node_count(
-        &self,
-    ) -> usize {
+    pub fn visited_node_count(&self) -> usize {
         self.visited_node_count
     }
 
-    pub fn schema(
-        &self,
-    ) -> Option<
-        &RolePreservingTargetStructuralSchema,
-    > {
+    pub fn schema(&self) -> Option<&RolePreservingTargetStructuralSchema> {
         self.schema.as_ref()
     }
 
-    pub fn bindings(
-        &self,
-    ) -> &[
-        RolePreservingTargetAtomBinding
-    ] {
+    pub fn bindings(&self) -> &[RolePreservingTargetAtomBinding] {
         &self.bindings
     }
 
-    pub fn role_count(
-        &self,
-    ) -> usize {
+    pub fn role_count(&self) -> usize {
         self.schema
             .as_ref()
-            .map(
-                RolePreservingTargetStructuralSchema::
-                    role_count,
-            )
+            .map(RolePreservingTargetStructuralSchema::role_count)
             .unwrap_or(0)
     }
 
-    pub fn substitution_occurrence_count(
-        &self,
-    ) -> usize {
+    pub fn substitution_occurrence_count(&self) -> usize {
         self.bindings
             .iter()
-            .map(
-                RolePreservingTargetAtomBinding::
-                    occurrence_count,
-            )
+            .map(RolePreservingTargetAtomBinding::occurrence_count)
             .sum()
     }
 }
@@ -3723,49 +3497,27 @@ pub struct AutonomousRolePreservingTargetSchema;
 
 impl AutonomousRolePreservingTargetSchema {
     pub fn derive(
-        historical:
-            &CognitiveStructure,
-        current:
-            &CognitiveStructure,
-        policy:
-            RolePreservingTargetSchemaPolicy,
+        historical: &CognitiveStructure,
+        current: &CognitiveStructure,
+        policy: RolePreservingTargetSchemaPolicy,
     ) -> RolePreservingTargetSchemaResult {
         struct Builder {
-            policy:
-                RolePreservingTargetSchemaPolicy,
+            policy: RolePreservingTargetSchemaPolicy,
 
-            visited_node_count:
-                usize,
+            visited_node_count: usize,
 
-            bindings:
-                Vec<
-                    RolePreservingTargetAtomBinding,
-                >,
+            bindings: Vec<RolePreservingTargetAtomBinding>,
         }
 
         impl Builder {
-            fn visit(
-                &mut self,
-            ) -> Result<
-                (),
-                RolePreservingTargetSchemaStatus,
-            > {
-                self.visited_node_count =
-                    self
-                        .visited_node_count
-                        .checked_add(1)
-                        .ok_or(
-                            RolePreservingTargetSchemaStatus::
-                                NodeFrontierExceeded,
-                        )?;
+            fn visit(&mut self) -> Result<(), RolePreservingTargetSchemaStatus> {
+                self.visited_node_count = self
+                    .visited_node_count
+                    .checked_add(1)
+                    .ok_or(RolePreservingTargetSchemaStatus::NodeFrontierExceeded)?;
 
-                if self.visited_node_count
-                    > self.policy.max_nodes()
-                {
-                    return Err(
-                        RolePreservingTargetSchemaStatus::
-                            NodeFrontierExceeded,
-                    );
+                if self.visited_node_count > self.policy.max_nodes() {
+                    return Err(RolePreservingTargetSchemaStatus::NodeFrontierExceeded);
                 }
 
                 Ok(())
@@ -3775,191 +3527,95 @@ impl AutonomousRolePreservingTargetSchema {
                 &mut self,
                 historical_atom: u64,
                 current_atom: u64,
-            ) -> Result<
-                usize,
-                RolePreservingTargetSchemaStatus,
-            > {
-                if let Some(index) =
-                    self.bindings
-                        .iter()
-                        .position(|binding| {
-                            binding.historical_atom
-                                == historical_atom
-                        })
+            ) -> Result<usize, RolePreservingTargetSchemaStatus> {
+                if let Some(index) = self
+                    .bindings
+                    .iter()
+                    .position(|binding| binding.historical_atom == historical_atom)
                 {
-                    if self.bindings[index]
-                        .current_atom
-                        != current_atom
-                    {
-                        return Err(
-                            RolePreservingTargetSchemaStatus::
-                                ConflictingHistoricalBinding,
-                        );
+                    if self.bindings[index].current_atom != current_atom {
+                        return Err(RolePreservingTargetSchemaStatus::ConflictingHistoricalBinding);
                     }
 
-                    self.bindings[index]
-                        .occurrence_count =
-                        self.bindings[index]
-                            .occurrence_count
-                            .checked_add(1)
-                            .ok_or(
-                                RolePreservingTargetSchemaStatus::
-                                    OccurrenceOverflow,
-                            )?;
+                    self.bindings[index].occurrence_count = self.bindings[index]
+                        .occurrence_count
+                        .checked_add(1)
+                        .ok_or(RolePreservingTargetSchemaStatus::OccurrenceOverflow)?;
 
-                    return Ok(
-                        self.bindings[index]
-                            .role_index,
-                    );
+                    return Ok(self.bindings[index].role_index);
                 }
 
-                if self.bindings
-                    .iter()
-                    .any(|binding| {
-                        binding.current_atom
-                            == current_atom
-                            && binding.historical_atom
-                                != historical_atom
-                    })
-                {
-                    return Err(
-                        RolePreservingTargetSchemaStatus::
-                            ConflictingCurrentBinding,
-                    );
+                if self.bindings.iter().any(|binding| {
+                    binding.current_atom == current_atom
+                        && binding.historical_atom != historical_atom
+                }) {
+                    return Err(RolePreservingTargetSchemaStatus::ConflictingCurrentBinding);
                 }
 
-                if self.bindings.len()
-                    >= self.policy.max_roles()
-                {
-                    return Err(
-                        RolePreservingTargetSchemaStatus::
-                            RoleFrontierExceeded,
-                    );
+                if self.bindings.len() >= self.policy.max_roles() {
+                    return Err(RolePreservingTargetSchemaStatus::RoleFrontierExceeded);
                 }
 
-                let role_index =
-                    self.bindings.len();
+                let role_index = self.bindings.len();
 
-                self.bindings.push(
-                    RolePreservingTargetAtomBinding::
-                        new(
-                            role_index,
-                            historical_atom,
-                            current_atom,
-                        ),
-                );
+                self.bindings.push(RolePreservingTargetAtomBinding::new(
+                    role_index,
+                    historical_atom,
+                    current_atom,
+                ));
 
                 Ok(role_index)
             }
 
             fn build(
                 &mut self,
-                historical:
-                    &CognitiveStructure,
-                current:
-                    &CognitiveStructure,
-            ) -> Result<
-                RolePreservingTargetSchemaNode,
-                RolePreservingTargetSchemaStatus,
-            > {
+                historical: &CognitiveStructure,
+                current: &CognitiveStructure,
+            ) -> Result<RolePreservingTargetSchemaNode, RolePreservingTargetSchemaStatus>
+            {
                 self.visit()?;
 
-                match (
-                    historical,
-                    current,
-                ) {
+                match (historical, current) {
                     (
-                        CognitiveStructure::Atom(
-                            historical_atom,
-                        ),
-                        CognitiveStructure::Atom(
-                            current_atom,
-                        ),
+                        CognitiveStructure::Atom(historical_atom),
+                        CognitiveStructure::Atom(current_atom),
                     ) => {
-                        if historical_atom
-                            == current_atom
-                        {
-                            Ok(
-                                RolePreservingTargetSchemaNode::
-                                    ConstantAtom(
-                                        *historical_atom,
-                                    ),
-                            )
+                        if historical_atom == current_atom {
+                            Ok(RolePreservingTargetSchemaNode::ConstantAtom(
+                                *historical_atom,
+                            ))
                         } else {
-                            let role =
-                                self.role(
-                                    *historical_atom,
-                                    *current_atom,
-                                )?;
+                            let role = self.role(*historical_atom, *current_atom)?;
 
-                            Ok(
-                                RolePreservingTargetSchemaNode::
-                                    Role(role),
-                            )
+                            Ok(RolePreservingTargetSchemaNode::Role(role))
                         }
                     }
 
                     (
-                        CognitiveStructure::Ordered(
-                            historical_children,
-                        ),
-                        CognitiveStructure::Ordered(
-                            current_children,
-                        ),
+                        CognitiveStructure::Ordered(historical_children),
+                        CognitiveStructure::Ordered(current_children),
                     ) => {
-                        if historical_children.len()
-                            != current_children.len()
-                        {
-                            return Err(
-                                RolePreservingTargetSchemaStatus::
-                                    StructuralMismatch,
-                            );
+                        if historical_children.len() != current_children.len() {
+                            return Err(RolePreservingTargetSchemaStatus::StructuralMismatch);
                         }
 
-                        let mut children =
-                            Vec::with_capacity(
-                                historical_children.len(),
-                            );
+                        let mut children = Vec::with_capacity(historical_children.len());
 
-                        for (
-                            historical_child,
-                            current_child,
-                        ) in historical_children
-                            .iter()
-                            .zip(
-                                current_children
-                                    .iter(),
-                            )
+                        for (historical_child, current_child) in
+                            historical_children.iter().zip(current_children.iter())
                         {
-                            children.push(
-                                self.build(
-                                    historical_child,
-                                    current_child,
-                                )?,
-                            );
+                            children.push(self.build(historical_child, current_child)?);
                         }
 
-                        Ok(
-                            RolePreservingTargetSchemaNode::
-                                Ordered(children),
-                        )
+                        Ok(RolePreservingTargetSchemaNode::Ordered(children))
                     }
 
                     (
-                        CognitiveStructure::Unordered(
-                            historical_children,
-                        ),
-                        CognitiveStructure::Unordered(
-                            current_children,
-                        ),
+                        CognitiveStructure::Unordered(historical_children),
+                        CognitiveStructure::Unordered(current_children),
                     ) => {
-                        if historical_children.len()
-                            != current_children.len()
-                        {
-                            return Err(
-                                RolePreservingTargetSchemaStatus::
-                                    StructuralMismatch,
-                            );
+                        if historical_children.len() != current_children.len() {
+                            return Err(RolePreservingTargetSchemaStatus::StructuralMismatch);
                         }
 
                         /*
@@ -3970,89 +3626,49 @@ impl AutonomousRolePreservingTargetSchema {
                          * C3H-A does not invent a second graph
                          * isomorphism/canonicalization authority.
                          */
-                        let mut children =
-                            Vec::with_capacity(
-                                historical_children.len(),
-                            );
+                        let mut children = Vec::with_capacity(historical_children.len());
 
-                        for (
-                            historical_child,
-                            current_child,
-                        ) in historical_children
-                            .iter()
-                            .zip(
-                                current_children
-                                    .iter(),
-                            )
+                        for (historical_child, current_child) in
+                            historical_children.iter().zip(current_children.iter())
                         {
-                            children.push(
-                                self.build(
-                                    historical_child,
-                                    current_child,
-                                )?,
-                            );
+                            children.push(self.build(historical_child, current_child)?);
                         }
 
-                        Ok(
-                            RolePreservingTargetSchemaNode::
-                                Unordered(children),
-                        )
+                        Ok(RolePreservingTargetSchemaNode::Unordered(children))
                     }
 
-                    _ => Err(
-                        RolePreservingTargetSchemaStatus::
-                            StructuralMismatch,
-                    ),
+                    _ => Err(RolePreservingTargetSchemaStatus::StructuralMismatch),
                 }
             }
         }
 
-        let mut builder =
-            Builder {
-                policy,
-                visited_node_count: 0,
-                bindings: Vec::new(),
-            };
+        let mut builder = Builder {
+            policy,
+            visited_node_count: 0,
+            bindings: Vec::new(),
+        };
 
-        let root =
-            match builder.build(
-                historical,
-                current,
-            ) {
-                Ok(root) => root,
+        let root = match builder.build(historical, current) {
+            Ok(root) => root,
 
-                Err(status) => {
-                    return
-                        RolePreservingTargetSchemaResult::
-                            rejected(
-                                status,
-                                builder
-                                    .visited_node_count,
-                            );
-                }
-            };
+            Err(status) => {
+                return RolePreservingTargetSchemaResult::rejected(
+                    status,
+                    builder.visited_node_count,
+                );
+            }
+        };
 
-        let role_count =
-            builder.bindings.len();
+        let role_count = builder.bindings.len();
 
         RolePreservingTargetSchemaResult {
-            status:
-                RolePreservingTargetSchemaStatus::
-                    Derived,
+            status: RolePreservingTargetSchemaStatus::Derived,
 
-            visited_node_count:
-                builder.visited_node_count,
+            visited_node_count: builder.visited_node_count,
 
-            schema: Some(
-                RolePreservingTargetStructuralSchema::
-                    new(
-                        root,
-                        role_count,
-                    ),
-            ),
+            schema: Some(RolePreservingTargetStructuralSchema::new(root, role_count)),
 
-            bindings:
-                builder.bindings,
+            bindings: builder.bindings,
         }
     }
 }
@@ -4062,19 +3678,11 @@ pub struct UniversalAutonomousRolePreservingTargetSchema;
 
 impl UniversalAutonomousRolePreservingTargetSchema {
     pub fn derive(
-        historical:
-            &CognitiveStructure,
-        current:
-            &CognitiveStructure,
-        policy:
-            RolePreservingTargetSchemaPolicy,
+        historical: &CognitiveStructure,
+        current: &CognitiveStructure,
+        policy: RolePreservingTargetSchemaPolicy,
     ) -> RolePreservingTargetSchemaResult {
-        AutonomousRolePreservingTargetSchema::
-            derive(
-                historical,
-                current,
-                policy,
-            )
+        AutonomousRolePreservingTargetSchema::derive(historical, current, policy)
     }
 }
 
@@ -4149,33 +3757,23 @@ impl SchemaLevelTargetCorrespondence {
         }
     }
 
-    pub fn historical_target(
-        &self,
-    ) -> &CognitiveStructure {
+    pub fn historical_target(&self) -> &CognitiveStructure {
         &self.historical_target
     }
 
-    pub fn current_target(
-        &self,
-    ) -> &CognitiveStructure {
+    pub fn current_target(&self) -> &CognitiveStructure {
         &self.current_target
     }
 
-    pub fn match_kind(
-        &self,
-    ) -> SchemaLevelTargetMatchKind {
+    pub fn match_kind(&self) -> SchemaLevelTargetMatchKind {
         self.match_kind
     }
 
-    pub fn schema(
-        &self,
-    ) -> &RolePreservingTargetStructuralSchema {
+    pub fn schema(&self) -> &RolePreservingTargetStructuralSchema {
         &self.schema
     }
 
-    pub fn bindings(
-        &self,
-    ) -> &[RolePreservingTargetAtomBinding] {
+    pub fn bindings(&self) -> &[RolePreservingTargetAtomBinding] {
         &self.bindings
     }
 }
@@ -4187,25 +3785,18 @@ pub struct SchemaLevelTransferAtomBinding {
 }
 
 impl SchemaLevelTransferAtomBinding {
-    fn new(
-        historical_atom: u64,
-        current_atom: u64,
-    ) -> Self {
+    fn new(historical_atom: u64, current_atom: u64) -> Self {
         Self {
             historical_atom,
             current_atom,
         }
     }
 
-    pub fn historical_atom(
-        &self,
-    ) -> u64 {
+    pub fn historical_atom(&self) -> u64 {
         self.historical_atom
     }
 
-    pub fn current_atom(
-        &self,
-    ) -> u64 {
+    pub fn current_atom(&self) -> u64 {
         self.current_atom
     }
 }
@@ -4227,21 +3818,15 @@ impl SchemaLevelTargetTransferIdentity {
         }
     }
 
-    pub fn action(
-        &self,
-    ) -> &CognitiveStructure {
+    pub fn action(&self) -> &CognitiveStructure {
         &self.action
     }
 
-    pub fn target_schemas(
-        &self,
-    ) -> &[RolePreservingTargetStructuralSchema] {
+    pub fn target_schemas(&self) -> &[RolePreservingTargetStructuralSchema] {
         &self.target_schemas
     }
 
-    pub fn target_schema_count(
-        &self,
-    ) -> usize {
+    pub fn target_schema_count(&self) -> usize {
         self.target_schemas.len()
     }
 }
@@ -4261,10 +3846,7 @@ impl SchemaLevelTargetTransferIdentityPolicy {
         max_pair_evaluations: usize,
         target_schema_policy: RolePreservingTargetSchemaPolicy,
     ) -> Option<Self> {
-        if max_historical_targets == 0
-            || max_current_targets == 0
-            || max_pair_evaluations == 0
-        {
+        if max_historical_targets == 0 || max_current_targets == 0 || max_pair_evaluations == 0 {
             return None;
         }
 
@@ -4276,27 +3858,19 @@ impl SchemaLevelTargetTransferIdentityPolicy {
         })
     }
 
-    pub fn max_historical_targets(
-        self,
-    ) -> usize {
+    pub fn max_historical_targets(self) -> usize {
         self.max_historical_targets
     }
 
-    pub fn max_current_targets(
-        self,
-    ) -> usize {
+    pub fn max_current_targets(self) -> usize {
         self.max_current_targets
     }
 
-    pub fn max_pair_evaluations(
-        self,
-    ) -> usize {
+    pub fn max_pair_evaluations(self) -> usize {
         self.max_pair_evaluations
     }
 
-    pub fn target_schema_policy(
-        self,
-    ) -> RolePreservingTargetSchemaPolicy {
+    pub fn target_schema_policy(self) -> RolePreservingTargetSchemaPolicy {
         self.target_schema_policy
     }
 }
@@ -4352,76 +3926,51 @@ impl SchemaLevelTargetTransferIdentityResult {
         }
     }
 
-    pub fn status(
-        &self,
-    ) -> SchemaLevelTargetTransferIdentityStatus {
+    pub fn status(&self) -> SchemaLevelTargetTransferIdentityStatus {
         self.status
     }
 
-    pub fn derived(
-        &self,
-    ) -> bool {
-        self.status
-            == SchemaLevelTargetTransferIdentityStatus::Derived
+    pub fn derived(&self) -> bool {
+        self.status == SchemaLevelTargetTransferIdentityStatus::Derived
     }
 
-    pub fn historical_target_count(
-        &self,
-    ) -> usize {
+    pub fn historical_target_count(&self) -> usize {
         self.historical_target_count
     }
 
-    pub fn current_target_count(
-        &self,
-    ) -> usize {
+    pub fn current_target_count(&self) -> usize {
         self.current_target_count
     }
 
-    pub fn pair_evaluation_count(
-        &self,
-    ) -> usize {
+    pub fn pair_evaluation_count(&self) -> usize {
         self.pair_evaluation_count
     }
 
-    pub fn exact_match_count(
-        &self,
-    ) -> usize {
+    pub fn exact_match_count(&self) -> usize {
         self.exact_match_count
     }
 
-    pub fn role_preserving_match_count(
-        &self,
-    ) -> usize {
+    pub fn role_preserving_match_count(&self) -> usize {
         self.role_preserving_match_count
     }
 
-    pub fn ignored_current_target_count(
-        &self,
-    ) -> usize {
+    pub fn ignored_current_target_count(&self) -> usize {
         self.ignored_current_target_count
     }
 
-    pub fn identity(
-        &self,
-    ) -> Option<&SchemaLevelTargetTransferIdentity> {
+    pub fn identity(&self) -> Option<&SchemaLevelTargetTransferIdentity> {
         self.identity.as_ref()
     }
 
-    pub fn correspondences(
-        &self,
-    ) -> &[SchemaLevelTargetCorrespondence] {
+    pub fn correspondences(&self) -> &[SchemaLevelTargetCorrespondence] {
         &self.correspondences
     }
 
-    pub fn global_bindings(
-        &self,
-    ) -> &[SchemaLevelTransferAtomBinding] {
+    pub fn global_bindings(&self) -> &[SchemaLevelTransferAtomBinding] {
         &self.global_bindings
     }
 
-    pub fn global_binding_count(
-        &self,
-    ) -> usize {
+    pub fn global_binding_count(&self) -> usize {
         self.global_bindings.len()
     }
 }
@@ -4433,8 +3982,7 @@ impl AutonomousSchemaLevelTargetTransferIdentity {
     fn canonical_distinct_targets(
         targets: impl IntoIterator<Item = CognitiveStructure>,
     ) -> Vec<CognitiveStructure> {
-        let mut unique =
-            Vec::<CognitiveStructure>::new();
+        let mut unique = Vec::<CognitiveStructure>::new();
 
         for target in targets {
             if !unique.contains(&target) {
@@ -4442,9 +3990,7 @@ impl AutonomousSchemaLevelTargetTransferIdentity {
             }
         }
 
-        unique.sort_by_key(
-            |target| format!("{target:?}")
-        );
+        unique.sort_by_key(|target| format!("{target:?}"));
 
         unique
     }
@@ -4454,27 +4000,19 @@ impl AutonomousSchemaLevelTargetTransferIdentity {
         candidate: &[RolePreservingTargetAtomBinding],
     ) -> bool {
         candidate.iter().all(|binding| {
-            let historical =
-                binding.historical_atom();
+            let historical = binding.historical_atom();
 
-            let current =
-                binding.current_atom();
+            let current = binding.current_atom();
 
-            let historical_ok =
-                existing.iter().all(|existing_binding| {
-                    existing_binding.historical_atom()
-                        != historical
-                        || existing_binding.current_atom()
-                            == current
-                });
+            let historical_ok = existing.iter().all(|existing_binding| {
+                existing_binding.historical_atom() != historical
+                    || existing_binding.current_atom() == current
+            });
 
-            let current_ok =
-                existing.iter().all(|existing_binding| {
-                    existing_binding.current_atom()
-                        != current
-                        || existing_binding.historical_atom()
-                            == historical
-                });
+            let current_ok = existing.iter().all(|existing_binding| {
+                existing_binding.current_atom() != current
+                    || existing_binding.historical_atom() == historical
+            });
 
             historical_ok && current_ok
         })
@@ -4485,33 +4023,19 @@ impl AutonomousSchemaLevelTargetTransferIdentity {
         candidate: &[RolePreservingTargetAtomBinding],
     ) {
         for binding in candidate {
-            let historical =
-                binding.historical_atom();
+            let historical = binding.historical_atom();
 
-            let current =
-                binding.current_atom();
+            let current = binding.current_atom();
 
             if !existing.iter().any(|existing_binding| {
-                existing_binding.historical_atom()
-                    == historical
-                    && existing_binding.current_atom()
-                        == current
+                existing_binding.historical_atom() == historical
+                    && existing_binding.current_atom() == current
             }) {
-                existing.push(
-                    SchemaLevelTransferAtomBinding::new(
-                        historical,
-                        current,
-                    ),
-                );
+                existing.push(SchemaLevelTransferAtomBinding::new(historical, current));
             }
         }
 
-        existing.sort_by_key(|binding| {
-            (
-                binding.historical_atom(),
-                binding.current_atom(),
-            )
-        });
+        existing.sort_by_key(|binding| (binding.historical_atom(), binding.current_atom()));
     }
 
     fn derive_targets(
@@ -4530,26 +4054,17 @@ impl AutonomousSchemaLevelTargetTransferIdentity {
             );
         }
 
-        let historical_targets =
-            Self::canonical_distinct_targets(
-                historical_targets,
-            );
+        let historical_targets = Self::canonical_distinct_targets(historical_targets);
 
-        let current_targets =
-            Self::canonical_distinct_targets(
-                current_targets,
-            );
+        let current_targets = Self::canonical_distinct_targets(current_targets);
 
-        let historical_count =
-            historical_targets.len();
+        let historical_count = historical_targets.len();
 
-        let current_count =
-            current_targets.len();
+        let current_count = current_targets.len();
 
         if historical_count == 0 {
             return SchemaLevelTargetTransferIdentityResult::rejected(
-                SchemaLevelTargetTransferIdentityStatus::
-                    EmptyHistoricalTargetFrontier,
+                SchemaLevelTargetTransferIdentityStatus::EmptyHistoricalTargetFrontier,
                 historical_count,
                 current_count,
                 0,
@@ -4558,47 +4073,37 @@ impl AutonomousSchemaLevelTargetTransferIdentity {
 
         if current_count == 0 {
             return SchemaLevelTargetTransferIdentityResult::rejected(
-                SchemaLevelTargetTransferIdentityStatus::
-                    EmptyCurrentTargetFrontier,
+                SchemaLevelTargetTransferIdentityStatus::EmptyCurrentTargetFrontier,
                 historical_count,
                 current_count,
                 0,
             );
         }
 
-        if historical_count
-            > policy.max_historical_targets()
-        {
+        if historical_count > policy.max_historical_targets() {
             return SchemaLevelTargetTransferIdentityResult::rejected(
-                SchemaLevelTargetTransferIdentityStatus::
-                    HistoricalTargetFrontierExceeded,
+                SchemaLevelTargetTransferIdentityStatus::HistoricalTargetFrontierExceeded,
                 historical_count,
                 current_count,
                 0,
             );
         }
 
-        if current_count
-            > policy.max_current_targets()
-        {
+        if current_count > policy.max_current_targets() {
             return SchemaLevelTargetTransferIdentityResult::rejected(
-                SchemaLevelTargetTransferIdentityStatus::
-                    CurrentTargetFrontierExceeded,
+                SchemaLevelTargetTransferIdentityStatus::CurrentTargetFrontierExceeded,
                 historical_count,
                 current_count,
                 0,
             );
         }
 
-        let mut used_current =
-            vec![false; current_count];
+        let mut used_current = vec![false; current_count];
 
-        let mut correspondence_slots:
-            Vec<Option<SchemaLevelTargetCorrespondence>> =
+        let mut correspondence_slots: Vec<Option<SchemaLevelTargetCorrespondence>> =
             vec![None; historical_count];
 
-        let mut exact_match_count =
-            0_usize;
+        let mut exact_match_count = 0_usize;
 
         /*
          * Exact matches are reserved globally before any schema match.
@@ -4607,152 +4112,104 @@ impl AutonomousSchemaLevelTargetTransferIdentity {
          * that is the exact structural continuation of another historical
          * target.
          */
-        for (
-            historical_index,
-            historical_target,
-        ) in historical_targets.iter().enumerate()
-        {
+        for (historical_index, historical_target) in historical_targets.iter().enumerate() {
             let exact_index =
                 current_targets
                     .iter()
                     .enumerate()
-                    .find_map(
-                        |(current_index, current_target)| {
-                            if !used_current[current_index]
-                                && current_target
-                                    == historical_target
-                            {
-                                Some(current_index)
-                            } else {
-                                None
-                            }
-                        },
-                    );
+                    .find_map(|(current_index, current_target)| {
+                        if !used_current[current_index] && current_target == historical_target {
+                            Some(current_index)
+                        } else {
+                            None
+                        }
+                    });
 
-            let Some(current_index) =
-                exact_index
-            else {
+            let Some(current_index) = exact_index else {
                 continue;
             };
 
-            let exact_schema =
-                AutonomousRolePreservingTargetSchema::
-                    derive(
-                        historical_target,
-                        &current_targets[current_index],
-                        policy.target_schema_policy(),
-                    );
+            let exact_schema = AutonomousRolePreservingTargetSchema::derive(
+                historical_target,
+                &current_targets[current_index],
+                policy.target_schema_policy(),
+            );
 
-            if !exact_schema.derived()
-                || exact_schema.role_count() != 0
-            {
-                return SchemaLevelTargetTransferIdentityResult::
-                    rejected(
-                        SchemaLevelTargetTransferIdentityStatus::
-                            TargetSchemaEvaluationRejected,
-                        historical_count,
-                        current_count,
-                        0,
-                    );
+            if !exact_schema.derived() || exact_schema.role_count() != 0 {
+                return SchemaLevelTargetTransferIdentityResult::rejected(
+                    SchemaLevelTargetTransferIdentityStatus::TargetSchemaEvaluationRejected,
+                    historical_count,
+                    current_count,
+                    0,
+                );
             }
 
-            used_current[current_index] =
-                true;
+            used_current[current_index] = true;
 
             exact_match_count += 1;
 
-            correspondence_slots[historical_index] =
-                Some(
-                    SchemaLevelTargetCorrespondence::new(
-                        historical_target.clone(),
-                        current_targets[current_index].clone(),
-                        SchemaLevelTargetMatchKind::Exact,
-                        exact_schema.schema().unwrap().clone(),
-                        Vec::new(),
-                    ),
-                );
+            correspondence_slots[historical_index] = Some(SchemaLevelTargetCorrespondence::new(
+                historical_target.clone(),
+                current_targets[current_index].clone(),
+                SchemaLevelTargetMatchKind::Exact,
+                exact_schema.schema().unwrap().clone(),
+                Vec::new(),
+            ));
         }
 
-        let mut pair_evaluation_count =
-            0_usize;
+        let mut pair_evaluation_count = 0_usize;
 
-        let mut global_bindings =
-            Vec::<SchemaLevelTransferAtomBinding>::new();
+        let mut global_bindings = Vec::<SchemaLevelTransferAtomBinding>::new();
 
-        let mut role_preserving_match_count =
-            0_usize;
+        let mut role_preserving_match_count = 0_usize;
 
-        for (
-            historical_index,
-            historical_target,
-        ) in historical_targets.iter().enumerate()
-        {
-            if correspondence_slots[historical_index]
-                .is_some()
-            {
+        for (historical_index, historical_target) in historical_targets.iter().enumerate() {
+            if correspondence_slots[historical_index].is_some() {
                 continue;
             }
 
             struct Candidate {
                 current_index: usize,
-                schema_result:
-                    RolePreservingTargetSchemaResult,
+                schema_result: RolePreservingTargetSchemaResult,
                 score: (usize, usize),
             }
 
-            let mut candidates =
-                Vec::<Candidate>::new();
+            let mut candidates = Vec::<Candidate>::new();
 
-            let mut saw_global_binding_conflict =
-                false;
+            let mut saw_global_binding_conflict = false;
 
-            for (
-                current_index,
-                current_target,
-            ) in current_targets.iter().enumerate()
-            {
+            for (current_index, current_target) in current_targets.iter().enumerate() {
                 if used_current[current_index] {
                     continue;
                 }
 
-                pair_evaluation_count =
-                    match pair_evaluation_count
-                        .checked_add(1)
-                    {
-                        Some(value) => value,
+                pair_evaluation_count = match pair_evaluation_count.checked_add(1) {
+                    Some(value) => value,
 
-                        None => {
-                            return SchemaLevelTargetTransferIdentityResult::
-                                rejected(
-                                    SchemaLevelTargetTransferIdentityStatus::
-                                        PairEvaluationFrontierExceeded,
-                                    historical_count,
-                                    current_count,
-                                    usize::MAX,
-                                );
-                        }
-                    };
-
-                if pair_evaluation_count
-                    > policy.max_pair_evaluations()
-                {
-                    return SchemaLevelTargetTransferIdentityResult::
-                        rejected(
-                            SchemaLevelTargetTransferIdentityStatus::
-                                PairEvaluationFrontierExceeded,
+                    None => {
+                        return SchemaLevelTargetTransferIdentityResult::rejected(
+                            SchemaLevelTargetTransferIdentityStatus::PairEvaluationFrontierExceeded,
                             historical_count,
                             current_count,
-                            pair_evaluation_count,
+                            usize::MAX,
                         );
+                    }
+                };
+
+                if pair_evaluation_count > policy.max_pair_evaluations() {
+                    return SchemaLevelTargetTransferIdentityResult::rejected(
+                        SchemaLevelTargetTransferIdentityStatus::PairEvaluationFrontierExceeded,
+                        historical_count,
+                        current_count,
+                        pair_evaluation_count,
+                    );
                 }
 
-                let schema_result =
-                    AutonomousRolePreservingTargetSchema::
-                        derive(
-                            historical_target,
-                            current_target,
-                            policy.target_schema_policy(),
-                        );
+                let schema_result = AutonomousRolePreservingTargetSchema::derive(
+                    historical_target,
+                    current_target,
+                    policy.target_schema_policy(),
+                );
 
                 match schema_result.status() {
                     RolePreservingTargetSchemaStatus::Derived => {
@@ -4773,210 +4230,124 @@ impl AutonomousSchemaLevelTargetTransferIdentity {
                                     );
                         }
 
-                        if !Self::bindings_compatible(
-                            &global_bindings,
-                            schema_result.bindings(),
-                        ) {
-                            saw_global_binding_conflict =
-                                true;
+                        if !Self::bindings_compatible(&global_bindings, schema_result.bindings()) {
+                            saw_global_binding_conflict = true;
 
                             continue;
                         }
 
-                        candidates.push(
-                            Candidate {
-                                current_index,
-                                score: (
-                                    schema_result.role_count(),
-                                    schema_result
-                                        .substitution_occurrence_count(),
-                                ),
-                                schema_result,
-                            },
+                        candidates.push(Candidate {
+                            current_index,
+                            score: (
+                                schema_result.role_count(),
+                                schema_result.substitution_occurrence_count(),
+                            ),
+                            schema_result,
+                        });
+                    }
+
+                    RolePreservingTargetSchemaStatus::NodeFrontierExceeded
+                    | RolePreservingTargetSchemaStatus::RoleFrontierExceeded => {
+                        return SchemaLevelTargetTransferIdentityResult::rejected(
+                            SchemaLevelTargetTransferIdentityStatus::TargetSchemaFrontierExceeded,
+                            historical_count,
+                            current_count,
+                            pair_evaluation_count,
                         );
                     }
 
-                    RolePreservingTargetSchemaStatus::
-                        NodeFrontierExceeded
-                    | RolePreservingTargetSchemaStatus::
-                        RoleFrontierExceeded =>
-                    {
-                        return
-                            SchemaLevelTargetTransferIdentityResult::
-                                rejected(
-                                    SchemaLevelTargetTransferIdentityStatus::
-                                        TargetSchemaFrontierExceeded,
-                                    historical_count,
-                                    current_count,
-                                    pair_evaluation_count,
-                                );
+                    RolePreservingTargetSchemaStatus::OccurrenceOverflow => {
+                        return SchemaLevelTargetTransferIdentityResult::rejected(
+                            SchemaLevelTargetTransferIdentityStatus::TargetSchemaEvaluationRejected,
+                            historical_count,
+                            current_count,
+                            pair_evaluation_count,
+                        );
                     }
 
-                    RolePreservingTargetSchemaStatus::
-                        OccurrenceOverflow =>
-                    {
-                        return
-                            SchemaLevelTargetTransferIdentityResult::
-                                rejected(
-                                    SchemaLevelTargetTransferIdentityStatus::
-                                        TargetSchemaEvaluationRejected,
-                                    historical_count,
-                                    current_count,
-                                    pair_evaluation_count,
-                                );
-                    }
-
-                    RolePreservingTargetSchemaStatus::
-                        StructuralMismatch
-                    | RolePreservingTargetSchemaStatus::
-                        ConflictingHistoricalBinding
-                    | RolePreservingTargetSchemaStatus::
-                        ConflictingCurrentBinding =>
-                    {
-                    }
+                    RolePreservingTargetSchemaStatus::StructuralMismatch
+                    | RolePreservingTargetSchemaStatus::ConflictingHistoricalBinding
+                    | RolePreservingTargetSchemaStatus::ConflictingCurrentBinding => {}
                 }
             }
 
             if candidates.is_empty() {
-                let status =
-                    if saw_global_binding_conflict {
-                        SchemaLevelTargetTransferIdentityStatus::
-                            GlobalBindingConflict
-                    } else {
-                        SchemaLevelTargetTransferIdentityStatus::
-                            UnmatchedHistoricalTarget
-                    };
+                let status = if saw_global_binding_conflict {
+                    SchemaLevelTargetTransferIdentityStatus::GlobalBindingConflict
+                } else {
+                    SchemaLevelTargetTransferIdentityStatus::UnmatchedHistoricalTarget
+                };
 
-                return
-                    SchemaLevelTargetTransferIdentityResult::
-                        rejected(
-                            status,
-                            historical_count,
-                            current_count,
-                            pair_evaluation_count,
-                        );
+                return SchemaLevelTargetTransferIdentityResult::rejected(
+                    status,
+                    historical_count,
+                    current_count,
+                    pair_evaluation_count,
+                );
             }
 
-            candidates.sort_by_key(
-                |candidate| candidate.score
-            );
+            candidates.sort_by_key(|candidate| candidate.score);
 
-            let best_score =
-                candidates[0].score;
+            let best_score = candidates[0].score;
 
-            let equally_best =
-                candidates.iter()
-                    .filter(|candidate| {
-                        candidate.score
-                            == best_score
-                    })
-                    .count();
+            let equally_best = candidates
+                .iter()
+                .filter(|candidate| candidate.score == best_score)
+                .count();
 
             if equally_best != 1 {
-                return
-                    SchemaLevelTargetTransferIdentityResult::
-                        rejected(
-                            SchemaLevelTargetTransferIdentityStatus::
-                                AmbiguousTargetMatch,
-                            historical_count,
-                            current_count,
-                            pair_evaluation_count,
-                        );
+                return SchemaLevelTargetTransferIdentityResult::rejected(
+                    SchemaLevelTargetTransferIdentityStatus::AmbiguousTargetMatch,
+                    historical_count,
+                    current_count,
+                    pair_evaluation_count,
+                );
             }
 
-            let selected =
-                candidates.remove(0);
+            let selected = candidates.remove(0);
 
-            let selected_current =
-                current_targets[
-                    selected.current_index
-                ]
-                .clone();
+            let selected_current = current_targets[selected.current_index].clone();
 
-            Self::merge_bindings(
-                &mut global_bindings,
-                selected.schema_result.bindings(),
-            );
+            Self::merge_bindings(&mut global_bindings, selected.schema_result.bindings());
 
-            used_current[
-                selected.current_index
-            ] = true;
+            used_current[selected.current_index] = true;
 
-            role_preserving_match_count +=
-                1;
+            role_preserving_match_count += 1;
 
-            correspondence_slots[
-                historical_index
-            ] =
-                Some(
-                    SchemaLevelTargetCorrespondence::new(
-                        historical_target.clone(),
-                        selected_current,
-                        SchemaLevelTargetMatchKind::
-                            RolePreserving,
-                        selected
-                            .schema_result
-                            .schema()
-                            .unwrap()
-                            .clone(),
-                        selected
-                            .schema_result
-                            .bindings()
-                            .to_vec(),
-                    ),
-                );
+            correspondence_slots[historical_index] = Some(SchemaLevelTargetCorrespondence::new(
+                historical_target.clone(),
+                selected_current,
+                SchemaLevelTargetMatchKind::RolePreserving,
+                selected.schema_result.schema().unwrap().clone(),
+                selected.schema_result.bindings().to_vec(),
+            ));
         }
 
-        let mut correspondences =
-            correspondence_slots
-                .into_iter()
-                .map(|entry| {
-                    entry.expect(
-                        "all historical targets are matched before derivation succeeds",
-                    )
-                })
-                .collect::<Vec<_>>();
+        let mut correspondences = correspondence_slots
+            .into_iter()
+            .map(|entry| {
+                entry.expect("all historical targets are matched before derivation succeeds")
+            })
+            .collect::<Vec<_>>();
 
-        correspondences.sort_by_key(
-            |correspondence| {
-                format!(
-                    "{:?}",
-                    correspondence
-                        .historical_target()
-                )
-            },
-        );
+        correspondences
+            .sort_by_key(|correspondence| format!("{:?}", correspondence.historical_target()));
 
-        let mut target_schemas =
-            correspondences
-                .iter()
-                .map(|correspondence| {
-                    correspondence
-                        .schema()
-                        .clone()
-                })
-                .collect::<Vec<_>>();
+        let mut target_schemas = correspondences
+            .iter()
+            .map(|correspondence| correspondence.schema().clone())
+            .collect::<Vec<_>>();
 
-        target_schemas.sort_by_key(
-            |schema| format!("{schema:?}")
-        );
+        target_schemas.sort_by_key(|schema| format!("{schema:?}"));
 
-        let ignored_current_target_count =
-            current_count
-                .saturating_sub(
-                    correspondences.len(),
-                );
+        let ignored_current_target_count = current_count.saturating_sub(correspondences.len());
 
         SchemaLevelTargetTransferIdentityResult {
-            status:
-                SchemaLevelTargetTransferIdentityStatus::
-                    Derived,
+            status: SchemaLevelTargetTransferIdentityStatus::Derived,
 
-            historical_target_count:
-                historical_count,
+            historical_target_count: historical_count,
 
-            current_target_count:
-                current_count,
+            current_target_count: current_count,
 
             pair_evaluation_count,
 
@@ -4986,12 +4357,10 @@ impl AutonomousSchemaLevelTargetTransferIdentity {
 
             ignored_current_target_count,
 
-            identity: Some(
-                SchemaLevelTargetTransferIdentity::new(
-                    historical_action.clone(),
-                    target_schemas,
-                ),
-            ),
+            identity: Some(SchemaLevelTargetTransferIdentity::new(
+                historical_action.clone(),
+                target_schemas,
+            )),
 
             correspondences,
 
@@ -5000,30 +4369,21 @@ impl AutonomousSchemaLevelTargetTransferIdentity {
     }
 
     pub fn derive(
-        historical:
-            &EmpiricalEpistemicTransferIdentity,
-        current:
-            &EmpiricalEpistemicTransferIdentity,
-        policy:
-            SchemaLevelTargetTransferIdentityPolicy,
+        historical: &EmpiricalEpistemicTransferIdentity,
+        current: &EmpiricalEpistemicTransferIdentity,
+        policy: SchemaLevelTargetTransferIdentityPolicy,
     ) -> SchemaLevelTargetTransferIdentityResult {
-        let historical_targets =
-            historical
-                .forecasts()
-                .iter()
-                .map(|forecast| {
-                    forecast.target().clone()
-                })
-                .collect::<Vec<_>>();
+        let historical_targets = historical
+            .forecasts()
+            .iter()
+            .map(|forecast| forecast.target().clone())
+            .collect::<Vec<_>>();
 
-        let current_targets =
-            current
-                .forecasts()
-                .iter()
-                .map(|forecast| {
-                    forecast.target().clone()
-                })
-                .collect::<Vec<_>>();
+        let current_targets = current
+            .forecasts()
+            .iter()
+            .map(|forecast| forecast.target().clone())
+            .collect::<Vec<_>>();
 
         Self::derive_targets(
             historical.action(),
@@ -5040,19 +4400,11 @@ pub struct UniversalAutonomousSchemaLevelTargetTransferIdentity;
 
 impl UniversalAutonomousSchemaLevelTargetTransferIdentity {
     pub fn derive(
-        historical:
-            &EmpiricalEpistemicTransferIdentity,
-        current:
-            &EmpiricalEpistemicTransferIdentity,
-        policy:
-            SchemaLevelTargetTransferIdentityPolicy,
+        historical: &EmpiricalEpistemicTransferIdentity,
+        current: &EmpiricalEpistemicTransferIdentity,
+        policy: SchemaLevelTargetTransferIdentityPolicy,
     ) -> SchemaLevelTargetTransferIdentityResult {
-        AutonomousSchemaLevelTargetTransferIdentity::
-            derive(
-                historical,
-                current,
-                policy,
-            )
+        AutonomousSchemaLevelTargetTransferIdentity::derive(historical, current, policy)
     }
 }
 
@@ -5103,38 +4455,27 @@ pub struct TargetAnchoredContextStructuralPath {
 
 impl TargetAnchoredContextStructuralPath {
     fn root() -> Self {
-        Self {
-            steps: Vec::new(),
-        }
+        Self { steps: Vec::new() }
     }
 
-    fn child(
-        &self,
-        step: TargetAnchoredContextPathStep,
-    ) -> Self {
-        let mut steps =
-            self.steps.clone();
+    fn child(&self, step: TargetAnchoredContextPathStep) -> Self {
+        let mut steps = self.steps.clone();
 
         steps.push(step);
 
         Self { steps }
     }
 
-    pub fn steps(
-        &self,
-    ) -> &[TargetAnchoredContextPathStep] {
+    pub fn steps(&self) -> &[TargetAnchoredContextPathStep] {
         &self.steps
     }
 
-    pub fn topology_class(
-        &self,
-    ) -> TargetAnchoredContextTopologyClass {
-        if self.steps.iter().any(|step| {
-            matches!(
-                step,
-                TargetAnchoredContextPathStep::UnorderedChild(_)
-            )
-        }) {
+    pub fn topology_class(&self) -> TargetAnchoredContextTopologyClass {
+        if self
+            .steps
+            .iter()
+            .any(|step| matches!(step, TargetAnchoredContextPathStep::UnorderedChild(_)))
+        {
             TargetAnchoredContextTopologyClass::Recursive
         } else {
             TargetAnchoredContextTopologyClass::Direct
@@ -5150,15 +4491,8 @@ pub struct TargetAnchoredContextTransformationPolicy {
 }
 
 impl TargetAnchoredContextTransformationPolicy {
-    pub fn new(
-        max_target_roles: usize,
-        max_nodes: usize,
-        max_occurrences: usize,
-    ) -> Option<Self> {
-        if max_target_roles == 0
-            || max_nodes == 0
-            || max_occurrences == 0
-        {
+    pub fn new(max_target_roles: usize, max_nodes: usize, max_occurrences: usize) -> Option<Self> {
+        if max_target_roles == 0 || max_nodes == 0 || max_occurrences == 0 {
             return None;
         }
 
@@ -5169,21 +4503,15 @@ impl TargetAnchoredContextTransformationPolicy {
         })
     }
 
-    pub fn max_target_roles(
-        self,
-    ) -> usize {
+    pub fn max_target_roles(self) -> usize {
         self.max_target_roles
     }
 
-    pub fn max_nodes(
-        self,
-    ) -> usize {
+    pub fn max_nodes(self) -> usize {
         self.max_nodes
     }
 
-    pub fn max_occurrences(
-        self,
-    ) -> usize {
+    pub fn max_occurrences(self) -> usize {
         self.max_occurrences
     }
 }
@@ -5232,35 +4560,26 @@ impl GroundedTargetAnchoredContextTransformationIdentity {
         }
     }
 
-    pub fn target_role_count(
-        &self,
-    ) -> usize {
+    pub fn target_role_count(&self) -> usize {
         self.target_role_count
     }
 
-    pub fn split_anchor_role_index(
-        &self,
-    ) -> usize {
+    pub fn split_anchor_role_index(&self) -> usize {
         self.split_anchor_role_index
     }
 
-    pub fn merge_anchor_role_index(
-        &self,
-    ) -> usize {
+    pub fn merge_anchor_role_index(&self) -> usize {
         self.merge_anchor_role_index
     }
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct GroundedTargetAnchoredContextTransformation {
-    identity:
-        GroundedTargetAnchoredContextTransformationIdentity,
+    identity: GroundedTargetAnchoredContextTransformationIdentity,
 
-    target_anchor_topology:
-        TargetAnchoredContextTopologyClass,
+    target_anchor_topology: TargetAnchoredContextTopologyClass,
 
-    context_merge_topology:
-        TargetAnchoredContextTopologyClass,
+    context_merge_topology: TargetAnchoredContextTopologyClass,
 
     split_historical_atom: u64,
     split_current_atom: u64,
@@ -5270,109 +4589,78 @@ pub struct GroundedTargetAnchoredContextTransformation {
 
     merge_extension_historical_atom: u64,
 
-    split_transformed_paths:
-        Vec<TargetAnchoredContextStructuralPath>,
+    split_transformed_paths: Vec<TargetAnchoredContextStructuralPath>,
 
-    split_retained_paths:
-        Vec<TargetAnchoredContextStructuralPath>,
+    split_retained_paths: Vec<TargetAnchoredContextStructuralPath>,
 
-    merge_base_paths:
-        Vec<TargetAnchoredContextStructuralPath>,
+    merge_base_paths: Vec<TargetAnchoredContextStructuralPath>,
 
-    merge_extension_paths:
-        Vec<TargetAnchoredContextStructuralPath>,
+    merge_extension_paths: Vec<TargetAnchoredContextStructuralPath>,
 }
 
 impl GroundedTargetAnchoredContextTransformation {
-    pub fn identity(
-        &self,
-    ) -> &GroundedTargetAnchoredContextTransformationIdentity {
+    pub fn identity(&self) -> &GroundedTargetAnchoredContextTransformationIdentity {
         &self.identity
     }
 
-    pub fn target_anchor_topology(
-        &self,
-    ) -> TargetAnchoredContextTopologyClass {
+    pub fn target_anchor_topology(&self) -> TargetAnchoredContextTopologyClass {
         self.target_anchor_topology
     }
 
-    pub fn context_merge_topology(
-        &self,
-    ) -> TargetAnchoredContextTopologyClass {
+    pub fn context_merge_topology(&self) -> TargetAnchoredContextTopologyClass {
         self.context_merge_topology
     }
 
-    pub fn split_historical_atom(
-        &self,
-    ) -> u64 {
+    pub fn split_historical_atom(&self) -> u64 {
         self.split_historical_atom
     }
 
-    pub fn split_current_atom(
-        &self,
-    ) -> u64 {
+    pub fn split_current_atom(&self) -> u64 {
         self.split_current_atom
     }
 
-    pub fn merge_historical_atom(
-        &self,
-    ) -> u64 {
+    pub fn merge_historical_atom(&self) -> u64 {
         self.merge_historical_atom
     }
 
-    pub fn merge_current_atom(
-        &self,
-    ) -> u64 {
+    pub fn merge_current_atom(&self) -> u64 {
         self.merge_current_atom
     }
 
-    pub fn merge_extension_historical_atom(
-        &self,
-    ) -> u64 {
+    pub fn merge_extension_historical_atom(&self) -> u64 {
         self.merge_extension_historical_atom
     }
 
-    pub fn split_transformed_paths(
-        &self,
-    ) -> &[TargetAnchoredContextStructuralPath] {
+    pub fn split_transformed_paths(&self) -> &[TargetAnchoredContextStructuralPath] {
         &self.split_transformed_paths
     }
 
-    pub fn split_retained_paths(
-        &self,
-    ) -> &[TargetAnchoredContextStructuralPath] {
+    pub fn split_retained_paths(&self) -> &[TargetAnchoredContextStructuralPath] {
         &self.split_retained_paths
     }
 
-    pub fn merge_base_paths(
-        &self,
-    ) -> &[TargetAnchoredContextStructuralPath] {
+    pub fn merge_base_paths(&self) -> &[TargetAnchoredContextStructuralPath] {
         &self.merge_base_paths
     }
 
-    pub fn merge_extension_paths(
-        &self,
-    ) -> &[TargetAnchoredContextStructuralPath] {
+    pub fn merge_extension_paths(&self) -> &[TargetAnchoredContextStructuralPath] {
         &self.merge_extension_paths
     }
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct GroundedTargetAnchoredContextTransformationResult {
-    status:
-        TargetAnchoredContextTransformationStatus,
+    status: TargetAnchoredContextTransformationStatus,
 
     visited_node_count: usize,
     occurrence_count: usize,
 
-    transformation:
-        Option<GroundedTargetAnchoredContextTransformation>,
+    transformation: Option<GroundedTargetAnchoredContextTransformation>,
 }
 
 impl GroundedTargetAnchoredContextTransformationResult {
     fn rejected(
-        status:
-            TargetAnchoredContextTransformationStatus,
+        status: TargetAnchoredContextTransformationStatus,
         visited_node_count: usize,
         occurrence_count: usize,
     ) -> Self {
@@ -5384,57 +4672,36 @@ impl GroundedTargetAnchoredContextTransformationResult {
         }
     }
 
-    pub fn status(
-        &self,
-    ) -> TargetAnchoredContextTransformationStatus {
+    pub fn status(&self) -> TargetAnchoredContextTransformationStatus {
         self.status
     }
 
-    pub fn derived(
-        &self,
-    ) -> bool {
-        self.status
-            == TargetAnchoredContextTransformationStatus::Derived
+    pub fn derived(&self) -> bool {
+        self.status == TargetAnchoredContextTransformationStatus::Derived
     }
 
-    pub fn visited_node_count(
-        &self,
-    ) -> usize {
+    pub fn visited_node_count(&self) -> usize {
         self.visited_node_count
     }
 
-    pub fn occurrence_count(
-        &self,
-    ) -> usize {
+    pub fn occurrence_count(&self) -> usize {
         self.occurrence_count
     }
 
-    pub fn transformation(
-        &self,
-    ) -> Option<
-        &GroundedTargetAnchoredContextTransformation
-    > {
+    pub fn transformation(&self) -> Option<&GroundedTargetAnchoredContextTransformation> {
         self.transformation.as_ref()
     }
 
-    pub fn identity(
-        &self,
-    ) -> Option<
-        &GroundedTargetAnchoredContextTransformationIdentity
-    > {
+    pub fn identity(&self) -> Option<&GroundedTargetAnchoredContextTransformationIdentity> {
         self.transformation
             .as_ref()
-            .map(
-                GroundedTargetAnchoredContextTransformation::
-                    identity,
-            )
+            .map(GroundedTargetAnchoredContextTransformation::identity)
     }
 }
 
 #[derive(Clone, Debug)]
 struct TargetAnchoredContextAtomOccurrence {
-    path:
-        TargetAnchoredContextStructuralPath,
+    path: TargetAnchoredContextStructuralPath,
 
     historical_atom: u64,
     current_atom: u64,
@@ -5450,8 +4717,7 @@ struct TargetAnchoredContextRole {
 #[derive(Clone, Debug)]
 struct TargetAnchoredContextTraversal {
     visited_node_count: usize,
-    occurrences:
-        Vec<TargetAnchoredContextAtomOccurrence>,
+    occurrences: Vec<TargetAnchoredContextAtomOccurrence>,
 }
 
 impl TargetAnchoredContextTraversal {
@@ -5468,107 +4734,56 @@ pub struct AutonomousTargetAnchoredContextTransformation;
 
 impl AutonomousTargetAnchoredContextTransformation {
     fn collect_aligned(
-        historical:
-            &CognitiveStructure,
-        current:
-            &CognitiveStructure,
-        path:
-            &TargetAnchoredContextStructuralPath,
-        policy:
-            TargetAnchoredContextTransformationPolicy,
-        traversal:
-            &mut TargetAnchoredContextTraversal,
-    ) -> Result<
-        (),
-        TargetAnchoredContextTransformationStatus,
-    > {
-        traversal.visited_node_count =
-            traversal
-                .visited_node_count
-                .checked_add(1)
-                .ok_or(
-                    TargetAnchoredContextTransformationStatus::
-                        NodeFrontierExceeded,
-                )?;
+        historical: &CognitiveStructure,
+        current: &CognitiveStructure,
+        path: &TargetAnchoredContextStructuralPath,
+        policy: TargetAnchoredContextTransformationPolicy,
+        traversal: &mut TargetAnchoredContextTraversal,
+    ) -> Result<(), TargetAnchoredContextTransformationStatus> {
+        traversal.visited_node_count = traversal
+            .visited_node_count
+            .checked_add(1)
+            .ok_or(TargetAnchoredContextTransformationStatus::NodeFrontierExceeded)?;
 
-        if traversal.visited_node_count
-            > policy.max_nodes()
-        {
-            return Err(
-                TargetAnchoredContextTransformationStatus::
-                    NodeFrontierExceeded,
-            );
+        if traversal.visited_node_count > policy.max_nodes() {
+            return Err(TargetAnchoredContextTransformationStatus::NodeFrontierExceeded);
         }
 
-        match (
-            historical,
-            current,
-        ) {
-            (
-                CognitiveStructure::Atom(
-                    historical_atom,
-                ),
-                CognitiveStructure::Atom(
-                    current_atom,
-                ),
-            ) => {
-                if traversal.occurrences.len()
-                    >= policy.max_occurrences()
-                {
+        match (historical, current) {
+            (CognitiveStructure::Atom(historical_atom), CognitiveStructure::Atom(current_atom)) => {
+                if traversal.occurrences.len() >= policy.max_occurrences() {
                     return Err(
-                        TargetAnchoredContextTransformationStatus::
-                            OccurrenceFrontierExceeded,
+                        TargetAnchoredContextTransformationStatus::OccurrenceFrontierExceeded,
                     );
                 }
 
-                traversal.occurrences.push(
-                    TargetAnchoredContextAtomOccurrence {
+                traversal
+                    .occurrences
+                    .push(TargetAnchoredContextAtomOccurrence {
                         path: path.clone(),
-                        historical_atom:
-                            *historical_atom,
-                        current_atom:
-                            *current_atom,
-                    },
-                );
+                        historical_atom: *historical_atom,
+                        current_atom: *current_atom,
+                    });
 
                 Ok(())
             }
 
             (
-                CognitiveStructure::Ordered(
-                    historical_children,
-                ),
-                CognitiveStructure::Ordered(
-                    current_children,
-                ),
+                CognitiveStructure::Ordered(historical_children),
+                CognitiveStructure::Ordered(current_children),
             ) => {
-                if historical_children.len()
-                    != current_children.len()
-                {
+                if historical_children.len() != current_children.len() {
                     return Err(
-                        TargetAnchoredContextTransformationStatus::
-                            HypothesisStructuralMismatch,
+                        TargetAnchoredContextTransformationStatus::HypothesisStructuralMismatch,
                     );
                 }
 
-                for (
-                    index,
-                    (
-                        historical_child,
-                        current_child,
-                    ),
-                ) in historical_children
+                for (index, (historical_child, current_child)) in historical_children
                     .iter()
-                    .zip(
-                        current_children.iter(),
-                    )
+                    .zip(current_children.iter())
                     .enumerate()
                 {
-                    let child_path =
-                        path.child(
-                            TargetAnchoredContextPathStep::
-                                OrderedChild(index),
-                        );
+                    let child_path = path.child(TargetAnchoredContextPathStep::OrderedChild(index));
 
                     Self::collect_aligned(
                         historical_child,
@@ -5583,40 +4798,22 @@ impl AutonomousTargetAnchoredContextTransformation {
             }
 
             (
-                CognitiveStructure::Unordered(
-                    historical_children,
-                ),
-                CognitiveStructure::Unordered(
-                    current_children,
-                ),
+                CognitiveStructure::Unordered(historical_children),
+                CognitiveStructure::Unordered(current_children),
             ) => {
-                if historical_children.len()
-                    != current_children.len()
-                {
+                if historical_children.len() != current_children.len() {
                     return Err(
-                        TargetAnchoredContextTransformationStatus::
-                            HypothesisStructuralMismatch,
+                        TargetAnchoredContextTransformationStatus::HypothesisStructuralMismatch,
                     );
                 }
 
-                for (
-                    index,
-                    (
-                        historical_child,
-                        current_child,
-                    ),
-                ) in historical_children
+                for (index, (historical_child, current_child)) in historical_children
                     .iter()
-                    .zip(
-                        current_children.iter(),
-                    )
+                    .zip(current_children.iter())
                     .enumerate()
                 {
                     let child_path =
-                        path.child(
-                            TargetAnchoredContextPathStep::
-                                UnorderedChild(index),
-                        );
+                        path.child(TargetAnchoredContextPathStep::UnorderedChild(index));
 
                     Self::collect_aligned(
                         historical_child,
@@ -5630,49 +4827,33 @@ impl AutonomousTargetAnchoredContextTransformation {
                 Ok(())
             }
 
-            _ => Err(
-                TargetAnchoredContextTransformationStatus::
-                    HypothesisStructuralMismatch,
-            ),
+            _ => Err(TargetAnchoredContextTransformationStatus::HypothesisStructuralMismatch),
         }
     }
 
     fn paths_for_pair(
-        occurrences:
-            &[TargetAnchoredContextAtomOccurrence],
+        occurrences: &[TargetAnchoredContextAtomOccurrence],
         historical_atom: u64,
         current_atom: u64,
     ) -> Vec<TargetAnchoredContextStructuralPath> {
         occurrences
             .iter()
             .filter(|occurrence| {
-                occurrence.historical_atom
-                    == historical_atom
-                    && occurrence.current_atom
-                        == current_atom
+                occurrence.historical_atom == historical_atom
+                    && occurrence.current_atom == current_atom
             })
-            .map(|occurrence| {
-                occurrence.path.clone()
-            })
+            .map(|occurrence| occurrence.path.clone())
             .collect()
     }
 
     fn topology_class(
-        paths:
-            &[TargetAnchoredContextStructuralPath],
-    ) -> Option<
-        TargetAnchoredContextTopologyClass
-    > {
-        let first =
-            paths.first()?;
+        paths: &[TargetAnchoredContextStructuralPath],
+    ) -> Option<TargetAnchoredContextTopologyClass> {
+        let first = paths.first()?;
 
-        let expected =
-            first.topology_class();
+        let expected = first.topology_class();
 
-        if paths.iter().all(|path| {
-            path.topology_class()
-                == expected
-        }) {
+        if paths.iter().all(|path| path.topology_class() == expected) {
             Some(expected)
         } else {
             None
@@ -5680,260 +4861,163 @@ impl AutonomousTargetAnchoredContextTransformation {
     }
 
     fn roles(
-        correspondence:
-            &SchemaLevelTargetCorrespondence,
-        policy:
-            TargetAnchoredContextTransformationPolicy,
-    ) -> Result<
-        Vec<TargetAnchoredContextRole>,
-        TargetAnchoredContextTransformationStatus,
-    > {
-        if correspondence.bindings().len()
-            > policy.max_target_roles()
-        {
-            return Err(
-                TargetAnchoredContextTransformationStatus::
-                    TargetRoleFrontierExceeded,
-            );
+        correspondence: &SchemaLevelTargetCorrespondence,
+        policy: TargetAnchoredContextTransformationPolicy,
+    ) -> Result<Vec<TargetAnchoredContextRole>, TargetAnchoredContextTransformationStatus> {
+        if correspondence.bindings().len() > policy.max_target_roles() {
+            return Err(TargetAnchoredContextTransformationStatus::TargetRoleFrontierExceeded);
         }
 
-        Ok(
-            correspondence
-                .bindings()
-                .iter()
-                .map(|binding| {
-                    TargetAnchoredContextRole {
-                        role_index:
-                            binding.role_index(),
+        Ok(correspondence
+            .bindings()
+            .iter()
+            .map(|binding| TargetAnchoredContextRole {
+                role_index: binding.role_index(),
 
-                        historical_atom:
-                            binding.historical_atom(),
+                historical_atom: binding.historical_atom(),
 
-                        current_atom:
-                            binding.current_atom(),
-                    }
-                })
-                .collect(),
-        )
+                current_atom: binding.current_atom(),
+            })
+            .collect())
     }
 
     pub fn derive(
-        historical_hypothesis:
-            &CognitiveStructure,
-        current_hypothesis:
-            &CognitiveStructure,
-        target_correspondence:
-            &SchemaLevelTargetCorrespondence,
-        policy:
-            TargetAnchoredContextTransformationPolicy,
+        historical_hypothesis: &CognitiveStructure,
+        current_hypothesis: &CognitiveStructure,
+        target_correspondence: &SchemaLevelTargetCorrespondence,
+        policy: TargetAnchoredContextTransformationPolicy,
     ) -> GroundedTargetAnchoredContextTransformationResult {
-        if target_correspondence.match_kind()
-            != SchemaLevelTargetMatchKind::RolePreserving
-        {
-            return
-                GroundedTargetAnchoredContextTransformationResult::
-                    rejected(
-                        TargetAnchoredContextTransformationStatus::
-                            TargetCorrespondenceNotRolePreserving,
-                        0,
-                        0,
-                    );
+        if target_correspondence.match_kind() != SchemaLevelTargetMatchKind::RolePreserving {
+            return GroundedTargetAnchoredContextTransformationResult::rejected(
+                TargetAnchoredContextTransformationStatus::TargetCorrespondenceNotRolePreserving,
+                0,
+                0,
+            );
         }
 
-        let roles =
-            match Self::roles(
-                target_correspondence,
-                policy,
-            ) {
-                Ok(roles) => roles,
+        let roles = match Self::roles(target_correspondence, policy) {
+            Ok(roles) => roles,
 
-                Err(status) => {
-                    return
-                        GroundedTargetAnchoredContextTransformationResult::
-                            rejected(
-                                status,
-                                0,
-                                0,
-                            );
-                }
-            };
+            Err(status) => {
+                return GroundedTargetAnchoredContextTransformationResult::rejected(status, 0, 0);
+            }
+        };
 
-        let mut hypothesis_traversal =
-            TargetAnchoredContextTraversal::new();
+        let mut hypothesis_traversal = TargetAnchoredContextTraversal::new();
 
-        if let Err(status) =
-            Self::collect_aligned(
-                historical_hypothesis,
-                current_hypothesis,
-                &TargetAnchoredContextStructuralPath::
-                    root(),
-                policy,
-                &mut hypothesis_traversal,
-            )
-        {
-            return
-                GroundedTargetAnchoredContextTransformationResult::
-                    rejected(
-                        status,
-                        hypothesis_traversal
-                            .visited_node_count,
-                        hypothesis_traversal
-                            .occurrences
-                            .len(),
-                    );
+        if let Err(status) = Self::collect_aligned(
+            historical_hypothesis,
+            current_hypothesis,
+            &TargetAnchoredContextStructuralPath::root(),
+            policy,
+            &mut hypothesis_traversal,
+        ) {
+            return GroundedTargetAnchoredContextTransformationResult::rejected(
+                status,
+                hypothesis_traversal.visited_node_count,
+                hypothesis_traversal.occurrences.len(),
+            );
         }
 
-        let visited_node_count =
-            hypothesis_traversal
-                .visited_node_count;
+        let visited_node_count = hypothesis_traversal.visited_node_count;
 
-        let occurrence_count =
-            hypothesis_traversal
-                .occurrences
-                .len();
+        let occurrence_count = hypothesis_traversal.occurrences.len();
 
-        let mut split_candidates =
-            Vec::<(
-                TargetAnchoredContextRole,
-                Vec<TargetAnchoredContextStructuralPath>,
-                Vec<TargetAnchoredContextStructuralPath>,
-            )>::new();
+        let mut split_candidates = Vec::<(
+            TargetAnchoredContextRole,
+            Vec<TargetAnchoredContextStructuralPath>,
+            Vec<TargetAnchoredContextStructuralPath>,
+        )>::new();
 
-        let mut merge_candidates =
-            Vec::<(
-                TargetAnchoredContextRole,
-                Vec<TargetAnchoredContextStructuralPath>,
-                Vec<u64>,
-            )>::new();
+        let mut merge_candidates = Vec::<(
+            TargetAnchoredContextRole,
+            Vec<TargetAnchoredContextStructuralPath>,
+            Vec<u64>,
+        )>::new();
 
         for role in &roles {
-            let transformed =
-                Self::paths_for_pair(
-                    &hypothesis_traversal
-                        .occurrences,
-                    role.historical_atom,
-                    role.current_atom,
-                );
+            let transformed = Self::paths_for_pair(
+                &hypothesis_traversal.occurrences,
+                role.historical_atom,
+                role.current_atom,
+            );
 
-            let retained =
-                Self::paths_for_pair(
-                    &hypothesis_traversal
-                        .occurrences,
-                    role.historical_atom,
-                    role.historical_atom,
-                );
+            let retained = Self::paths_for_pair(
+                &hypothesis_traversal.occurrences,
+                role.historical_atom,
+                role.historical_atom,
+            );
 
-            if !transformed.is_empty()
-                && !retained.is_empty()
-            {
-                split_candidates.push(
-                    (
-                        *role,
-                        transformed.clone(),
-                        retained,
-                    ),
-                );
+            if !transformed.is_empty() && !retained.is_empty() {
+                split_candidates.push((*role, transformed.clone(), retained));
             }
 
             if !transformed.is_empty() {
-                let mut extra_sources =
-                    hypothesis_traversal
-                        .occurrences
-                        .iter()
-                        .filter(|occurrence| {
-                            occurrence.current_atom
-                                == role.current_atom
-                                && occurrence
-                                    .historical_atom
-                                    != role.historical_atom
-                        })
-                        .map(|occurrence| {
-                            occurrence.historical_atom
-                        })
-                        .collect::<Vec<_>>();
+                let mut extra_sources = hypothesis_traversal
+                    .occurrences
+                    .iter()
+                    .filter(|occurrence| {
+                        occurrence.current_atom == role.current_atom
+                            && occurrence.historical_atom != role.historical_atom
+                    })
+                    .map(|occurrence| occurrence.historical_atom)
+                    .collect::<Vec<_>>();
 
                 extra_sources.sort_unstable();
                 extra_sources.dedup();
 
                 if !extra_sources.is_empty() {
-                    merge_candidates.push(
-                        (
-                            *role,
-                            transformed,
-                            extra_sources,
-                        ),
-                    );
+                    merge_candidates.push((*role, transformed, extra_sources));
                 }
             }
         }
 
-        let split =
-            match split_candidates.len() {
-                0 => {
-                    return
-                        GroundedTargetAnchoredContextTransformationResult::
-                            rejected(
-                                TargetAnchoredContextTransformationStatus::
-                                    MissingSelectiveSplitAnchor,
-                                visited_node_count,
-                                occurrence_count,
-                            );
-                }
+        let split = match split_candidates.len() {
+            0 => {
+                return GroundedTargetAnchoredContextTransformationResult::rejected(
+                    TargetAnchoredContextTransformationStatus::MissingSelectiveSplitAnchor,
+                    visited_node_count,
+                    occurrence_count,
+                );
+            }
 
-                1 => split_candidates
-                    .remove(0),
+            1 => split_candidates.remove(0),
 
-                _ => {
-                    return
-                        GroundedTargetAnchoredContextTransformationResult::
-                            rejected(
-                                TargetAnchoredContextTransformationStatus::
-                                    MultipleSelectiveSplitAnchors,
-                                visited_node_count,
-                                occurrence_count,
-                            );
-                }
-            };
+            _ => {
+                return GroundedTargetAnchoredContextTransformationResult::rejected(
+                    TargetAnchoredContextTransformationStatus::MultipleSelectiveSplitAnchors,
+                    visited_node_count,
+                    occurrence_count,
+                );
+            }
+        };
 
-        let merge =
-            match merge_candidates.len() {
-                0 => {
-                    return
-                        GroundedTargetAnchoredContextTransformationResult::
-                            rejected(
-                                TargetAnchoredContextTransformationStatus::
-                                    MissingAnchoredMerge,
-                                visited_node_count,
-                                occurrence_count,
-                            );
-                }
+        let merge = match merge_candidates.len() {
+            0 => {
+                return GroundedTargetAnchoredContextTransformationResult::rejected(
+                    TargetAnchoredContextTransformationStatus::MissingAnchoredMerge,
+                    visited_node_count,
+                    occurrence_count,
+                );
+            }
 
-                1 => merge_candidates
-                    .remove(0),
+            1 => merge_candidates.remove(0),
 
-                _ => {
-                    return
-                        GroundedTargetAnchoredContextTransformationResult::
-                            rejected(
-                                TargetAnchoredContextTransformationStatus::
-                                    MultipleAnchoredMerges,
-                                visited_node_count,
-                                occurrence_count,
-                            );
-                }
-            };
+            _ => {
+                return GroundedTargetAnchoredContextTransformationResult::rejected(
+                    TargetAnchoredContextTransformationStatus::MultipleAnchoredMerges,
+                    visited_node_count,
+                    occurrence_count,
+                );
+            }
+        };
 
-        if split.0.role_index
-            == merge.0.role_index
-        {
-            return
-                GroundedTargetAnchoredContextTransformationResult::
-                    rejected(
-                        TargetAnchoredContextTransformationStatus::
-                            AnchorsNotDistinct,
-                        visited_node_count,
-                        occurrence_count,
-                    );
+        if split.0.role_index == merge.0.role_index {
+            return GroundedTargetAnchoredContextTransformationResult::rejected(
+                TargetAnchoredContextTransformationStatus::AnchorsNotDistinct,
+                visited_node_count,
+                occurrence_count,
+            );
         }
 
         /*
@@ -5942,172 +5026,102 @@ impl AutonomousTargetAnchoredContextTransformation {
          * historical split atom may map only to itself and to the
          * frozen target-bound current atom.
          */
-        let mut split_destinations =
-            hypothesis_traversal
-                .occurrences
-                .iter()
-                .filter(|occurrence| {
-                    occurrence.historical_atom
-                        == split.0.historical_atom
-                })
-                .map(|occurrence| {
-                    occurrence.current_atom
-                })
-                .collect::<Vec<_>>();
+        let mut split_destinations = hypothesis_traversal
+            .occurrences
+            .iter()
+            .filter(|occurrence| occurrence.historical_atom == split.0.historical_atom)
+            .map(|occurrence| occurrence.current_atom)
+            .collect::<Vec<_>>();
 
         split_destinations.sort_unstable();
         split_destinations.dedup();
 
-        let mut expected_split_destinations =
-            vec![
-                split.0.historical_atom,
-                split.0.current_atom,
-            ];
+        let mut expected_split_destinations = vec![split.0.historical_atom, split.0.current_atom];
 
-        expected_split_destinations
-            .sort_unstable();
+        expected_split_destinations.sort_unstable();
 
-        expected_split_destinations
-            .dedup();
+        expected_split_destinations.dedup();
 
-        if split_destinations
-            != expected_split_destinations
-        {
-            return
-                GroundedTargetAnchoredContextTransformationResult::
-                    rejected(
-                        TargetAnchoredContextTransformationStatus::
-                            SplitRelationNotSelective,
-                        visited_node_count,
-                        occurrence_count,
-                    );
+        if split_destinations != expected_split_destinations {
+            return GroundedTargetAnchoredContextTransformationResult::rejected(
+                TargetAnchoredContextTransformationStatus::SplitRelationNotSelective,
+                visited_node_count,
+                occurrence_count,
+            );
         }
 
         /*
          * Exactly one merge extension source.
          */
         if merge.2.len() != 1 {
-            return
-                GroundedTargetAnchoredContextTransformationResult::
-                    rejected(
-                        TargetAnchoredContextTransformationStatus::
-                            MergeRelationNotSingleSource,
-                        visited_node_count,
-                        occurrence_count,
-                    );
+            return GroundedTargetAnchoredContextTransformationResult::rejected(
+                TargetAnchoredContextTransformationStatus::MergeRelationNotSingleSource,
+                visited_node_count,
+                occurrence_count,
+            );
         }
 
-        let merge_extension_source =
-            merge.2[0];
+        let merge_extension_source = merge.2[0];
 
-        if roles.iter().any(|role| {
-            role.historical_atom
-                == merge_extension_source
-        }) {
-            return
-                GroundedTargetAnchoredContextTransformationResult::
-                    rejected(
-                        TargetAnchoredContextTransformationStatus::
-                            MergeExtensionUsesTargetRole,
-                        visited_node_count,
-                        occurrence_count,
-                    );
+        if roles
+            .iter()
+            .any(|role| role.historical_atom == merge_extension_source)
+        {
+            return GroundedTargetAnchoredContextTransformationResult::rejected(
+                TargetAnchoredContextTransformationStatus::MergeExtensionUsesTargetRole,
+                visited_node_count,
+                occurrence_count,
+            );
         }
 
         /*
          * No other atom may participate in a non-bijective relation.
          */
-        let mut forward =
-            std::collections::BTreeMap::<
-                u64,
-                std::collections::BTreeSet<u64>,
-            >::new();
+        let mut forward = std::collections::BTreeMap::<u64, std::collections::BTreeSet<u64>>::new();
 
-        let mut reverse =
-            std::collections::BTreeMap::<
-                u64,
-                std::collections::BTreeSet<u64>,
-            >::new();
+        let mut reverse = std::collections::BTreeMap::<u64, std::collections::BTreeSet<u64>>::new();
 
-        for occurrence in
-            &hypothesis_traversal.occurrences
-        {
+        for occurrence in &hypothesis_traversal.occurrences {
             forward
-                .entry(
-                    occurrence.historical_atom,
-                )
+                .entry(occurrence.historical_atom)
                 .or_default()
-                .insert(
-                    occurrence.current_atom,
-                );
+                .insert(occurrence.current_atom);
 
             reverse
-                .entry(
-                    occurrence.current_atom,
-                )
+                .entry(occurrence.current_atom)
                 .or_default()
-                .insert(
-                    occurrence.historical_atom,
-                );
+                .insert(occurrence.historical_atom);
         }
 
-        let split_keys =
-            forward.iter()
-                .filter(|(_, values)| {
-                    values.len() > 1
-                })
-                .map(|(atom, _)| *atom)
-                .collect::<Vec<_>>();
+        let split_keys = forward
+            .iter()
+            .filter(|(_, values)| values.len() > 1)
+            .map(|(atom, _)| *atom)
+            .collect::<Vec<_>>();
 
-        let merge_keys =
-            reverse.iter()
-                .filter(|(_, values)| {
-                    values.len() > 1
-                })
-                .map(|(atom, _)| *atom)
-                .collect::<Vec<_>>();
+        let merge_keys = reverse
+            .iter()
+            .filter(|(_, values)| values.len() > 1)
+            .map(|(atom, _)| *atom)
+            .collect::<Vec<_>>();
 
-        if split_keys
-            != vec![
-                split.0.historical_atom
-            ]
-            || merge_keys
-                != vec![
-                    merge.0.current_atom
-                ]
-        {
-            return
-                GroundedTargetAnchoredContextTransformationResult::
-                    rejected(
-                        TargetAnchoredContextTransformationStatus::
-                            AdditionalNonBijectiveConflict,
-                        visited_node_count,
-                        occurrence_count,
-                    );
+        if split_keys != vec![split.0.historical_atom] || merge_keys != vec![merge.0.current_atom] {
+            return GroundedTargetAnchoredContextTransformationResult::rejected(
+                TargetAnchoredContextTransformationStatus::AdditionalNonBijectiveConflict,
+                visited_node_count,
+                occurrence_count,
+            );
         }
 
         let expected_merge_sources =
-            std::collections::BTreeSet::from([
-                merge.0.historical_atom,
-                merge_extension_source,
-            ]);
+            std::collections::BTreeSet::from([merge.0.historical_atom, merge_extension_source]);
 
-        if reverse
-            .get(
-                &merge.0.current_atom,
-            )
-            != Some(
-                &expected_merge_sources,
-            )
-        {
-            return
-                GroundedTargetAnchoredContextTransformationResult::
-                    rejected(
-                        TargetAnchoredContextTransformationStatus::
-                            MergeRelationNotSingleSource,
-                        visited_node_count,
-                        occurrence_count,
-                    );
+        if reverse.get(&merge.0.current_atom) != Some(&expected_merge_sources) {
+            return GroundedTargetAnchoredContextTransformationResult::rejected(
+                TargetAnchoredContextTransformationStatus::MergeRelationNotSingleSource,
+                visited_node_count,
+                occurrence_count,
+            );
         }
 
         /*
@@ -6117,40 +5131,25 @@ impl AutonomousTargetAnchoredContextTransformation {
          *   - the single merge extension into the selected merge
          *     anchor's current atom.
          */
-        for occurrence in
-            &hypothesis_traversal.occurrences
-        {
-            if occurrence.historical_atom
-                == occurrence.current_atom
-            {
+        for occurrence in &hypothesis_traversal.occurrences {
+            if occurrence.historical_atom == occurrence.current_atom {
                 continue;
             }
 
-            let is_target_binding =
-                roles.iter().any(|role| {
-                    role.historical_atom
-                        == occurrence.historical_atom
-                        && role.current_atom
-                            == occurrence.current_atom
-                });
+            let is_target_binding = roles.iter().any(|role| {
+                role.historical_atom == occurrence.historical_atom
+                    && role.current_atom == occurrence.current_atom
+            });
 
-            let is_merge_extension =
-                occurrence.historical_atom
-                    == merge_extension_source
-                    && occurrence.current_atom
-                        == merge.0.current_atom;
+            let is_merge_extension = occurrence.historical_atom == merge_extension_source
+                && occurrence.current_atom == merge.0.current_atom;
 
-            if !is_target_binding
-                && !is_merge_extension
-            {
-                return
-                    GroundedTargetAnchoredContextTransformationResult::
-                        rejected(
-                            TargetAnchoredContextTransformationStatus::
-                                UnexplainedChangedOccurrence,
-                            visited_node_count,
-                            occurrence_count,
-                        );
+            if !is_target_binding && !is_merge_extension {
+                return GroundedTargetAnchoredContextTransformationResult::rejected(
+                    TargetAnchoredContextTransformationStatus::UnexplainedChangedOccurrence,
+                    visited_node_count,
+                    occurrence_count,
+                );
             }
         }
 
@@ -6158,156 +5157,112 @@ impl AutonomousTargetAnchoredContextTransformation {
          * Derive the topology of the selected merge anchor from the
          * grounded target pair itself.
          */
-        let mut target_traversal =
-            TargetAnchoredContextTraversal::new();
+        let mut target_traversal = TargetAnchoredContextTraversal::new();
 
-        if let Err(status) =
-            Self::collect_aligned(
-                target_correspondence
-                    .historical_target(),
-                target_correspondence
-                    .current_target(),
-                &TargetAnchoredContextStructuralPath::
-                    root(),
-                policy,
-                &mut target_traversal,
-            )
-        {
-            return
-                GroundedTargetAnchoredContextTransformationResult::
-                    rejected(
-                        status,
-                        visited_node_count,
-                        occurrence_count,
-                    );
+        if let Err(status) = Self::collect_aligned(
+            target_correspondence.historical_target(),
+            target_correspondence.current_target(),
+            &TargetAnchoredContextStructuralPath::root(),
+            policy,
+            &mut target_traversal,
+        ) {
+            return GroundedTargetAnchoredContextTransformationResult::rejected(
+                status,
+                visited_node_count,
+                occurrence_count,
+            );
         }
 
-        let target_merge_paths =
-            Self::paths_for_pair(
-                &target_traversal.occurrences,
-                merge.0.historical_atom,
-                merge.0.current_atom,
-            );
+        let target_merge_paths = Self::paths_for_pair(
+            &target_traversal.occurrences,
+            merge.0.historical_atom,
+            merge.0.current_atom,
+        );
 
         if target_merge_paths.is_empty() {
-            return
-                GroundedTargetAnchoredContextTransformationResult::
-                    rejected(
-                        TargetAnchoredContextTransformationStatus::
-                            TargetMergeAnchorMissing,
-                        visited_node_count,
-                        occurrence_count,
-                    );
-        }
-
-        let target_anchor_topology =
-            match Self::topology_class(
-                &target_merge_paths,
-            ) {
-                Some(class) => class,
-
-                None => {
-                    return
-                        GroundedTargetAnchoredContextTransformationResult::
-                            rejected(
-                                TargetAnchoredContextTransformationStatus::
-                                    TargetMergeTopologyAmbiguous,
-                                visited_node_count,
-                                occurrence_count,
-                            );
-                }
-            };
-
-        let context_merge_topology =
-            match Self::topology_class(
-                &merge.1,
-            ) {
-                Some(class) => class,
-
-                None => {
-                    return
-                        GroundedTargetAnchoredContextTransformationResult::
-                            rejected(
-                                TargetAnchoredContextTransformationStatus::
-                                    ContextMergeTopologyAmbiguous,
-                                visited_node_count,
-                                occurrence_count,
-                            );
-                }
-            };
-
-        if target_anchor_topology
-            != context_merge_topology
-        {
-            return
-                GroundedTargetAnchoredContextTransformationResult::
-                    rejected(
-                        TargetAnchoredContextTransformationStatus::
-                            TargetContextTopologyMismatch,
-                        visited_node_count,
-                        occurrence_count,
-                    );
-        }
-
-        let merge_extension_paths =
-            Self::paths_for_pair(
-                &hypothesis_traversal.occurrences,
-                merge_extension_source,
-                merge.0.current_atom,
+            return GroundedTargetAnchoredContextTransformationResult::rejected(
+                TargetAnchoredContextTransformationStatus::TargetMergeAnchorMissing,
+                visited_node_count,
+                occurrence_count,
             );
+        }
 
-        let identity =
-            GroundedTargetAnchoredContextTransformationIdentity::
-                new(
-                    roles.len(),
-                    split.0.role_index,
-                    merge.0.role_index,
+        let target_anchor_topology = match Self::topology_class(&target_merge_paths) {
+            Some(class) => class,
+
+            None => {
+                return GroundedTargetAnchoredContextTransformationResult::rejected(
+                    TargetAnchoredContextTransformationStatus::TargetMergeTopologyAmbiguous,
+                    visited_node_count,
+                    occurrence_count,
                 );
+            }
+        };
+
+        let context_merge_topology = match Self::topology_class(&merge.1) {
+            Some(class) => class,
+
+            None => {
+                return GroundedTargetAnchoredContextTransformationResult::rejected(
+                    TargetAnchoredContextTransformationStatus::ContextMergeTopologyAmbiguous,
+                    visited_node_count,
+                    occurrence_count,
+                );
+            }
+        };
+
+        if target_anchor_topology != context_merge_topology {
+            return GroundedTargetAnchoredContextTransformationResult::rejected(
+                TargetAnchoredContextTransformationStatus::TargetContextTopologyMismatch,
+                visited_node_count,
+                occurrence_count,
+            );
+        }
+
+        let merge_extension_paths = Self::paths_for_pair(
+            &hypothesis_traversal.occurrences,
+            merge_extension_source,
+            merge.0.current_atom,
+        );
+
+        let identity = GroundedTargetAnchoredContextTransformationIdentity::new(
+            roles.len(),
+            split.0.role_index,
+            merge.0.role_index,
+        );
 
         GroundedTargetAnchoredContextTransformationResult {
-            status:
-                TargetAnchoredContextTransformationStatus::
-                    Derived,
+            status: TargetAnchoredContextTransformationStatus::Derived,
 
             visited_node_count,
 
             occurrence_count,
 
-            transformation: Some(
-                GroundedTargetAnchoredContextTransformation {
-                    identity,
+            transformation: Some(GroundedTargetAnchoredContextTransformation {
+                identity,
 
-                    target_anchor_topology,
+                target_anchor_topology,
 
-                    context_merge_topology,
+                context_merge_topology,
 
-                    split_historical_atom:
-                        split.0.historical_atom,
+                split_historical_atom: split.0.historical_atom,
 
-                    split_current_atom:
-                        split.0.current_atom,
+                split_current_atom: split.0.current_atom,
 
-                    merge_historical_atom:
-                        merge.0.historical_atom,
+                merge_historical_atom: merge.0.historical_atom,
 
-                    merge_current_atom:
-                        merge.0.current_atom,
+                merge_current_atom: merge.0.current_atom,
 
-                    merge_extension_historical_atom:
-                        merge_extension_source,
+                merge_extension_historical_atom: merge_extension_source,
 
-                    split_transformed_paths:
-                        split.1,
+                split_transformed_paths: split.1,
 
-                    split_retained_paths:
-                        split.2,
+                split_retained_paths: split.2,
 
-                    merge_base_paths:
-                        merge.1,
+                merge_base_paths: merge.1,
 
-                    merge_extension_paths,
-                },
-            ),
+                merge_extension_paths,
+            }),
         }
     }
 }
@@ -6317,22 +5272,17 @@ pub struct UniversalAutonomousTargetAnchoredContextTransformation;
 
 impl UniversalAutonomousTargetAnchoredContextTransformation {
     pub fn derive(
-        historical_hypothesis:
-            &CognitiveStructure,
-        current_hypothesis:
-            &CognitiveStructure,
-        target_correspondence:
-            &SchemaLevelTargetCorrespondence,
-        policy:
-            TargetAnchoredContextTransformationPolicy,
+        historical_hypothesis: &CognitiveStructure,
+        current_hypothesis: &CognitiveStructure,
+        target_correspondence: &SchemaLevelTargetCorrespondence,
+        policy: TargetAnchoredContextTransformationPolicy,
     ) -> GroundedTargetAnchoredContextTransformationResult {
-        AutonomousTargetAnchoredContextTransformation::
-            derive(
-                historical_hypothesis,
-                current_hypothesis,
-                target_correspondence,
-                policy,
-            )
+        AutonomousTargetAnchoredContextTransformation::derive(
+            historical_hypothesis,
+            current_hypothesis,
+            target_correspondence,
+            policy,
+        )
     }
 }
 
@@ -6375,9 +5325,7 @@ pub enum GroundedForecastCorrespondenceStatus {
 
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
 pub enum GroundedForecastCorrespondenceRelation {
-    TargetAnchoredContextTransformation(
-        GroundedTargetAnchoredContextTransformationIdentity,
-    ),
+    TargetAnchoredContextTransformation(GroundedTargetAnchoredContextTransformationIdentity),
 
     TargetBoundHypothesisContinuation,
 }
@@ -6429,43 +5377,29 @@ impl GroundedForecastCorrespondencePolicy {
         })
     }
 
-    pub fn max_forecasts(
-        self,
-    ) -> usize {
+    pub fn max_forecasts(self) -> usize {
         self.max_forecasts
     }
 
-    pub fn max_matching_search_nodes(
-        self,
-    ) -> usize {
+    pub fn max_matching_search_nodes(self) -> usize {
         self.max_matching_search_nodes
     }
 
-    fn context_policy(
-        self,
-    ) -> TargetAnchoredContextTransformationPolicy {
-        TargetAnchoredContextTransformationPolicy::
-            new(
-                self.max_context_target_roles,
-                self.max_context_nodes,
-                self.max_context_occurrences,
-            )
-            .expect(
-                "GroundedForecastCorrespondencePolicy validated context bounds",
-            )
+    fn context_policy(self) -> TargetAnchoredContextTransformationPolicy {
+        TargetAnchoredContextTransformationPolicy::new(
+            self.max_context_target_roles,
+            self.max_context_nodes,
+            self.max_context_occurrences,
+        )
+        .expect("GroundedForecastCorrespondencePolicy validated context bounds")
     }
 
-    fn role_schema_policy(
-        self,
-    ) -> RolePreservingTargetSchemaPolicy {
-        RolePreservingTargetSchemaPolicy::
-            new(
-                self.max_role_schema_nodes,
-                self.max_role_schema_roles,
-            )
-            .expect(
-                "GroundedForecastCorrespondencePolicy validated role-schema bounds",
-            )
+    fn role_schema_policy(self) -> RolePreservingTargetSchemaPolicy {
+        RolePreservingTargetSchemaPolicy::new(
+            self.max_role_schema_nodes,
+            self.max_role_schema_roles,
+        )
+        .expect("GroundedForecastCorrespondencePolicy validated role-schema bounds")
     }
 }
 
@@ -6474,16 +5408,14 @@ pub struct GroundedForecastCorrespondenceEntry {
     historical_forecast_index: usize,
     current_forecast_index: usize,
 
-    relation:
-        GroundedForecastCorrespondenceRelation,
+    relation: GroundedForecastCorrespondenceRelation,
 }
 
 impl GroundedForecastCorrespondenceEntry {
     fn new(
         historical_forecast_index: usize,
         current_forecast_index: usize,
-        relation:
-            GroundedForecastCorrespondenceRelation,
+        relation: GroundedForecastCorrespondenceRelation,
     ) -> Self {
         Self {
             historical_forecast_index,
@@ -6492,29 +5424,22 @@ impl GroundedForecastCorrespondenceEntry {
         }
     }
 
-    pub fn historical_forecast_index(
-        &self,
-    ) -> usize {
+    pub fn historical_forecast_index(&self) -> usize {
         self.historical_forecast_index
     }
 
-    pub fn current_forecast_index(
-        &self,
-    ) -> usize {
+    pub fn current_forecast_index(&self) -> usize {
         self.current_forecast_index
     }
 
-    pub fn relation(
-        &self,
-    ) -> &GroundedForecastCorrespondenceRelation {
+    pub fn relation(&self) -> &GroundedForecastCorrespondenceRelation {
         &self.relation
     }
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct GroundedForecastCorrespondence {
-    entries:
-        Vec<GroundedForecastCorrespondenceEntry>,
+    entries: Vec<GroundedForecastCorrespondenceEntry>,
 
     context_transformation_count: usize,
     target_bound_continuation_count: usize,
@@ -6523,41 +5448,30 @@ pub struct GroundedForecastCorrespondence {
 }
 
 impl GroundedForecastCorrespondence {
-    pub fn entries(
-        &self,
-    ) -> &[GroundedForecastCorrespondenceEntry] {
+    pub fn entries(&self) -> &[GroundedForecastCorrespondenceEntry] {
         &self.entries
     }
 
-    pub fn forecast_count(
-        &self,
-    ) -> usize {
+    pub fn forecast_count(&self) -> usize {
         self.entries.len()
     }
 
-    pub fn context_transformation_count(
-        &self,
-    ) -> usize {
+    pub fn context_transformation_count(&self) -> usize {
         self.context_transformation_count
     }
 
-    pub fn target_bound_continuation_count(
-        &self,
-    ) -> usize {
+    pub fn target_bound_continuation_count(&self) -> usize {
         self.target_bound_continuation_count
     }
 
-    pub fn matching_search_node_count(
-        &self,
-    ) -> usize {
+    pub fn matching_search_node_count(&self) -> usize {
         self.matching_search_node_count
     }
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct GroundedForecastCorrespondenceResult {
-    status:
-        GroundedForecastCorrespondenceStatus,
+    status: GroundedForecastCorrespondenceStatus,
 
     historical_forecast_count: usize,
     current_forecast_count: usize,
@@ -6566,14 +5480,12 @@ pub struct GroundedForecastCorrespondenceResult {
     matching_solution_count: usize,
     matching_search_node_count: usize,
 
-    correspondence:
-        Option<GroundedForecastCorrespondence>,
+    correspondence: Option<GroundedForecastCorrespondence>,
 }
 
 impl GroundedForecastCorrespondenceResult {
     fn rejected(
-        status:
-            GroundedForecastCorrespondenceStatus,
+        status: GroundedForecastCorrespondenceStatus,
         historical_forecast_count: usize,
         current_forecast_count: usize,
         candidate_edge_count: usize,
@@ -6594,53 +5506,35 @@ impl GroundedForecastCorrespondenceResult {
         }
     }
 
-    pub fn status(
-        &self,
-    ) -> GroundedForecastCorrespondenceStatus {
+    pub fn status(&self) -> GroundedForecastCorrespondenceStatus {
         self.status
     }
 
-    pub fn derived(
-        &self,
-    ) -> bool {
-        self.status
-            == GroundedForecastCorrespondenceStatus::
-                Derived
+    pub fn derived(&self) -> bool {
+        self.status == GroundedForecastCorrespondenceStatus::Derived
     }
 
-    pub fn historical_forecast_count(
-        &self,
-    ) -> usize {
+    pub fn historical_forecast_count(&self) -> usize {
         self.historical_forecast_count
     }
 
-    pub fn current_forecast_count(
-        &self,
-    ) -> usize {
+    pub fn current_forecast_count(&self) -> usize {
         self.current_forecast_count
     }
 
-    pub fn candidate_edge_count(
-        &self,
-    ) -> usize {
+    pub fn candidate_edge_count(&self) -> usize {
         self.candidate_edge_count
     }
 
-    pub fn matching_solution_count(
-        &self,
-    ) -> usize {
+    pub fn matching_solution_count(&self) -> usize {
         self.matching_solution_count
     }
 
-    pub fn matching_search_node_count(
-        &self,
-    ) -> usize {
+    pub fn matching_search_node_count(&self) -> usize {
         self.matching_search_node_count
     }
 
-    pub fn correspondence(
-        &self,
-    ) -> Option<&GroundedForecastCorrespondence> {
+    pub fn correspondence(&self) -> Option<&GroundedForecastCorrespondence> {
         self.correspondence.as_ref()
     }
 }
@@ -6652,8 +5546,7 @@ struct GroundedForecastMatchingSearch {
 
     solution_count: usize,
 
-    first_solution:
-        Vec<usize>,
+    first_solution: Vec<usize>,
 }
 
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
@@ -6661,177 +5554,104 @@ pub struct AutonomousGroundedForecastCorrespondence;
 
 impl AutonomousGroundedForecastCorrespondence {
     fn target_bound_hypothesis_continuation(
-        historical:
-            &CognitiveStructure,
-        current:
-            &CognitiveStructure,
-        target_correspondence:
-            &SchemaLevelTargetCorrespondence,
-        policy:
-            GroundedForecastCorrespondencePolicy,
+        historical: &CognitiveStructure,
+        current: &CognitiveStructure,
+        target_correspondence: &SchemaLevelTargetCorrespondence,
+        policy: GroundedForecastCorrespondencePolicy,
     ) -> bool {
         if historical == current {
             return true;
         }
 
-        let relation =
-            AutonomousRolePreservingTargetSchema::
-                derive(
-                    historical,
-                    current,
-                    policy.role_schema_policy(),
-                );
+        let relation = AutonomousRolePreservingTargetSchema::derive(
+            historical,
+            current,
+            policy.role_schema_policy(),
+        );
 
-        if !relation.derived()
-            || relation.role_count() == 0
-        {
+        if !relation.derived() || relation.role_count() == 0 {
             return false;
         }
 
-        relation.bindings()
-            .iter()
-            .all(|binding| {
-                target_correspondence
-                    .bindings()
-                    .iter()
-                    .any(|target_binding| {
-                        target_binding
-                            .historical_atom()
-                            == binding
-                                .historical_atom()
-                            && target_binding
-                                .current_atom()
-                                == binding
-                                    .current_atom()
-                    })
-            })
+        relation.bindings().iter().all(|binding| {
+            target_correspondence
+                .bindings()
+                .iter()
+                .any(|target_binding| {
+                    target_binding.historical_atom() == binding.historical_atom()
+                        && target_binding.current_atom() == binding.current_atom()
+                })
+        })
     }
 
     fn structural_relation(
-        historical:
-            &CognitiveStructure,
-        current:
-            &CognitiveStructure,
-        target_correspondence:
-            &SchemaLevelTargetCorrespondence,
-        policy:
-            GroundedForecastCorrespondencePolicy,
-    ) -> Result<
-        Option<GroundedForecastCorrespondenceRelation>,
-        GroundedForecastCorrespondenceStatus,
-    > {
-        let context =
-            AutonomousTargetAnchoredContextTransformation::
-                derive(
-                    historical,
-                    current,
-                    target_correspondence,
-                    policy.context_policy(),
-                );
+        historical: &CognitiveStructure,
+        current: &CognitiveStructure,
+        target_correspondence: &SchemaLevelTargetCorrespondence,
+        policy: GroundedForecastCorrespondencePolicy,
+    ) -> Result<Option<GroundedForecastCorrespondenceRelation>, GroundedForecastCorrespondenceStatus>
+    {
+        let context = AutonomousTargetAnchoredContextTransformation::derive(
+            historical,
+            current,
+            target_correspondence,
+            policy.context_policy(),
+        );
 
-        let context_identity =
-            context.identity()
-                .cloned();
+        let context_identity = context.identity().cloned();
 
-        let base =
-            Self::
-                target_bound_hypothesis_continuation(
-                    historical,
-                    current,
-                    target_correspondence,
-                    policy,
-                );
+        let base = Self::target_bound_hypothesis_continuation(
+            historical,
+            current,
+            target_correspondence,
+            policy,
+        );
 
-        match (
-            context_identity,
-            base,
-        ) {
-            (
-                Some(_),
-                true,
-            ) => Err(
-                GroundedForecastCorrespondenceStatus::
-                    StructuralRelationOverlap,
-            ),
+        match (context_identity, base) {
+            (Some(_), true) => Err(GroundedForecastCorrespondenceStatus::StructuralRelationOverlap),
 
-            (
-                Some(identity),
-                false,
-            ) => Ok(
-                Some(
-                    GroundedForecastCorrespondenceRelation::
-                        TargetAnchoredContextTransformation(
-                            identity,
-                        ),
+            (Some(identity), false) => Ok(Some(
+                GroundedForecastCorrespondenceRelation::TargetAnchoredContextTransformation(
+                    identity,
                 ),
-            ),
+            )),
 
-            (
-                None,
-                true,
-            ) => Ok(
-                Some(
-                    GroundedForecastCorrespondenceRelation::
-                        TargetBoundHypothesisContinuation,
-                ),
-            ),
+            (None, true) => Ok(Some(
+                GroundedForecastCorrespondenceRelation::TargetBoundHypothesisContinuation,
+            )),
 
-            (
-                None,
-                false,
-            ) => Ok(None),
+            (None, false) => Ok(None),
         }
     }
 
     fn enumerate_unique_matching(
-        matrix:
-            &[Vec<
-                Option<
-                    GroundedForecastCorrespondenceRelation
-                >
-            >],
+        matrix: &[Vec<Option<GroundedForecastCorrespondenceRelation>>],
         max_search_nodes: usize,
     ) -> GroundedForecastMatchingSearch {
         fn recurse(
             row: usize,
-            matrix:
-                &[Vec<
-                    Option<
-                        GroundedForecastCorrespondenceRelation
-                    >
-                >],
-            used:
-                &mut [bool],
-            assignment:
-                &mut Vec<usize>,
+            matrix: &[Vec<Option<GroundedForecastCorrespondenceRelation>>],
+            used: &mut [bool],
+            assignment: &mut Vec<usize>,
             max_search_nodes: usize,
-            result:
-                &mut GroundedForecastMatchingSearch,
+            result: &mut GroundedForecastMatchingSearch,
         ) {
             if result.truncated {
                 return;
             }
 
-            result.search_node_count =
-                match result
-                    .search_node_count
-                    .checked_add(1)
-                {
-                    Some(value) => value,
+            result.search_node_count = match result.search_node_count.checked_add(1) {
+                Some(value) => value,
 
-                    None => {
-                        result.truncated =
-                            true;
+                None => {
+                    result.truncated = true;
 
-                        return;
-                    }
-                };
+                    return;
+                }
+            };
 
-            if result.search_node_count
-                > max_search_nodes
-            {
-                result.truncated =
-                    true;
+            if result.search_node_count > max_search_nodes {
+                result.truncated = true;
 
                 return;
             }
@@ -6840,40 +5660,26 @@ impl AutonomousGroundedForecastCorrespondence {
                 result.solution_count += 1;
 
                 if result.solution_count == 1 {
-                    result.first_solution =
-                        assignment.clone();
+                    result.first_solution = assignment.clone();
                 }
 
                 return;
             }
 
-            for current_index in
-                0..matrix[row].len()
-            {
+            for current_index in 0..matrix[row].len() {
                 if used[current_index] {
                     continue;
                 }
 
-                if matrix[row][current_index]
-                    .is_none()
-                {
+                if matrix[row][current_index].is_none() {
                     continue;
                 }
 
                 used[current_index] = true;
 
-                assignment.push(
-                    current_index,
-                );
+                assignment.push(current_index);
 
-                recurse(
-                    row + 1,
-                    matrix,
-                    used,
-                    assignment,
-                    max_search_nodes,
-                    result,
-                );
+                recurse(row + 1, matrix, used, assignment, max_search_nodes, result);
 
                 assignment.pop();
 
@@ -6894,18 +5700,11 @@ impl AutonomousGroundedForecastCorrespondence {
             }
         }
 
-        let mut result =
-            GroundedForecastMatchingSearch::
-                default();
+        let mut result = GroundedForecastMatchingSearch::default();
 
-        let mut used =
-            vec![
-                false;
-                matrix.len()
-            ];
+        let mut used = vec![false; matrix.len()];
 
-        let mut assignment =
-            Vec::<usize>::new();
+        let mut assignment = Vec::<usize>::new();
 
         recurse(
             0,
@@ -6920,351 +5719,214 @@ impl AutonomousGroundedForecastCorrespondence {
     }
 
     pub fn derive(
-        historical:
-            &EmpiricalEpistemicTransferIdentity,
-        current:
-            &EmpiricalEpistemicTransferIdentity,
-        target_correspondence:
-            &SchemaLevelTargetCorrespondence,
-        policy:
-            GroundedForecastCorrespondencePolicy,
+        historical: &EmpiricalEpistemicTransferIdentity,
+        current: &EmpiricalEpistemicTransferIdentity,
+        target_correspondence: &SchemaLevelTargetCorrespondence,
+        policy: GroundedForecastCorrespondencePolicy,
     ) -> GroundedForecastCorrespondenceResult {
-        if target_correspondence.match_kind()
-            != SchemaLevelTargetMatchKind::
-                RolePreserving
-        {
-            return
-                GroundedForecastCorrespondenceResult::
-                    rejected(
-                        GroundedForecastCorrespondenceStatus::
-                            TargetCorrespondenceNotRolePreserving,
-                        0,
-                        0,
-                        0,
-                        0,
-                        0,
-                    );
+        if target_correspondence.match_kind() != SchemaLevelTargetMatchKind::RolePreserving {
+            return GroundedForecastCorrespondenceResult::rejected(
+                GroundedForecastCorrespondenceStatus::TargetCorrespondenceNotRolePreserving,
+                0,
+                0,
+                0,
+                0,
+                0,
+            );
         }
 
-        let historical_forecasts =
-            historical
-                .forecasts()
-                .iter()
-                .enumerate()
-                .filter(|(_, forecast)| {
-                    forecast.target()
-                        == target_correspondence
-                            .historical_target()
-                })
-                .collect::<Vec<_>>();
+        let historical_forecasts = historical
+            .forecasts()
+            .iter()
+            .enumerate()
+            .filter(|(_, forecast)| forecast.target() == target_correspondence.historical_target())
+            .collect::<Vec<_>>();
 
-        let current_forecasts =
-            current
-                .forecasts()
-                .iter()
-                .enumerate()
-                .filter(|(_, forecast)| {
-                    forecast.target()
-                        == target_correspondence
-                            .current_target()
-                })
-                .collect::<Vec<_>>();
+        let current_forecasts = current
+            .forecasts()
+            .iter()
+            .enumerate()
+            .filter(|(_, forecast)| forecast.target() == target_correspondence.current_target())
+            .collect::<Vec<_>>();
 
-        let historical_count =
-            historical_forecasts.len();
+        let historical_count = historical_forecasts.len();
 
-        let current_count =
-            current_forecasts.len();
+        let current_count = current_forecasts.len();
 
         if historical_count == 0 {
-            return
-                GroundedForecastCorrespondenceResult::
-                    rejected(
-                        GroundedForecastCorrespondenceStatus::
-                            EmptyHistoricalForecastFrontier,
-                        historical_count,
-                        current_count,
-                        0,
-                        0,
-                        0,
-                    );
+            return GroundedForecastCorrespondenceResult::rejected(
+                GroundedForecastCorrespondenceStatus::EmptyHistoricalForecastFrontier,
+                historical_count,
+                current_count,
+                0,
+                0,
+                0,
+            );
         }
 
         if current_count == 0 {
-            return
-                GroundedForecastCorrespondenceResult::
-                    rejected(
-                        GroundedForecastCorrespondenceStatus::
-                            EmptyCurrentForecastFrontier,
-                        historical_count,
-                        current_count,
-                        0,
-                        0,
-                        0,
-                    );
+            return GroundedForecastCorrespondenceResult::rejected(
+                GroundedForecastCorrespondenceStatus::EmptyCurrentForecastFrontier,
+                historical_count,
+                current_count,
+                0,
+                0,
+                0,
+            );
         }
 
-        if historical_count
-            != current_count
-        {
-            return
-                GroundedForecastCorrespondenceResult::
-                    rejected(
-                        GroundedForecastCorrespondenceStatus::
-                            ForecastFrontierCardinalityMismatch,
-                        historical_count,
-                        current_count,
-                        0,
-                        0,
-                        0,
-                    );
+        if historical_count != current_count {
+            return GroundedForecastCorrespondenceResult::rejected(
+                GroundedForecastCorrespondenceStatus::ForecastFrontierCardinalityMismatch,
+                historical_count,
+                current_count,
+                0,
+                0,
+                0,
+            );
         }
 
-        if historical_count
-            > policy.max_forecasts()
-        {
-            return
-                GroundedForecastCorrespondenceResult::
-                    rejected(
-                        GroundedForecastCorrespondenceStatus::
-                            ForecastFrontierExceeded,
-                        historical_count,
-                        current_count,
-                        0,
-                        0,
-                        0,
-                    );
+        if historical_count > policy.max_forecasts() {
+            return GroundedForecastCorrespondenceResult::rejected(
+                GroundedForecastCorrespondenceStatus::ForecastFrontierExceeded,
+                historical_count,
+                current_count,
+                0,
+                0,
+                0,
+            );
         }
 
-        let mut matrix =
-            vec![
-                vec![
-                    None;
-                    current_count
-                ];
-                historical_count
-            ];
+        let mut matrix = vec![vec![None; current_count]; historical_count];
 
-        let mut candidate_edge_count =
-            0_usize;
+        let mut candidate_edge_count = 0_usize;
 
-        for (
-            historical_local_index,
-            (
-                _,
-                historical_forecast,
-            ),
-        ) in historical_forecasts
-            .iter()
-            .enumerate()
+        for (historical_local_index, (_, historical_forecast)) in
+            historical_forecasts.iter().enumerate()
         {
-            for (
-                current_local_index,
-                (
-                    _,
-                    current_forecast,
-                ),
-            ) in current_forecasts
-                .iter()
-                .enumerate()
+            for (current_local_index, (_, current_forecast)) in current_forecasts.iter().enumerate()
             {
-                let relation =
-                    match Self::structural_relation(
-                        historical_forecast
-                            .hypothesis(),
-                        current_forecast
-                            .hypothesis(),
-                        target_correspondence,
-                        policy,
-                    ) {
-                        Ok(relation) => relation,
+                let relation = match Self::structural_relation(
+                    historical_forecast.hypothesis(),
+                    current_forecast.hypothesis(),
+                    target_correspondence,
+                    policy,
+                ) {
+                    Ok(relation) => relation,
 
-                        Err(status) => {
-                            return
-                                GroundedForecastCorrespondenceResult::
-                                    rejected(
-                                        status,
-                                        historical_count,
-                                        current_count,
-                                        candidate_edge_count,
-                                        0,
-                                        0,
-                                    );
-                        }
-                    };
+                    Err(status) => {
+                        return GroundedForecastCorrespondenceResult::rejected(
+                            status,
+                            historical_count,
+                            current_count,
+                            candidate_edge_count,
+                            0,
+                            0,
+                        );
+                    }
+                };
 
                 if relation.is_some() {
-                    candidate_edge_count +=
-                        1;
+                    candidate_edge_count += 1;
                 }
 
-                matrix[
-                    historical_local_index
-                ][
-                    current_local_index
-                ] =
-                    relation;
+                matrix[historical_local_index][current_local_index] = relation;
             }
         }
 
-        let matching =
-            Self::enumerate_unique_matching(
-                &matrix,
-                policy
-                    .max_matching_search_nodes(),
-            );
+        let matching = Self::enumerate_unique_matching(&matrix, policy.max_matching_search_nodes());
 
         if matching.truncated {
-            return
-                GroundedForecastCorrespondenceResult::
-                    rejected(
-                        GroundedForecastCorrespondenceStatus::
-                            MatchingSearchExceeded,
-                        historical_count,
-                        current_count,
-                        candidate_edge_count,
-                        matching.solution_count,
-                        matching.search_node_count,
-                    );
+            return GroundedForecastCorrespondenceResult::rejected(
+                GroundedForecastCorrespondenceStatus::MatchingSearchExceeded,
+                historical_count,
+                current_count,
+                candidate_edge_count,
+                matching.solution_count,
+                matching.search_node_count,
+            );
         }
 
         if matching.solution_count == 0 {
-            return
-                GroundedForecastCorrespondenceResult::
-                    rejected(
-                        GroundedForecastCorrespondenceStatus::
-                            NoPerfectMatching,
-                        historical_count,
-                        current_count,
-                        candidate_edge_count,
-                        matching.solution_count,
-                        matching.search_node_count,
-                    );
+            return GroundedForecastCorrespondenceResult::rejected(
+                GroundedForecastCorrespondenceStatus::NoPerfectMatching,
+                historical_count,
+                current_count,
+                candidate_edge_count,
+                matching.solution_count,
+                matching.search_node_count,
+            );
         }
 
         if matching.solution_count != 1 {
-            return
-                GroundedForecastCorrespondenceResult::
-                    rejected(
-                        GroundedForecastCorrespondenceStatus::
-                            AmbiguousPerfectMatching,
-                        historical_count,
-                        current_count,
-                        candidate_edge_count,
-                        matching.solution_count,
-                        matching.search_node_count,
-                    );
+            return GroundedForecastCorrespondenceResult::rejected(
+                GroundedForecastCorrespondenceStatus::AmbiguousPerfectMatching,
+                historical_count,
+                current_count,
+                candidate_edge_count,
+                matching.solution_count,
+                matching.search_node_count,
+            );
         }
 
         let mut entries =
-            Vec::<
-                GroundedForecastCorrespondenceEntry
-            >::with_capacity(
-                historical_count,
-            );
+            Vec::<GroundedForecastCorrespondenceEntry>::with_capacity(historical_count);
 
-        let mut context_transformation_count =
-            0_usize;
+        let mut context_transformation_count = 0_usize;
 
-        let mut target_bound_continuation_count =
-            0_usize;
+        let mut target_bound_continuation_count = 0_usize;
 
-        for (
-            historical_local_index,
-            current_local_index,
-        ) in matching
-            .first_solution
-            .iter()
-            .copied()
-            .enumerate()
+        for (historical_local_index, current_local_index) in
+            matching.first_solution.iter().copied().enumerate()
         {
-            let (
-                historical_global_index,
-                _,
-            ) =
-                historical_forecasts[
-                    historical_local_index
-                ];
+            let (historical_global_index, _) = historical_forecasts[historical_local_index];
 
-            let (
-                current_global_index,
-                _,
-            ) =
-                current_forecasts[
-                    current_local_index
-                ];
+            let (current_global_index, _) = current_forecasts[current_local_index];
 
-            let relation =
-                matrix[
-                    historical_local_index
-                ][
-                    current_local_index
-                ]
+            let relation = matrix[historical_local_index][current_local_index]
                 .as_ref()
-                .expect(
-                    "unique matching uses only present structural relation edges",
-                )
+                .expect("unique matching uses only present structural relation edges")
                 .clone();
 
             match &relation {
-                GroundedForecastCorrespondenceRelation::
-                    TargetAnchoredContextTransformation(
-                        _,
-                    ) =>
-                {
-                    context_transformation_count +=
-                        1;
+                GroundedForecastCorrespondenceRelation::TargetAnchoredContextTransformation(_) => {
+                    context_transformation_count += 1;
                 }
 
-                GroundedForecastCorrespondenceRelation::
-                    TargetBoundHypothesisContinuation =>
-                {
-                    target_bound_continuation_count +=
-                        1;
+                GroundedForecastCorrespondenceRelation::TargetBoundHypothesisContinuation => {
+                    target_bound_continuation_count += 1;
                 }
             }
 
-            entries.push(
-                GroundedForecastCorrespondenceEntry::
-                    new(
-                        historical_global_index,
-                        current_global_index,
-                        relation,
-                    ),
-            );
+            entries.push(GroundedForecastCorrespondenceEntry::new(
+                historical_global_index,
+                current_global_index,
+                relation,
+            ));
         }
 
         GroundedForecastCorrespondenceResult {
-            status:
-                GroundedForecastCorrespondenceStatus::
-                    Derived,
+            status: GroundedForecastCorrespondenceStatus::Derived,
 
-            historical_forecast_count:
-                historical_count,
+            historical_forecast_count: historical_count,
 
-            current_forecast_count:
-                current_count,
+            current_forecast_count: current_count,
 
             candidate_edge_count,
 
-            matching_solution_count:
-                matching.solution_count,
+            matching_solution_count: matching.solution_count,
 
-            matching_search_node_count:
-                matching.search_node_count,
+            matching_search_node_count: matching.search_node_count,
 
-            correspondence: Some(
-                GroundedForecastCorrespondence {
-                    entries,
+            correspondence: Some(GroundedForecastCorrespondence {
+                entries,
 
-                    context_transformation_count,
+                context_transformation_count,
 
-                    target_bound_continuation_count,
+                target_bound_continuation_count,
 
-                    matching_search_node_count:
-                        matching.search_node_count,
-                },
-            ),
+                matching_search_node_count: matching.search_node_count,
+            }),
         }
     }
 }
@@ -7274,22 +5936,17 @@ pub struct UniversalAutonomousGroundedForecastCorrespondence;
 
 impl UniversalAutonomousGroundedForecastCorrespondence {
     pub fn derive(
-        historical:
-            &EmpiricalEpistemicTransferIdentity,
-        current:
-            &EmpiricalEpistemicTransferIdentity,
-        target_correspondence:
-            &SchemaLevelTargetCorrespondence,
-        policy:
-            GroundedForecastCorrespondencePolicy,
+        historical: &EmpiricalEpistemicTransferIdentity,
+        current: &EmpiricalEpistemicTransferIdentity,
+        target_correspondence: &SchemaLevelTargetCorrespondence,
+        policy: GroundedForecastCorrespondencePolicy,
     ) -> GroundedForecastCorrespondenceResult {
-        AutonomousGroundedForecastCorrespondence::
-            derive(
-                historical,
-                current,
-                target_correspondence,
-                policy,
-            )
+        AutonomousGroundedForecastCorrespondence::derive(
+            historical,
+            current,
+            target_correspondence,
+            policy,
+        )
     }
 }
 
@@ -17253,14 +15910,8 @@ mod p4g_c3g_empirical_transfer_expectation_tests {
         CognitiveStructure::atom(value)
     }
 
-    fn evidence_counts(
-    ) -> EpistemicForecastEvidence {
-        EpistemicForecastEvidence::new(
-            2,
-            2,
-            0,
-        )
-        .unwrap()
+    fn evidence_counts() -> EpistemicForecastEvidence {
+        EpistemicForecastEvidence::new(2, 2, 0).unwrap()
     }
 
     fn possibility(
@@ -17279,13 +15930,12 @@ mod p4g_c3g_empirical_transfer_expectation_tests {
                     evidence_counts(),
                 )
                 .unwrap(),
-                EpistemicHypothesisForecast::
-                    context_abstained(
-                        a(101),
-                        a(target),
-                        evidence_counts(),
-                    )
-                    .unwrap(),
+                EpistemicHypothesisForecast::context_abstained(
+                    a(101),
+                    a(target),
+                    evidence_counts(),
+                )
+                .unwrap(),
             ],
         )
         .unwrap()
@@ -17320,63 +15970,36 @@ mod p4g_c3g_empirical_transfer_expectation_tests {
     }
 
     fn sample(
-        pre:
-            &GroundedEpistemicExperimentPossibility,
-        post:
-            &GroundedEpistemicExperimentPossibility,
+        pre: &GroundedEpistemicExperimentPossibility,
+        post: &GroundedEpistemicExperimentPossibility,
     ) -> EpistemicResolutionProgressSample {
-        let target =
-            pre.forecasts()[0].target().clone();
+        let target = pre.forecasts()[0].target().clone();
 
-        let observation =
-            GroundedEpistemicOutcomeObservation::new(
-                pre.source_state().clone(),
-                pre.action().clone(),
-                vec![
-                    EpistemicTargetObservation::new(
-                        target,
-                        true,
-                    ),
-                ],
-            )
-            .unwrap();
+        let observation = GroundedEpistemicOutcomeObservation::new(
+            pre.source_state().clone(),
+            pre.action().clone(),
+            vec![EpistemicTargetObservation::new(target, true)],
+        )
+        .unwrap();
 
-        let outcome =
-            AutonomousEpistemicOutcomeResolution::
-                evaluate(
-                    pre,
-                    &observation,
-                    EpistemicOutcomeResolutionPolicy::
-                        new(
-                            32,
-                            32,
-                        )
-                        .unwrap(),
-                );
+        let outcome = AutonomousEpistemicOutcomeResolution::evaluate(
+            pre,
+            &observation,
+            EpistemicOutcomeResolutionPolicy::new(32, 32).unwrap(),
+        );
 
         assert!(outcome.resolved());
 
-        AutonomousEpistemicResolutionProgress::
-            measure(
-                pre,
-                &outcome,
-                post,
-                discrimination_policy(),
-            )
+        AutonomousEpistemicResolutionProgress::measure(pre, &outcome, post, discrimination_policy())
             .sample()
             .unwrap()
             .clone()
     }
 
     fn identity(
-        possibility:
-            &GroundedEpistemicExperimentPossibility,
+        possibility: &GroundedEpistemicExperimentPossibility,
     ) -> EmpiricalEpistemicTransferIdentity {
-        AutonomousEmpiricalEpistemicTransferIdentity::
-            derive(
-                possibility,
-                identity_policy(),
-            )
+        AutonomousEmpiricalEpistemicTransferIdentity::derive(possibility, identity_policy())
             .identity()
             .unwrap()
             .clone()
@@ -17384,188 +16007,89 @@ mod p4g_c3g_empirical_transfer_expectation_tests {
 
     fn progress_evidence(
         id: u64,
-        pre:
-            &GroundedEpistemicExperimentPossibility,
-        post:
-            &GroundedEpistemicExperimentPossibility,
+        pre: &GroundedEpistemicExperimentPossibility,
+        post: &GroundedEpistemicExperimentPossibility,
     ) -> GroundedEpistemicTransferProgressEvidence {
-        GroundedEpistemicTransferProgressEvidence::new(
-            a(id),
-            identity(pre),
-            sample(
-                pre,
-                post,
-            ),
-        )
+        GroundedEpistemicTransferProgressEvidence::new(a(id), identity(pre), sample(pre, post))
     }
 
-    fn identity_policy(
-    ) -> EmpiricalEpistemicTransferIdentityPolicy {
-        EmpiricalEpistemicTransferIdentityPolicy::
-            new(
-                32,
-            )
-            .unwrap()
+    fn identity_policy() -> EmpiricalEpistemicTransferIdentityPolicy {
+        EmpiricalEpistemicTransferIdentityPolicy::new(32).unwrap()
     }
 
-    fn discrimination_policy(
-    ) -> EpistemicForecastDiscriminationPolicy {
-        EpistemicForecastDiscriminationPolicy::
-            new(
-                32,
-                32,
-            )
-            .unwrap()
+    fn discrimination_policy() -> EpistemicForecastDiscriminationPolicy {
+        EpistemicForecastDiscriminationPolicy::new(32, 32).unwrap()
     }
 
-    fn policy(
-        minimum: usize,
-    ) -> EmpiricalExpectedEpistemicTransferProgressPolicy {
-        EmpiricalExpectedEpistemicTransferProgressPolicy::
-            new(
-                32,
-                32,
-                minimum,
-            )
-            .unwrap()
+    fn policy(minimum: usize) -> EmpiricalExpectedEpistemicTransferProgressPolicy {
+        EmpiricalExpectedEpistemicTransferProgressPolicy::new(32, 32, minimum).unwrap()
     }
 
     fn estimate(
-        current:
-            &GroundedEpistemicExperimentPossibility,
-        history:
-            &[GroundedEpistemicTransferProgressEvidence],
+        current: &GroundedEpistemicExperimentPossibility,
+        history: &[GroundedEpistemicTransferProgressEvidence],
         minimum: usize,
     ) -> EmpiricalExpectedEpistemicTransferProgressResult {
-        AutonomousEmpiricalExpectedEpistemicTransferProgress::
-            estimate(
-                current,
-                history,
-                identity_policy(),
-                discrimination_policy(),
-                policy(minimum),
-            )
+        AutonomousEmpiricalExpectedEpistemicTransferProgress::estimate(
+            current,
+            history,
+            identity_policy(),
+            discrimination_policy(),
+            policy(minimum),
+        )
     }
 
     #[test]
     fn structurally_identical_different_source_state_progress_can_estimate_transfer() {
-        let historical =
-            possibility(
-                1,
-                10,
-                500,
-            );
+        let historical = possibility(1, 10, 500);
 
-        let historical_post =
-            reduced_post(
-                1,
-                10,
-                500,
-            );
+        let historical_post = reduced_post(1, 10, 500);
 
-        let current =
-            possibility(
-                999,
-                10,
-                500,
-            );
+        let current = possibility(999, 10, 500);
 
-        assert_ne!(
-            historical.source_state(),
-            current.source_state(),
-        );
+        assert_ne!(historical.source_state(), current.source_state(),);
 
-        assert_eq!(
-            identity(&historical),
-            identity(&current),
-        );
+        assert_eq!(identity(&historical), identity(&current),);
 
         let result = estimate(
             &current,
-            &[
-                progress_evidence(
-                    1000,
-                    &historical,
-                    &historical_post,
-                ),
-            ],
+            &[progress_evidence(1000, &historical, &historical_post)],
             1,
         );
 
         assert!(result.estimated());
 
-        assert_eq!(
-            result.matching_identity_evidence_count(),
-            1,
-        );
+        assert_eq!(result.matching_identity_evidence_count(), 1,);
 
-        assert_eq!(
-            result.cross_state_matching_evidence_count(),
-            1,
-        );
+        assert_eq!(result.cross_state_matching_evidence_count(), 1,);
 
-        let estimate =
-            result.estimate().unwrap();
+        let estimate = result.estimate().unwrap();
 
-        assert_eq!(
-            estimate.qualifying_sample_count(),
-            1,
-        );
+        assert_eq!(estimate.qualifying_sample_count(), 1,);
 
-        assert_eq!(
-            estimate.distinct_source_state_count(),
-            1,
-        );
+        assert_eq!(estimate.distinct_source_state_count(), 1,);
 
-        assert_eq!(
-            estimate.expected_reduction_numerator(),
-            1,
-        );
+        assert_eq!(estimate.expected_reduction_numerator(), 1,);
 
-        assert_eq!(
-            estimate.expected_reduction_denominator(),
-            1,
-        );
+        assert_eq!(estimate.expected_reduction_denominator(), 1,);
 
         assert_eq!(
             estimate.direction(),
-            EmpiricalEpistemicProgressDirection::
-                ReductionDominant,
+            EmpiricalEpistemicProgressDirection::ReductionDominant,
         );
     }
 
     #[test]
     fn same_source_history_is_deliberately_excluded_from_transfer_estimator() {
-        let current =
-            possibility(
-                1,
-                10,
-                500,
-            );
+        let current = possibility(1, 10, 500);
 
-        let post =
-            reduced_post(
-                1,
-                10,
-                500,
-            );
+        let post = reduced_post(1, 10, 500);
 
-        let result = estimate(
-            &current,
-            &[
-                progress_evidence(
-                    1000,
-                    &current,
-                    &post,
-                ),
-            ],
-            1,
-        );
+        let result = estimate(&current, &[progress_evidence(1000, &current, &post)], 1);
 
         assert_eq!(
             result.status(),
-            EmpiricalExpectedEpistemicTransferProgressStatus::
-                NoCrossStateMatchingEvidence,
+            EmpiricalExpectedEpistemicTransferProgressStatus::NoCrossStateMatchingEvidence,
         );
 
         assert!(result.estimate().is_none());
@@ -17573,87 +16097,45 @@ mod p4g_c3g_empirical_transfer_expectation_tests {
 
     #[test]
     fn equal_aggregate_shape_with_different_exact_transfer_identity_cannot_transfer() {
-        let historical =
-            possibility(
-                1,
-                10,
-                500,
-            );
+        let historical = possibility(1, 10, 500);
 
-        let historical_post =
-            reduced_post(
-                1,
-                10,
-                500,
-            );
+        let historical_post = reduced_post(1, 10, 500);
 
-        let current =
-            possibility(
-                999,
-                10,
-                700,
-            );
+        let current = possibility(999, 10, 700);
 
-        assert_ne!(
-            identity(&historical),
-            identity(&current),
-        );
+        assert_ne!(identity(&historical), identity(&current),);
 
         let result = estimate(
             &current,
-            &[
-                progress_evidence(
-                    1000,
-                    &historical,
-                    &historical_post,
-                ),
-            ],
+            &[progress_evidence(1000, &historical, &historical_post)],
             1,
         );
 
         assert_eq!(
             result.status(),
-            EmpiricalExpectedEpistemicTransferProgressStatus::
-                NoMatchingTransferIdentity,
+            EmpiricalExpectedEpistemicTransferProgressStatus::NoMatchingTransferIdentity,
         );
     }
 
     #[test]
     fn insufficient_cross_state_history_abstains_instead_of_inventing_transfer_value() {
-        let historical =
-            possibility(
-                1,
-                10,
-                500,
-            );
+        let historical = possibility(1, 10, 500);
 
-        let current =
-            possibility(
-                999,
-                10,
-                500,
-            );
+        let current = possibility(999, 10, 500);
 
         let result = estimate(
             &current,
-            &[
-                progress_evidence(
-                    1000,
-                    &historical,
-                    &reduced_post(
-                        1,
-                        10,
-                        500,
-                    ),
-                ),
-            ],
+            &[progress_evidence(
+                1000,
+                &historical,
+                &reduced_post(1, 10, 500),
+            )],
             2,
         );
 
         assert_eq!(
             result.status(),
-            EmpiricalExpectedEpistemicTransferProgressStatus::
-                InsufficientMatchingEvidence,
+            EmpiricalExpectedEpistemicTransferProgressStatus::InsufficientMatchingEvidence,
         );
 
         assert!(result.estimate().is_none());
@@ -17661,310 +16143,159 @@ mod p4g_c3g_empirical_transfer_expectation_tests {
 
     #[test]
     fn exact_duplicate_evidence_identity_deduplicates_but_conflicting_reuse_fails_closed() {
-        let historical =
-            possibility(
-                1,
-                10,
-                500,
-            );
+        let historical = possibility(1, 10, 500);
 
-        let current =
-            possibility(
-                999,
-                10,
-                500,
-            );
+        let current = possibility(999, 10, 500);
 
-        let one =
-            progress_evidence(
-                1000,
-                &historical,
-                &reduced_post(
-                    1,
-                    10,
-                    500,
-                ),
-            );
+        let one = progress_evidence(1000, &historical, &reduced_post(1, 10, 500));
 
-        let duplicate_result = estimate(
-            &current,
-            &[
-                one.clone(),
-                one.clone(),
-            ],
-            1,
-        );
+        let duplicate_result = estimate(&current, &[one.clone(), one.clone()], 1);
 
         assert!(duplicate_result.estimated());
 
-        assert_eq!(
-            duplicate_result
-                .cross_state_matching_evidence_count(),
-            1,
+        assert_eq!(duplicate_result.cross_state_matching_evidence_count(), 1,);
+
+        let unchanged = GroundedEpistemicTransferProgressEvidence::new(
+            a(1000),
+            identity(&historical),
+            sample(&historical, &historical),
         );
 
-        let unchanged =
-            GroundedEpistemicTransferProgressEvidence::
-                new(
-                    a(1000),
-                    identity(&historical),
-                    sample(
-                        &historical,
-                        &historical,
-                    ),
-                );
-
-        let conflicting = estimate(
-            &current,
-            &[
-                one,
-                unchanged,
-            ],
-            1,
-        );
+        let conflicting = estimate(&current, &[one, unchanged], 1);
 
         assert_eq!(
             conflicting.status(),
-            EmpiricalExpectedEpistemicTransferProgressStatus::
-                ConflictingEvidenceIdentity,
+            EmpiricalExpectedEpistemicTransferProgressStatus::ConflictingEvidenceIdentity,
         );
     }
 
     #[test]
     fn current_resolved_epistemic_problem_cannot_import_historical_transfer_value() {
-        let historical =
-            possibility(
-                1,
-                10,
-                500,
-            );
+        let historical = possibility(1, 10, 500);
 
-        let resolved =
-            reduced_post(
-                999,
-                10,
-                500,
-            );
+        let resolved = reduced_post(999, 10, 500);
 
         let result = estimate(
             &resolved,
-            &[
-                progress_evidence(
-                    1000,
-                    &historical,
-                    &reduced_post(
-                        1,
-                        10,
-                        500,
-                    ),
-                ),
-            ],
+            &[progress_evidence(
+                1000,
+                &historical,
+                &reduced_post(1, 10, 500),
+            )],
             1,
         );
 
         assert_eq!(
             result.status(),
-            EmpiricalExpectedEpistemicTransferProgressStatus::
-                CurrentNotInformative,
+            EmpiricalExpectedEpistemicTransferProgressStatus::CurrentNotInformative,
         );
     }
 
     #[test]
     fn hard_frontiers_and_evidence_action_mismatch_fail_closed() {
-        let historical =
-            possibility(
-                1,
-                10,
-                500,
-            );
+        let historical = possibility(1, 10, 500);
 
-        let current =
-            possibility(
-                999,
-                10,
-                500,
-            );
+        let current = possibility(999, 10, 500);
 
-        let valid =
-            progress_evidence(
-                1000,
-                &historical,
-                &reduced_post(
-                    1,
-                    10,
-                    500,
+        let valid = progress_evidence(1000, &historical, &reduced_post(1, 10, 500));
+
+        let input_overflow = AutonomousEmpiricalExpectedEpistemicTransferProgress::estimate(
+            &current,
+            &[
+                valid.clone(),
+                GroundedEpistemicTransferProgressEvidence::new(
+                    a(1001),
+                    identity(&historical),
+                    valid.sample().clone(),
                 ),
-            );
-
-        let input_overflow =
-            AutonomousEmpiricalExpectedEpistemicTransferProgress::
-                estimate(
-                    &current,
-                    &[
-                        valid.clone(),
-                        GroundedEpistemicTransferProgressEvidence::
-                            new(
-                                a(1001),
-                                identity(&historical),
-                                valid.sample().clone(),
-                            ),
-                    ],
-                    identity_policy(),
-                    discrimination_policy(),
-                    EmpiricalExpectedEpistemicTransferProgressPolicy::
-                        new(
-                            1,
-                            1,
-                            1,
-                        )
-                        .unwrap(),
-                );
+            ],
+            identity_policy(),
+            discrimination_policy(),
+            EmpiricalExpectedEpistemicTransferProgressPolicy::new(1, 1, 1).unwrap(),
+        );
 
         assert_eq!(
             input_overflow.status(),
-            EmpiricalExpectedEpistemicTransferProgressStatus::
-                InputEvidenceFrontierExceeded,
+            EmpiricalExpectedEpistemicTransferProgressStatus::InputEvidenceFrontierExceeded,
         );
 
-        let wrong_identity_action =
-            EmpiricalEpistemicTransferIdentity {
-                action: a(11),
-                forecasts:
-                    identity(&historical)
-                        .forecasts()
-                        .to_vec(),
-            };
+        let wrong_identity_action = EmpiricalEpistemicTransferIdentity {
+            action: a(11),
+            forecasts: identity(&historical).forecasts().to_vec(),
+        };
 
         let action_mismatch = estimate(
             &current,
-            &[
-                GroundedEpistemicTransferProgressEvidence::
-                    new(
-                        a(2000),
-                        wrong_identity_action,
-                        valid.sample().clone(),
-                    ),
-            ],
+            &[GroundedEpistemicTransferProgressEvidence::new(
+                a(2000),
+                wrong_identity_action,
+                valid.sample().clone(),
+            )],
             1,
         );
 
         assert_eq!(
             action_mismatch.status(),
-            EmpiricalExpectedEpistemicTransferProgressStatus::
-                EvidenceActionMismatch,
+            EmpiricalExpectedEpistemicTransferProgressStatus::EvidenceActionMismatch,
         );
 
         assert_eq!(
-            EmpiricalExpectedEpistemicTransferProgressPolicy::
-                new(
-                    0,
-                    1,
-                    1,
-                ),
+            EmpiricalExpectedEpistemicTransferProgressPolicy::new(0, 1, 1,),
             None,
         );
     }
 
     #[test]
     fn transfer_estimation_is_order_invariant_non_mutating_and_facade_equivalent() {
-        let first =
-            possibility(
-                1,
-                10,
-                500,
-            );
+        let first = possibility(1, 10, 500);
 
-        let second =
-            possibility(
-                2,
-                10,
-                500,
-            );
+        let second = possibility(2, 10, 500);
 
-        let current =
-            possibility(
-                999,
-                10,
-                500,
-            );
+        let current = possibility(999, 10, 500);
 
         let history = vec![
-            progress_evidence(
-                1000,
-                &first,
-                &reduced_post(
-                    1,
-                    10,
-                    500,
-                ),
-            ),
-            progress_evidence(
-                1001,
-                &second,
-                &reduced_post(
-                    2,
-                    10,
-                    500,
-                ),
-            ),
+            progress_evidence(1000, &first, &reduced_post(1, 10, 500)),
+            progress_evidence(1001, &second, &reduced_post(2, 10, 500)),
         ];
 
-        let before_current =
-            current.clone();
+        let before_current = current.clone();
 
-        let before_history =
-            history.clone();
+        let before_history = history.clone();
 
-        let direct =
-            AutonomousEmpiricalExpectedEpistemicTransferProgress::
-                estimate(
-                    &current,
-                    &history,
-                    identity_policy(),
-                    discrimination_policy(),
-                    policy(1),
-                );
+        let direct = AutonomousEmpiricalExpectedEpistemicTransferProgress::estimate(
+            &current,
+            &history,
+            identity_policy(),
+            discrimination_policy(),
+            policy(1),
+        );
 
-        let reversed =
-            AutonomousEmpiricalExpectedEpistemicTransferProgress::
-                estimate(
-                    &current,
-                    &[
-                        history[1].clone(),
-                        history[0].clone(),
-                    ],
-                    identity_policy(),
-                    discrimination_policy(),
-                    policy(1),
-                );
+        let reversed = AutonomousEmpiricalExpectedEpistemicTransferProgress::estimate(
+            &current,
+            &[history[1].clone(), history[0].clone()],
+            identity_policy(),
+            discrimination_policy(),
+            policy(1),
+        );
 
-        let facade =
-            UniversalAutonomousEmpiricalExpectedEpistemicTransferProgress::
-                estimate(
-                    &current,
-                    &history,
-                    identity_policy(),
-                    discrimination_policy(),
-                    policy(1),
-                );
+        let facade = UniversalAutonomousEmpiricalExpectedEpistemicTransferProgress::estimate(
+            &current,
+            &history,
+            identity_policy(),
+            discrimination_policy(),
+            policy(1),
+        );
 
         assert_eq!(direct, reversed);
         assert_eq!(direct, facade);
         assert_eq!(current, before_current);
         assert_eq!(history, before_history);
 
-        let estimate =
-            direct.estimate().unwrap();
+        let estimate = direct.estimate().unwrap();
 
-        assert_eq!(
-            estimate.qualifying_sample_count(),
-            2,
-        );
+        assert_eq!(estimate.qualifying_sample_count(), 2,);
 
-        assert_eq!(
-            estimate.distinct_source_state_count(),
-            2,
-        );
+        assert_eq!(estimate.distinct_source_state_count(), 2,);
     }
 }
 
@@ -17972,97 +16303,39 @@ mod p4g_c3g_empirical_transfer_expectation_tests {
 mod p4g_c3h_role_preserving_target_schema_tests {
     use super::*;
 
-    fn a(
-        value: u64,
-    ) -> CognitiveStructure {
-        CognitiveStructure::Atom(
-            value,
-        )
+    fn a(value: u64) -> CognitiveStructure {
+        CognitiveStructure::Atom(value)
     }
 
-    fn ordered(
-        values:
-            Vec<CognitiveStructure>,
-    ) -> CognitiveStructure {
-        CognitiveStructure::Ordered(
-            values,
-        )
+    fn ordered(values: Vec<CognitiveStructure>) -> CognitiveStructure {
+        CognitiveStructure::Ordered(values)
     }
 
-    fn unordered(
-        values:
-            Vec<CognitiveStructure>,
-    ) -> CognitiveStructure {
-        CognitiveStructure::Unordered(
-            values,
-        )
+    fn unordered(values: Vec<CognitiveStructure>) -> CognitiveStructure {
+        CognitiveStructure::Unordered(values)
     }
 
-    fn policy(
-    ) -> RolePreservingTargetSchemaPolicy {
-        RolePreservingTargetSchemaPolicy::
-            new(
-                128,
-                16,
-            )
-            .unwrap()
+    fn policy() -> RolePreservingTargetSchemaPolicy {
+        RolePreservingTargetSchemaPolicy::new(128, 16).unwrap()
     }
 
     #[test]
     fn repeated_concrete_substitution_becomes_one_role_with_multiple_occurrences() {
-        let historical =
-            ordered(
-                vec![
-                    a(100),
-                    a(1),
-                    ordered(
-                        vec![
-                            a(5),
-                            a(5),
-                        ],
-                    ),
-                ],
-            );
+        let historical = ordered(vec![a(100), a(1), ordered(vec![a(5), a(5)])]);
 
-        let current =
-            ordered(
-                vec![
-                    a(100),
-                    a(2),
-                    ordered(
-                        vec![
-                            a(7),
-                            a(7),
-                        ],
-                    ),
-                ],
-            );
+        let current = ordered(vec![a(100), a(2), ordered(vec![a(7), a(7)])]);
 
-        let result =
-            AutonomousRolePreservingTargetSchema::
-                derive(
-                    &historical,
-                    &current,
-                    policy(),
-                );
+        let result = AutonomousRolePreservingTargetSchema::derive(&historical, &current, policy());
 
         assert!(result.derived());
 
-        assert_eq!(
-            result.role_count(),
-            2,
-        );
+        assert_eq!(result.role_count(), 2,);
 
-        assert_eq!(
-            result.substitution_occurrence_count(),
-            3,
-        );
+        assert_eq!(result.substitution_occurrence_count(), 3,);
 
-        let first =
-            &result.bindings()[0];
+        let first = &result.bindings()[0];
 
-        let second =
-            &result.bindings()[1];
+        let second = &result.bindings()[1];
 
         assert_eq!(
             (
@@ -18070,11 +16343,7 @@ mod p4g_c3h_role_preserving_target_schema_tests {
                 first.current_atom(),
                 first.occurrence_count(),
             ),
-            (
-                1,
-                2,
-                1,
-            ),
+            (1, 2, 1,),
         );
 
         assert_eq!(
@@ -18083,87 +16352,31 @@ mod p4g_c3h_role_preserving_target_schema_tests {
                 second.current_atom(),
                 second.occurrence_count(),
             ),
-            (
-                5,
-                7,
-                2,
-            ),
+            (5, 7, 2,),
         );
     }
 
     #[test]
     fn different_concrete_values_can_share_exact_same_abstract_schema() {
-        let first_historical =
-            ordered(
-                vec![
-                    a(100),
-                    a(1),
-                    ordered(
-                        vec![
-                            a(5),
-                            a(5),
-                        ],
-                    ),
-                ],
-            );
+        let first_historical = ordered(vec![a(100), a(1), ordered(vec![a(5), a(5)])]);
 
-        let first_current =
-            ordered(
-                vec![
-                    a(100),
-                    a(2),
-                    ordered(
-                        vec![
-                            a(7),
-                            a(7),
-                        ],
-                    ),
-                ],
-            );
+        let first_current = ordered(vec![a(100), a(2), ordered(vec![a(7), a(7)])]);
 
-        let second_historical =
-            ordered(
-                vec![
-                    a(100),
-                    a(11),
-                    ordered(
-                        vec![
-                            a(50),
-                            a(50),
-                        ],
-                    ),
-                ],
-            );
+        let second_historical = ordered(vec![a(100), a(11), ordered(vec![a(50), a(50)])]);
 
-        let second_current =
-            ordered(
-                vec![
-                    a(100),
-                    a(12),
-                    ordered(
-                        vec![
-                            a(70),
-                            a(70),
-                        ],
-                    ),
-                ],
-            );
+        let second_current = ordered(vec![a(100), a(12), ordered(vec![a(70), a(70)])]);
 
-        let first =
-            AutonomousRolePreservingTargetSchema::
-                derive(
-                    &first_historical,
-                    &first_current,
-                    policy(),
-                );
+        let first = AutonomousRolePreservingTargetSchema::derive(
+            &first_historical,
+            &first_current,
+            policy(),
+        );
 
-        let second =
-            AutonomousRolePreservingTargetSchema::
-                derive(
-                    &second_historical,
-                    &second_current,
-                    policy(),
-                );
+        let second = AutonomousRolePreservingTargetSchema::derive(
+            &second_historical,
+            &second_current,
+            policy(),
+        );
 
         assert!(first.derived());
         assert!(second.derived());
@@ -18183,318 +16396,138 @@ mod p4g_c3h_role_preserving_target_schema_tests {
 
     #[test]
     fn same_historical_role_cannot_bind_to_two_current_atoms() {
-        let historical =
-            ordered(
-                vec![
-                    a(5),
-                    a(5),
-                ],
-            );
+        let historical = ordered(vec![a(5), a(5)]);
 
-        let current =
-            ordered(
-                vec![
-                    a(7),
-                    a(8),
-                ],
-            );
+        let current = ordered(vec![a(7), a(8)]);
 
-        let result =
-            AutonomousRolePreservingTargetSchema::
-                derive(
-                    &historical,
-                    &current,
-                    policy(),
-                );
+        let result = AutonomousRolePreservingTargetSchema::derive(&historical, &current, policy());
 
         assert_eq!(
             result.status(),
-            RolePreservingTargetSchemaStatus::
-                ConflictingHistoricalBinding,
+            RolePreservingTargetSchemaStatus::ConflictingHistoricalBinding,
         );
 
-        assert!(
-            result.schema().is_none(),
-        );
+        assert!(result.schema().is_none(),);
     }
 
     #[test]
     fn two_historical_roles_cannot_collapse_into_one_current_atom() {
-        let historical =
-            ordered(
-                vec![
-                    a(5),
-                    a(6),
-                ],
-            );
+        let historical = ordered(vec![a(5), a(6)]);
 
-        let current =
-            ordered(
-                vec![
-                    a(7),
-                    a(7),
-                ],
-            );
+        let current = ordered(vec![a(7), a(7)]);
 
-        let result =
-            AutonomousRolePreservingTargetSchema::
-                derive(
-                    &historical,
-                    &current,
-                    policy(),
-                );
+        let result = AutonomousRolePreservingTargetSchema::derive(&historical, &current, policy());
 
         assert_eq!(
             result.status(),
-            RolePreservingTargetSchemaStatus::
-                ConflictingCurrentBinding,
+            RolePreservingTargetSchemaStatus::ConflictingCurrentBinding,
         );
 
-        assert!(
-            result.schema().is_none(),
-        );
+        assert!(result.schema().is_none(),);
     }
 
     #[test]
     fn container_kind_and_arity_are_semantic_not_erasable() {
-        let ordered_target =
-            ordered(
-                vec![
-                    a(1),
-                    a(2),
-                ],
-            );
+        let ordered_target = ordered(vec![a(1), a(2)]);
 
-        let unordered_target =
-            unordered(
-                vec![
-                    a(1),
-                    a(2),
-                ],
-            );
+        let unordered_target = unordered(vec![a(1), a(2)]);
 
-        let kind_mismatch =
-            AutonomousRolePreservingTargetSchema::
-                derive(
-                    &ordered_target,
-                    &unordered_target,
-                    policy(),
-                );
+        let kind_mismatch = AutonomousRolePreservingTargetSchema::derive(
+            &ordered_target,
+            &unordered_target,
+            policy(),
+        );
 
         assert_eq!(
             kind_mismatch.status(),
-            RolePreservingTargetSchemaStatus::
-                StructuralMismatch,
+            RolePreservingTargetSchemaStatus::StructuralMismatch,
         );
 
-        let arity_mismatch =
-            AutonomousRolePreservingTargetSchema::
-                derive(
-                    &ordered(
-                        vec![
-                            a(1),
-                        ],
-                    ),
-                    &ordered(
-                        vec![
-                            a(2),
-                            a(3),
-                        ],
-                    ),
-                    policy(),
-                );
+        let arity_mismatch = AutonomousRolePreservingTargetSchema::derive(
+            &ordered(vec![a(1)]),
+            &ordered(vec![a(2), a(3)]),
+            policy(),
+        );
 
         assert_eq!(
             arity_mismatch.status(),
-            RolePreservingTargetSchemaStatus::
-                StructuralMismatch,
+            RolePreservingTargetSchemaStatus::StructuralMismatch,
         );
     }
 
     #[test]
     fn node_and_role_frontiers_fail_closed() {
-        let historical =
-            ordered(
-                vec![
-                    a(1),
-                    a(2),
-                ],
-            );
+        let historical = ordered(vec![a(1), a(2)]);
 
-        let current =
-            ordered(
-                vec![
-                    a(3),
-                    a(4),
-                ],
-            );
+        let current = ordered(vec![a(3), a(4)]);
 
-        let node_bound =
-            AutonomousRolePreservingTargetSchema::
-                derive(
-                    &historical,
-                    &current,
-                    RolePreservingTargetSchemaPolicy::
-                        new(
-                            1,
-                            8,
-                        )
-                        .unwrap(),
-                );
+        let node_bound = AutonomousRolePreservingTargetSchema::derive(
+            &historical,
+            &current,
+            RolePreservingTargetSchemaPolicy::new(1, 8).unwrap(),
+        );
 
         assert_eq!(
             node_bound.status(),
-            RolePreservingTargetSchemaStatus::
-                NodeFrontierExceeded,
+            RolePreservingTargetSchemaStatus::NodeFrontierExceeded,
         );
 
-        let role_bound =
-            AutonomousRolePreservingTargetSchema::
-                derive(
-                    &historical,
-                    &current,
-                    RolePreservingTargetSchemaPolicy::
-                        new(
-                            32,
-                            1,
-                        )
-                        .unwrap(),
-                );
+        let role_bound = AutonomousRolePreservingTargetSchema::derive(
+            &historical,
+            &current,
+            RolePreservingTargetSchemaPolicy::new(32, 1).unwrap(),
+        );
 
         assert_eq!(
             role_bound.status(),
-            RolePreservingTargetSchemaStatus::
-                RoleFrontierExceeded,
+            RolePreservingTargetSchemaStatus::RoleFrontierExceeded,
         );
 
-        assert_eq!(
-            RolePreservingTargetSchemaPolicy::
-                new(
-                    0,
-                    1,
-                ),
-            None,
-        );
+        assert_eq!(RolePreservingTargetSchemaPolicy::new(0, 1,), None,);
 
-        assert_eq!(
-            RolePreservingTargetSchemaPolicy::
-                new(
-                    1,
-                    0,
-                ),
-            None,
-        );
+        assert_eq!(RolePreservingTargetSchemaPolicy::new(1, 0,), None,);
     }
 
     #[test]
     fn exact_equal_target_derives_zero_role_constant_schema() {
-        let target =
-            ordered(
-                vec![
-                    a(100),
-                    unordered(
-                        vec![
-                            a(5),
-                            a(6),
-                        ],
-                    ),
-                ],
-            );
+        let target = ordered(vec![a(100), unordered(vec![a(5), a(6)])]);
 
-        let result =
-            AutonomousRolePreservingTargetSchema::
-                derive(
-                    &target,
-                    &target,
-                    policy(),
-                );
+        let result = AutonomousRolePreservingTargetSchema::derive(&target, &target, policy());
 
         assert!(result.derived());
 
-        assert_eq!(
-            result.role_count(),
-            0,
-        );
+        assert_eq!(result.role_count(), 0,);
 
-        assert_eq!(
-            result.substitution_occurrence_count(),
-            0,
-        );
+        assert_eq!(result.substitution_occurrence_count(), 0,);
 
-        assert!(
-            result.bindings().is_empty(),
-        );
+        assert!(result.bindings().is_empty(),);
     }
 
     #[test]
     fn facade_is_deterministic_and_derivation_is_non_mutating() {
-        let historical =
-            ordered(
-                vec![
-                    a(100),
-                    a(1),
-                    a(5),
-                ],
-            );
+        let historical = ordered(vec![a(100), a(1), a(5)]);
 
-        let current =
-            ordered(
-                vec![
-                    a(100),
-                    a(2),
-                    a(7),
-                ],
-            );
+        let current = ordered(vec![a(100), a(2), a(7)]);
 
-        let historical_before =
-            historical.clone();
+        let historical_before = historical.clone();
 
-        let current_before =
-            current.clone();
+        let current_before = current.clone();
 
-        let direct =
-            AutonomousRolePreservingTargetSchema::
-                derive(
-                    &historical,
-                    &current,
-                    policy(),
-                );
+        let direct = AutonomousRolePreservingTargetSchema::derive(&historical, &current, policy());
 
         let repeated =
-            AutonomousRolePreservingTargetSchema::
-                derive(
-                    &historical,
-                    &current,
-                    policy(),
-                );
+            AutonomousRolePreservingTargetSchema::derive(&historical, &current, policy());
 
         let facade =
-            UniversalAutonomousRolePreservingTargetSchema::
-                derive(
-                    &historical,
-                    &current,
-                    policy(),
-                );
+            UniversalAutonomousRolePreservingTargetSchema::derive(&historical, &current, policy());
 
-        assert_eq!(
-            direct,
-            repeated,
-        );
+        assert_eq!(direct, repeated,);
 
-        assert_eq!(
-            direct,
-            facade,
-        );
+        assert_eq!(direct, facade,);
 
-        assert_eq!(
-            historical,
-            historical_before,
-        );
+        assert_eq!(historical, historical_before,);
 
-        assert_eq!(
-            current,
-            current_before,
-        );
+        assert_eq!(current, current_before,);
     }
 }
 
@@ -18502,267 +16535,113 @@ mod p4g_c3h_role_preserving_target_schema_tests {
 mod p4g_c3h_schema_level_target_transfer_identity_tests {
     use super::*;
 
-    fn a(
-        value: u64,
-    ) -> CognitiveStructure {
-        CognitiveStructure::Atom(
-            value,
-        )
+    fn a(value: u64) -> CognitiveStructure {
+        CognitiveStructure::Atom(value)
     }
 
-    fn ordered(
-        children:
-            Vec<CognitiveStructure>,
-    ) -> CognitiveStructure {
-        CognitiveStructure::Ordered(
-            children,
-        )
+    fn ordered(children: Vec<CognitiveStructure>) -> CognitiveStructure {
+        CognitiveStructure::Ordered(children)
     }
 
-    fn unordered(
-        children:
-            Vec<CognitiveStructure>,
-    ) -> CognitiveStructure {
-        CognitiveStructure::Unordered(
-            children,
-        )
+    fn unordered(children: Vec<CognitiveStructure>) -> CognitiveStructure {
+        CognitiveStructure::Unordered(children)
     }
 
-    fn policy(
-    ) -> SchemaLevelTargetTransferIdentityPolicy {
-        SchemaLevelTargetTransferIdentityPolicy::
-            new(
-                64,
-                64,
-                4096,
-                RolePreservingTargetSchemaPolicy::
-                    new(
-                        256,
-                        32,
-                    )
-                    .unwrap(),
-            )
-            .unwrap()
+    fn policy() -> SchemaLevelTargetTransferIdentityPolicy {
+        SchemaLevelTargetTransferIdentityPolicy::new(
+            64,
+            64,
+            4096,
+            RolePreservingTargetSchemaPolicy::new(256, 32).unwrap(),
+        )
+        .unwrap()
     }
 
     fn derive(
-        historical:
-            Vec<CognitiveStructure>,
-        current:
-            Vec<CognitiveStructure>,
+        historical: Vec<CognitiveStructure>,
+        current: Vec<CognitiveStructure>,
     ) -> SchemaLevelTargetTransferIdentityResult {
-        AutonomousSchemaLevelTargetTransferIdentity::
-            derive_targets(
-                &a(900),
-                &a(900),
-                historical,
-                current,
-                policy(),
-            )
+        AutonomousSchemaLevelTargetTransferIdentity::derive_targets(
+            &a(900),
+            &a(900),
+            historical,
+            current,
+            policy(),
+        )
     }
 
     #[test]
     fn exact_historical_targets_are_reserved_before_looser_schema_matches() {
-        let historical =
-            vec![
-                ordered(
-                    vec![
-                        a(100),
-                        a(1),
-                    ],
-                ),
-            ];
+        let historical = vec![ordered(vec![a(100), a(1)])];
 
-        let exact =
-            ordered(
-                vec![
-                    a(100),
-                    a(1),
-                ],
-            );
+        let exact = ordered(vec![a(100), a(1)]);
 
-        let role_candidate =
-            ordered(
-                vec![
-                    a(100),
-                    a(2),
-                ],
-            );
+        let role_candidate = ordered(vec![a(100), a(2)]);
 
-        let result =
-            derive(
-                historical,
-                vec![
-                    role_candidate,
-                    exact.clone(),
-                ],
-            );
+        let result = derive(historical, vec![role_candidate, exact.clone()]);
 
         assert!(result.derived());
 
-        assert_eq!(
-            result.exact_match_count(),
-            1,
-        );
+        assert_eq!(result.exact_match_count(), 1,);
 
-        assert_eq!(
-            result.role_preserving_match_count(),
-            0,
-        );
+        assert_eq!(result.role_preserving_match_count(), 0,);
 
-        assert_eq!(
-            result.ignored_current_target_count(),
-            1,
-        );
+        assert_eq!(result.ignored_current_target_count(), 1,);
 
-        assert_eq!(
-            result.correspondences()[0]
-                .current_target(),
-            &exact,
-        );
+        assert_eq!(result.correspondences()[0].current_target(), &exact,);
     }
 
     #[test]
     fn consistent_multi_target_role_substitution_derives_one_global_relation() {
-        let historical =
-            vec![
-                ordered(
-                    vec![
-                        a(100),
-                        a(1),
-                        a(5),
-                    ],
-                ),
-                ordered(
-                    vec![
-                        a(200),
-                        a(1),
-                        a(5),
-                        a(5),
-                    ],
-                ),
-            ];
+        let historical = vec![
+            ordered(vec![a(100), a(1), a(5)]),
+            ordered(vec![a(200), a(1), a(5), a(5)]),
+        ];
 
-        let current =
-            vec![
-                ordered(
-                    vec![
-                        a(100),
-                        a(2),
-                        a(7),
-                    ],
-                ),
-                ordered(
-                    vec![
-                        a(200),
-                        a(2),
-                        a(7),
-                        a(7),
-                    ],
-                ),
-            ];
+        let current = vec![
+            ordered(vec![a(100), a(2), a(7)]),
+            ordered(vec![a(200), a(2), a(7), a(7)]),
+        ];
 
-        let result =
-            derive(
-                historical,
-                current,
-            );
+        let result = derive(historical, current);
 
         assert!(result.derived());
 
-        assert_eq!(
-            result.exact_match_count(),
-            0,
-        );
+        assert_eq!(result.exact_match_count(), 0,);
+
+        assert_eq!(result.role_preserving_match_count(), 2,);
+
+        assert_eq!(result.global_binding_count(), 2,);
 
         assert_eq!(
-            result.role_preserving_match_count(),
-            2,
-        );
-
-        assert_eq!(
-            result.global_binding_count(),
-            2,
-        );
-
-        assert_eq!(
-            result.global_bindings()
+            result
+                .global_bindings()
                 .iter()
-                .map(|binding| {
-                    (
-                        binding.historical_atom(),
-                        binding.current_atom(),
-                    )
-                })
+                .map(|binding| { (binding.historical_atom(), binding.current_atom(),) })
                 .collect::<Vec<_>>(),
-            vec![
-                (1, 2),
-                (5, 7),
-            ],
+            vec![(1, 2), (5, 7),],
         );
     }
 
     #[test]
     fn different_concrete_bindings_can_share_the_same_schema_level_identity() {
-        let first =
-            derive(
-                vec![
-                    ordered(
-                        vec![
-                            a(100),
-                            a(1),
-                            a(5),
-                            a(5),
-                        ],
-                    ),
-                ],
-                vec![
-                    ordered(
-                        vec![
-                            a(100),
-                            a(2),
-                            a(7),
-                            a(7),
-                        ],
-                    ),
-                ],
-            );
+        let first = derive(
+            vec![ordered(vec![a(100), a(1), a(5), a(5)])],
+            vec![ordered(vec![a(100), a(2), a(7), a(7)])],
+        );
 
-        let second =
-            AutonomousSchemaLevelTargetTransferIdentity::
-                derive_targets(
-                    &a(900),
-                    &a(900),
-                    vec![
-                        ordered(
-                            vec![
-                                a(100),
-                                a(11),
-                                a(50),
-                                a(50),
-                            ],
-                        ),
-                    ],
-                    vec![
-                        ordered(
-                            vec![
-                                a(100),
-                                a(12),
-                                a(70),
-                                a(70),
-                            ],
-                        ),
-                    ],
-                    policy(),
-                );
+        let second = AutonomousSchemaLevelTargetTransferIdentity::derive_targets(
+            &a(900),
+            &a(900),
+            vec![ordered(vec![a(100), a(11), a(50), a(50)])],
+            vec![ordered(vec![a(100), a(12), a(70), a(70)])],
+            policy(),
+        );
 
         assert!(first.derived());
         assert!(second.derived());
 
-        assert_eq!(
-            first.identity(),
-            second.identity(),
-        );
+        assert_eq!(first.identity(), second.identity(),);
 
         assert_ne!(
             first.global_bindings(),
@@ -18773,398 +16652,170 @@ mod p4g_c3h_schema_level_target_transfer_identity_tests {
 
     #[test]
     fn current_only_refinement_targets_do_not_change_historical_schema_identity() {
-        let historical_target =
-            ordered(
-                vec![
-                    a(100),
-                    a(1),
-                ],
-            );
+        let historical_target = ordered(vec![a(100), a(1)]);
 
-        let base =
-            derive(
-                vec![
-                    historical_target.clone(),
-                ],
-                vec![
-                    historical_target.clone(),
-                ],
-            );
+        let base = derive(
+            vec![historical_target.clone()],
+            vec![historical_target.clone()],
+        );
 
-        let refined =
-            derive(
-                vec![
-                    historical_target.clone(),
-                ],
-                vec![
-                    historical_target,
-                    unordered(
-                        vec![
-                            a(700),
-                            a(701),
-                        ],
-                    ),
-                ],
-            );
+        let refined = derive(
+            vec![historical_target.clone()],
+            vec![historical_target, unordered(vec![a(700), a(701)])],
+        );
 
         assert!(base.derived());
         assert!(refined.derived());
 
-        assert_eq!(
-            base.identity(),
-            refined.identity(),
-        );
+        assert_eq!(base.identity(), refined.identity(),);
 
-        assert_eq!(
-            base.ignored_current_target_count(),
-            0,
-        );
+        assert_eq!(base.ignored_current_target_count(), 0,);
 
-        assert_eq!(
-            refined.ignored_current_target_count(),
-            1,
-        );
+        assert_eq!(refined.ignored_current_target_count(), 1,);
     }
 
     #[test]
     fn inconsistent_changed_atom_binding_across_targets_fails_closed() {
-        let result =
-            derive(
-                vec![
-                    ordered(
-                        vec![
-                            a(100),
-                            a(1),
-                        ],
-                    ),
-                    ordered(
-                        vec![
-                            a(200),
-                            a(1),
-                            a(9),
-                        ],
-                    ),
-                ],
-                vec![
-                    ordered(
-                        vec![
-                            a(100),
-                            a(2),
-                        ],
-                    ),
-                    ordered(
-                        vec![
-                            a(200),
-                            a(3),
-                            a(9),
-                        ],
-                    ),
-                ],
-            );
+        let result = derive(
+            vec![
+                ordered(vec![a(100), a(1)]),
+                ordered(vec![a(200), a(1), a(9)]),
+            ],
+            vec![
+                ordered(vec![a(100), a(2)]),
+                ordered(vec![a(200), a(3), a(9)]),
+            ],
+        );
 
         assert_eq!(
             result.status(),
-            SchemaLevelTargetTransferIdentityStatus::
-                GlobalBindingConflict,
+            SchemaLevelTargetTransferIdentityStatus::GlobalBindingConflict,
         );
 
-        assert!(
-            result.identity().is_none(),
-        );
+        assert!(result.identity().is_none(),);
     }
 
     #[test]
     fn equally_good_role_targets_are_ambiguous_not_arbitrarily_selected() {
-        let result =
-            derive(
-                vec![
-                    ordered(
-                        vec![
-                            a(100),
-                            a(1),
-                        ],
-                    ),
-                ],
-                vec![
-                    ordered(
-                        vec![
-                            a(100),
-                            a(2),
-                        ],
-                    ),
-                    ordered(
-                        vec![
-                            a(100),
-                            a(3),
-                        ],
-                    ),
-                ],
-            );
+        let result = derive(
+            vec![ordered(vec![a(100), a(1)])],
+            vec![ordered(vec![a(100), a(2)]), ordered(vec![a(100), a(3)])],
+        );
 
         assert_eq!(
             result.status(),
-            SchemaLevelTargetTransferIdentityStatus::
-                AmbiguousTargetMatch,
+            SchemaLevelTargetTransferIdentityStatus::AmbiguousTargetMatch,
         );
 
-        assert!(
-            result.identity().is_none(),
-        );
+        assert!(result.identity().is_none(),);
     }
 
     #[test]
     fn structurally_unmatched_historical_target_cannot_disappear_into_refinement() {
-        let result =
-            derive(
-                vec![
-                    ordered(
-                        vec![
-                            a(1),
-                            a(2),
-                        ],
-                    ),
-                ],
-                vec![
-                    unordered(
-                        vec![
-                            a(3),
-                            a(4),
-                        ],
-                    ),
-                ],
-            );
+        let result = derive(
+            vec![ordered(vec![a(1), a(2)])],
+            vec![unordered(vec![a(3), a(4)])],
+        );
 
         assert_eq!(
             result.status(),
-            SchemaLevelTargetTransferIdentityStatus::
-                UnmatchedHistoricalTarget,
+            SchemaLevelTargetTransferIdentityStatus::UnmatchedHistoricalTarget,
         );
 
-        assert!(
-            result.identity().is_none(),
-        );
+        assert!(result.identity().is_none(),);
     }
 
     #[test]
     fn action_identity_remains_exact_schema_level_authority() {
-        let result =
-            AutonomousSchemaLevelTargetTransferIdentity::
-                derive_targets(
-                    &a(900),
-                    &a(901),
-                    vec![a(1)],
-                    vec![a(1)],
-                    policy(),
-                );
+        let result = AutonomousSchemaLevelTargetTransferIdentity::derive_targets(
+            &a(900),
+            &a(901),
+            vec![a(1)],
+            vec![a(1)],
+            policy(),
+        );
 
         assert_eq!(
             result.status(),
-            SchemaLevelTargetTransferIdentityStatus::
-                ActionMismatch,
+            SchemaLevelTargetTransferIdentityStatus::ActionMismatch,
         );
     }
 
     #[test]
     fn hard_target_and_pair_evaluation_frontiers_fail_closed() {
-        let historical_overflow =
-            AutonomousSchemaLevelTargetTransferIdentity::
-                derive_targets(
-                    &a(900),
-                    &a(900),
-                    vec![
-                        a(1),
-                        a(2),
-                    ],
-                    vec![
-                        a(1),
-                        a(2),
-                    ],
-                    SchemaLevelTargetTransferIdentityPolicy::
-                        new(
-                            1,
-                            8,
-                            64,
-                            RolePreservingTargetSchemaPolicy::
-                                new(
-                                    64,
-                                    8,
-                                )
-                                .unwrap(),
-                        )
-                        .unwrap(),
-                );
+        let historical_overflow = AutonomousSchemaLevelTargetTransferIdentity::derive_targets(
+            &a(900),
+            &a(900),
+            vec![a(1), a(2)],
+            vec![a(1), a(2)],
+            SchemaLevelTargetTransferIdentityPolicy::new(
+                1,
+                8,
+                64,
+                RolePreservingTargetSchemaPolicy::new(64, 8).unwrap(),
+            )
+            .unwrap(),
+        );
 
         assert_eq!(
             historical_overflow.status(),
-            SchemaLevelTargetTransferIdentityStatus::
-                HistoricalTargetFrontierExceeded,
+            SchemaLevelTargetTransferIdentityStatus::HistoricalTargetFrontierExceeded,
         );
 
-        let current_overflow =
-            AutonomousSchemaLevelTargetTransferIdentity::
-                derive_targets(
-                    &a(900),
-                    &a(900),
-                    vec![
-                        ordered(
-                            vec![
-                                a(100),
-                                a(1),
-                            ],
-                        ),
-                    ],
-                    vec![
-                        ordered(
-                            vec![
-                                a(100),
-                                a(2),
-                            ],
-                        ),
-                        ordered(
-                            vec![
-                                a(100),
-                                a(3),
-                            ],
-                        ),
-                    ],
-                    SchemaLevelTargetTransferIdentityPolicy::
-                        new(
-                            8,
-                            1,
-                            64,
-                            RolePreservingTargetSchemaPolicy::
-                                new(
-                                    64,
-                                    8,
-                                )
-                                .unwrap(),
-                        )
-                        .unwrap(),
-                );
+        let current_overflow = AutonomousSchemaLevelTargetTransferIdentity::derive_targets(
+            &a(900),
+            &a(900),
+            vec![ordered(vec![a(100), a(1)])],
+            vec![ordered(vec![a(100), a(2)]), ordered(vec![a(100), a(3)])],
+            SchemaLevelTargetTransferIdentityPolicy::new(
+                8,
+                1,
+                64,
+                RolePreservingTargetSchemaPolicy::new(64, 8).unwrap(),
+            )
+            .unwrap(),
+        );
 
         assert_eq!(
             current_overflow.status(),
-            SchemaLevelTargetTransferIdentityStatus::
-                CurrentTargetFrontierExceeded,
+            SchemaLevelTargetTransferIdentityStatus::CurrentTargetFrontierExceeded,
         );
 
-        let pair_overflow =
-            AutonomousSchemaLevelTargetTransferIdentity::
-                derive_targets(
-                    &a(900),
-                    &a(900),
-                    vec![
-                        ordered(
-                            vec![
-                                a(100),
-                                a(1),
-                            ],
-                        ),
-                    ],
-                    vec![
-                        ordered(
-                            vec![
-                                a(100),
-                                a(2),
-                            ],
-                        ),
-                        ordered(
-                            vec![
-                                a(100),
-                                a(3),
-                            ],
-                        ),
-                    ],
-                    SchemaLevelTargetTransferIdentityPolicy::
-                        new(
-                            8,
-                            8,
-                            1,
-                            RolePreservingTargetSchemaPolicy::
-                                new(
-                                    64,
-                                    8,
-                                )
-                                .unwrap(),
-                        )
-                        .unwrap(),
-                );
+        let pair_overflow = AutonomousSchemaLevelTargetTransferIdentity::derive_targets(
+            &a(900),
+            &a(900),
+            vec![ordered(vec![a(100), a(1)])],
+            vec![ordered(vec![a(100), a(2)]), ordered(vec![a(100), a(3)])],
+            SchemaLevelTargetTransferIdentityPolicy::new(
+                8,
+                8,
+                1,
+                RolePreservingTargetSchemaPolicy::new(64, 8).unwrap(),
+            )
+            .unwrap(),
+        );
 
         assert_eq!(
             pair_overflow.status(),
-            SchemaLevelTargetTransferIdentityStatus::
-                PairEvaluationFrontierExceeded,
+            SchemaLevelTargetTransferIdentityStatus::PairEvaluationFrontierExceeded,
         );
     }
 
     #[test]
     fn target_order_cannot_change_schema_identity_or_correspondence() {
-        let h1 =
-            ordered(
-                vec![
-                    a(100),
-                    a(1),
-                    a(5),
-                ],
-            );
+        let h1 = ordered(vec![a(100), a(1), a(5)]);
 
-        let h2 =
-            ordered(
-                vec![
-                    a(200),
-                    a(1),
-                    a(5),
-                    a(5),
-                ],
-            );
+        let h2 = ordered(vec![a(200), a(1), a(5), a(5)]);
 
-        let c1 =
-            ordered(
-                vec![
-                    a(100),
-                    a(2),
-                    a(7),
-                ],
-            );
+        let c1 = ordered(vec![a(100), a(2), a(7)]);
 
-        let c2 =
-            ordered(
-                vec![
-                    a(200),
-                    a(2),
-                    a(7),
-                    a(7),
-                ],
-            );
+        let c2 = ordered(vec![a(200), a(2), a(7), a(7)]);
 
-        let first =
-            derive(
-                vec![
-                    h1.clone(),
-                    h2.clone(),
-                ],
-                vec![
-                    c1.clone(),
-                    c2.clone(),
-                ],
-            );
+        let first = derive(vec![h1.clone(), h2.clone()], vec![c1.clone(), c2.clone()]);
 
-        let second =
-            derive(
-                vec![
-                    h2,
-                    h1,
-                ],
-                vec![
-                    c2,
-                    c1,
-                ],
-            );
+        let second = derive(vec![h2, h1], vec![c2, c1]);
 
-        assert_eq!(
-            first,
-            second,
-        );
+        assert_eq!(first, second,);
     }
 }
 
@@ -19172,74 +16823,42 @@ mod p4g_c3h_schema_level_target_transfer_identity_tests {
 mod p4g_c3h_target_anchored_context_transformation_tests {
     use super::*;
 
-    fn a(
-        value: u64,
-    ) -> CognitiveStructure {
+    fn a(value: u64) -> CognitiveStructure {
         CognitiveStructure::Atom(value)
     }
 
-    fn o(
-        children:
-            Vec<CognitiveStructure>,
-    ) -> CognitiveStructure {
+    fn o(children: Vec<CognitiveStructure>) -> CognitiveStructure {
         CognitiveStructure::Ordered(children)
     }
 
-    fn u(
-        children:
-            Vec<CognitiveStructure>,
-    ) -> CognitiveStructure {
+    fn u(children: Vec<CognitiveStructure>) -> CognitiveStructure {
         CognitiveStructure::Unordered(children)
     }
 
-    fn policy(
-    ) -> TargetAnchoredContextTransformationPolicy {
-        TargetAnchoredContextTransformationPolicy::
-            new(
-                16,
-                512,
-                256,
-            )
-            .unwrap()
+    fn policy() -> TargetAnchoredContextTransformationPolicy {
+        TargetAnchoredContextTransformationPolicy::new(16, 512, 256).unwrap()
     }
 
     fn correspondence(
-        historical:
-            CognitiveStructure,
-        current:
-            CognitiveStructure,
+        historical: CognitiveStructure,
+        current: CognitiveStructure,
     ) -> SchemaLevelTargetCorrespondence {
-        let schema =
-            AutonomousRolePreservingTargetSchema::
-                derive(
-                    &historical,
-                    &current,
-                    RolePreservingTargetSchemaPolicy::
-                        new(
-                            512,
-                            32,
-                        )
-                        .unwrap(),
-                );
-
-        assert!(
-            schema.derived(),
+        let schema = AutonomousRolePreservingTargetSchema::derive(
+            &historical,
+            &current,
+            RolePreservingTargetSchemaPolicy::new(512, 32).unwrap(),
         );
 
-        assert!(
-            schema.role_count() > 0,
-        );
+        assert!(schema.derived(),);
+
+        assert!(schema.role_count() > 0,);
 
         SchemaLevelTargetCorrespondence::new(
             historical,
             current,
-            SchemaLevelTargetMatchKind::
-                RolePreserving,
-            schema.schema()
-                .unwrap()
-                .clone(),
-            schema.bindings()
-                .to_vec(),
+            SchemaLevelTargetMatchKind::RolePreserving,
+            schema.schema().unwrap().clone(),
+            schema.bindings().to_vec(),
         )
     }
 
@@ -19253,17 +16872,9 @@ mod p4g_c3h_target_anchored_context_transformation_tests {
             o(vec![
                 a(100),
                 a(first_historical),
-                o(vec![
-                    a(second_historical),
-                ]),
+                o(vec![a(second_historical)]),
             ]),
-            o(vec![
-                a(100),
-                a(first_current),
-                o(vec![
-                    a(second_current),
-                ]),
-            ]),
+            o(vec![a(100), a(first_current), o(vec![a(second_current)])]),
         )
     }
 
@@ -19277,197 +16888,83 @@ mod p4g_c3h_target_anchored_context_transformation_tests {
             o(vec![
                 a(100),
                 a(first_historical),
-                u(vec![
-                    o(vec![
-                        a(second_historical),
-                    ]),
-                ]),
+                u(vec![o(vec![a(second_historical)])]),
             ]),
             o(vec![
                 a(100),
                 a(first_current),
-                u(vec![
-                    o(vec![
-                        a(second_current),
-                    ]),
-                ]),
+                u(vec![o(vec![a(second_current)])]),
             ]),
         )
     }
 
     #[test]
     fn direct_target_anchors_one_selective_split_and_distinct_single_source_merge() {
-        let target =
-            direct_target(
-                1,
-                2,
-                5,
-                7,
-            );
+        let target = direct_target(1, 2, 5, 7);
 
-        let historical =
-            o(vec![
-                a(1),
-                a(1),
-                a(5),
-                a(6),
-            ]);
+        let historical = o(vec![a(1), a(1), a(5), a(6)]);
 
-        let current =
-            o(vec![
-                a(1),
-                a(2),
-                a(7),
-                a(7),
-            ]);
+        let current = o(vec![a(1), a(2), a(7), a(7)]);
 
-        let result =
-            AutonomousTargetAnchoredContextTransformation::
-                derive(
-                    &historical,
-                    &current,
-                    &target,
-                    policy(),
-                );
+        let result = AutonomousTargetAnchoredContextTransformation::derive(
+            &historical,
+            &current,
+            &target,
+            policy(),
+        );
 
         assert!(result.derived());
 
-        let transformation =
-            result.transformation()
-                .unwrap();
+        let transformation = result.transformation().unwrap();
 
         assert_eq!(
-            transformation
-                .target_anchor_topology(),
-            TargetAnchoredContextTopologyClass::
-                Direct,
+            transformation.target_anchor_topology(),
+            TargetAnchoredContextTopologyClass::Direct,
         );
 
         assert_eq!(
-            transformation
-                .context_merge_topology(),
-            TargetAnchoredContextTopologyClass::
-                Direct,
+            transformation.context_merge_topology(),
+            TargetAnchoredContextTopologyClass::Direct,
         );
 
-        assert_eq!(
-            transformation
-                .split_historical_atom(),
-            1,
-        );
+        assert_eq!(transformation.split_historical_atom(), 1,);
 
-        assert_eq!(
-            transformation
-                .split_current_atom(),
-            2,
-        );
+        assert_eq!(transformation.split_current_atom(), 2,);
 
-        assert_eq!(
-            transformation
-                .merge_historical_atom(),
-            5,
-        );
+        assert_eq!(transformation.merge_historical_atom(), 5,);
 
-        assert_eq!(
-            transformation
-                .merge_current_atom(),
-            7,
-        );
+        assert_eq!(transformation.merge_current_atom(), 7,);
 
-        assert_eq!(
-            transformation
-                .merge_extension_historical_atom(),
-            6,
-        );
+        assert_eq!(transformation.merge_extension_historical_atom(), 6,);
 
-        assert_eq!(
-            transformation
-                .split_transformed_paths()
-                .len(),
-            1,
-        );
+        assert_eq!(transformation.split_transformed_paths().len(), 1,);
 
-        assert_eq!(
-            transformation
-                .split_retained_paths()
-                .len(),
-            1,
-        );
+        assert_eq!(transformation.split_retained_paths().len(), 1,);
 
-        assert_eq!(
-            transformation
-                .merge_base_paths()
-                .len(),
-            1,
-        );
+        assert_eq!(transformation.merge_base_paths().len(), 1,);
 
-        assert_eq!(
-            transformation
-                .merge_extension_paths()
-                .len(),
-            1,
-        );
+        assert_eq!(transformation.merge_extension_paths().len(), 1,);
     }
 
     #[test]
     fn direct_and_recursive_realizations_share_abstract_identity() {
-        let direct_target =
-            direct_target(
-                1,
-                2,
-                5,
-                7,
-            );
+        let direct_target = direct_target(1, 2, 5, 7);
 
-        let direct =
-            AutonomousTargetAnchoredContextTransformation::
-                derive(
-                    &o(vec![
-                        a(1),
-                        a(1),
-                        a(5),
-                        a(6),
-                    ]),
-                    &o(vec![
-                        a(1),
-                        a(2),
-                        a(7),
-                        a(7),
-                    ]),
-                    &direct_target,
-                    policy(),
-                );
+        let direct = AutonomousTargetAnchoredContextTransformation::derive(
+            &o(vec![a(1), a(1), a(5), a(6)]),
+            &o(vec![a(1), a(2), a(7), a(7)]),
+            &direct_target,
+            policy(),
+        );
 
-        let recursive_target =
-            recursive_target(
-                11,
-                12,
-                50,
-                70,
-            );
+        let recursive_target = recursive_target(11, 12, 50, 70);
 
-        let recursive =
-            AutonomousTargetAnchoredContextTransformation::
-                derive(
-                    &o(vec![
-                        a(11),
-                        a(11),
-                        u(vec![
-                            a(50),
-                            a(60),
-                        ]),
-                    ]),
-                    &o(vec![
-                        a(11),
-                        a(12),
-                        u(vec![
-                            a(70),
-                            a(70),
-                        ]),
-                    ]),
-                    &recursive_target,
-                    policy(),
-                );
+        let recursive = AutonomousTargetAnchoredContextTransformation::derive(
+            &o(vec![a(11), a(11), u(vec![a(50), a(60)])]),
+            &o(vec![a(11), a(12), u(vec![a(70), a(70)])]),
+            &recursive_target,
+            policy(),
+        );
 
         assert!(direct.derived());
         assert!(recursive.derived());
@@ -19479,309 +16976,142 @@ mod p4g_c3h_target_anchored_context_transformation_tests {
         );
 
         assert_eq!(
-            recursive
-                .transformation()
-                .unwrap()
-                .target_anchor_topology(),
-            TargetAnchoredContextTopologyClass::
-                Recursive,
+            recursive.transformation().unwrap().target_anchor_topology(),
+            TargetAnchoredContextTopologyClass::Recursive,
         );
 
         assert_eq!(
-            recursive
-                .transformation()
-                .unwrap()
-                .context_merge_topology(),
-            TargetAnchoredContextTopologyClass::
-                Recursive,
+            recursive.transformation().unwrap().context_merge_topology(),
+            TargetAnchoredContextTopologyClass::Recursive,
         );
     }
 
     #[test]
     fn target_and_context_merge_topology_must_agree() {
-        let target =
-            direct_target(
-                1,
-                2,
-                5,
-                7,
-            );
+        let target = direct_target(1, 2, 5, 7);
 
-        let result =
-            AutonomousTargetAnchoredContextTransformation::
-                derive(
-                    &o(vec![
-                        a(1),
-                        a(1),
-                        u(vec![
-                            a(5),
-                            a(6),
-                        ]),
-                    ]),
-                    &o(vec![
-                        a(1),
-                        a(2),
-                        u(vec![
-                            a(7),
-                            a(7),
-                        ]),
-                    ]),
-                    &target,
-                    policy(),
-                );
+        let result = AutonomousTargetAnchoredContextTransformation::derive(
+            &o(vec![a(1), a(1), u(vec![a(5), a(6)])]),
+            &o(vec![a(1), a(2), u(vec![a(7), a(7)])]),
+            &target,
+            policy(),
+        );
 
         assert_eq!(
             result.status(),
-            TargetAnchoredContextTransformationStatus::
-                TargetContextTopologyMismatch,
+            TargetAnchoredContextTransformationStatus::TargetContextTopologyMismatch,
         );
     }
 
     #[test]
     fn split_anchor_must_retain_at_least_one_historical_occurrence() {
-        let target =
-            direct_target(
-                1,
-                2,
-                5,
-                7,
-            );
+        let target = direct_target(1, 2, 5, 7);
 
-        let result =
-            AutonomousTargetAnchoredContextTransformation::
-                derive(
-                    &o(vec![
-                        a(1),
-                        a(5),
-                        a(6),
-                    ]),
-                    &o(vec![
-                        a(2),
-                        a(7),
-                        a(7),
-                    ]),
-                    &target,
-                    policy(),
-                );
+        let result = AutonomousTargetAnchoredContextTransformation::derive(
+            &o(vec![a(1), a(5), a(6)]),
+            &o(vec![a(2), a(7), a(7)]),
+            &target,
+            policy(),
+        );
 
         assert_eq!(
             result.status(),
-            TargetAnchoredContextTransformationStatus::
-                MissingSelectiveSplitAnchor,
+            TargetAnchoredContextTransformationStatus::MissingSelectiveSplitAnchor,
         );
     }
 
     #[test]
     fn merge_anchor_requires_exactly_one_additional_source() {
-        let target =
-            direct_target(
-                1,
-                2,
-                5,
-                7,
-            );
+        let target = direct_target(1, 2, 5, 7);
 
-        let result =
-            AutonomousTargetAnchoredContextTransformation::
-                derive(
-                    &o(vec![
-                        a(1),
-                        a(1),
-                        a(5),
-                        a(6),
-                        a(8),
-                    ]),
-                    &o(vec![
-                        a(1),
-                        a(2),
-                        a(7),
-                        a(7),
-                        a(7),
-                    ]),
-                    &target,
-                    policy(),
-                );
+        let result = AutonomousTargetAnchoredContextTransformation::derive(
+            &o(vec![a(1), a(1), a(5), a(6), a(8)]),
+            &o(vec![a(1), a(2), a(7), a(7), a(7)]),
+            &target,
+            policy(),
+        );
 
         assert_eq!(
             result.status(),
-            TargetAnchoredContextTransformationStatus::
-                MergeRelationNotSingleSource,
+            TargetAnchoredContextTransformationStatus::MergeRelationNotSingleSource,
         );
     }
 
     #[test]
     fn split_and_merge_anchors_must_be_distinct_target_roles() {
-        let target =
-            correspondence(
-                o(vec![
-                    a(1),
-                ]),
-                o(vec![
-                    a(2),
-                ]),
-            );
+        let target = correspondence(o(vec![a(1)]), o(vec![a(2)]));
 
-        let result =
-            AutonomousTargetAnchoredContextTransformation::
-                derive(
-                    &o(vec![
-                        a(1),
-                        a(1),
-                        a(3),
-                    ]),
-                    &o(vec![
-                        a(1),
-                        a(2),
-                        a(2),
-                    ]),
-                    &target,
-                    policy(),
-                );
+        let result = AutonomousTargetAnchoredContextTransformation::derive(
+            &o(vec![a(1), a(1), a(3)]),
+            &o(vec![a(1), a(2), a(2)]),
+            &target,
+            policy(),
+        );
 
         assert_eq!(
             result.status(),
-            TargetAnchoredContextTransformationStatus::
-                AnchorsNotDistinct,
+            TargetAnchoredContextTransformationStatus::AnchorsNotDistinct,
         );
     }
 
     #[test]
     fn unrelated_changed_occurrence_is_rejected() {
-        let target =
-            direct_target(
-                1,
-                2,
-                5,
-                7,
-            );
+        let target = direct_target(1, 2, 5, 7);
 
-        let result =
-            AutonomousTargetAnchoredContextTransformation::
-                derive(
-                    &o(vec![
-                        a(1),
-                        a(1),
-                        a(5),
-                        a(6),
-                        a(8),
-                    ]),
-                    &o(vec![
-                        a(1),
-                        a(2),
-                        a(7),
-                        a(7),
-                        a(9),
-                    ]),
-                    &target,
-                    policy(),
-                );
+        let result = AutonomousTargetAnchoredContextTransformation::derive(
+            &o(vec![a(1), a(1), a(5), a(6), a(8)]),
+            &o(vec![a(1), a(2), a(7), a(7), a(9)]),
+            &target,
+            policy(),
+        );
 
         assert_eq!(
             result.status(),
-            TargetAnchoredContextTransformationStatus::
-                UnexplainedChangedOccurrence,
+            TargetAnchoredContextTransformationStatus::UnexplainedChangedOccurrence,
         );
     }
 
     #[test]
     fn hypothesis_container_topology_is_semantic_and_cannot_be_rewritten() {
-        let target =
-            direct_target(
-                1,
-                2,
-                5,
-                7,
-            );
+        let target = direct_target(1, 2, 5, 7);
 
-        let result =
-            AutonomousTargetAnchoredContextTransformation::
-                derive(
-                    &o(vec![
-                        a(1),
-                        a(1),
-                        a(5),
-                        a(6),
-                    ]),
-                    &u(vec![
-                        a(1),
-                        a(2),
-                        a(7),
-                        a(7),
-                    ]),
-                    &target,
-                    policy(),
-                );
+        let result = AutonomousTargetAnchoredContextTransformation::derive(
+            &o(vec![a(1), a(1), a(5), a(6)]),
+            &u(vec![a(1), a(2), a(7), a(7)]),
+            &target,
+            policy(),
+        );
 
         assert_eq!(
             result.status(),
-            TargetAnchoredContextTransformationStatus::
-                HypothesisStructuralMismatch,
+            TargetAnchoredContextTransformationStatus::HypothesisStructuralMismatch,
         );
     }
 
     #[test]
     fn concrete_atom_values_do_not_enter_abstract_identity() {
-        let first_target =
-            direct_target(
-                1,
-                2,
-                5,
-                7,
-            );
+        let first_target = direct_target(1, 2, 5, 7);
 
-        let first =
-            UniversalAutonomousTargetAnchoredContextTransformation::
-                derive(
-                    &o(vec![
-                        a(1),
-                        a(1),
-                        a(5),
-                        a(6),
-                    ]),
-                    &o(vec![
-                        a(1),
-                        a(2),
-                        a(7),
-                        a(7),
-                    ]),
-                    &first_target,
-                    policy(),
-                );
+        let first = UniversalAutonomousTargetAnchoredContextTransformation::derive(
+            &o(vec![a(1), a(1), a(5), a(6)]),
+            &o(vec![a(1), a(2), a(7), a(7)]),
+            &first_target,
+            policy(),
+        );
 
-        let second_target =
-            direct_target(
-                11,
-                12,
-                50,
-                70,
-            );
+        let second_target = direct_target(11, 12, 50, 70);
 
-        let second =
-            UniversalAutonomousTargetAnchoredContextTransformation::
-                derive(
-                    &o(vec![
-                        a(11),
-                        a(11),
-                        a(50),
-                        a(60),
-                    ]),
-                    &o(vec![
-                        a(11),
-                        a(12),
-                        a(70),
-                        a(70),
-                    ]),
-                    &second_target,
-                    policy(),
-                );
+        let second = UniversalAutonomousTargetAnchoredContextTransformation::derive(
+            &o(vec![a(11), a(11), a(50), a(60)]),
+            &o(vec![a(11), a(12), a(70), a(70)]),
+            &second_target,
+            policy(),
+        );
 
         assert!(first.derived());
         assert!(second.derived());
 
-        assert_eq!(
-            first.identity(),
-            second.identity(),
-        );
+        assert_eq!(first.identity(), second.identity(),);
 
         assert_ne!(
             first
@@ -19797,85 +17127,33 @@ mod p4g_c3h_target_anchored_context_transformation_tests {
 
     #[test]
     fn traversal_and_target_role_frontiers_fail_closed() {
-        let target =
-            direct_target(
-                1,
-                2,
-                5,
-                7,
-            );
+        let target = direct_target(1, 2, 5, 7);
 
-        let role_bounded =
-            AutonomousTargetAnchoredContextTransformation::
-                derive(
-                    &o(vec![
-                        a(1),
-                        a(1),
-                        a(5),
-                        a(6),
-                    ]),
-                    &o(vec![
-                        a(1),
-                        a(2),
-                        a(7),
-                        a(7),
-                    ]),
-                    &target,
-                    TargetAnchoredContextTransformationPolicy::
-                        new(
-                            1,
-                            512,
-                            256,
-                        )
-                        .unwrap(),
-                );
+        let role_bounded = AutonomousTargetAnchoredContextTransformation::derive(
+            &o(vec![a(1), a(1), a(5), a(6)]),
+            &o(vec![a(1), a(2), a(7), a(7)]),
+            &target,
+            TargetAnchoredContextTransformationPolicy::new(1, 512, 256).unwrap(),
+        );
 
         assert_eq!(
             role_bounded.status(),
-            TargetAnchoredContextTransformationStatus::
-                TargetRoleFrontierExceeded,
+            TargetAnchoredContextTransformationStatus::TargetRoleFrontierExceeded,
         );
 
-        let node_bounded =
-            AutonomousTargetAnchoredContextTransformation::
-                derive(
-                    &o(vec![
-                        a(1),
-                        a(1),
-                        a(5),
-                        a(6),
-                    ]),
-                    &o(vec![
-                        a(1),
-                        a(2),
-                        a(7),
-                        a(7),
-                    ]),
-                    &target,
-                    TargetAnchoredContextTransformationPolicy::
-                        new(
-                            16,
-                            1,
-                            256,
-                        )
-                        .unwrap(),
-                );
+        let node_bounded = AutonomousTargetAnchoredContextTransformation::derive(
+            &o(vec![a(1), a(1), a(5), a(6)]),
+            &o(vec![a(1), a(2), a(7), a(7)]),
+            &target,
+            TargetAnchoredContextTransformationPolicy::new(16, 1, 256).unwrap(),
+        );
 
         assert_eq!(
             node_bounded.status(),
-            TargetAnchoredContextTransformationStatus::
-                NodeFrontierExceeded,
+            TargetAnchoredContextTransformationStatus::NodeFrontierExceeded,
         );
 
-        assert!(
-            TargetAnchoredContextTransformationPolicy::
-                new(
-                    0,
-                    1,
-                    1,
-                )
-                .is_none(),
-        );
+        assert!(TargetAnchoredContextTransformationPolicy::new(0, 1, 1,).is_none(),);
     }
 }
 
@@ -19883,257 +17161,88 @@ mod p4g_c3h_target_anchored_context_transformation_tests {
 mod p4g_c3h_grounded_forecast_correspondence_tests {
     use super::*;
 
-    fn base(
-    ) -> GroundedForecastCorrespondenceRelation {
-        GroundedForecastCorrespondenceRelation::
-            TargetBoundHypothesisContinuation
+    fn base() -> GroundedForecastCorrespondenceRelation {
+        GroundedForecastCorrespondenceRelation::TargetBoundHypothesisContinuation
     }
 
-    fn matrix(
-        rows:
-            Vec<Vec<bool>>,
-    ) -> Vec<
-        Vec<
-            Option<
-                GroundedForecastCorrespondenceRelation
-            >
-        >
-    > {
+    fn matrix(rows: Vec<Vec<bool>>) -> Vec<Vec<Option<GroundedForecastCorrespondenceRelation>>> {
         rows.into_iter()
-            .map(|row| {
-                row.into_iter()
-                    .map(|present| {
-                        present.then(base)
-                    })
-                    .collect()
-            })
+            .map(|row| row.into_iter().map(|present| present.then(base)).collect())
             .collect()
     }
 
     #[test]
     fn unique_perfect_matching_is_preserved_exactly() {
-        let search =
-            AutonomousGroundedForecastCorrespondence::
-                enumerate_unique_matching(
-                    &matrix(vec![
-                        vec![
-                            true,
-                            false,
-                            false,
-                        ],
-                        vec![
-                            false,
-                            true,
-                            false,
-                        ],
-                        vec![
-                            false,
-                            false,
-                            true,
-                        ],
-                    ]),
-                    100,
-                );
+        let search = AutonomousGroundedForecastCorrespondence::enumerate_unique_matching(
+            &matrix(vec![
+                vec![true, false, false],
+                vec![false, true, false],
+                vec![false, false, true],
+            ]),
+            100,
+        );
 
         assert!(!search.truncated);
 
-        assert_eq!(
-            search.solution_count,
-            1,
-        );
+        assert_eq!(search.solution_count, 1,);
 
-        assert_eq!(
-            search.first_solution,
-            vec![
-                0,
-                1,
-                2,
-            ],
-        );
+        assert_eq!(search.first_solution, vec![0, 1, 2,],);
     }
 
     #[test]
     fn ambiguous_perfect_matching_is_not_arbitrarily_selected() {
-        let search =
-            AutonomousGroundedForecastCorrespondence::
-                enumerate_unique_matching(
-                    &matrix(vec![
-                        vec![
-                            true,
-                            true,
-                        ],
-                        vec![
-                            true,
-                            true,
-                        ],
-                    ]),
-                    100,
-                );
+        let search = AutonomousGroundedForecastCorrespondence::enumerate_unique_matching(
+            &matrix(vec![vec![true, true], vec![true, true]]),
+            100,
+        );
 
         assert!(!search.truncated);
 
-        assert!(
-            search.solution_count > 1,
-        );
+        assert!(search.solution_count > 1,);
     }
 
     #[test]
     fn incomplete_relation_graph_has_no_perfect_matching() {
-        let search =
-            AutonomousGroundedForecastCorrespondence::
-                enumerate_unique_matching(
-                    &matrix(vec![
-                        vec![
-                            true,
-                            false,
-                        ],
-                        vec![
-                            true,
-                            false,
-                        ],
-                    ]),
-                    100,
-                );
+        let search = AutonomousGroundedForecastCorrespondence::enumerate_unique_matching(
+            &matrix(vec![vec![true, false], vec![true, false]]),
+            100,
+        );
 
         assert!(!search.truncated);
 
-        assert_eq!(
-            search.solution_count,
-            0,
-        );
+        assert_eq!(search.solution_count, 0,);
 
-        assert!(
-            search.first_solution
-                .is_empty(),
-        );
+        assert!(search.first_solution.is_empty(),);
     }
 
     #[test]
     fn matching_search_bound_fails_closed() {
-        let search =
-            AutonomousGroundedForecastCorrespondence::
-                enumerate_unique_matching(
-                    &matrix(vec![
-                        vec![
-                            true,
-                            true,
-                            true,
-                        ],
-                        vec![
-                            true,
-                            true,
-                            true,
-                        ],
-                        vec![
-                            true,
-                            true,
-                            true,
-                        ],
-                    ]),
-                    1,
-                );
+        let search = AutonomousGroundedForecastCorrespondence::enumerate_unique_matching(
+            &matrix(vec![
+                vec![true, true, true],
+                vec![true, true, true],
+                vec![true, true, true],
+            ]),
+            1,
+        );
 
         assert!(search.truncated);
     }
 
     #[test]
     fn policy_rejects_every_zero_bound() {
-        assert!(
-            GroundedForecastCorrespondencePolicy::
-                new(
-                    0,
-                    1,
-                    1,
-                    1,
-                    1,
-                    1,
-                    1,
-                )
-                .is_none(),
-        );
+        assert!(GroundedForecastCorrespondencePolicy::new(0, 1, 1, 1, 1, 1, 1,).is_none(),);
 
-        assert!(
-            GroundedForecastCorrespondencePolicy::
-                new(
-                    1,
-                    0,
-                    1,
-                    1,
-                    1,
-                    1,
-                    1,
-                )
-                .is_none(),
-        );
+        assert!(GroundedForecastCorrespondencePolicy::new(1, 0, 1, 1, 1, 1, 1,).is_none(),);
 
-        assert!(
-            GroundedForecastCorrespondencePolicy::
-                new(
-                    1,
-                    1,
-                    0,
-                    1,
-                    1,
-                    1,
-                    1,
-                )
-                .is_none(),
-        );
+        assert!(GroundedForecastCorrespondencePolicy::new(1, 1, 0, 1, 1, 1, 1,).is_none(),);
 
-        assert!(
-            GroundedForecastCorrespondencePolicy::
-                new(
-                    1,
-                    1,
-                    1,
-                    0,
-                    1,
-                    1,
-                    1,
-                )
-                .is_none(),
-        );
+        assert!(GroundedForecastCorrespondencePolicy::new(1, 1, 1, 0, 1, 1, 1,).is_none(),);
 
-        assert!(
-            GroundedForecastCorrespondencePolicy::
-                new(
-                    1,
-                    1,
-                    1,
-                    1,
-                    0,
-                    1,
-                    1,
-                )
-                .is_none(),
-        );
+        assert!(GroundedForecastCorrespondencePolicy::new(1, 1, 1, 1, 0, 1, 1,).is_none(),);
 
-        assert!(
-            GroundedForecastCorrespondencePolicy::
-                new(
-                    1,
-                    1,
-                    1,
-                    1,
-                    1,
-                    0,
-                    1,
-                )
-                .is_none(),
-        );
+        assert!(GroundedForecastCorrespondencePolicy::new(1, 1, 1, 1, 1, 0, 1,).is_none(),);
 
-        assert!(
-            GroundedForecastCorrespondencePolicy::
-                new(
-                    1,
-                    1,
-                    1,
-                    1,
-                    1,
-                    1,
-                    0,
-                )
-                .is_none(),
-        );
+        assert!(GroundedForecastCorrespondencePolicy::new(1, 1, 1, 1, 1, 1, 0,).is_none(),);
     }
 }

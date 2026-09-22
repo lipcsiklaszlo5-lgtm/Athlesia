@@ -724,16 +724,8 @@ impl StepFixture {
                 domain_policy(),
                 domain_ingestion(),
             ),
-            OnlineExecutiveAgencyRuntime::new(
-                &self.executive,
-                executive_context,
-                fx48::p(),
-            ),
-            OnlineSkillMemoryRuntime::new(
-                &self.skill,
-                &self.skill_input,
-                fx49::p(),
-            ),
+            OnlineExecutiveAgencyRuntime::new(&self.executive, executive_context, fx48::p()),
+            OnlineSkillMemoryRuntime::new(&self.skill, &self.skill_input, fx49::p()),
             OnlineAutonomousExperimentationRuntime::new(
                 &self.experiment,
                 &self.beliefs,
@@ -744,11 +736,7 @@ impl StepFixture {
             ),
         );
 
-        OnlineRecurrentCognitiveStepInput::new(
-            runtime,
-            &self.transition,
-            feedback,
-        )
+        OnlineRecurrentCognitiveStepInput::new(runtime, &self.transition, feedback)
     }
 }
 
@@ -781,12 +769,7 @@ fn valid_two_step(facade: bool) -> OnlineRecurrentCognitiveLoopResult {
             loop_policy(2),
         )
     } else {
-        OnlineRecurrentCognitiveLoop::run(
-            &a(1000),
-            inputs,
-            agent_policy(),
-            loop_policy(2),
-        )
+        OnlineRecurrentCognitiveLoop::run(&a(1000), inputs, agent_policy(), loop_policy(2))
     }
 }
 
@@ -811,14 +794,8 @@ fn real_two_step_online_runtime_closes_recurrent_chain() {
     assert!(result.steps()[0].advanced());
     assert!(result.steps()[1].advanced());
 
-    assert_eq!(
-        result.steps()[0].next_anchor_state(),
-        Some(&a(1003))
-    );
-    assert_eq!(
-        result.steps()[1].next_anchor_state(),
-        Some(&a(2003))
-    );
+    assert_eq!(result.steps()[0].next_anchor_state(), Some(&a(1003)));
+    assert_eq!(result.steps()[1].next_anchor_state(), Some(&a(2003)));
 }
 
 #[test]
@@ -997,10 +974,7 @@ fn preserve_anchor_feedback_requires_absent_authority_provenance() {
 
     let result = OnlineRecurrentCognitiveLoop::run(
         &a(1000),
-        vec![
-            first.input(None),
-            second.input(Some(fb(0, 1000, None))),
-        ],
+        vec![first.input(None), second.input(Some(fb(0, 1000, None)))],
         agent_policy(),
         loop_policy(2),
     );
@@ -1010,10 +984,7 @@ fn preserve_anchor_feedback_requires_absent_authority_provenance() {
         OnlineRecurrentCognitiveLoopStatus::Completed
     );
     assert!(result.steps()[0].preserved());
-    assert_eq!(
-        result.steps()[0].next_anchor_state(),
-        Some(&a(1000))
-    );
+    assert_eq!(result.steps()[0].next_anchor_state(), Some(&a(1000)));
     assert_eq!(result.final_anchor_state(), &a(2003));
 }
 

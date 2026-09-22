@@ -724,16 +724,8 @@ impl StepFixture {
                 domain_policy(),
                 domain_ingestion(),
             ),
-            OnlineExecutiveAgencyRuntime::new(
-                &self.executive,
-                executive_context,
-                fx48::p(),
-            ),
-            OnlineSkillMemoryRuntime::new(
-                &self.skill,
-                &self.skill_input,
-                fx49::p(),
-            ),
+            OnlineExecutiveAgencyRuntime::new(&self.executive, executive_context, fx48::p()),
+            OnlineSkillMemoryRuntime::new(&self.skill, &self.skill_input, fx49::p()),
             OnlineAutonomousExperimentationRuntime::new(
                 &self.experiment,
                 &self.beliefs,
@@ -744,11 +736,7 @@ impl StepFixture {
             ),
         );
 
-        OnlineRecurrentCognitiveStepInput::new(
-            runtime,
-            &self.transition,
-            feedback,
-        )
+        OnlineRecurrentCognitiveStepInput::new(runtime, &self.transition, feedback)
     }
 }
 
@@ -781,12 +769,7 @@ fn valid_two_step(facade: bool) -> OnlineRecurrentCognitiveLoopResult {
             loop_policy(2),
         )
     } else {
-        OnlineRecurrentCognitiveLoop::run(
-            &a(1000),
-            inputs,
-            agent_policy(),
-            loop_policy(2),
-        )
+        OnlineRecurrentCognitiveLoop::run(&a(1000), inputs, agent_policy(), loop_policy(2))
     }
 }
 
@@ -803,9 +786,7 @@ fn executable_online_step_dispatches_exact_m48_selection() {
 
     assert_eq!(
         online.executive_decision(),
-        Some(
-            athlesia_executive_agency::IntegratedExecutiveControlDecision::ExecuteCurrent
-        )
+        Some(athlesia_executive_agency::IntegratedExecutiveControlDecision::ExecuteCurrent)
     );
 
     let selection = online
@@ -863,16 +844,11 @@ fn environment_observation_binds_exact_canonical_feedback_evidence() {
         .dispatch()
         .expect("accepted executable step must dispatch");
 
-    let observation = EnvironmentInteractionObservation::new(
-        41,
-        a(7777),
-        s(850),
-    )
-    .expect("positive confidence observation must be valid");
+    let observation = EnvironmentInteractionObservation::new(41, a(7777), s(850))
+        .expect("positive confidence observation must be valid");
 
-    let evidence =
-        EnvironmentInteractionBoundary::bind_observation(dispatch, &observation)
-            .expect("valid environment observation must bind");
+    let evidence = EnvironmentInteractionBoundary::bind_observation(dispatch, &observation)
+        .expect("valid environment observation must bind");
 
     assert_eq!(evidence.action_observation().event_index(), 41);
     assert_eq!(
@@ -913,32 +889,17 @@ fn environment_observation_binds_exact_canonical_feedback_evidence() {
         evidence.experiment_observation().observed_outcome(),
         &a(7777)
     );
-    assert_eq!(
-        evidence.experiment_observation().confidence(),
-        s(850)
-    );
+    assert_eq!(evidence.experiment_observation().confidence(), s(850));
 }
 
 #[test]
 fn zero_confidence_environment_observation_is_rejected() {
-    assert!(
-        EnvironmentInteractionObservation::new(
-            7,
-            a(7000),
-            s(0),
-        )
-        .is_none()
-    );
+    assert!(EnvironmentInteractionObservation::new(7, a(7000), s(0),).is_none());
 }
 
 #[test]
 fn rejected_online_step_cannot_dispatch_environment_action() {
-    let stale = StepFixture::new(
-        999,
-        1000,
-        9000,
-        false,
-    );
+    let stale = StepFixture::new(999, 1000, 9000, false);
 
     let recurrent = OnlineRecurrentCognitiveLoop::run(
         &a(1000),
@@ -959,8 +920,7 @@ fn rejected_online_step_cannot_dispatch_environment_action() {
 
     assert!(rejected_online.rejected());
 
-    let dispatch =
-        EnvironmentInteractionBoundary::dispatch(rejected_online);
+    let dispatch = EnvironmentInteractionBoundary::dispatch(rejected_online);
 
     assert_eq!(
         dispatch.status(),
@@ -986,32 +946,17 @@ fn environment_boundary_is_deterministic_and_facade_equivalent() {
         .dispatch()
         .expect("accepted executable step must dispatch");
 
-    let observation = EnvironmentInteractionObservation::new(
-        99,
-        a(9900),
-        s(900),
-    )
-    .expect("positive confidence observation must be valid");
+    let observation = EnvironmentInteractionObservation::new(99, a(9900), s(900))
+        .expect("positive confidence observation must be valid");
 
-    let direct_evidence =
-        EnvironmentInteractionBoundary::bind_observation(
-            dispatch,
-            &observation,
-        );
+    let direct_evidence = EnvironmentInteractionBoundary::bind_observation(dispatch, &observation);
 
     let repeated_evidence =
-        EnvironmentInteractionBoundary::bind_observation(
-            dispatch,
-            &observation,
-        );
+        EnvironmentInteractionBoundary::bind_observation(dispatch, &observation);
 
     let facade_evidence =
-        UniversalEnvironmentInteractionBoundary::bind_observation(
-            dispatch,
-            &observation,
-        );
+        UniversalEnvironmentInteractionBoundary::bind_observation(dispatch, &observation);
 
     assert_eq!(direct_evidence, repeated_evidence);
     assert_eq!(direct_evidence, facade_evidence);
 }
-

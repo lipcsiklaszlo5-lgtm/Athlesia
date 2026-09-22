@@ -125,34 +125,19 @@ pub struct ArcAgi3SuccessorInformedUnifiedExecutiveRequest<'a> {
      * controllability, confidence, EIG, or cost.
      */
     pub native_possibilities:
-        &'a [
-            athlesia_autonomous_active_experimentation::
-                GroundedExperimentPossibility
-        ],
-    pub beliefs:
-        &'a [
-            athlesia_autonomous_active_experimentation::
-                HypothesisBeliefState
-        ],
+        &'a [athlesia_autonomous_active_experimentation::GroundedExperimentPossibility],
+    pub beliefs: &'a [athlesia_autonomous_active_experimentation::HypothesisBeliefState],
 
-    pub version_policy:
-        athlesia_universal_domain_learning::
-            GroundedExplanatoryVersionSpacePolicy,
+    pub version_policy: athlesia_universal_domain_learning::GroundedExplanatoryVersionSpacePolicy,
     pub discrimination_policy:
-        athlesia_autonomous_active_experimentation::
-            EpistemicForecastDiscriminationPolicy,
+        athlesia_autonomous_active_experimentation::EpistemicForecastDiscriminationPolicy,
     pub expectation_policy:
-        athlesia_autonomous_active_experimentation::
-            EmpiricalExpectedEpistemicProgressPolicy,
+        athlesia_autonomous_active_experimentation::EmpiricalExpectedEpistemicProgressPolicy,
     pub priority_policy:
-        athlesia_autonomous_active_experimentation::
-            EmpiricalEpistemicActionPriorityPolicy,
+        athlesia_autonomous_active_experimentation::EmpiricalEpistemicActionPriorityPolicy,
     pub proposal_policy:
-        athlesia_autonomous_active_experimentation::
-            BeliefDrivenExperimentProposalPolicy,
-    pub executive_policy:
-        athlesia_executive_agency::
-            ExecutiveAgencyPolicy,
+        athlesia_autonomous_active_experimentation::BeliefDrivenExperimentProposalPolicy,
+    pub executive_policy: athlesia_executive_agency::ExecutiveAgencyPolicy,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -284,28 +269,19 @@ impl ArcAgi3CognitiveInteractionRuntime {
 
     pub fn current_empirically_coherent_groupings(
         &self,
-    ) -> Vec<
-        athlesia_core_knowledge_perceptual_grounding::
-            PerceptualGroupingCandidate
-    > {
-        self.cognition
-            .current_empirically_coherent_groupings(
-                self.perception.latest_frame(),
-                Self::live_grouping_behavior_retention_policy(),
-            )
+    ) -> Vec<athlesia_core_knowledge_perceptual_grounding::PerceptualGroupingCandidate> {
+        self.cognition.current_empirically_coherent_groupings(
+            self.perception.latest_frame(),
+            Self::live_grouping_behavior_retention_policy(),
+        )
     }
 
     pub fn current_objecthood_eligible_groupings(
         &self,
-    ) -> Vec<
-        athlesia_core_knowledge_perceptual_grounding::
-            PerceptualGroupingCandidate
-    > {
-        use athlesia_core_knowledge_perceptual_grounding::
-            PerceptualGroupingAppearanceObservationEvidence;
+    ) -> Vec<athlesia_core_knowledge_perceptual_grounding::PerceptualGroupingCandidate> {
+        use athlesia_core_knowledge_perceptual_grounding::PerceptualGroupingAppearanceObservationEvidence;
 
-        let frame =
-            self.perception.latest_frame();
+        let frame = self.perception.latest_frame();
 
         /*
          * ARC-specific responsibility ends here:
@@ -316,33 +292,22 @@ impl ArcAgi3CognitiveInteractionRuntime {
          * No temporal-support interpretation and no object-promotion
          * decision belongs to the adapter.
          */
-        let visual_observations =
-            self
-                .current_empirically_coherent_groupings()
-                .into_iter()
-                .filter_map(
-                    |grouping| {
-                        let (
-                            appearance_cohesion,
-                            contrast_boundary,
-                        ) =
-                            ArcAgi3PerceptualIngestionBridge::
-                                grouping_visual_objecthood_evidence(
-                                    frame,
-                                    &grouping,
-                                )?;
+        let visual_observations = self
+            .current_empirically_coherent_groupings()
+            .into_iter()
+            .filter_map(|grouping| {
+                let (appearance_cohesion, contrast_boundary) =
+                    ArcAgi3PerceptualIngestionBridge::grouping_visual_objecthood_evidence(
+                        frame, &grouping,
+                    )?;
 
-                        Some(
-                            PerceptualGroupingAppearanceObservationEvidence::
-                                new(
-                                    grouping,
-                                    appearance_cohesion,
-                                    contrast_boundary,
-                                ),
-                        )
-                    },
-                )
-                .collect::<Vec<_>>();
+                Some(PerceptualGroupingAppearanceObservationEvidence::new(
+                    grouping,
+                    appearance_cohesion,
+                    contrast_boundary,
+                ))
+            })
+            .collect::<Vec<_>>();
 
         self.cognition
             .current_objecthood_eligible_groupings_from_visual_observations(
@@ -354,8 +319,7 @@ impl ArcAgi3CognitiveInteractionRuntime {
     pub fn current_provisional_object_hypotheses(
         &self,
     ) -> Vec<athlesia_core_knowledge_perceptual_grounding::ObjectHypothesis> {
-        let groupings =
-            self.current_objecthood_eligible_groupings();
+        let groupings = self.current_objecthood_eligible_groupings();
 
         self.cognition
             .current_provisional_object_hypotheses_from_groupings(
@@ -380,12 +344,8 @@ impl ArcAgi3CognitiveInteractionRuntime {
 
     fn current_scene_candidates(
         &self,
-    ) -> Vec<
-        athlesia_core_knowledge_perceptual_grounding::
-            SceneInterpretation
-    > {
-        let hypotheses =
-            self.current_provisional_object_hypotheses();
+    ) -> Vec<athlesia_core_knowledge_perceptual_grounding::SceneInterpretation> {
+        let hypotheses = self.current_provisional_object_hypotheses();
 
         /*
          * ARC-specific responsibility:
@@ -425,12 +385,9 @@ impl ArcAgi3CognitiveInteractionRuntime {
     pub fn current_best_scene_interpretation(
         &self,
     ) -> Option<athlesia_core_knowledge_perceptual_grounding::SceneInterpretation> {
-        let competition =
-            self.current_competing_scene_interpretations();
+        let competition = self.current_competing_scene_interpretations();
 
-        competition
-            .unique_selected_scene()
-            .cloned()
+        competition.unique_selected_scene().cloned()
     }
 
     fn live_transition_schema_policy() -> athlesia_universal_domain_learning::TransitionSchemaPolicy
@@ -487,8 +444,7 @@ impl ArcAgi3CognitiveInteractionRuntime {
     pub fn current_grounded_world_state(
         &self,
     ) -> Option<athlesia_universal_domain_learning::GroundedStateSnapshot> {
-        let competition =
-            self.current_competing_scene_interpretations();
+        let competition = self.current_competing_scene_interpretations();
 
         let current_facts =
             athlesia_core_knowledge_perceptual_grounding::
@@ -498,18 +454,14 @@ impl ArcAgi3CognitiveInteractionRuntime {
                         &competition,
                     )?;
 
-        athlesia_universal_domain_learning::GroundedStateSnapshot::new(
-            current_facts,
-        )
+        athlesia_universal_domain_learning::GroundedStateSnapshot::new(current_facts)
     }
 
     pub fn current_action_qualified_empirical_successor_frequency(
         &self,
         action: &CognitiveStructure,
-    ) -> Option<
-        athlesia_integrated_cognitive_agent::
-            ActionQualifiedEmpiricalSuccessorFrequency,
-    > {
+    ) -> Option<athlesia_integrated_cognitive_agent::ActionQualifiedEmpiricalSuccessorFrequency>
+    {
         /*
          * C16H-B2-C live query authority.
          *
@@ -523,78 +475,49 @@ impl ArcAgi3CognitiveInteractionRuntime {
          * Historical transition memory is not inspected here.
          * Frequency calculation remains exclusively B2-B authority.
          */
-        let current_representation =
-            self.current_grounded_world_state()?;
+        let current_representation = self.current_grounded_world_state()?;
 
         Some(
             self.cognition()
                 .transition_schema_learning()
-                .action_qualified_empirical_successor_frequency(
-                    &current_representation,
-                    action,
-                ),
+                .action_qualified_empirical_successor_frequency(&current_representation, action),
         )
     }
 
-
     pub fn current_executable_world_model(
         &self,
-    ) -> Option<
-        athlesia_universal_domain_learning::
-            GroundedExecutableWorldModel
-    > {
-        self.cognition
-            .current_executable_world_model(
-                Self::live_transition_schema_policy(),
-                Self::live_executable_world_model_policy(),
-            )
+    ) -> Option<athlesia_universal_domain_learning::GroundedExecutableWorldModel> {
+        self.cognition.current_executable_world_model(
+            Self::live_transition_schema_policy(),
+            Self::live_executable_world_model_policy(),
+        )
     }
 
     pub fn current_structural_prediction_for_action(
         &self,
         action: crate::ArcAgi3Action,
-    ) -> Option<
-        athlesia_universal_domain_learning::
-            GroundedStructuralPrediction
-    > {
-        let state =
-            self.current_grounded_world_state()?;
+    ) -> Option<athlesia_universal_domain_learning::GroundedStructuralPrediction> {
+        let state = self.current_grounded_world_state()?;
 
         let transformation =
-            crate::cognitive_protocol_bridge::
-                ArcAgi3CognitiveProtocolBridge::
-                    encode_action(
-                        action,
-                    );
+            crate::cognitive_protocol_bridge::ArcAgi3CognitiveProtocolBridge::encode_action(action);
 
-        self.cognition
-            .current_structural_prediction(
-                &state,
-                &transformation,
-                Self::live_transition_schema_policy(),
-                Self::live_executable_world_model_policy(),
-            )
+        self.cognition.current_structural_prediction(
+            &state,
+            &transformation,
+            Self::live_transition_schema_policy(),
+            Self::live_executable_world_model_policy(),
+        )
     }
 
     fn model_grounded_executive_candidate(
         &self,
-        state:
-            &athlesia_universal_domain_learning::
-                GroundedStateSnapshot,
+        state: &athlesia_universal_domain_learning::GroundedStateSnapshot,
         action: crate::ArcAgi3Action,
-        goal:
-            &athlesia_executive_agency::
-                ExecutiveGoal,
-        goal_alignment:
-            athlesia_mindstone_sparse_cognition::
-                CognitiveSignal,
-        execution_cost:
-            athlesia_mindstone_sparse_cognition::
-                CognitiveSignal,
-    ) -> Option<
-        athlesia_executive_agency::
-            GroundedExecutiveActionCandidate
-    > {
+        goal: &athlesia_executive_agency::ExecutiveGoal,
+        goal_alignment: athlesia_mindstone_sparse_cognition::CognitiveSignal,
+        execution_cost: athlesia_mindstone_sparse_cognition::CognitiveSignal,
+    ) -> Option<athlesia_executive_agency::GroundedExecutiveActionCandidate> {
         /*
          * ARC-specific responsibility ends at exact action encoding.
          *
@@ -606,60 +529,40 @@ impl ArcAgi3CognitiveInteractionRuntime {
          * - generic M48 candidate construction.
          */
         let transformation =
-            crate::cognitive_protocol_bridge::
-                ArcAgi3CognitiveProtocolBridge::
-                    encode_action(
-                        action,
-                    );
+            crate::cognitive_protocol_bridge::ArcAgi3CognitiveProtocolBridge::encode_action(action);
 
-        self.cognition
-            .current_model_grounded_executive_candidate(
-                state,
-                &transformation,
-                goal,
-                goal_alignment,
-                execution_cost,
-                Self::live_transition_schema_policy(),
-                Self::live_executable_world_model_policy(),
-            )
+        self.cognition.current_model_grounded_executive_candidate(
+            state,
+            &transformation,
+            goal,
+            goal_alignment,
+            execution_cost,
+            Self::live_transition_schema_policy(),
+            Self::live_executable_world_model_policy(),
+        )
     }
 
     fn current_model_grounded_authorized_candidates(
         &self,
-        candidate_actions:
-            &[crate::ArcAgi3Action],
-        goal:
-            &athlesia_executive_agency::
-                ExecutiveGoal,
-        goal_alignment:
-            athlesia_mindstone_sparse_cognition::
-                CognitiveSignal,
-        execution_cost:
-            athlesia_mindstone_sparse_cognition::
-                CognitiveSignal,
-    ) -> Vec<
-        crate::action_grounding_bridge::
-            ArcAgi3AuthorizedExecutiveCandidate
-    > {
-        let Some(state) =
-            self.current_grounded_world_state()
-        else {
+        candidate_actions: &[crate::ArcAgi3Action],
+        goal: &athlesia_executive_agency::ExecutiveGoal,
+        goal_alignment: athlesia_mindstone_sparse_cognition::CognitiveSignal,
+        execution_cost: athlesia_mindstone_sparse_cognition::CognitiveSignal,
+    ) -> Vec<crate::action_grounding_bridge::ArcAgi3AuthorizedExecutiveCandidate> {
+        let Some(state) = self.current_grounded_world_state() else {
             return Vec::new();
         };
 
-        let mut authorized =
-            Vec::new();
+        let mut authorized = Vec::new();
 
         for &action in candidate_actions {
-            let Some(candidate) =
-                self.model_grounded_executive_candidate(
-                    &state,
-                    action,
-                    goal,
-                    goal_alignment,
-                    execution_cost,
-                )
-            else {
+            let Some(candidate) = self.model_grounded_executive_candidate(
+                &state,
+                action,
+                goal,
+                goal_alignment,
+                execution_cost,
+            ) else {
                 continue;
             };
 
@@ -674,24 +577,15 @@ impl ArcAgi3CognitiveInteractionRuntime {
                 continue;
             };
 
-            if authorized
-                .iter()
-                .any(
-                    |existing:
-                        &crate::action_grounding_bridge::
-                            ArcAgi3AuthorizedExecutiveCandidate|
-                    {
-                        existing.candidate()
-                            == grounded.candidate()
-                    },
-                )
-            {
+            if authorized.iter().any(
+                |existing: &crate::action_grounding_bridge::ArcAgi3AuthorizedExecutiveCandidate| {
+                    existing.candidate() == grounded.candidate()
+                },
+            ) {
                 continue;
             }
 
-            authorized.push(
-                grounded,
-            );
+            authorized.push(grounded);
         }
 
         authorized
@@ -699,19 +593,10 @@ impl ArcAgi3CognitiveInteractionRuntime {
 
     fn selected_authorized_executive_candidate(
         &self,
-        authorized:
-            &[crate::action_grounding_bridge::
-                ArcAgi3AuthorizedExecutiveCandidate],
-        goal:
-            &athlesia_executive_agency::
-                ExecutiveGoal,
-        policy:
-            athlesia_executive_agency::
-                ExecutiveAgencyPolicy,
-    ) -> Option<
-        crate::action_grounding_bridge::
-            ArcAgi3AuthorizedExecutiveCandidate
-    > {
+        authorized: &[crate::action_grounding_bridge::ArcAgi3AuthorizedExecutiveCandidate],
+        goal: &athlesia_executive_agency::ExecutiveGoal,
+        policy: athlesia_executive_agency::ExecutiveAgencyPolicy,
+    ) -> Option<crate::action_grounding_bridge::ArcAgi3AuthorizedExecutiveCandidate> {
         if authorized.is_empty() {
             return None;
         }
@@ -723,25 +608,14 @@ impl ArcAgi3CognitiveInteractionRuntime {
          * The generic cognitive selection itself belongs exclusively to
          * M51 -> M48.
          */
-        let candidates =
-            authorized
-                .iter()
-                .map(
-                    |grounded| {
-                        grounded
-                            .candidate()
-                            .clone()
-                    },
-                )
-                .collect::<Vec<_>>();
+        let candidates = authorized
+            .iter()
+            .map(|grounded| grounded.candidate().clone())
+            .collect::<Vec<_>>();
 
         let selected =
             self.cognition
-                .current_selected_executive_candidate(
-                    &candidates,
-                    goal,
-                    policy,
-                )?;
+                .current_selected_executive_candidate(&candidates, goal, policy)?;
 
         /*
          * Exact full candidate identity is authoritative.
@@ -750,40 +624,18 @@ impl ArcAgi3CognitiveInteractionRuntime {
          */
         authorized
             .iter()
-            .find(
-                |grounded| {
-                    grounded
-                        .candidate()
-                        == &selected
-                },
-            )
+            .find(|grounded| grounded.candidate() == &selected)
             .cloned()
     }
 
     fn select_authorized_executive_candidate(
         &self,
-        authorized:
-            &[crate::action_grounding_bridge::
-                ArcAgi3AuthorizedExecutiveCandidate],
-        goal:
-            &athlesia_executive_agency::
-                ExecutiveGoal,
-        policy:
-            athlesia_executive_agency::
-                ExecutiveAgencyPolicy,
-    ) -> Option<
-        crate::ArcAgi3Action
-    > {
-        self.selected_authorized_executive_candidate(
-            authorized,
-            goal,
-            policy,
-        )
-        .map(
-            |grounded| {
-                grounded.action()
-            },
-        )
+        authorized: &[crate::action_grounding_bridge::ArcAgi3AuthorizedExecutiveCandidate],
+        goal: &athlesia_executive_agency::ExecutiveGoal,
+        policy: athlesia_executive_agency::ExecutiveAgencyPolicy,
+    ) -> Option<crate::ArcAgi3Action> {
+        self.selected_authorized_executive_candidate(authorized, goal, policy)
+            .map(|grounded| grounded.action())
     }
 
     pub fn current_model_grounded_action_selection(
@@ -806,8 +658,7 @@ impl ArcAgi3CognitiveInteractionRuntime {
 
     pub fn current_successor_informed_unified_executive_authority(
         &self,
-        request:
-            ArcAgi3SuccessorInformedUnifiedExecutiveRequest<'_>,
+        request: ArcAgi3SuccessorInformedUnifiedExecutiveRequest<'_>,
     ) -> Option<ArcAgi3UnifiedExecutiveAuthority> {
         let ArcAgi3SuccessorInformedUnifiedExecutiveRequest {
             exploitation_actions,
@@ -831,16 +682,14 @@ impl ArcAgi3CognitiveInteractionRuntime {
          * currently grounded representation that supplies exploitation
          * provenance.
          */
-        let current_state =
-            self.current_grounded_world_state()?;
+        let current_state = self.current_grounded_world_state()?;
 
-        let mut authorized =
-            self.current_model_grounded_authorized_candidates(
-                exploitation_actions,
-                goal,
-                goal_alignment,
-                exploitation_execution_cost,
-            );
+        let mut authorized = self.current_model_grounded_authorized_candidates(
+            exploitation_actions,
+            goal,
+            goal_alignment,
+            exploitation_execution_cost,
+        );
 
         let exploitation_source_state =
             athlesia_integrated_cognitive_agent::
@@ -849,23 +698,15 @@ impl ArcAgi3CognitiveInteractionRuntime {
                     &current_state,
                 );
 
-        let mut provenance =
-            authorized
-                .iter()
-                .map(
-                    |candidate| {
-                        athlesia_integrated_cognitive_agent::
-                            ExecutiveCandidateProvenanceBinding::
-                                new(
-                                    exploitation_source_state
-                                        .clone(),
-                                    candidate
-                                        .candidate()
-                                        .clone(),
-                                )
-                    },
+        let mut provenance = authorized
+            .iter()
+            .map(|candidate| {
+                athlesia_integrated_cognitive_agent::ExecutiveCandidateProvenanceBinding::new(
+                    exploitation_source_state.clone(),
+                    candidate.candidate().clone(),
                 )
-                .collect::<Vec<_>>();
+            })
+            .collect::<Vec<_>>();
 
         /*
          * Preserve caller-native action identity and order.
@@ -874,17 +715,10 @@ impl ArcAgi3CognitiveInteractionRuntime {
          * information gain, confidence, controllability, or utility is
          * synthesized here.
          */
-        let native_actions =
-            native_possibilities
-                .iter()
-                .map(
-                    |possibility| {
-                        possibility
-                            .action()
-                            .clone()
-                    },
-                )
-                .collect::<Vec<_>>();
+        let native_actions = native_possibilities
+            .iter()
+            .map(|possibility| possibility.action().clone())
+            .collect::<Vec<_>>();
 
         let delegated =
             self
@@ -910,9 +744,7 @@ impl ArcAgi3CognitiveInteractionRuntime {
                         },
                 );
 
-        if let Some(delegation) =
-            delegated
-        {
+        if let Some(delegation) = delegated {
             /*
              * C16I-E is the only native-M50 -> M48 grounding bridge.
              *
@@ -933,9 +765,7 @@ impl ArcAgi3CognitiveInteractionRuntime {
                         )
                         .ok()?;
 
-            for candidate in
-                experimental_candidates
-            {
+            for candidate in experimental_candidates {
                 /*
                  * Convert the already grounded M48 candidate into the
                  * runtime's authorized wrapper without altering any
@@ -958,15 +788,10 @@ impl ArcAgi3CognitiveInteractionRuntime {
                  * M51 resolves or rejects provenance ambiguity later.
                  */
                 provenance.push(
-                    athlesia_integrated_cognitive_agent::
-                        ExecutiveCandidateProvenanceBinding::
-                            new(
-                                delegation.source_state()
-                                    .clone(),
-                                grounded
-                                    .candidate()
-                                    .clone(),
-                            ),
+                    athlesia_integrated_cognitive_agent::ExecutiveCandidateProvenanceBinding::new(
+                        delegation.source_state().clone(),
+                        grounded.candidate().clone(),
+                    ),
                 );
 
                 /*
@@ -976,18 +801,9 @@ impl ArcAgi3CognitiveInteractionRuntime {
                  */
                 if !authorized
                     .iter()
-                    .any(
-                        |existing| {
-                            existing
-                                .candidate()
-                                == grounded
-                                    .candidate()
-                        },
-                    )
+                    .any(|existing| existing.candidate() == grounded.candidate())
                 {
-                    authorized.push(
-                        grounded,
-                    );
+                    authorized.push(grounded);
                 }
             }
         }
@@ -1003,52 +819,31 @@ impl ArcAgi3CognitiveInteractionRuntime {
          * The ARC adapter only rebinds the selected generic candidate to
          * its already-authorized protocol wrapper.
          */
-        let selected_provenance =
-            self.cognition
-                .current_selected_executive_candidate_with_provenance(
-                    &provenance,
-                    goal,
-                    executive_policy,
-                )?;
+        let selected_provenance = self
+            .cognition
+            .current_selected_executive_candidate_with_provenance(
+                &provenance,
+                goal,
+                executive_policy,
+            )?;
 
-        let selected =
-            authorized
-                .iter()
-                .find(
-                    |grounded| {
-                        grounded
-                            .candidate()
-                            == selected_provenance
-                                .candidate()
-                    },
-                )
-                .cloned()?;
+        let selected = authorized
+            .iter()
+            .find(|grounded| grounded.candidate() == selected_provenance.candidate())
+            .cloned()?;
 
-        Some(
-            ArcAgi3UnifiedExecutiveAuthority::
-                new(
-                    selected_provenance
-                        .source_state()
-                        .clone(),
-                    selected,
-                ),
-        )
+        Some(ArcAgi3UnifiedExecutiveAuthority::new(
+            selected_provenance.source_state().clone(),
+            selected,
+        ))
     }
 
     pub fn current_successor_informed_unified_executive_action_selection(
         &self,
-        request:
-            ArcAgi3SuccessorInformedUnifiedExecutiveRequest<'_>,
+        request: ArcAgi3SuccessorInformedUnifiedExecutiveRequest<'_>,
     ) -> Option<crate::ArcAgi3Action> {
-        self
-            .current_successor_informed_unified_executive_authority(
-                request,
-            )
-            .map(
-                |authority| {
-                    authority.action()
-                },
-            )
+        self.current_successor_informed_unified_executive_authority(request)
+            .map(|authority| authority.action())
     }
 
     pub fn current_unified_executive_authority(
@@ -1068,10 +863,7 @@ impl ArcAgi3CognitiveInteractionRuntime {
         );
 
         let mut provenance =
-            Vec::<
-                athlesia_integrated_cognitive_agent::
-                    ExecutiveCandidateProvenanceBinding
-            >::new();
+            Vec::<athlesia_integrated_cognitive_agent::ExecutiveCandidateProvenanceBinding>::new();
 
         /*
          * Exploitation provenance comes from the retained grounded
@@ -1087,23 +879,12 @@ impl ArcAgi3CognitiveInteractionRuntime {
                         &grounded_state,
                     );
 
-            provenance.extend(
-                authorized
-                    .iter()
-                    .map(
-                        |candidate| {
-                            athlesia_integrated_cognitive_agent::
-                                ExecutiveCandidateProvenanceBinding::
-                                    new(
-                                        source_state
-                                            .clone(),
-                                        candidate
-                                            .candidate()
-                                            .clone(),
-                                    )
-                        },
-                    ),
-            );
+            provenance.extend(authorized.iter().map(|candidate| {
+                athlesia_integrated_cognitive_agent::ExecutiveCandidateProvenanceBinding::new(
+                    source_state.clone(),
+                    candidate.candidate().clone(),
+                )
+            }));
         }
 
         /*
@@ -1174,36 +955,19 @@ impl ArcAgi3CognitiveInteractionRuntime {
          * ONE M48 evaluation over exploitation + experimentation, with
          * exact provenance resolution owned by M51.
          */
-        let selected_provenance =
-            self.cognition
-                .current_selected_executive_candidate_with_provenance(
-                    &provenance,
-                    goal,
-                    policy,
-                )?;
+        let selected_provenance = self
+            .cognition
+            .current_selected_executive_candidate_with_provenance(&provenance, goal, policy)?;
 
-        let selected =
-            authorized
-                .iter()
-                .find(
-                    |grounded| {
-                        grounded
-                            .candidate()
-                            == selected_provenance
-                                .candidate()
-                    },
-                )
-                .cloned()?;
+        let selected = authorized
+            .iter()
+            .find(|grounded| grounded.candidate() == selected_provenance.candidate())
+            .cloned()?;
 
-        Some(
-            ArcAgi3UnifiedExecutiveAuthority::
-                new(
-                    selected_provenance
-                        .source_state()
-                        .clone(),
-                    selected,
-                ),
-        )
+        Some(ArcAgi3UnifiedExecutiveAuthority::new(
+            selected_provenance.source_state().clone(),
+            selected,
+        ))
     }
 
     pub fn current_unified_executive_action_selection(
@@ -1645,118 +1409,68 @@ impl UniversalArcAgi3CognitiveInteractionRuntime {
     }
 }
 
-
 #[cfg(test)]
 pub(crate) mod c16i_successor_informed_two_contract_e2e_tests {
     use super::*;
     mod m51_fixture {
         use crate as athlesia_arc_agi_3_adapter;
 
-        include!(
-            "../tests/support/m51_online_orchestration_fixture.rs"
-        );
+        include!("../tests/support/m51_online_orchestration_fixture.rs");
     }
 
-    fn signal(
-        value: u16,
-    ) -> athlesia_mindstone_sparse_cognition::CognitiveSignal {
-        athlesia_mindstone_sparse_cognition::
-            CognitiveSignal::new(value)
-            .unwrap()
+    fn signal(value: u16) -> athlesia_mindstone_sparse_cognition::CognitiveSignal {
+        athlesia_mindstone_sparse_cognition::CognitiveSignal::new(value).unwrap()
     }
 
-    fn atom(
-        value: u64,
-    ) -> athlesia_mindstone_sparse_cognition::CognitiveStructure {
-        athlesia_mindstone_sparse_cognition::
-            CognitiveStructure::atom(value)
+    fn atom(value: u64) -> athlesia_mindstone_sparse_cognition::CognitiveStructure {
+        athlesia_mindstone_sparse_cognition::CognitiveStructure::atom(value)
     }
 
-    fn action(
-        id: crate::ArcAgi3ActionId,
-    ) -> crate::ArcAgi3Action {
-        crate::ArcAgi3Action::discrete(id)
-            .unwrap()
+    fn action(id: crate::ArcAgi3ActionId) -> crate::ArcAgi3Action {
+        crate::ArcAgi3Action::discrete(id).unwrap()
     }
 
-    fn object_grid(
-        value: u8,
-    ) -> crate::ArcAgi3Grid {
-        crate::ArcAgi3Grid::from_rows(
-            vec![
-                vec![value, value],
-                vec![8, 9],
-            ],
-        )
-        .unwrap()
+    fn object_grid(value: u8) -> crate::ArcAgi3Grid {
+        crate::ArcAgi3Grid::from_rows(vec![vec![value, value], vec![8, 9]]).unwrap()
     }
 
     fn observation(
         game: &str,
         value: u8,
-        last_action:
-            Option<crate::ArcAgi3Action>,
+        last_action: Option<crate::ArcAgi3Action>,
     ) -> crate::ArcAgi3Observation {
         crate::ArcAgi3Observation::new(
-            crate::ArcAgi3GameId::new(
-                game.to_string(),
-            )
-            .unwrap(),
+            crate::ArcAgi3GameId::new(game.to_string()).unwrap(),
             crate::ArcAgi3GameState::NotFinished,
-            crate::ArcAgi3FrameSequence::new(
-                vec![
-                    object_grid(value),
-                ],
-            )
-            .unwrap(),
+            crate::ArcAgi3FrameSequence::new(vec![object_grid(value)]).unwrap(),
             0,
             3,
-            crate::ArcAgi3AvailableActions::new(
-                vec![
-                    crate::ArcAgi3ActionId::Action1,
-                    crate::ArcAgi3ActionId::Action2,
-                ],
-            )
+            crate::ArcAgi3AvailableActions::new(vec![
+                crate::ArcAgi3ActionId::Action1,
+                crate::ArcAgi3ActionId::Action2,
+            ])
             .unwrap(),
             last_action,
         )
     }
 
     fn training_turn(
-        runtime:
-            &mut ArcAgi3CognitiveInteractionRuntime,
+        runtime: &mut ArcAgi3CognitiveInteractionRuntime,
         game: &str,
         selected_action: crate::ArcAgi3Action,
         value: u8,
     ) {
         let cognitive_action =
-            crate::cognitive_protocol_bridge::
-                ArcAgi3CognitiveProtocolBridge::
-                    encode_action(
-                        selected_action,
-                    );
+            crate::cognitive_protocol_bridge::ArcAgi3CognitiveProtocolBridge::encode_action(
+                selected_action,
+            );
 
-        m51_fixture::begin_arc(
-            runtime,
-            cognitive_action,
-        )
-        .expect(
-            "C16I E2E training action must begin",
-        );
+        m51_fixture::begin_arc(runtime, cognitive_action)
+            .expect("C16I E2E training action must begin");
 
-        let completion =
-            runtime
-                .complete_environment_turn(
-                    observation(
-                        game,
-                        value,
-                        Some(selected_action),
-                    ),
-                    signal(900),
-                )
-                .expect(
-                    "C16I E2E real consequence must commit",
-                );
+        let completion = runtime
+            .complete_environment_turn(observation(game, value, Some(selected_action)), signal(900))
+            .expect("C16I E2E real consequence must commit");
 
         assert!(
             completion.has_cognitive_feedback(),
@@ -1764,39 +1478,16 @@ pub(crate) mod c16i_successor_informed_two_contract_e2e_tests {
         );
     }
 
-    fn mature_runtime(
-        runtime:
-            &mut ArcAgi3CognitiveInteractionRuntime,
-        game: &str,
-    ) {
-        let action_one =
-            action(
-                crate::ArcAgi3ActionId::Action1,
-            );
+    fn mature_runtime(runtime: &mut ArcAgi3CognitiveInteractionRuntime, game: &str) {
+        let action_one = action(crate::ArcAgi3ActionId::Action1);
 
-        let action_two =
-            action(
-                crate::ArcAgi3ActionId::Action2,
-            );
+        let action_two = action(crate::ArcAgi3ActionId::Action2);
 
-        for value in [
-            2_u8,
-            3,
-            4,
-            5,
-        ] {
-            training_turn(
-                runtime,
-                game,
-                action_one,
-                value,
-            );
+        for value in [2_u8, 3, 4, 5] {
+            training_turn(runtime, game, action_one, value);
         }
 
-        for (
-            selected,
-            value,
-        ) in [
+        for (selected, value) in [
             (action_two, 5_u8),
             (action_one, 6_u8),
             (action_two, 6_u8),
@@ -1806,110 +1497,63 @@ pub(crate) mod c16i_successor_informed_two_contract_e2e_tests {
             (action_two, 6_u8),
             (action_one, 5_u8),
         ] {
-            training_turn(
-                runtime,
-                game,
-                selected,
-                value,
-            );
+            training_turn(runtime, game, selected, value);
         }
     }
 
-    fn version_policy(
-    ) -> athlesia_universal_domain_learning::
-        GroundedExplanatoryVersionSpacePolicy {
-        athlesia_universal_domain_learning::
-            GroundedExplanatoryVersionSpacePolicy::
-                new(
-                    1,
-                    64,
-                    512,
-                    256,
-                )
-                .unwrap()
+    fn version_policy() -> athlesia_universal_domain_learning::GroundedExplanatoryVersionSpacePolicy
+    {
+        athlesia_universal_domain_learning::GroundedExplanatoryVersionSpacePolicy::new(
+            1, 64, 512, 256,
+        )
+        .unwrap()
     }
 
     fn discrimination_policy(
-    ) -> athlesia_autonomous_active_experimentation::
-        EpistemicForecastDiscriminationPolicy {
-        athlesia_autonomous_active_experimentation::
-            EpistemicForecastDiscriminationPolicy::
-                new(
-                    512,
-                    512,
-                )
-                .unwrap()
+    ) -> athlesia_autonomous_active_experimentation::EpistemicForecastDiscriminationPolicy {
+        athlesia_autonomous_active_experimentation::EpistemicForecastDiscriminationPolicy::new(
+            512, 512,
+        )
+        .unwrap()
     }
 
     fn expectation_policy(
-    ) -> athlesia_autonomous_active_experimentation::
-        EmpiricalExpectedEpistemicProgressPolicy {
-        athlesia_autonomous_active_experimentation::
-            EmpiricalExpectedEpistemicProgressPolicy::
-                new(
-                    256,
-                    256,
-                    1,
-                )
-                .unwrap()
+    ) -> athlesia_autonomous_active_experimentation::EmpiricalExpectedEpistemicProgressPolicy {
+        athlesia_autonomous_active_experimentation::EmpiricalExpectedEpistemicProgressPolicy::new(
+            256, 256, 1,
+        )
+        .unwrap()
     }
 
     fn priority_policy(
-    ) -> athlesia_autonomous_active_experimentation::
-        EmpiricalEpistemicActionPriorityPolicy {
-        athlesia_autonomous_active_experimentation::
-            EmpiricalEpistemicActionPriorityPolicy::
-                new(8)
-                .unwrap()
+    ) -> athlesia_autonomous_active_experimentation::EmpiricalEpistemicActionPriorityPolicy {
+        athlesia_autonomous_active_experimentation::EmpiricalEpistemicActionPriorityPolicy::new(8)
+            .unwrap()
     }
 
     fn proposal_policy(
-    ) -> athlesia_autonomous_active_experimentation::
-        BeliefDrivenExperimentProposalPolicy {
+    ) -> athlesia_autonomous_active_experimentation::BeliefDrivenExperimentProposalPolicy {
         use athlesia_autonomous_active_experimentation::{
-            ActiveExperimentBounds,
-            ActiveExperimentPolicy,
-            ActiveExperimentThresholds,
-            BeliefDrivenExperimentProposalBounds,
-            BeliefDrivenExperimentProposalPolicy,
+            ActiveExperimentBounds, ActiveExperimentPolicy, ActiveExperimentThresholds,
+            BeliefDrivenExperimentProposalBounds, BeliefDrivenExperimentProposalPolicy,
         };
 
         BeliefDrivenExperimentProposalPolicy::new(
             ActiveExperimentPolicy::new(
-                ActiveExperimentBounds::new(
-                    16,
-                    16,
-                    16,
-                )
-                .unwrap(),
-                ActiveExperimentThresholds::new(
-                    signal(500),
-                    signal(500),
-                    signal(500),
-                    signal(500),
-                )
-                .unwrap(),
+                ActiveExperimentBounds::new(16, 16, 16).unwrap(),
+                ActiveExperimentThresholds::new(signal(500), signal(500), signal(500), signal(500))
+                    .unwrap(),
             ),
-            BeliefDrivenExperimentProposalBounds::new(
-                16,
-                16,
-                16,
-                16,
-            )
-            .unwrap(),
+            BeliefDrivenExperimentProposalBounds::new(16, 16, 16, 16).unwrap(),
             signal(500),
             signal(500),
         )
         .unwrap()
     }
 
-    fn executive_policy(
-    ) -> athlesia_executive_agency::
-        ExecutiveAgencyPolicy {
+    fn executive_policy() -> athlesia_executive_agency::ExecutiveAgencyPolicy {
         use athlesia_executive_agency::{
-            ExecutiveAgencyPolicy,
-            ExecutiveSelectionThresholds,
-            ExecutiveUtilityWeights,
+            ExecutiveAgencyPolicy, ExecutiveSelectionThresholds, ExecutiveUtilityWeights,
         };
 
         ExecutiveAgencyPolicy::new(
@@ -1917,14 +1561,7 @@ pub(crate) mod c16i_successor_informed_two_contract_e2e_tests {
             8,
             16,
             1,
-            ExecutiveUtilityWeights::new(
-                0,
-                0,
-                0,
-                1000,
-                0,
-            )
-            .unwrap(),
+            ExecutiveUtilityWeights::new(0, 0, 0, 1000, 0).unwrap(),
             ExecutiveSelectionThresholds::new(
                 signal(100),
                 signal(100),
@@ -1937,40 +1574,23 @@ pub(crate) mod c16i_successor_informed_two_contract_e2e_tests {
         .unwrap()
     }
 
-    fn goal(
-    ) -> athlesia_executive_agency::
-        ExecutiveGoal {
-        athlesia_executive_agency::
-            ExecutiveGoal::new(
-                atom(
-                    0xC16F_0000_0000_0001,
-                ),
-                signal(900),
-                athlesia_mindstone_sparse_cognition::
-                    CognitiveSignal::zero(),
-            )
+    fn goal() -> athlesia_executive_agency::ExecutiveGoal {
+        athlesia_executive_agency::ExecutiveGoal::new(
+            atom(0xC16F_0000_0000_0001),
+            signal(900),
+            athlesia_mindstone_sparse_cognition::CognitiveSignal::zero(),
+        )
     }
 
     #[derive(Debug)]
     pub(crate) struct Fixture {
-        runtime:
-            ArcAgi3CognitiveInteractionRuntime,
-        arc_action:
-            crate::ArcAgi3Action,
-        cognitive_action:
-            CognitiveStructure,
-        native_source:
-            CognitiveStructure,
+        runtime: ArcAgi3CognitiveInteractionRuntime,
+        arc_action: crate::ArcAgi3Action,
+        cognitive_action: CognitiveStructure,
+        native_source: CognitiveStructure,
         native_possibilities:
-            Vec<
-                athlesia_autonomous_active_experimentation::
-                    GroundedExperimentPossibility
-            >,
-        beliefs:
-            Vec<
-                athlesia_autonomous_active_experimentation::
-                    HypothesisBeliefState
-            >,
+            Vec<athlesia_autonomous_active_experimentation::GroundedExperimentPossibility>,
+        beliefs: Vec<athlesia_autonomous_active_experimentation::HypothesisBeliefState>,
     }
 
     impl Fixture {
@@ -1981,14 +1601,8 @@ pub(crate) mod c16i_successor_informed_two_contract_e2e_tests {
             crate::ArcAgi3Action,
             CognitiveStructure,
             CognitiveStructure,
-            Vec<
-                athlesia_autonomous_active_experimentation::
-                    GroundedExperimentPossibility
-            >,
-            Vec<
-                athlesia_autonomous_active_experimentation::
-                    HypothesisBeliefState
-            >,
+            Vec<athlesia_autonomous_active_experimentation::GroundedExperimentPossibility>,
+            Vec<athlesia_autonomous_active_experimentation::HypothesisBeliefState>,
         ) {
             (
                 self.runtime,
@@ -2001,163 +1615,92 @@ pub(crate) mod c16i_successor_informed_two_contract_e2e_tests {
         }
     }
 
-    pub(crate) fn live_goal(
-    ) -> athlesia_executive_agency::
-        ExecutiveGoal {
+    pub(crate) fn live_goal() -> athlesia_executive_agency::ExecutiveGoal {
         goal()
     }
 
     pub(crate) fn live_response(
-        game:
-            &str,
-        value:
-            u8,
-        last_action:
-            Option<crate::ArcAgi3Action>,
+        game: &str,
+        value: u8,
+        last_action: Option<crate::ArcAgi3Action>,
     ) -> crate::ArcAgi3Observation {
-        observation(
-            game,
-            value,
-            last_action,
-        )
+        observation(game, value, last_action)
     }
 
     pub(crate) fn live_request<'a>(
-        exploitation_actions:
-            &'a [crate::ArcAgi3Action],
-        goal:
-            &'a athlesia_executive_agency::
-                ExecutiveGoal,
+        exploitation_actions: &'a [crate::ArcAgi3Action],
+        goal: &'a athlesia_executive_agency::ExecutiveGoal,
         native_possibilities:
             &'a [
                 athlesia_autonomous_active_experimentation::
                     GroundedExperimentPossibility
             ],
-        beliefs:
-            &'a [
-                athlesia_autonomous_active_experimentation::
-                    HypothesisBeliefState
-            ],
+        beliefs: &'a [athlesia_autonomous_active_experimentation::HypothesisBeliefState],
     ) -> ArcAgi3SuccessorInformedUnifiedExecutiveRequest<'a> {
         ArcAgi3SuccessorInformedUnifiedExecutiveRequest {
             exploitation_actions,
             goal,
-            goal_alignment:
-                signal(900),
-            exploitation_execution_cost:
-                signal(100),
+            goal_alignment: signal(900),
+            exploitation_execution_cost: signal(100),
             native_possibilities,
             beliefs,
-            version_policy:
-                version_policy(),
-            discrimination_policy:
-                discrimination_policy(),
-            expectation_policy:
-                expectation_policy(),
-            priority_policy:
-                priority_policy(),
-            proposal_policy:
-                proposal_policy(),
-            executive_policy:
-                executive_policy(),
+            version_policy: version_policy(),
+            discrimination_policy: discrimination_policy(),
+            expectation_policy: expectation_policy(),
+            priority_policy: priority_policy(),
+            proposal_policy: proposal_policy(),
+            executive_policy: executive_policy(),
         }
     }
 
-    pub(crate) fn fixture(
-        game: &str,
-        first_index: u64,
-    ) -> Fixture {
+    pub(crate) fn fixture(game: &str, first_index: u64) -> Fixture {
         use athlesia_autonomous_active_experimentation::{
-            AutonomousEpistemicForecastDiscrimination,
-            AutonomousEpistemicResolutionProgress,
-            CompetingHypothesisPrediction,
-            GroundedEpistemicExperimentPossibility,
-            GroundedExperimentPossibility,
-            HypothesisBeliefState,
+            AutonomousEpistemicForecastDiscrimination, AutonomousEpistemicResolutionProgress,
+            CompetingHypothesisPrediction, GroundedEpistemicExperimentPossibility,
+            GroundedExperimentPossibility, HypothesisBeliefState,
         };
 
-        let action_one =
-            action(
-                crate::ArcAgi3ActionId::Action1,
-            );
+        let action_one = action(crate::ArcAgi3ActionId::Action1);
 
-        let action_two =
-            action(
-                crate::ArcAgi3ActionId::Action2,
-            );
+        let action_two = action(crate::ArcAgi3ActionId::Action2);
 
         let mut runtime =
-            ArcAgi3CognitiveInteractionRuntime::new(
-                observation(
-                    game,
-                    1,
-                    None,
-                ),
-                first_index,
-            )
-            .unwrap();
+            ArcAgi3CognitiveInteractionRuntime::new(observation(game, 1, None), first_index)
+                .unwrap();
 
-        mature_runtime(
-            &mut runtime,
-            game,
-        );
+        mature_runtime(&mut runtime, game);
 
         /*
          * Enter the established informative holdout.
          */
-        training_turn(
-            &mut runtime,
-            game,
-            action_two,
-            7_u8,
-        );
+        training_turn(&mut runtime, game, action_two, 7_u8);
 
         /*
          * Real B2 sample:
          *
          *     state7 --ACTION1--> state6
          */
-        training_turn(
-            &mut runtime,
-            game,
-            action_one,
-            6_u8,
-        );
+        training_turn(&mut runtime, game, action_one, 6_u8);
 
         /*
          * Return through a real causal turn to the exact state7
          * representation.  B2 now contains a genuine ACTION1 sample
          * from this source representation.
          */
-        training_turn(
-            &mut runtime,
-            game,
-            action_two,
-            7_u8,
-        );
+        training_turn(&mut runtime, game, action_two, 7_u8);
 
-        let current =
-            runtime
-                .current_grounded_world_state()
-                .expect(
-                    "C16I E2E current state7 must be grounded",
-                );
+        let current = runtime
+            .current_grounded_world_state()
+            .expect("C16I E2E current state7 must be grounded");
 
         let cognitive_action =
-            crate::cognitive_protocol_bridge::
-                ArcAgi3CognitiveProtocolBridge::
-                    encode_action(
-                        action_one,
-                    );
+            crate::cognitive_protocol_bridge::ArcAgi3CognitiveProtocolBridge::encode_action(
+                action_one,
+            );
 
-        let b2 =
-            runtime
-                .current_action_qualified_empirical_successor_frequency(
-                    &cognitive_action,
-                )
-                .expect(
-                    "B0 current grounding must permit B2 live query",
-                );
+        let b2 = runtime
+            .current_action_qualified_empirical_successor_frequency(&cognitive_action)
+            .expect("B0 current grounding must permit B2 live query");
 
         assert!(
             b2.is_qualified(),
@@ -2165,14 +1708,12 @@ pub(crate) mod c16i_successor_informed_two_contract_e2e_tests {
         );
 
         assert!(
-            b2.independent_action_event_count()
-                > 0,
+            b2.independent_action_event_count() > 0,
             "B2 authority must contain at least one real interaction event",
         );
 
         assert!(
-            b2
-                .successor_informed_proposal_eligibility()
+            b2.successor_informed_proposal_eligibility()
                 .eligible_as_supplemental_evidence(),
             "real B2 evidence must pass C16I-A integrity qualification",
         );
@@ -2180,35 +1721,23 @@ pub(crate) mod c16i_successor_informed_two_contract_e2e_tests {
         /*
          * Current M50 question from the retained M47 owner.
          */
-        let current_epistemic =
-            runtime
-                .cognition
-                .current_m50_epistemic_possibility(
-                    &current,
-                    &cognitive_action,
-                    version_policy(),
-                )
-                .expect(
-                    "current state7 ACTION1 must expose an M50 epistemic possibility",
-                );
+        let current_epistemic = runtime
+            .cognition
+            .current_m50_epistemic_possibility(&current, &cognitive_action, version_policy())
+            .expect("current state7 ACTION1 must expose an M50 epistemic possibility");
 
-        let current_discrimination =
-            AutonomousEpistemicForecastDiscrimination::
-                evaluate(
-                    &current_epistemic,
-                    discrimination_policy(),
-                );
+        let current_discrimination = AutonomousEpistemicForecastDiscrimination::evaluate(
+            &current_epistemic,
+            discrimination_policy(),
+        );
 
         assert!(
-            current_discrimination
-                .informative(),
+            current_discrimination.informative(),
             "C16I E2E requires a genuinely unresolved current M50 question",
         );
 
         assert!(
-            current_discrimination
-                .pairwise_separation_score()
-                > 0,
+            current_discrimination.pairwise_separation_score() > 0,
             "informative M50 question must contain real pairwise separation",
         );
 
@@ -2217,35 +1746,26 @@ pub(crate) mod c16i_successor_informed_two_contract_e2e_tests {
          * successor representation.  No target-occurrence booleans are
          * invented by this fixture.
          */
-        let real_successor =
-            b2
-                .successor_frequencies()
-                .first()
-                .expect(
-                    "qualified B2 result must expose a real successor",
-                )
-                .successor_representation()
-                .clone();
+        let real_successor = b2
+            .successor_frequencies()
+            .first()
+            .expect("qualified B2 result must expose a real successor")
+            .successor_representation()
+            .clone();
 
-        let realized_outcome =
-            runtime
-                .cognition
-                .resolve_m50_epistemic_possibility_against_transition(
-                    &current_epistemic,
-                    &current,
-                    &real_successor,
-                    &cognitive_action,
-                    athlesia_autonomous_active_experimentation::
-                        EpistemicOutcomeResolutionPolicy::
-                            new(
-                                512,
-                                512,
-                            )
-                            .unwrap(),
+        let realized_outcome = runtime
+            .cognition
+            .resolve_m50_epistemic_possibility_against_transition(
+                &current_epistemic,
+                &current,
+                &real_successor,
+                &cognitive_action,
+                athlesia_autonomous_active_experimentation::EpistemicOutcomeResolutionPolicy::new(
+                    512, 512,
                 )
-                .expect(
-                    "real B2 successor must resolve the current M50 question",
-                );
+                .unwrap(),
+            )
+            .expect("real B2 successor must resolve the current M50 question");
 
         assert!(
             realized_outcome.resolved(),
@@ -2262,53 +1782,36 @@ pub(crate) mod c16i_successor_informed_two_contract_e2e_tests {
          *
          * No expected progress/EIG number is manually inserted.
          */
-        let post_learning =
-            GroundedEpistemicExperimentPossibility::new(
-                current_epistemic
-                    .source_state()
-                    .clone(),
-                current_epistemic
-                    .action()
-                    .clone(),
-                vec![
-                    current_epistemic
-                        .forecasts()
-                        .first()
-                        .expect(
-                            "informative possibility must contain forecasts",
-                        )
-                        .clone(),
-                ],
-            )
-            .unwrap();
+        let post_learning = GroundedEpistemicExperimentPossibility::new(
+            current_epistemic.source_state().clone(),
+            current_epistemic.action().clone(),
+            vec![current_epistemic
+                .forecasts()
+                .first()
+                .expect("informative possibility must contain forecasts")
+                .clone()],
+        )
+        .unwrap();
 
-        let progress =
-            AutonomousEpistemicResolutionProgress::
-                measure(
-                    &current_epistemic,
-                    &realized_outcome,
-                    &post_learning,
-                    discrimination_policy(),
-                );
+        let progress = AutonomousEpistemicResolutionProgress::measure(
+            &current_epistemic,
+            &realized_outcome,
+            &post_learning,
+            discrimination_policy(),
+        );
 
         assert!(
             progress.measured(),
             "C16I E2E C3F evidence must come from the real C3D measurement authority",
         );
 
-        let sample =
-            progress
-                .sample()
-                .expect(
-                    "measured progress must contain one exact sample",
-                )
-                .clone();
+        let sample = progress
+            .sample()
+            .expect("measured progress must contain one exact sample")
+            .clone();
 
         assert!(
-            sample
-                .realized_separation_reduction()
-                > sample
-                    .realized_separation_increase(),
+            sample.realized_separation_reduction() > sample.realized_separation_increase(),
             "fixture must provide positive measured epistemic progress for C3F",
         );
 
@@ -2318,36 +1821,28 @@ pub(crate) mod c16i_successor_informed_two_contract_e2e_tests {
          * The high event id is fixture provenance only; it does not
          * participate in matching or priority.
          */
-        let retained =
-            runtime
-                .cognition
-                .retain_epistemic_progress_event(
-                    u64::MAX - 16,
-                    sample,
-                    athlesia_integrated_cognitive_agent::
-                        RetainedEpistemicProgressHistoryPolicy::
-                            new(256)
-                            .unwrap(),
-                );
+        let retained = runtime.cognition.retain_epistemic_progress_event(
+            u64::MAX - 16,
+            sample,
+            athlesia_integrated_cognitive_agent::RetainedEpistemicProgressHistoryPolicy::new(256)
+                .unwrap(),
+        );
 
         assert!(
             retained.retained(),
             "measured C3D sample must be retained by the existing M51 owner",
         );
 
-        let priority =
-            runtime
-                .cognition
-                .current_empirical_epistemic_action_priority_frontier(
-                    &current,
-                    std::slice::from_ref(
-                        &cognitive_action,
-                    ),
-                    version_policy(),
-                    discrimination_policy(),
-                    expectation_policy(),
-                    priority_policy(),
-                );
+        let priority = runtime
+            .cognition
+            .current_empirical_epistemic_action_priority_frontier(
+                &current,
+                std::slice::from_ref(&cognitive_action),
+                version_policy(),
+                discrimination_policy(),
+                expectation_policy(),
+                priority_policy(),
+            );
 
         assert_eq!(
             priority.status(),
@@ -2357,109 +1852,65 @@ pub(crate) mod c16i_successor_informed_two_contract_e2e_tests {
             "C16I E2E requires measured positive C3F authority before native M50 gating",
         );
 
-        let priority_candidate =
-            priority
-                .best()
-                .expect(
-                    "Ranked C3F frontier must expose one exact candidate",
-                );
+        let priority_candidate = priority
+            .best()
+            .expect("Ranked C3F frontier must expose one exact candidate");
 
-        assert_eq!(
-            priority_candidate.action(),
-            &cognitive_action,
-        );
+        assert_eq!(priority_candidate.action(), &cognitive_action,);
 
         /*
          * C16I-C requires caller-native M50 source/action identity to
          * match the already-ranked C3F binding exactly.
          */
-        let native_source =
-            priority_candidate
-                .source_state()
-                .clone();
+        let native_source = priority_candidate.source_state().clone();
 
-        let mut native_hypotheses =
-            Vec::<CognitiveStructure>::new();
+        let mut native_hypotheses = Vec::<CognitiveStructure>::new();
 
-        for forecast in
-            current_epistemic
-                .forecasts()
-        {
+        for forecast in current_epistemic.forecasts() {
             if !native_hypotheses
                 .iter()
-                .any(
-                    |existing| {
-                        existing
-                            == forecast
-                                .hypothesis()
-                    },
-                )
+                .any(|existing| existing == forecast.hypothesis())
             {
-                native_hypotheses.push(
-                    forecast
-                        .hypothesis()
-                        .clone(),
-                );
+                native_hypotheses.push(forecast.hypothesis().clone());
             }
         }
 
         assert!(
-            native_hypotheses.len()
-                >= 2,
+            native_hypotheses.len() >= 2,
             "C16I native fixture requires at least two exact current M50 hypothesis identities",
         );
 
-        let hypothesis_one =
-            native_hypotheses[0]
-                .clone();
+        let hypothesis_one = native_hypotheses[0].clone();
 
-        let hypothesis_two =
-            native_hypotheses[1]
-                .clone();
+        let hypothesis_two = native_hypotheses[1].clone();
 
-        let native_possibilities =
+        let native_possibilities = vec![GroundedExperimentPossibility::new(
+            native_source.clone(),
+            cognitive_action.clone(),
             vec![
-                GroundedExperimentPossibility::new(
-                    native_source.clone(),
-                    cognitive_action.clone(),
-                    vec![
-                        CompetingHypothesisPrediction::new(
-                            hypothesis_one.clone(),
-                            atom(
-                                0xC16F_0000_0000_0201,
-                            ),
-                            signal(900),
-                        )
-                        .unwrap(),
-                        CompetingHypothesisPrediction::new(
-                            hypothesis_two.clone(),
-                            atom(
-                                0xC16F_0000_0000_0202,
-                            ),
-                            signal(900),
-                        )
-                        .unwrap(),
-                    ],
+                CompetingHypothesisPrediction::new(
+                    hypothesis_one.clone(),
+                    atom(0xC16F_0000_0000_0201),
                     signal(900),
-                    signal(900),
-                    signal(100),
                 )
                 .unwrap(),
-            ];
+                CompetingHypothesisPrediction::new(
+                    hypothesis_two.clone(),
+                    atom(0xC16F_0000_0000_0202),
+                    signal(900),
+                )
+                .unwrap(),
+            ],
+            signal(900),
+            signal(900),
+            signal(100),
+        )
+        .unwrap()];
 
-        let beliefs =
-            vec![
-                HypothesisBeliefState::new(
-                    hypothesis_one,
-                    signal(820),
-                )
-                .unwrap(),
-                HypothesisBeliefState::new(
-                    hypothesis_two,
-                    signal(760),
-                )
-                .unwrap(),
-            ];
+        let beliefs = vec![
+            HypothesisBeliefState::new(hypothesis_one, signal(820)).unwrap(),
+            HypothesisBeliefState::new(hypothesis_two, signal(760)).unwrap(),
+        ];
 
         /*
          * Anti-vacuity: prove A-D produces a real native M50 proposal
@@ -2502,15 +1953,13 @@ pub(crate) mod c16i_successor_informed_two_contract_e2e_tests {
                 );
 
         assert!(
-            native_result.result().generated_count()
-                > 0,
+            native_result.result().generated_count() > 0,
             "native M50 must actually generate a proposal before F is exercised",
         );
 
         Fixture {
             runtime,
-            arc_action:
-                action_one,
+            arc_action: action_one,
             cognitive_action,
             native_source,
             native_possibilities,
@@ -2519,13 +1968,8 @@ pub(crate) mod c16i_successor_informed_two_contract_e2e_tests {
     }
 
     #[test]
-    fn real_b2_measured_c3f_native_m50_reaches_action_only_through_common_m48(
-    ) {
-        let fixture =
-            fixture(
-                "c16i-f-common-m48",
-                8_200_000,
-            );
+    fn real_b2_measured_c3f_native_m50_reaches_action_only_through_common_m48() {
+        let fixture = fixture("c16i-f-common-m48", 8_200_000);
 
         let authority =
             fixture
@@ -2563,15 +2007,9 @@ pub(crate) mod c16i_successor_informed_two_contract_e2e_tests {
                     "eligible native M50 proposal must reach action authority only through the common M48 selector",
                 );
 
-        assert_eq!(
-            authority.action(),
-            fixture.arc_action,
-        );
+        assert_eq!(authority.action(), fixture.arc_action,);
 
-        assert_eq!(
-            authority.cognitive_action(),
-            &fixture.cognitive_action,
-        );
+        assert_eq!(authority.cognitive_action(), &fixture.cognitive_action,);
 
         assert_eq!(
             authority.source_state(),
