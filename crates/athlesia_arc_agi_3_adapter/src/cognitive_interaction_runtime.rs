@@ -183,12 +183,21 @@ pub struct ArcAgi3EvidenceFaithfulSuccessorExecutiveRequest<'a> {
     pub exploitation_policy: athlesia_executive_agency::ExecutiveAgencyPolicy,
 
     pub epistemic_policy: athlesia_executive_agency::EpistemicExecutiveSelectionPolicy,
+
+    /*
+     * Resource bound only.
+     *
+     * It does not assign value, confidence, EIG, probability,
+     * controllability or predicted outcome.
+     */
+    pub ignorance_policy: athlesia_executive_agency::IgnoranceExplorationSelectionPolicy,
 }
 
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub enum ArcAgi3UnifiedExecutiveAuthorityKind {
     LegacyGrounded,
     EvidenceFaithfulEpistemic,
+    IgnoranceExploration,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -202,6 +211,8 @@ pub struct ArcAgi3UnifiedExecutiveAuthority {
 
     epistemic_selected:
         Option<athlesia_integrated_cognitive_agent::SelectedSuccessorInformedEpistemicActionIntent>,
+
+    ignorance_selected: Option<athlesia_executive_agency::GroundedIgnoranceExplorationCandidate>,
 }
 
 impl ArcAgi3UnifiedExecutiveAuthority {
@@ -220,6 +231,7 @@ impl ArcAgi3UnifiedExecutiveAuthority {
             cognitive_action,
             legacy_selected: Some(selected),
             epistemic_selected: None,
+            ignorance_selected: None,
         }
     }
 
@@ -240,6 +252,26 @@ impl ArcAgi3UnifiedExecutiveAuthority {
             cognitive_action,
             legacy_selected: None,
             epistemic_selected: Some(selected),
+            ignorance_selected: None,
+        }
+    }
+
+    fn new_ignorance(
+        action: crate::ArcAgi3Action,
+        selected: athlesia_executive_agency::GroundedIgnoranceExplorationCandidate,
+    ) -> Self {
+        let source_state = selected.source_state().clone();
+
+        let cognitive_action = selected.action().clone();
+
+        Self {
+            kind: ArcAgi3UnifiedExecutiveAuthorityKind::IgnoranceExploration,
+            source_state,
+            action,
+            cognitive_action,
+            legacy_selected: None,
+            epistemic_selected: None,
+            ignorance_selected: Some(selected),
         }
     }
 
@@ -259,7 +291,8 @@ impl ArcAgi3UnifiedExecutiveAuthority {
      * A concrete predicted outcome exists only on the frozen legacy
      * candidate representation.
      *
-     * Evidence-faithful epistemic authority deliberately returns None.
+     * Evidence-faithful epistemic and ignorance-exploration authority
+     * deliberately return None.
      */
     pub fn predicted_outcome(&self) -> Option<&CognitiveStructure> {
         self.legacy_selected
@@ -284,6 +317,12 @@ impl ArcAgi3UnifiedExecutiveAuthority {
     ) -> Option<&athlesia_integrated_cognitive_agent::SelectedSuccessorInformedEpistemicActionIntent>
     {
         self.epistemic_selected.as_ref()
+    }
+
+    pub fn ignorance_selection(
+        &self,
+    ) -> Option<&athlesia_executive_agency::GroundedIgnoranceExplorationCandidate> {
+        self.ignorance_selected.as_ref()
     }
 }
 
@@ -800,6 +839,7 @@ impl ArcAgi3CognitiveInteractionRuntime {
             priority_policy,
             exploitation_policy,
             epistemic_policy,
+            ignorance_policy,
         } = request;
 
         let current_state = self.current_grounded_world_state()?;
@@ -880,18 +920,60 @@ impl ArcAgi3CognitiveInteractionRuntime {
             None => None,
         };
 
+        // B3D-B2 IGNORANCE FALLBACK
+        //
+        // Learned authority always has precedence over ignorance coverage.
+        //
+        // IMPORTANT:
+        //
+        // ignorance fallback is permitted ONLY for genuine absence:
+        //
+        //     exploitation = None
+        //     epistemic    = None
+        //
+        // It must never mask a conflict between two independently valid
+        // learned authorities.
         match (exploitation_authority, epistemic_authority) {
             (Some(authority), None) | (None, Some(authority)) => Some(authority),
 
             /*
-             * Evidence kinds currently have no justified common metric.
+             * Distinct learned authority kinds currently have no
+             * justified common metric.
              *
-             * Two simultaneous authorities are therefore ambiguity,
-             * not permission for the adapter to invent arbitration.
+             * Ambiguity remains fail-closed.
+             *
+             * Ignorance coverage may NOT break this tie.
              */
             (Some(_), Some(_)) => None,
 
-            (None, None) => None,
+            (None, None) => {
+                let selected = self
+                    .cognition
+                    .current_selected_ignorance_exploration_action(
+                        &current_state,
+                        &cognitive_actions,
+                        ignorance_policy,
+                    )?;
+
+                /*
+                 * Selection is already complete in M48.
+                 *
+                 * ARC contributes only protocol decoding and current
+                 * availability authorization.
+                 */
+                let action =
+                    crate::action_grounding_bridge::
+                        ArcAgi3ActionGroundingBridge::
+                            authorize_environment_action(
+                                self.observation(),
+                                selected.action(),
+                            )
+                            .ok()?;
+
+                Some(ArcAgi3UnifiedExecutiveAuthority::new_ignorance(
+                    action, selected,
+                ))
+            }
         }
     }
 
@@ -1701,6 +1783,23 @@ pub(crate) mod c16i_successor_informed_two_contract_e2e_tests {
         )
     }
 
+    fn observation_with_available_actions(
+        game: &str,
+        value: u8,
+        last_action: Option<crate::ArcAgi3Action>,
+        available_actions: Vec<crate::ArcAgi3ActionId>,
+    ) -> crate::ArcAgi3Observation {
+        crate::ArcAgi3Observation::new(
+            crate::ArcAgi3GameId::new(game.to_string()).unwrap(),
+            crate::ArcAgi3GameState::NotFinished,
+            crate::ArcAgi3FrameSequence::new(vec![object_grid(value)]).unwrap(),
+            0,
+            3,
+            crate::ArcAgi3AvailableActions::new(available_actions).unwrap(),
+            last_action,
+        )
+    }
+
     fn training_turn(
         runtime: &mut ArcAgi3CognitiveInteractionRuntime,
         game: &str,
@@ -1874,6 +1973,107 @@ pub(crate) mod c16i_successor_informed_two_contract_e2e_tests {
         observation(game, value, last_action)
     }
 
+    pub(crate) fn live_ignorance_fixture(
+        game: &str,
+        first_index: u64,
+    ) -> (
+        ArcAgi3CognitiveInteractionRuntime,
+        [crate::ArcAgi3Action; 2],
+        CognitiveStructure,
+    ) {
+        let action_two = action(crate::ArcAgi3ActionId::Action2);
+
+        let action_three = action(crate::ArcAgi3ActionId::Action3);
+
+        let action_four = action(crate::ArcAgi3ActionId::Action4);
+
+        let mut runtime =
+            ArcAgi3CognitiveInteractionRuntime::new(observation(game, 1, None), first_index)
+                .unwrap();
+
+        /*
+         * Build enough perceptual/grounding history for a stable
+         * current state using only ACTION1/ACTION2.
+         *
+         * ACTION3/ACTION4 remain interventionally unseen.
+         */
+        mature_runtime(&mut runtime, game);
+
+        let cognitive_action_two =
+            crate::cognitive_protocol_bridge::ArcAgi3CognitiveProtocolBridge::encode_action(
+                action_two,
+            );
+
+        m51_fixture::begin_arc(&mut runtime, cognitive_action_two)
+            .expect("final grounding turn must begin");
+
+        let completion = runtime
+            .complete_environment_turn(
+                observation_with_available_actions(
+                    game,
+                    7,
+                    Some(action_two),
+                    vec![
+                        crate::ArcAgi3ActionId::Action1,
+                        crate::ArcAgi3ActionId::Action2,
+                        crate::ArcAgi3ActionId::Action3,
+                        crate::ArcAgi3ActionId::Action4,
+                    ],
+                ),
+                signal(900),
+            )
+            .expect("final grounding turn must complete");
+
+        assert!(completion.has_cognitive_feedback(),);
+
+        let current = runtime
+            .current_grounded_world_state()
+            .expect("ignorance fixture must be grounded");
+
+        let source =
+            athlesia_integrated_cognitive_agent::
+                OnlinePersistentCognitiveState::
+                    grounded_execution_source_state_identity(
+                        &current,
+                    );
+
+        for unseen in [action_three, action_four] {
+            let cognitive =
+                crate::cognitive_protocol_bridge::ArcAgi3CognitiveProtocolBridge::encode_action(
+                    unseen,
+                );
+
+            assert_eq!(
+                runtime
+                    .cognition()
+                    .transition_schema_learning()
+                    .exact_source_action_sample_count(&current, &cognitive,),
+                Some(0),
+                "ACTION3/ACTION4 must be genuinely unseen in the exact source state",
+            );
+        }
+
+        (runtime, [action_three, action_four], source)
+    }
+
+    pub(crate) fn live_ignorance_response(
+        game: &str,
+        value: u8,
+        last_action: Option<crate::ArcAgi3Action>,
+    ) -> crate::ArcAgi3Observation {
+        observation_with_available_actions(
+            game,
+            value,
+            last_action,
+            vec![
+                crate::ArcAgi3ActionId::Action1,
+                crate::ArcAgi3ActionId::Action2,
+                crate::ArcAgi3ActionId::Action3,
+                crate::ArcAgi3ActionId::Action4,
+            ],
+        )
+    }
+
     pub(crate) fn live_request<'a>(
         exploitation_actions: &'a [crate::ArcAgi3Action],
         goal: &'a athlesia_executive_agency::ExecutiveGoal,
@@ -1930,6 +2130,11 @@ pub(crate) mod c16i_successor_informed_two_contract_e2e_tests {
 
             epistemic_policy: athlesia_executive_agency::EpistemicExecutiveSelectionPolicy::new(8)
                 .unwrap(),
+
+            ignorance_policy: athlesia_executive_agency::IgnoranceExplorationSelectionPolicy::new(
+                8,
+            )
+            .unwrap(),
         }
     }
 
@@ -2314,33 +2519,37 @@ pub(crate) mod c16i_successor_informed_two_contract_e2e_tests {
 
         let candidate_actions = [fixture.arc_action];
 
-        let clean_request = ArcAgi3EvidenceFaithfulSuccessorExecutiveRequest {
-            candidate_actions: &candidate_actions,
+        let clean_request =
+            ArcAgi3EvidenceFaithfulSuccessorExecutiveRequest {
+                candidate_actions: &candidate_actions,
 
-            goal: &goal(),
+                goal: &goal(),
 
-            /*
-             * Deliberately suppress the frozen exploitation branch.
-             *
-             * This scalar is NOT consumed by the epistemic branch.
-             */
-            goal_alignment: CognitiveSignal::zero(),
+                /*
+                 * Deliberately suppress the frozen exploitation branch.
+                 *
+                 * This scalar is NOT consumed by the epistemic branch.
+                 */
+                goal_alignment: CognitiveSignal::zero(),
 
-            exploitation_execution_cost: signal(100),
+                exploitation_execution_cost: signal(100),
 
-            version_policy: version_policy(),
+                version_policy: version_policy(),
 
-            discrimination_policy: discrimination_policy(),
+                discrimination_policy: discrimination_policy(),
 
-            expectation_policy: expectation_policy(),
+                expectation_policy: expectation_policy(),
 
-            priority_policy: priority_policy(),
+                priority_policy: priority_policy(),
 
-            exploitation_policy: executive_policy(),
+                exploitation_policy: executive_policy(),
 
-            epistemic_policy: athlesia_executive_agency::EpistemicExecutiveSelectionPolicy::new(8)
-                .unwrap(),
-        };
+                epistemic_policy:
+                    athlesia_executive_agency::EpistemicExecutiveSelectionPolicy::new(8).unwrap(),
+
+                ignorance_policy:
+                    athlesia_executive_agency::IgnoranceExplorationSelectionPolicy::new(8).unwrap(),
+            };
 
         let progress_before = fixture.runtime.cognition().epistemic_progress_event_count();
 
@@ -2395,33 +2604,78 @@ pub(crate) mod c16i_successor_informed_two_contract_e2e_tests {
     }
 
     #[test]
-    fn b3cc1_clean_path_abstains_without_empirical_epistemic_authority() {
+    fn b3cc1_clean_path_abstains_without_any_candidate_action() {
         let runtime = ArcAgi3CognitiveInteractionRuntime::new(
             observation("b3cc1-no-evidence", 1, None),
             8_500_000,
         )
         .unwrap();
 
-        let candidate_actions = [action(crate::ArcAgi3ActionId::Action1)];
+        let candidate_actions: [crate::ArcAgi3Action; 0] = [];
 
-        let request = ArcAgi3EvidenceFaithfulSuccessorExecutiveRequest {
-            candidate_actions: &candidate_actions,
-            goal: &goal(),
-            goal_alignment: CognitiveSignal::zero(),
-            exploitation_execution_cost: signal(100),
-            version_policy: version_policy(),
-            discrimination_policy: discrimination_policy(),
-            expectation_policy: expectation_policy(),
-            priority_policy: priority_policy(),
-            exploitation_policy: executive_policy(),
-            epistemic_policy: athlesia_executive_agency::EpistemicExecutiveSelectionPolicy::new(8)
-                .unwrap(),
-        };
+        let request =
+            ArcAgi3EvidenceFaithfulSuccessorExecutiveRequest {
+                candidate_actions: &candidate_actions,
+                goal: &goal(),
+                goal_alignment: CognitiveSignal::zero(),
+                exploitation_execution_cost: signal(100),
+                version_policy: version_policy(),
+                discrimination_policy: discrimination_policy(),
+                expectation_policy: expectation_policy(),
+                priority_policy: priority_policy(),
+                exploitation_policy: executive_policy(),
+                epistemic_policy:
+                    athlesia_executive_agency::EpistemicExecutiveSelectionPolicy::new(8).unwrap(),
+
+                ignorance_policy:
+                    athlesia_executive_agency::IgnoranceExplorationSelectionPolicy::new(8).unwrap(),
+            };
 
         assert_eq!(
             runtime.current_evidence_faithful_successor_executive_authority(request,),
             None,
-            "absence of evidence must remain abstention",
+            "an empty action frontier must remain abstention",
+        );
+    }
+
+    #[test]
+    fn b3db2_absent_learned_authority_uses_exact_m48_ignorance_coverage() {
+        let (runtime, candidate_actions, expected_source) =
+            live_ignorance_fixture("b3db2-cognitive", 9_000_000);
+
+        let goal = goal();
+
+        let request = live_evidence_faithful_request(&candidate_actions, &goal);
+
+        let authority = runtime
+            .current_evidence_faithful_successor_executive_authority(request)
+            .expect("grounded unseen actions must produce ignorance coverage authority");
+
+        assert_eq!(
+            authority.kind(),
+            ArcAgi3UnifiedExecutiveAuthorityKind::IgnoranceExploration,
+        );
+
+        assert_eq!(authority.source_state(), &expected_source,);
+
+        assert!(candidate_actions.contains(&authority.action(),),);
+
+        assert!(authority.legacy_candidate().is_none(),);
+
+        assert!(authority.epistemic_selection().is_none(),);
+
+        let ignorance = authority
+            .ignorance_selection()
+            .expect("ignorance authority must retain exact M48 coverage candidate");
+
+        assert_eq!(ignorance.exact_source_action_sample_count(), 0,);
+
+        assert_eq!(ignorance.action(), authority.cognitive_action(),);
+
+        assert_eq!(
+            authority.predicted_outcome(),
+            None,
+            "ignorance exploration cannot fabricate a concrete outcome",
         );
     }
 }

@@ -1627,6 +1627,154 @@ mod successor_informed_live_dispatch_tests {
             }
         }
     }
+
+    #[test]
+    fn b3db2_first_ignorance_intervention_becomes_retained_coverage_and_changes_next_choice() {
+        use crate::cognitive_trace::{
+            ArcAgi3CognitiveTraceEvent as Event, ArcAgi3TraceAuthorityKind,
+        };
+
+        let game = "b3db2-live-learning";
+
+        let (cognition, candidate_actions, expected_source) =
+            c16i::live_ignorance_fixture(game, 9_100_000);
+
+        let goal = c16i::live_goal();
+
+        let preview_request = c16i::live_evidence_faithful_request(&candidate_actions, &goal);
+
+        let preview = cognition
+            .current_evidence_faithful_successor_executive_authority(preview_request)
+            .expect("cold-start ignorance authority must exist before transport");
+
+        assert_eq!(
+            preview.kind(),
+            crate::cognitive_interaction_runtime::
+                ArcAgi3UnifiedExecutiveAuthorityKind::
+                    IgnoranceExploration,
+        );
+
+        let first_action = preview.action();
+
+        let first_cognitive_action = preview.cognitive_action().clone();
+
+        let first_coverage = preview
+            .ignorance_selection()
+            .expect("preview must retain ignorance candidate")
+            .exact_source_action_sample_count();
+
+        assert_eq!(first_coverage, 0,);
+
+        let response = c16i::live_ignorance_response(game, 7, Some(first_action));
+
+        let mut runtime = live_runtime(cognition, response);
+
+        let transitions_before = runtime
+            .cognitive_runtime()
+            .cognition()
+            .transition_episode_count();
+
+        let request = ArcAgi3LiveEvidenceFaithfulSuccessorActionRequest::new(
+            c16i::live_evidence_faithful_request(&candidate_actions, &goal),
+            signal(900),
+        );
+
+        let mut sink = Collector::default();
+
+        let step = runtime
+            .execute_evidence_faithful_successor_with_trace(request, &mut sink)
+            .unwrap()
+            .expect("ignorance authority must execute through the real live transport");
+
+        assert_eq!(
+            step.authority().kind(),
+            crate::cognitive_interaction_runtime::
+                ArcAgi3UnifiedExecutiveAuthorityKind::
+                    IgnoranceExploration,
+        );
+
+        assert_eq!(step.action(), first_action,);
+
+        assert_eq!(step.cognitive_action(), &first_cognitive_action,);
+
+        assert_eq!(step.source_state(), &expected_source,);
+
+        assert_eq!(
+            runtime
+                .cognitive_runtime()
+                .cognition()
+                .transition_episode_count(),
+            transitions_before + 1,
+            "the first ignorance intervention must become real retained transition evidence",
+        );
+
+        assert_eq!(sink.0.len(), 1,);
+
+        match &sink.0[0] {
+            Event::Executed { authority, .. } => {
+                assert_eq!(
+                    authority.kind,
+                    ArcAgi3TraceAuthorityKind::IgnoranceExploration,
+                );
+            }
+
+            other => {
+                panic!("expected ignorance Executed trace, got {other:?}");
+            }
+        }
+
+        let after_state = runtime
+            .cognitive_runtime()
+            .current_grounded_world_state()
+            .expect("same response grid must remain grounded");
+
+        let after_source =
+            athlesia_integrated_cognitive_agent::
+                OnlinePersistentCognitiveState::
+                    grounded_execution_source_state_identity(
+                        &after_state,
+                    );
+
+        assert_eq!(
+            after_source, expected_source,
+            "test response preserves exact grounded source so coverage must affect the next choice",
+        );
+
+        assert_eq!(
+            runtime
+                .cognitive_runtime()
+                .cognition()
+                .transition_schema_learning()
+                .exact_source_action_sample_count(&after_state, &first_cognitive_action,),
+            Some(1),
+        );
+
+        let next_request = c16i::live_evidence_faithful_request(&candidate_actions, &goal);
+
+        let next = runtime
+            .cognitive_runtime()
+            .current_evidence_faithful_successor_executive_authority(next_request)
+            .expect("remaining zero-coverage action must remain executable");
+
+        assert_eq!(
+            next.kind(),
+            crate::cognitive_interaction_runtime::
+                ArcAgi3UnifiedExecutiveAuthorityKind::
+                    IgnoranceExploration,
+        );
+
+        assert_ne!(
+            next.action(),
+            first_action,
+            "after one exact intervention the other zero-coverage action must be preferred",
+        );
+
+        let next_ignorance = next
+            .ignorance_selection()
+            .expect("next authority must retain exact M48 ignorance evidence");
+
+        assert_eq!(next_ignorance.exact_source_action_sample_count(), 0,);
+    }
 }
 
 #[cfg(test)]

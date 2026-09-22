@@ -140,6 +140,7 @@ impl From<&ArcAgi3Observation> for ArcAgi3TraceObservation {
 pub enum ArcAgi3TraceAuthorityKind {
     LegacyGrounded,
     EvidenceFaithfulEpistemic,
+    IgnoranceExploration,
 }
 
 impl From<ArcAgi3UnifiedExecutiveAuthorityKind> for ArcAgi3TraceAuthorityKind {
@@ -149,6 +150,10 @@ impl From<ArcAgi3UnifiedExecutiveAuthorityKind> for ArcAgi3TraceAuthorityKind {
 
             ArcAgi3UnifiedExecutiveAuthorityKind::EvidenceFaithfulEpistemic => {
                 Self::EvidenceFaithfulEpistemic
+            }
+
+            ArcAgi3UnifiedExecutiveAuthorityKind::IgnoranceExploration => {
+                Self::IgnoranceExploration
             }
         }
     }
