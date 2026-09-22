@@ -31,6 +31,7 @@ pub enum ArcAgi3LiveEnvironmentError {
     Cognitive(ArcAgi3CognitiveInteractionError),
     Session(ArcAgi3InteractiveSessionError),
     Transport(ArcAgi3TransportError),
+    ActionFrontier(crate::production_action_frontier::ArcAgi3ProductionActionFrontierError),
     CognitiveStepCounterOverflow,
     ResetCounterOverflow,
 }
@@ -44,6 +45,16 @@ impl From<ArcAgi3CognitiveInteractionError> for ArcAgi3LiveEnvironmentError {
 impl From<ArcAgi3InteractiveSessionError> for ArcAgi3LiveEnvironmentError {
     fn from(error: ArcAgi3InteractiveSessionError) -> Self {
         Self::Session(error)
+    }
+}
+
+impl From<crate::production_action_frontier::ArcAgi3ProductionActionFrontierError>
+    for ArcAgi3LiveEnvironmentError
+{
+    fn from(
+        error: crate::production_action_frontier::ArcAgi3ProductionActionFrontierError,
+    ) -> Self {
+        Self::ActionFrontier(error)
     }
 }
 
@@ -1774,6 +1785,383 @@ mod successor_informed_live_dispatch_tests {
             .expect("next authority must retain exact M48 ignorance evidence");
 
         assert_eq!(next_ignorance.exact_source_action_sample_count(), 0,);
+    }
+    fn b4b1_production_policy<'a>(
+        goal: &'a athlesia_executive_agency::ExecutiveGoal,
+    ) -> crate::production_successor_runtime::ArcAgi3ProductionSuccessorPolicy<'a> {
+        let no_actions: [crate::ArcAgi3Action; 0] = [];
+
+        let seed = c16i::live_evidence_faithful_request(&no_actions, goal);
+
+        crate::production_successor_runtime::ArcAgi3ProductionSuccessorPolicy::new(
+            goal,
+            seed.goal_alignment,
+            seed.exploitation_execution_cost,
+            seed.version_policy,
+            seed.discrimination_policy,
+            seed.expectation_policy,
+            seed.exploitation_policy,
+            signal(900),
+        )
+        .expect("valid production policy")
+    }
+
+    fn b4b1_preview_production_authority(
+        cognition: &ArcAgi3CognitiveInteractionRuntime,
+        policy: crate::production_successor_runtime::ArcAgi3ProductionSuccessorPolicy<'_>,
+    ) -> crate::cognitive_interaction_runtime::ArcAgi3UnifiedExecutiveAuthority {
+        let frontier =
+            crate::production_action_frontier::ArcAgi3ProductionActionFrontier::from_observation(
+                cognition.observation(),
+            )
+            .expect("test observation must have a valid production frontier");
+
+        let request = ArcAgi3EvidenceFaithfulSuccessorExecutiveRequest {
+            candidate_actions: frontier.actions(),
+            goal: policy.goal(),
+            goal_alignment: policy.goal_alignment(),
+            exploitation_execution_cost: policy.exploitation_execution_cost(),
+            version_policy: policy.version_policy(),
+            discrimination_policy: policy.discrimination_policy(),
+            expectation_policy: policy.expectation_policy(),
+            priority_policy: policy.priority_policy(),
+            exploitation_policy: policy.exploitation_policy(),
+            epistemic_policy: policy.epistemic_policy(),
+            ignorance_policy: policy.ignorance_policy(),
+        };
+
+        cognition
+            .current_evidence_faithful_successor_executive_authority(request)
+            .expect("production preview must select a grounded authority")
+    }
+
+    #[test]
+    fn b4b1_production_policy_separates_action_frontier_from_internal_search_budgets() {
+        use crate::production_action_frontier::{
+            ArcAgi3ProductionActionFrontier, ARC_AGI_3_MAX_PRODUCTION_ACTION_FRONTIER,
+        };
+
+        let goal = c16i::live_goal();
+
+        let no_actions: [crate::ArcAgi3Action; 0] = [];
+
+        let seed = c16i::live_evidence_faithful_request(&no_actions, &goal);
+
+        let policy = b4b1_production_policy(&goal);
+
+        /*
+         * Internal model / forecast / evidence budgets are unchanged.
+         */
+        assert_eq!(policy.version_policy(), seed.version_policy);
+        assert_eq!(policy.discrimination_policy(), seed.discrimination_policy);
+        assert_eq!(policy.expectation_policy(), seed.expectation_policy);
+
+        /*
+         * Exploitation semantic/output limits are preserved.
+         */
+        assert_eq!(
+            policy.exploitation_policy().max_goals(),
+            seed.exploitation_policy.max_goals(),
+        );
+
+        assert_eq!(
+            policy.exploitation_policy().max_selected_intents(),
+            seed.exploitation_policy.max_selected_intents(),
+        );
+
+        assert_eq!(
+            policy.exploitation_policy().weights(),
+            seed.exploitation_policy.weights(),
+        );
+
+        assert_eq!(
+            policy.exploitation_policy().thresholds(),
+            seed.exploitation_policy.thresholds(),
+        );
+
+        /*
+         * Only concrete action traversal bounds are widened.
+         */
+        assert_eq!(
+            policy.exploitation_policy().max_actions_per_goal(),
+            ARC_AGI_3_MAX_PRODUCTION_ACTION_FRONTIER,
+        );
+
+        assert_eq!(
+            policy.exploitation_policy().max_action_evaluations(),
+            ARC_AGI_3_MAX_PRODUCTION_ACTION_FRONTIER,
+        );
+
+        assert_eq!(
+            policy.priority_policy().max_candidates(),
+            ARC_AGI_3_MAX_PRODUCTION_ACTION_FRONTIER,
+        );
+
+        assert_eq!(
+            policy.epistemic_policy().max_candidates(),
+            ARC_AGI_3_MAX_PRODUCTION_ACTION_FRONTIER,
+        );
+
+        assert_eq!(
+            policy.ignorance_policy().max_candidates(),
+            ARC_AGI_3_MAX_PRODUCTION_ACTION_FRONTIER,
+        );
+
+        let observation = crate::ArcAgi3Observation::new(
+            crate::ArcAgi3GameId::new("b4b1-full-production-frontier".to_string()).unwrap(),
+            crate::ArcAgi3GameState::NotFinished,
+            crate::ArcAgi3FrameSequence::new(vec![crate::ArcAgi3Grid::from_rows(
+                (0..64).map(|_| vec![0_u8; 64]).collect(),
+            )
+            .unwrap()])
+            .unwrap(),
+            0,
+            1,
+            crate::ArcAgi3AvailableActions::new(vec![
+                crate::ArcAgi3ActionId::Action1,
+                crate::ArcAgi3ActionId::Action2,
+                crate::ArcAgi3ActionId::Action3,
+                crate::ArcAgi3ActionId::Action4,
+                crate::ArcAgi3ActionId::Action5,
+                crate::ArcAgi3ActionId::Action6,
+                crate::ArcAgi3ActionId::Action7,
+            ])
+            .unwrap(),
+            None,
+        );
+
+        let frontier = ArcAgi3ProductionActionFrontier::from_observation(&observation).unwrap();
+
+        assert_eq!(
+            frontier.concrete_action_count(),
+            ARC_AGI_3_MAX_PRODUCTION_ACTION_FRONTIER,
+        );
+
+        assert!(policy.priority_policy().max_candidates() >= frontier.concrete_action_count());
+
+        assert!(policy.epistemic_policy().max_candidates() >= frontier.concrete_action_count());
+
+        assert!(policy.ignorance_policy().max_candidates() >= frontier.concrete_action_count());
+
+        assert!(
+            policy.exploitation_policy().max_actions_per_goal() >= frontier.concrete_action_count()
+        );
+
+        assert!(
+            policy.exploitation_policy().max_action_evaluations()
+                >= frontier.concrete_action_count()
+        );
+    }
+
+    #[test]
+    fn b4b1_production_runner_rebuilds_frontier_retains_ignorance_and_traces() {
+        use crate::cognitive_trace::{
+            ArcAgi3CognitiveTraceEvent as Event, ArcAgi3TraceAuthorityKind,
+        };
+        use crate::production_action_frontier::ArcAgi3ProductionActionFrontier;
+
+        let game = "b4b1-production-learning";
+
+        let (cognition, expected_candidates, expected_source) =
+            c16i::live_production_ignorance_fixture(game, 9_200_000);
+
+        let initial_frontier =
+            ArcAgi3ProductionActionFrontier::from_observation(cognition.observation()).unwrap();
+
+        assert_eq!(
+            initial_frontier.actions(),
+            expected_candidates.as_slice(),
+            "production candidate authority must originate only from B4A",
+        );
+
+        let goal = c16i::live_goal();
+
+        let policy = b4b1_production_policy(&goal);
+
+        let preview = b4b1_preview_production_authority(&cognition, policy);
+
+        assert_eq!(
+            preview.kind(),
+            crate::cognitive_interaction_runtime::
+                ArcAgi3UnifiedExecutiveAuthorityKind::
+                    IgnoranceExploration,
+        );
+
+        assert_eq!(
+            preview
+                .ignorance_selection()
+                .expect("cold-start production authority must be ignorance")
+                .exact_source_action_sample_count(),
+            0,
+        );
+
+        let first_action = preview.action();
+
+        let second_action = expected_candidates
+            .iter()
+            .copied()
+            .find(|candidate| *candidate != first_action)
+            .expect("two-action fixture must have another action");
+
+        let first_response =
+            c16i::live_production_response(game, 7, Some(first_action), second_action.id());
+
+        let mut runtime = live_runtime(cognition, first_response);
+
+        let transitions_before = runtime
+            .cognitive_runtime()
+            .cognition()
+            .transition_episode_count();
+
+        let mut sink = Collector::default();
+
+        let first = runtime
+            .execute_production_evidence_faithful_successor_with_trace(policy, &mut sink)
+            .unwrap()
+            .expect("first production ignorance authority must execute");
+
+        assert_eq!(first.action(), first_action);
+        assert_eq!(first.source_state(), &expected_source);
+
+        assert_eq!(
+            first.authority().kind(),
+            crate::cognitive_interaction_runtime::
+                ArcAgi3UnifiedExecutiveAuthorityKind::
+                    IgnoranceExploration,
+        );
+
+        assert_eq!(
+            runtime
+                .cognitive_runtime()
+                .cognition()
+                .transition_episode_count(),
+            transitions_before + 1,
+            "real production intervention must become retained transition evidence",
+        );
+
+        assert_eq!(runtime.transport().execute_count(), 1);
+
+        let next_frontier = ArcAgi3ProductionActionFrontier::from_observation(
+            runtime.cognitive_runtime().observation(),
+        )
+        .unwrap();
+
+        assert_eq!(
+            next_frontier.actions(),
+            &[second_action],
+            "next production step must rebuild from the new server observation",
+        );
+
+        runtime
+            .transport
+            .responses
+            .borrow_mut()
+            .push_back(Ok(c16i::live_production_response(
+                game,
+                7,
+                Some(second_action),
+                first_action.id(),
+            )));
+
+        let second = runtime
+            .execute_production_evidence_faithful_successor_with_trace(policy, &mut sink)
+            .unwrap()
+            .expect("second production authority must execute");
+
+        assert_eq!(second.action(), second_action);
+
+        assert_eq!(runtime.transport().execute_count(), 2);
+
+        assert_eq!(
+            runtime
+                .cognitive_runtime()
+                .cognition()
+                .transition_episode_count(),
+            transitions_before + 2,
+        );
+
+        assert_eq!(sink.0.len(), 2);
+
+        for event in &sink.0 {
+            match event {
+                Event::Executed { authority, .. } => {
+                    assert_eq!(
+                        authority.kind,
+                        ArcAgi3TraceAuthorityKind::IgnoranceExploration,
+                    );
+                }
+
+                other => {
+                    panic!("expected production ignorance Executed trace, got {other:?}");
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn b4b1_frontier_failure_is_live_error_not_cognitive_abstention() {
+        use crate::production_action_frontier::ArcAgi3ProductionActionFrontierError;
+
+        let error: ArcAgi3LiveEnvironmentError =
+            ArcAgi3ProductionActionFrontierError::InvalidCoordinateAction.into();
+
+        assert_eq!(
+            error,
+            ArcAgi3LiveEnvironmentError::ActionFrontier(
+                ArcAgi3ProductionActionFrontierError::InvalidCoordinateAction,
+            ),
+        );
+    }
+
+    #[test]
+    fn b4b1_terminal_current_observation_cannot_generate_followup_command() {
+        let game = "b4b1-terminal-no-followup";
+
+        let (cognition, _, _) = c16i::live_production_ignorance_fixture(game, 9_300_000);
+
+        let goal = c16i::live_goal();
+
+        let policy = b4b1_production_policy(&goal);
+
+        let preview = b4b1_preview_production_authority(&cognition, policy);
+
+        let selected_action = preview.action();
+
+        let base_response =
+            c16i::live_production_response(game, 7, Some(selected_action), selected_action.id());
+
+        let terminal_response = crate::ArcAgi3Observation::new(
+            base_response.game_id().clone(),
+            crate::ArcAgi3GameState::Win,
+            base_response.frames().clone(),
+            base_response.levels_completed(),
+            base_response.win_levels(),
+            base_response.available_actions().clone(),
+            base_response.last_action(),
+        );
+
+        let mut runtime = live_runtime(cognition, terminal_response);
+
+        let first = runtime
+            .execute_production_evidence_faithful_successor(policy)
+            .unwrap()
+            .expect("first production command must execute");
+
+        assert_eq!(first.action(), selected_action);
+
+        assert_eq!(runtime.status(), ArcAgi3LiveEnvironmentStatus::Won,);
+
+        assert_eq!(runtime.transport().execute_count(), 1);
+
+        let second = runtime.execute_production_evidence_faithful_successor(policy);
+
+        assert_eq!(second, Err(ArcAgi3LiveEnvironmentError::GameNotActive),);
+
+        assert_eq!(
+            runtime.transport().execute_count(),
+            1,
+            "terminal current observation must never emit a fake follow-up command",
+        );
     }
 }
 

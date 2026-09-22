@@ -2056,6 +2056,94 @@ pub(crate) mod c16i_successor_informed_two_contract_e2e_tests {
         (runtime, [action_three, action_four], source)
     }
 
+    pub(crate) fn live_production_ignorance_fixture(
+        game: &str,
+        first_index: u64,
+    ) -> (
+        ArcAgi3CognitiveInteractionRuntime,
+        [crate::ArcAgi3Action; 2],
+        CognitiveStructure,
+    ) {
+        let action_two = action(crate::ArcAgi3ActionId::Action2);
+
+        let action_three = action(crate::ArcAgi3ActionId::Action3);
+
+        let action_four = action(crate::ArcAgi3ActionId::Action4);
+
+        let mut runtime =
+            ArcAgi3CognitiveInteractionRuntime::new(observation(game, 1, None), first_index)
+                .unwrap();
+
+        /*
+         * Establish retained grounding/history without using the two
+         * production cold-start interventions.
+         */
+        mature_runtime(&mut runtime, game);
+
+        let cognitive_action_two =
+            crate::cognitive_protocol_bridge::ArcAgi3CognitiveProtocolBridge::encode_action(
+                action_two,
+            );
+
+        m51_fixture::begin_arc(&mut runtime, cognitive_action_two)
+            .expect("production fixture grounding turn must begin");
+
+        let completion = runtime
+            .complete_environment_turn(
+                observation_with_available_actions(
+                    game,
+                    7,
+                    Some(action_two),
+                    vec![
+                        crate::ArcAgi3ActionId::Action3,
+                        crate::ArcAgi3ActionId::Action4,
+                    ],
+                ),
+                signal(900),
+            )
+            .expect("production fixture grounding turn must complete");
+
+        assert!(completion.has_cognitive_feedback());
+
+        let current = runtime
+            .current_grounded_world_state()
+            .expect("production ignorance fixture must be grounded");
+
+        let source =
+            athlesia_integrated_cognitive_agent::
+                OnlinePersistentCognitiveState::
+                    grounded_execution_source_state_identity(
+                        &current,
+                    );
+
+        for unseen in [action_three, action_four] {
+            let cognitive =
+                crate::cognitive_protocol_bridge::ArcAgi3CognitiveProtocolBridge::encode_action(
+                    unseen,
+                );
+
+            assert_eq!(
+                runtime
+                    .cognition()
+                    .transition_schema_learning()
+                    .exact_source_action_sample_count(&current, &cognitive),
+                Some(0),
+                "production ACTION3/ACTION4 must begin unseen in the exact source state",
+            );
+        }
+
+        (runtime, [action_three, action_four], source)
+    }
+
+    pub(crate) fn live_production_response(
+        game: &str,
+        value: u8,
+        last_action: Option<crate::ArcAgi3Action>,
+        available_action: crate::ArcAgi3ActionId,
+    ) -> crate::ArcAgi3Observation {
+        observation_with_available_actions(game, value, last_action, vec![available_action])
+    }
+
     pub(crate) fn live_ignorance_response(
         game: &str,
         value: u8,

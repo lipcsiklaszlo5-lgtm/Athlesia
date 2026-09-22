@@ -545,3 +545,5 @@ pub mod cognitive_trace;
 pub mod successor_episode_runtime;
 
 pub mod production_action_frontier;
+
+pub mod production_successor_runtime;
