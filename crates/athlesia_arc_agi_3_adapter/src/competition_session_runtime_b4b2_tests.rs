@@ -484,6 +484,214 @@ fn b4b2_production_runner_obeys_successor_decision_budget_without_hidden_retry()
 }
 
 #[test]
+fn b4b3_multistep_cold_start_uses_global_coverage_before_repeating_action() {
+    let game_name = "b4b3-multistep-cold-start";
+
+    let game_id = ArcAgi3GameId::new(game_name.to_string()).unwrap();
+
+    let action_three = ArcAgi3Action::discrete(ArcAgi3ActionId::Action3).unwrap();
+
+    let action_four = ArcAgi3Action::discrete(ArcAgi3ActionId::Action4).unwrap();
+
+    /*
+     * Deliberately reverse the supplied protocol order.
+     *
+     * The test must not depend on caller order. M48 owns the
+     * deterministic tie-break.
+     */
+    let available = vec![ArcAgi3ActionId::Action4, ArcAgi3ActionId::Action3];
+
+    let initial = observation(
+        game_name,
+        ArcAgi3GameState::NotFinished,
+        1,
+        available.clone(),
+        None,
+    );
+
+    /*
+     * No last_action echo is supplied.
+     *
+     * The session still has exact self-generated action provenance
+     * from the pending unified executive command.
+     */
+    let first_response = observation(
+        game_name,
+        ArcAgi3GameState::NotFinished,
+        2,
+        available.clone(),
+        None,
+    );
+
+    let second_response = observation(game_name, ArcAgi3GameState::NotFinished, 3, available, None);
+
+    let mut session = ArcAgi3CompetitionSession::open(
+        B4b2ScorecardTransport::new("b4b3-card-multistep"),
+        &metadata(),
+    )
+    .unwrap();
+
+    let environment = B4b2EnvironmentTransport::new(initial, vec![first_response, second_response]);
+
+    let mut game = session
+        .start_game(environment, &game_id, 9_700_000)
+        .unwrap();
+
+    /*
+     * Absolute cold start:
+     * there is no justified B0 scene/world representation yet.
+     */
+    assert!(
+        game.runtime()
+            .cognitive_runtime()
+            .current_grounded_world_state()
+            .is_none(),
+        "multi-step regression must begin before strict B0 grounding",
+    );
+
+    assert_eq!(
+        game.runtime()
+            .cognitive_runtime()
+            .cognition()
+            .bootstrap_action_coverage_event_count(),
+        0,
+    );
+
+    let goal = c16i::live_goal();
+
+    let mut trace = B4b2TraceCollector::default();
+
+    let result = game
+        .run_production_successor_bounded_with_trace(
+            ArcAgi3SuccessorEpisodePolicy::new(2, 2).unwrap(),
+            production_policy(&goal),
+            &mut trace,
+        )
+        .unwrap();
+
+    /*
+     * Both bounded decisions must become real commands.
+     */
+    assert_eq!(
+        result.termination(),
+        ArcAgi3SuccessorEpisodeTermination::DecisionBudgetExhausted,
+    );
+
+    assert_eq!(result.decision_attempts(), 2);
+    assert_eq!(result.executed_steps(), 2);
+    assert_eq!(result.abstentions(), 0);
+
+    let executed = game.runtime().transport().executed_actions();
+
+    assert_eq!(
+        executed.len(),
+        2,
+        "two production decisions must produce exactly two real commands",
+    );
+
+    /*
+     * This is the central behavioral invariant.
+     *
+     * After the first real action has count 1, the other available
+     * action still has global count 0. Therefore the second bootstrap
+     * selection must move to the globally untried action rather than
+     * repeating the first one.
+     */
+    assert_ne!(
+        executed[0],
+        executed[1],
+        "bootstrap global coverage must prevent immediate repetition while an untried action exists",
+    );
+
+    assert!(
+        executed.contains(&action_three),
+        "Action3 must be covered exactly once across the two-action frontier",
+    );
+
+    assert!(
+        executed.contains(&action_four),
+        "Action4 must be covered exactly once across the two-action frontier",
+    );
+
+    assert_eq!(
+        game.runtime()
+            .cognitive_runtime()
+            .cognition()
+            .bootstrap_action_coverage_event_count(),
+        2,
+        "both real bootstrap interventions must be retained",
+    );
+
+    let cognitive_three =
+        crate::cognitive_protocol_bridge::ArcAgi3CognitiveProtocolBridge::encode_action(
+            action_three,
+        );
+
+    let cognitive_four =
+        crate::cognitive_protocol_bridge::ArcAgi3CognitiveProtocolBridge::encode_action(
+            action_four,
+        );
+
+    let coverage = game
+        .runtime()
+        .cognitive_runtime()
+        .cognition()
+        .bootstrap_action_coverage();
+
+    assert_eq!(
+        coverage.global_action_sample_count(&cognitive_three,),
+        Some(1),
+        "Action3 global coverage must equal exactly one real self-generated event",
+    );
+
+    assert_eq!(
+        coverage.global_action_sample_count(&cognitive_four,),
+        Some(1),
+        "Action4 global coverage must equal exactly one real self-generated event",
+    );
+
+    /*
+     * Most importantly, both decisions must have occurred through
+     * the PRE-GROUNDING authority path.
+     *
+     * If the second decision silently falls through to ordinary
+     * state-grounded ignorance, this regression must fail.
+     */
+    assert_eq!(trace.0.len(), 2);
+
+    for event in &trace.0 {
+        match event {
+            ArcAgi3CognitiveTraceEvent::Executed { authority, .. } => {
+                assert_eq!(
+                    authority.kind,
+                    ArcAgi3TraceAuthorityKind::BootstrapIgnoranceExploration,
+                    "both decisions must remain explicit bootstrap ignorance authority",
+                );
+            }
+
+            other => {
+                panic!("expected only executed bootstrap events, got {other:?}");
+            }
+        }
+    }
+
+    /*
+     * The observation identity changed 1 -> 2 -> 3, but the action
+     * coverage survived that change. This is exactly the B4A5A
+     * global-coverage contract.
+     */
+    assert_eq!(game.runtime().completed_cognitive_step_count(), 2,);
+
+    let _runtime = game.finish();
+
+    assert_eq!(
+        session.status(),
+        ArcAgi3CompetitionSessionStatus::Open,
+        "bounded cognitive execution must not close the competition scorecard",
+    );
+}
+
+#[test]
 fn b4b2_terminal_start_never_invokes_production_callback_or_fake_command() {
     let game_name = "b4b2-terminal-start";
 
