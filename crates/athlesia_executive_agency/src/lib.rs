@@ -5404,3 +5404,660 @@ impl UniversalEpistemicExecutiveControl {
         EpistemicExecutiveControl::authorize(goal_identity, current_state, step, policy)
     }
 }
+// === ATHLESIA B3C-A EVIDENCE-FAITHFUL EPISTEMIC M48 BEGIN ===
+//
+// Final M48 selection for empirically grounded epistemic actions.
+//
+// This path deliberately does NOT require or manufacture:
+//
+// - a concrete predicted outcome;
+// - probability;
+// - confidence;
+// - Shannon information gain;
+// - controllability;
+// - execution cost;
+// - scalar utility.
+//
+// Upstream cognition supplies exact empirical evidence. M48 preserves that
+// evidence and performs only deterministic, fail-closed final selection.
+//
+// The empirical action value is the exact rational:
+//
+//   (expected_reduction - expected_increase) / expectation_denominator
+//
+// Successor event counts are eligibility/provenance evidence only. They are
+// never converted into action value or used as ranking weights.
+//
+// This type intentionally has no `predicted_outcome`: epistemic abstention is
+// legitimate upstream evidence and must never be converted into a fabricated
+// concrete outcome.
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct GroundedEpistemicExecutiveCandidate {
+    source_state: CognitiveStructure,
+    action: CognitiveStructure,
+
+    qualifying_sample_count: usize,
+    expected_reduction_numerator: u128,
+    expected_increase_numerator: u128,
+    expectation_denominator: usize,
+
+    independent_successor_event_count: usize,
+    distinct_successor_count: usize,
+}
+
+impl GroundedEpistemicExecutiveCandidate {
+    #[allow(clippy::too_many_arguments)]
+    pub fn new(
+        source_state: CognitiveStructure,
+        action: CognitiveStructure,
+        qualifying_sample_count: usize,
+        expected_reduction_numerator: u128,
+        expected_increase_numerator: u128,
+        expectation_denominator: usize,
+        independent_successor_event_count: usize,
+        distinct_successor_count: usize,
+    ) -> Option<Self> {
+        if qualifying_sample_count == 0
+            || expectation_denominator == 0
+            || qualifying_sample_count != expectation_denominator
+            || expected_reduction_numerator <= expected_increase_numerator
+            || independent_successor_event_count == 0
+            || distinct_successor_count == 0
+            || distinct_successor_count > independent_successor_event_count
+        {
+            return None;
+        }
+
+        Some(Self {
+            source_state,
+            action,
+            qualifying_sample_count,
+            expected_reduction_numerator,
+            expected_increase_numerator,
+            expectation_denominator,
+            independent_successor_event_count,
+            distinct_successor_count,
+        })
+    }
+
+    pub fn source_state(&self) -> &CognitiveStructure {
+        &self.source_state
+    }
+
+    pub fn action(&self) -> &CognitiveStructure {
+        &self.action
+    }
+
+    pub fn qualifying_sample_count(&self) -> usize {
+        self.qualifying_sample_count
+    }
+
+    pub fn expected_reduction_numerator(&self) -> u128 {
+        self.expected_reduction_numerator
+    }
+
+    pub fn expected_increase_numerator(&self) -> u128 {
+        self.expected_increase_numerator
+    }
+
+    pub fn expectation_denominator(&self) -> usize {
+        self.expectation_denominator
+    }
+
+    pub fn independent_successor_event_count(&self) -> usize {
+        self.independent_successor_event_count
+    }
+
+    pub fn distinct_successor_count(&self) -> usize {
+        self.distinct_successor_count
+    }
+
+    pub fn net_expected_progress_numerator(&self) -> u128 {
+        self.expected_reduction_numerator - self.expected_increase_numerator
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub struct EpistemicExecutiveSelectionPolicy {
+    max_candidates: usize,
+}
+
+impl EpistemicExecutiveSelectionPolicy {
+    pub fn new(max_candidates: usize) -> Option<Self> {
+        if max_candidates == 0 {
+            return None;
+        }
+
+        Some(Self { max_candidates })
+    }
+
+    pub fn max_candidates(self) -> usize {
+        self.max_candidates
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub enum EpistemicExecutiveSelectionStatus {
+    Selected,
+    NoCandidate,
+    CandidateFrontierExceeded,
+    SourceStateMismatch,
+    ConflictingActionIdentity,
+    ArithmeticOverflow,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct EpistemicExecutiveSelectionResult {
+    status: EpistemicExecutiveSelectionStatus,
+    input_candidate_count: usize,
+    unique_candidate_count: usize,
+    selected: Option<GroundedEpistemicExecutiveCandidate>,
+}
+
+impl EpistemicExecutiveSelectionResult {
+    fn rejected(
+        status: EpistemicExecutiveSelectionStatus,
+        input_candidate_count: usize,
+        unique_candidate_count: usize,
+    ) -> Self {
+        Self {
+            status,
+            input_candidate_count,
+            unique_candidate_count,
+            selected: None,
+        }
+    }
+
+    pub fn status(&self) -> EpistemicExecutiveSelectionStatus {
+        self.status
+    }
+
+    pub fn input_candidate_count(&self) -> usize {
+        self.input_candidate_count
+    }
+
+    pub fn unique_candidate_count(&self) -> usize {
+        self.unique_candidate_count
+    }
+
+    pub fn selected_candidate(&self) -> Option<&GroundedEpistemicExecutiveCandidate> {
+        self.selected.as_ref()
+    }
+
+    pub fn selected(&self) -> bool {
+        self.status == EpistemicExecutiveSelectionStatus::Selected
+    }
+
+    pub fn abstained(&self) -> bool {
+        !self.selected()
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, Hash, PartialEq)]
+pub struct EpistemicExecutiveAgency;
+
+impl EpistemicExecutiveAgency {
+    fn checked_priority_cmp(
+        left: &GroundedEpistemicExecutiveCandidate,
+        right: &GroundedEpistemicExecutiveCandidate,
+    ) -> Option<std::cmp::Ordering> {
+        let left_cross = left
+            .net_expected_progress_numerator()
+            .checked_mul(right.expectation_denominator() as u128)?;
+
+        let right_cross = right
+            .net_expected_progress_numerator()
+            .checked_mul(left.expectation_denominator() as u128)?;
+
+        /*
+         * Descending exact rational empirical progress.
+         *
+         * If exact rational values tie:
+         *
+         * 1. prefer more qualifying empirical C3F samples;
+         * 2. use deterministic structural action ordering.
+         *
+         * B2 successor counts deliberately do NOT participate.
+         */
+        Some(
+            right_cross
+                .cmp(&left_cross)
+                .then_with(|| {
+                    right
+                        .qualifying_sample_count()
+                        .cmp(&left.qualifying_sample_count())
+                })
+                .then_with(|| format!("{:?}", left.action()).cmp(&format!("{:?}", right.action()))),
+        )
+    }
+
+    pub fn select(
+        candidates: &[GroundedEpistemicExecutiveCandidate],
+        policy: EpistemicExecutiveSelectionPolicy,
+    ) -> EpistemicExecutiveSelectionResult {
+        let input_candidate_count = candidates.len();
+
+        if candidates.is_empty() {
+            return EpistemicExecutiveSelectionResult::rejected(
+                EpistemicExecutiveSelectionStatus::NoCandidate,
+                0,
+                0,
+            );
+        }
+
+        /*
+         * Resource bounds fail closed.
+         *
+         * Never rank a silently truncated epistemic frontier.
+         */
+        if input_candidate_count > policy.max_candidates() {
+            return EpistemicExecutiveSelectionResult::rejected(
+                EpistemicExecutiveSelectionStatus::CandidateFrontierExceeded,
+                input_candidate_count,
+                0,
+            );
+        }
+
+        let expected_source_state = candidates[0].source_state();
+
+        if candidates
+            .iter()
+            .any(|candidate| candidate.source_state() != expected_source_state)
+        {
+            return EpistemicExecutiveSelectionResult::rejected(
+                EpistemicExecutiveSelectionStatus::SourceStateMismatch,
+                input_candidate_count,
+                0,
+            );
+        }
+
+        /*
+         * Canonicalize before duplicate checking so behavior does not depend
+         * on caller ordering.
+         */
+        let mut canonical = candidates.to_vec();
+
+        canonical.sort_by(|left, right| {
+            format!("{:?}", left.action())
+                .cmp(&format!("{:?}", right.action()))
+                .then_with(|| format!("{left:?}").cmp(&format!("{right:?}")))
+        });
+
+        let mut unique = Vec::<GroundedEpistemicExecutiveCandidate>::new();
+
+        for candidate in canonical {
+            if let Some(existing) = unique
+                .iter()
+                .find(|existing| existing.action() == candidate.action())
+            {
+                /*
+                 * Exact duplicate evidence is harmless.
+                 *
+                 * Same action with different evidence is ambiguity and may
+                 * not be merged, averaged, scored, or arbitrarily chosen.
+                 */
+                if existing != &candidate {
+                    return EpistemicExecutiveSelectionResult::rejected(
+                        EpistemicExecutiveSelectionStatus::ConflictingActionIdentity,
+                        input_candidate_count,
+                        unique.len(),
+                    );
+                }
+
+                continue;
+            }
+
+            unique.push(candidate);
+        }
+
+        let unique_candidate_count = unique.len();
+
+        /*
+         * Validate every rational comparison before sorting because a Rust
+         * sort comparator cannot return a fallible result.
+         *
+         * Any overflow invalidates the complete selection frontier.
+         */
+        for left_index in 0..unique.len() {
+            for right_index in (left_index + 1)..unique.len() {
+                if Self::checked_priority_cmp(&unique[left_index], &unique[right_index]).is_none() {
+                    return EpistemicExecutiveSelectionResult::rejected(
+                        EpistemicExecutiveSelectionStatus::ArithmeticOverflow,
+                        input_candidate_count,
+                        unique_candidate_count,
+                    );
+                }
+            }
+        }
+
+        unique.sort_by(|left, right| {
+            Self::checked_priority_cmp(left, right)
+                .expect("all pairwise epistemic priority arithmetic was validated")
+        });
+
+        EpistemicExecutiveSelectionResult {
+            status: EpistemicExecutiveSelectionStatus::Selected,
+            input_candidate_count,
+            unique_candidate_count,
+            selected: unique.first().cloned(),
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, Hash, PartialEq)]
+pub struct UniversalEpistemicExecutiveAgency;
+
+impl UniversalEpistemicExecutiveAgency {
+    pub fn evaluate(
+        candidates: &[GroundedEpistemicExecutiveCandidate],
+        policy: EpistemicExecutiveSelectionPolicy,
+    ) -> EpistemicExecutiveSelectionResult {
+        EpistemicExecutiveAgency::select(candidates, policy)
+    }
+}
+
+#[cfg(test)]
+mod b3ca_evidence_faithful_epistemic_m48_tests {
+    use super::*;
+
+    fn a(value: u64) -> CognitiveStructure {
+        CognitiveStructure::atom(value)
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn candidate(
+        source: u64,
+        action: u64,
+        samples: usize,
+        reduction: u128,
+        increase: u128,
+        denominator: usize,
+        successor_events: usize,
+        distinct_successors: usize,
+    ) -> GroundedEpistemicExecutiveCandidate {
+        GroundedEpistemicExecutiveCandidate::new(
+            a(source),
+            a(action),
+            samples,
+            reduction,
+            increase,
+            denominator,
+            successor_events,
+            distinct_successors,
+        )
+        .expect("test candidate must satisfy evidence invariants")
+    }
+
+    fn policy(max_candidates: usize) -> EpistemicExecutiveSelectionPolicy {
+        EpistemicExecutiveSelectionPolicy::new(max_candidates).expect("positive test frontier")
+    }
+
+    #[test]
+    fn valid_empirical_candidate_preserves_exact_evidence() {
+        let value = candidate(1, 10, 4, 12, 4, 4, 3, 2);
+
+        assert_eq!(value.source_state(), &a(1));
+        assert_eq!(value.action(), &a(10));
+        assert_eq!(value.qualifying_sample_count(), 4);
+        assert_eq!(value.expected_reduction_numerator(), 12);
+        assert_eq!(value.expected_increase_numerator(), 4);
+        assert_eq!(value.expectation_denominator(), 4);
+        assert_eq!(value.net_expected_progress_numerator(), 8);
+        assert_eq!(value.independent_successor_event_count(), 3);
+        assert_eq!(value.distinct_successor_count(), 2);
+    }
+
+    #[test]
+    fn invalid_sample_denominator_fails_closed() {
+        assert_eq!(
+            GroundedEpistemicExecutiveCandidate::new(a(1), a(10), 3, 10, 2, 4, 2, 1,),
+            None,
+        );
+    }
+
+    #[test]
+    fn nonpositive_empirical_progress_fails_closed() {
+        assert_eq!(
+            GroundedEpistemicExecutiveCandidate::new(a(1), a(10), 2, 5, 5, 2, 2, 1,),
+            None,
+        );
+
+        assert_eq!(
+            GroundedEpistemicExecutiveCandidate::new(a(1), a(10), 2, 4, 5, 2, 2, 1,),
+            None,
+        );
+    }
+
+    #[test]
+    fn invalid_successor_counts_fail_closed() {
+        assert_eq!(
+            GroundedEpistemicExecutiveCandidate::new(a(1), a(10), 2, 5, 1, 2, 0, 1,),
+            None,
+        );
+
+        assert_eq!(
+            GroundedEpistemicExecutiveCandidate::new(a(1), a(10), 2, 5, 1, 2, 2, 0,),
+            None,
+        );
+
+        assert_eq!(
+            GroundedEpistemicExecutiveCandidate::new(a(1), a(10), 2, 5, 1, 2, 2, 3,),
+            None,
+        );
+    }
+
+    #[test]
+    fn exact_rational_selection_does_not_use_integer_division() {
+        /*
+         * 2/3 > 3/5.
+         *
+         * Integer division would turn both into zero.
+         */
+        let two_thirds = candidate(1, 20, 3, 2, 0, 3, 1, 1);
+
+        let three_fifths = candidate(1, 10, 5, 3, 0, 5, 1, 1);
+
+        let result =
+            EpistemicExecutiveAgency::select(&[three_fifths, two_thirds.clone()], policy(8));
+
+        assert_eq!(result.status(), EpistemicExecutiveSelectionStatus::Selected,);
+
+        assert_eq!(result.selected_candidate(), Some(&two_thirds),);
+    }
+
+    #[test]
+    fn equal_rational_priority_prefers_more_qualifying_samples() {
+        /*
+         * 1/2 == 2/4.
+         *
+         * More qualifying samples is the first tie-break.
+         */
+        let fewer = candidate(1, 10, 2, 1, 0, 2, 1, 1);
+
+        let more = candidate(1, 20, 4, 2, 0, 4, 1, 1);
+
+        let result = EpistemicExecutiveAgency::select(&[fewer, more.clone()], policy(8));
+
+        assert_eq!(result.selected_candidate(), Some(&more),);
+    }
+
+    #[test]
+    fn complete_priority_tie_uses_deterministic_structural_action_order() {
+        let left = candidate(1, 10, 4, 3, 1, 4, 1, 1);
+
+        let right = candidate(1, 20, 4, 3, 1, 4, 1, 1);
+
+        let expected = if format!("{:?}", left.action()) <= format!("{:?}", right.action()) {
+            left.clone()
+        } else {
+            right.clone()
+        };
+
+        let first = EpistemicExecutiveAgency::select(&[right.clone(), left.clone()], policy(8));
+
+        let second = EpistemicExecutiveAgency::select(&[left, right], policy(8));
+
+        assert_eq!(first.selected_candidate(), Some(&expected),);
+
+        assert_eq!(first, second);
+    }
+
+    #[test]
+    fn exact_duplicate_candidates_are_deduplicated_without_ambiguity() {
+        let value = candidate(1, 10, 4, 8, 2, 4, 2, 1);
+
+        let result = EpistemicExecutiveAgency::select(&[value.clone(), value.clone()], policy(8));
+
+        assert_eq!(result.input_candidate_count(), 2);
+        assert_eq!(result.unique_candidate_count(), 1);
+
+        assert_eq!(result.selected_candidate(), Some(&value),);
+    }
+
+    #[test]
+    fn same_action_with_conflicting_evidence_fails_closed() {
+        let first = candidate(1, 10, 4, 8, 2, 4, 2, 1);
+
+        let conflicting = candidate(1, 10, 4, 9, 2, 4, 2, 1);
+
+        let result = EpistemicExecutiveAgency::select(&[first, conflicting], policy(8));
+
+        assert_eq!(
+            result.status(),
+            EpistemicExecutiveSelectionStatus::ConflictingActionIdentity,
+        );
+
+        assert!(result.selected_candidate().is_none());
+    }
+
+    #[test]
+    fn distinct_source_states_fail_closed() {
+        let first = candidate(1, 10, 4, 8, 2, 4, 2, 1);
+
+        let second = candidate(2, 20, 4, 9, 2, 4, 2, 1);
+
+        let result = EpistemicExecutiveAgency::select(&[first, second], policy(8));
+
+        assert_eq!(
+            result.status(),
+            EpistemicExecutiveSelectionStatus::SourceStateMismatch,
+        );
+
+        assert!(result.selected_candidate().is_none());
+    }
+
+    #[test]
+    fn frontier_exceeded_fails_closed_without_truncation() {
+        let candidates = vec![
+            candidate(1, 10, 2, 4, 1, 2, 1, 1),
+            candidate(1, 20, 2, 5, 1, 2, 1, 1),
+        ];
+
+        let result = EpistemicExecutiveAgency::select(&candidates, policy(1));
+
+        assert_eq!(
+            result.status(),
+            EpistemicExecutiveSelectionStatus::CandidateFrontierExceeded,
+        );
+
+        assert_eq!(result.input_candidate_count(), 2);
+        assert_eq!(result.unique_candidate_count(), 0);
+
+        assert!(result.selected_candidate().is_none());
+    }
+
+    #[test]
+    fn rational_cross_multiplication_overflow_fails_closed() {
+        let first = candidate(1, 10, 2, u128::MAX, 0, 2, 1, 1);
+
+        let second = candidate(1, 20, 3, u128::MAX - 1, 0, 3, 1, 1);
+
+        let result = EpistemicExecutiveAgency::select(&[first, second], policy(8));
+
+        assert_eq!(
+            result.status(),
+            EpistemicExecutiveSelectionStatus::ArithmeticOverflow,
+        );
+
+        assert!(result.selected_candidate().is_none());
+    }
+
+    #[test]
+    fn selected_candidate_preserves_complete_input_identity() {
+        let weaker = candidate(7, 10, 4, 6, 2, 4, 8, 3);
+
+        let winner = candidate(7, 20, 4, 10, 2, 4, 11, 5);
+
+        let result = EpistemicExecutiveAgency::select(&[weaker, winner.clone()], policy(8));
+
+        assert_eq!(result.selected_candidate(), Some(&winner),);
+
+        let selected = result.selected_candidate().unwrap();
+
+        assert_eq!(selected.source_state(), winner.source_state());
+        assert_eq!(selected.action(), winner.action());
+        assert_eq!(
+            selected.qualifying_sample_count(),
+            winner.qualifying_sample_count(),
+        );
+        assert_eq!(
+            selected.expected_reduction_numerator(),
+            winner.expected_reduction_numerator(),
+        );
+        assert_eq!(
+            selected.expected_increase_numerator(),
+            winner.expected_increase_numerator(),
+        );
+        assert_eq!(
+            selected.expectation_denominator(),
+            winner.expectation_denominator(),
+        );
+        assert_eq!(
+            selected.independent_successor_event_count(),
+            winner.independent_successor_event_count(),
+        );
+        assert_eq!(
+            selected.distinct_successor_count(),
+            winner.distinct_successor_count(),
+        );
+    }
+
+    #[test]
+    fn successor_counts_do_not_contribute_to_epistemic_priority() {
+        let action_a = candidate(1, 10, 4, 8, 2, 4, 100, 50);
+
+        let action_b = candidate(1, 20, 4, 8, 2, 4, 1, 1);
+
+        let first =
+            EpistemicExecutiveAgency::select(&[action_a.clone(), action_b.clone()], policy(8));
+
+        let action_a_swapped = candidate(1, 10, 4, 8, 2, 4, 1, 1);
+
+        let action_b_swapped = candidate(1, 20, 4, 8, 2, 4, 100, 50);
+
+        let second =
+            EpistemicExecutiveAgency::select(&[action_a_swapped, action_b_swapped], policy(8));
+
+        assert_eq!(
+            first.selected_candidate().map(|value| value.action()),
+            second.selected_candidate().map(|value| value.action()),
+            "B2 successor counts must not alter final epistemic priority",
+        );
+    }
+
+    #[test]
+    fn empty_frontier_is_legitimate_abstention() {
+        let result = EpistemicExecutiveAgency::select(&[], policy(8));
+
+        assert_eq!(
+            result.status(),
+            EpistemicExecutiveSelectionStatus::NoCandidate,
+        );
+
+        assert!(result.abstained());
+        assert!(result.selected_candidate().is_none());
+    }
+}
+
+// === ATHLESIA B3C-A EVIDENCE-FAITHFUL EPISTEMIC M48 END ===
