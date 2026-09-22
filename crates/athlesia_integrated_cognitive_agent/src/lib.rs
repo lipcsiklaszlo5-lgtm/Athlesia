@@ -9825,6 +9825,40 @@ impl SuccessorInformedEpistemicActionIntentFrontier {
     }
 }
 
+// B3C-B SELECTED EPISTEMIC INTENT
+//
+// This object preserves BOTH sides of the authority boundary:
+//
+// 1. the exact evidence-faithful Cut16B epistemic intent;
+// 2. the exact M48 candidate selected from that intent frontier.
+//
+// M51 owns the binding. Selection is never reconstructed from action identity.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct SelectedSuccessorInformedEpistemicActionIntent {
+    intent: SuccessorInformedEpistemicActionIntent,
+    executive_candidate: athlesia_executive_agency::GroundedEpistemicExecutiveCandidate,
+}
+
+impl SelectedSuccessorInformedEpistemicActionIntent {
+    pub fn intent(&self) -> &SuccessorInformedEpistemicActionIntent {
+        &self.intent
+    }
+
+    pub fn executive_candidate(
+        &self,
+    ) -> &athlesia_executive_agency::GroundedEpistemicExecutiveCandidate {
+        &self.executive_candidate
+    }
+
+    pub fn source_state(&self) -> &CognitiveStructure {
+        self.intent.source_state()
+    }
+
+    pub fn action(&self) -> &CognitiveStructure {
+        self.intent.action()
+    }
+}
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct SuccessorInformedNativeProposalInputRequest<'a> {
     pub state: &'a athlesia_universal_domain_learning::GroundedStateSnapshot,
@@ -12323,6 +12357,138 @@ impl OnlinePersistentCognitiveState {
         }
 
         Some(SuccessorInformedEpistemicActionIntentFrontier { intents })
+    }
+
+    // B3C-B LOSSLESS M51 -> M48 EPISTEMIC BRIDGE
+    //
+    // Convert one already-authoritative Cut16B intent into M48's generic
+    // evidence-faithful epistemic candidate.
+    //
+    // This conversion is intentionally mechanical:
+    //
+    // - exact source_state;
+    // - exact action;
+    // - exact C3F qualifying sample count;
+    // - exact C3F reduction/increase numerators;
+    // - exact C3F denominator;
+    // - exact B2 independent successor event count;
+    // - exact B2 distinct successor count.
+    //
+    // No outcome, confidence, probability, EIG, utility, controllability,
+    // cost or goal score is created.
+    pub fn successor_informed_epistemic_intent_executive_candidate(
+        intent: &SuccessorInformedEpistemicActionIntent,
+    ) -> Option<athlesia_executive_agency::GroundedEpistemicExecutiveCandidate> {
+        let priority = intent.priority_candidate();
+
+        let successor = intent.successor_eligibility();
+
+        /*
+         * Cut16B exact identity must still hold at the M48 boundary.
+         */
+        if priority.source_state() != intent.source_state()
+            || priority.action() != intent.action()
+            || !successor.eligible_as_supplemental_evidence()
+        {
+            return None;
+        }
+
+        athlesia_executive_agency::GroundedEpistemicExecutiveCandidate::new(
+            intent.source_state().clone(),
+            intent.action().clone(),
+            priority.qualifying_sample_count(),
+            priority.expected_reduction_numerator(),
+            priority.expected_increase_numerator(),
+            priority.expectation_denominator(),
+            successor.independent_event_count(),
+            successor.distinct_successor_count(),
+        )
+    }
+
+    /*
+     * M51 asks M48 to perform FINAL epistemic action selection.
+     *
+     * M51 does not rank these candidates itself.
+     *
+     * After M48 returns one exact candidate identity, M51 binds it back to
+     * exactly one originating Cut16B intent. Ambiguous reverse binding fails
+     * closed.
+     */
+    #[allow(clippy::too_many_arguments)]
+    pub fn current_selected_successor_informed_epistemic_action_intent(
+        &self,
+        state: &athlesia_universal_domain_learning::GroundedStateSnapshot,
+        actions: &[CognitiveStructure],
+        version_policy: athlesia_universal_domain_learning::GroundedExplanatoryVersionSpacePolicy,
+        discrimination_policy:
+            athlesia_autonomous_active_experimentation::EpistemicForecastDiscriminationPolicy,
+        expectation_policy:
+            athlesia_autonomous_active_experimentation::
+                EmpiricalExpectedEpistemicProgressPolicy,
+        priority_policy:
+            athlesia_autonomous_active_experimentation::EmpiricalEpistemicActionPriorityPolicy,
+        executive_policy: athlesia_executive_agency::EpistemicExecutiveSelectionPolicy,
+    ) -> Option<SelectedSuccessorInformedEpistemicActionIntent> {
+        let frontier = self.current_successor_informed_epistemic_action_intent_frontier(
+            state,
+            actions,
+            version_policy,
+            discrimination_policy,
+            expectation_policy,
+            priority_policy,
+        )?;
+
+        let mut bindings = Vec::with_capacity(frontier.intent_count());
+
+        for intent in frontier.intents() {
+            let candidate = Self::successor_informed_epistemic_intent_executive_candidate(intent)?;
+
+            bindings.push((intent.clone(), candidate));
+        }
+
+        /*
+         * Atomicity: never give M48 a partial conversion of the Cut16B
+         * authority frontier.
+         */
+        if bindings.len() != frontier.intent_count() {
+            return None;
+        }
+
+        let candidates = bindings
+            .iter()
+            .map(|(_, candidate)| candidate.clone())
+            .collect::<Vec<_>>();
+
+        /*
+         * M48 is the sole final selector.
+         */
+        let selection = athlesia_executive_agency::EpistemicExecutiveAgency::select(
+            &candidates,
+            executive_policy,
+        );
+
+        let selected = selection.selected_candidate()?.clone();
+
+        /*
+         * Exact complete candidate identity is the reverse-binding key.
+         *
+         * Action-only matching is forbidden because evidence identity is part
+         * of the authority.
+         */
+        let mut matches = bindings
+            .into_iter()
+            .filter(|(_, candidate)| candidate == &selected);
+
+        let (intent, executive_candidate) = matches.next()?;
+
+        if matches.next().is_some() {
+            return None;
+        }
+
+        Some(SelectedSuccessorInformedEpistemicActionIntent {
+            intent,
+            executive_candidate,
+        })
     }
 
     pub fn current_successor_informed_native_proposal_input_frontier(
@@ -17154,6 +17320,293 @@ mod p4g_c3f_endogenous_priority_frontier_bridge_tests {
             delegated.result(),
             &direct,
             "C16I must not convert native M50 abstention into its own proposal decision",
+        );
+    }
+
+    #[test]
+    fn b3cb_cut16b_intent_maps_losslessly_into_m48_candidate() {
+        let mut owner = c16i_b1_valid_owner();
+
+        let current = state(&[1]);
+
+        let action = a(100);
+
+        c16i_retain_b2_sample(&mut owner, 9_200, &current, &action);
+
+        c16i_authorize_priority(&mut owner, 9_201, &current, &action);
+
+        let frontier = owner
+            .current_successor_informed_epistemic_action_intent_frontier(
+                &current,
+                std::slice::from_ref(&action),
+                version_policy(),
+                discrimination_policy(),
+                expectation_policy(),
+                priority_policy(),
+            )
+            .expect("real Cut16B evidence must expose one intent");
+
+        assert_eq!(frontier.intent_count(), 1);
+
+        let intent = &frontier.intents()[0];
+
+        let candidate =
+            OnlinePersistentCognitiveState::
+                successor_informed_epistemic_intent_executive_candidate(
+                    intent,
+                )
+                .expect(
+                    "eligible Cut16B intent must map mechanically into M48 evidence",
+                );
+
+        let priority = intent.priority_candidate();
+
+        let successor = intent.successor_eligibility();
+
+        assert_eq!(candidate.source_state(), intent.source_state(),);
+
+        assert_eq!(candidate.action(), intent.action(),);
+
+        assert_eq!(
+            candidate.qualifying_sample_count(),
+            priority.qualifying_sample_count(),
+        );
+
+        assert_eq!(
+            candidate.expected_reduction_numerator(),
+            priority.expected_reduction_numerator(),
+        );
+
+        assert_eq!(
+            candidate.expected_increase_numerator(),
+            priority.expected_increase_numerator(),
+        );
+
+        assert_eq!(
+            candidate.expectation_denominator(),
+            priority.expectation_denominator(),
+        );
+
+        assert_eq!(
+            candidate.independent_successor_event_count(),
+            successor.independent_event_count(),
+        );
+
+        assert_eq!(
+            candidate.distinct_successor_count(),
+            successor.distinct_successor_count(),
+        );
+    }
+
+    #[test]
+    fn b3cb_m48_selects_exact_cut16b_intent_without_native_beliefs_or_possibilities() {
+        let mut owner = c16i_b1_valid_owner();
+
+        let current = state(&[1]);
+
+        let action = a(100);
+
+        c16i_retain_b2_sample(&mut owner, 9_202, &current, &action);
+
+        c16i_authorize_priority(&mut owner, 9_203, &current, &action);
+
+        let progress_before = owner.epistemic_progress_event_count();
+
+        let transitions_before = owner.transition_episode_count();
+
+        let frontier = owner
+            .current_successor_informed_epistemic_action_intent_frontier(
+                &current,
+                std::slice::from_ref(&action),
+                version_policy(),
+                discrimination_policy(),
+                expectation_policy(),
+                priority_policy(),
+            )
+            .expect("Cut16B frontier");
+
+        let expected_intent = frontier.intents()[0].clone();
+
+        let expected_candidate =
+            OnlinePersistentCognitiveState::
+                successor_informed_epistemic_intent_executive_candidate(
+                    &expected_intent,
+                )
+                .expect("lossless M48 candidate");
+
+        let selected = owner
+            .current_selected_successor_informed_epistemic_action_intent(
+                &current,
+                std::slice::from_ref(&action),
+                version_policy(),
+                discrimination_policy(),
+                expectation_policy(),
+                priority_policy(),
+                athlesia_executive_agency::EpistemicExecutiveSelectionPolicy::new(8).unwrap(),
+            )
+            .expect("M48 must select the evidence-faithful intent");
+
+        assert_eq!(
+            selected.intent(),
+            &expected_intent,
+            "M51 must bind M48's exact winner back to the exact Cut16B intent",
+        );
+
+        assert_eq!(
+            selected.executive_candidate(),
+            &expected_candidate,
+            "selected M48 candidate identity must be preserved completely",
+        );
+
+        assert_eq!(selected.source_state(), expected_intent.source_state(),);
+
+        assert_eq!(selected.action(), expected_intent.action(),);
+
+        /*
+         * Critical semantic check:
+         *
+         * no legacy caller-native GroundedExperimentPossibility or
+         * HypothesisBeliefState participates anywhere in this call.
+         */
+        assert!(
+            selected
+                .intent()
+                .possibility()
+                .forecasts()
+                .iter()
+                .any(|forecast| {
+                    forecast.status()
+                        == EpistemicHypothesisForecastStatus::ContextAbstained
+                        && forecast.predicted_outcome().is_none()
+                }),
+            "M48 selection must preserve upstream epistemic abstention instead of manufacturing an outcome",
+        );
+
+        assert_eq!(
+            owner.epistemic_progress_event_count(),
+            progress_before,
+            "selection query must not manufacture progress evidence",
+        );
+
+        assert_eq!(
+            owner.transition_episode_count(),
+            transitions_before,
+            "selection query must not manufacture transition evidence",
+        );
+    }
+
+    #[test]
+    fn b3cb_b2_without_c3f_priority_cannot_reach_m48() {
+        let mut owner = c16i_b1_valid_owner();
+
+        let current = state(&[1]);
+
+        let action = a(100);
+
+        c16i_retain_b2_sample(&mut owner, 9_204, &current, &action);
+
+        let selected = owner.current_selected_successor_informed_epistemic_action_intent(
+            &current,
+            std::slice::from_ref(&action),
+            version_policy(),
+            discrimination_policy(),
+            expectation_policy(),
+            priority_policy(),
+            athlesia_executive_agency::EpistemicExecutiveSelectionPolicy::new(8).unwrap(),
+        );
+
+        assert_eq!(
+            selected, None,
+            "successor evidence alone must not manufacture positive epistemic action value",
+        );
+    }
+
+    #[test]
+    fn b3cb_c3f_without_b2_successor_eligibility_cannot_reach_m48() {
+        let mut owner = c16i_b1_valid_owner();
+
+        let current = state(&[3]);
+
+        let action = a(100);
+
+        c16i_authorize_priority(&mut owner, 9_205, &current, &action);
+
+        let selected = owner.current_selected_successor_informed_epistemic_action_intent(
+            &current,
+            std::slice::from_ref(&action),
+            version_policy(),
+            discrimination_policy(),
+            expectation_policy(),
+            priority_policy(),
+            athlesia_executive_agency::EpistemicExecutiveSelectionPolicy::new(8).unwrap(),
+        );
+
+        assert_eq!(
+            selected, None,
+            "C3F priority alone must not bypass B2 successor eligibility",
+        );
+    }
+
+    #[test]
+    fn b3cb_selection_is_deterministic_non_mutating_and_preserves_full_identity() {
+        let mut owner = c16i_b1_valid_owner();
+
+        let current = state(&[1]);
+
+        let action = a(100);
+
+        c16i_retain_b2_sample(&mut owner, 9_206, &current, &action);
+
+        c16i_authorize_priority(&mut owner, 9_207, &current, &action);
+
+        let progress_before = owner.epistemic_progress_event_count();
+
+        let transition_before = owner.transition_episode_count();
+
+        let provenance_before = owner.transition_schema_learning().event_provenance_count();
+
+        let policy = athlesia_executive_agency::EpistemicExecutiveSelectionPolicy::new(8).unwrap();
+
+        let first = owner
+            .current_selected_successor_informed_epistemic_action_intent(
+                &current,
+                std::slice::from_ref(&action),
+                version_policy(),
+                discrimination_policy(),
+                expectation_policy(),
+                priority_policy(),
+                policy,
+            )
+            .expect("first deterministic selection");
+
+        let second = owner
+            .current_selected_successor_informed_epistemic_action_intent(
+                &current,
+                std::slice::from_ref(&action),
+                version_policy(),
+                discrimination_policy(),
+                expectation_policy(),
+                priority_policy(),
+                policy,
+            )
+            .expect("second deterministic selection");
+
+        assert_eq!(first, second);
+
+        assert_eq!(
+            first.source_state(),
+            first.executive_candidate().source_state(),
+        );
+
+        assert_eq!(first.action(), first.executive_candidate().action(),);
+
+        assert_eq!(owner.epistemic_progress_event_count(), progress_before,);
+
+        assert_eq!(owner.transition_episode_count(), transition_before,);
+
+        assert_eq!(
+            owner.transition_schema_learning().event_provenance_count(),
+            provenance_before,
         );
     }
 }
