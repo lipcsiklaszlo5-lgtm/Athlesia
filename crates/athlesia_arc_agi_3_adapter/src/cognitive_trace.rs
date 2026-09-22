@@ -4,7 +4,9 @@ use std::io::{self, Write};
 use athlesia_mindstone_sparse_cognition::CognitiveStructure;
 use serde::{Deserialize, Serialize};
 
-use crate::cognitive_interaction_runtime::ArcAgi3CognitiveInteractionCompletion;
+use crate::cognitive_interaction_runtime::{
+    ArcAgi3CognitiveInteractionCompletion, ArcAgi3UnifiedExecutiveAuthorityKind,
+};
 use crate::live_environment_runtime::ArcAgi3LiveUnifiedStep;
 use crate::{ArcAgi3Action, ArcAgi3ActionId, ArcAgi3GameState, ArcAgi3Observation};
 
@@ -134,8 +136,27 @@ impl From<&ArcAgi3Observation> for ArcAgi3TraceObservation {
     }
 }
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize)]
+pub enum ArcAgi3TraceAuthorityKind {
+    LegacyGrounded,
+    EvidenceFaithfulEpistemic,
+}
+
+impl From<ArcAgi3UnifiedExecutiveAuthorityKind> for ArcAgi3TraceAuthorityKind {
+    fn from(value: ArcAgi3UnifiedExecutiveAuthorityKind) -> Self {
+        match value {
+            ArcAgi3UnifiedExecutiveAuthorityKind::LegacyGrounded => Self::LegacyGrounded,
+
+            ArcAgi3UnifiedExecutiveAuthorityKind::EvidenceFaithfulEpistemic => {
+                Self::EvidenceFaithfulEpistemic
+            }
+        }
+    }
+}
+
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub struct ArcAgi3TraceAuthority {
+    pub kind: ArcAgi3TraceAuthorityKind,
     pub selected_action: ArcAgi3TraceAction,
     pub cognitive_action: ArcAgi3TraceStructure,
     pub source_state: ArcAgi3TraceStructure,
@@ -176,6 +197,7 @@ impl ArcAgi3TraceOutcome {
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub enum ArcAgi3TraceOperation {
     SuccessorInformedUnified,
+    EvidenceFaithfulSuccessor,
     Reset,
 }
 
@@ -191,6 +213,7 @@ pub enum ArcAgi3CognitiveTraceEvent {
         outcome: ArcAgi3TraceOutcome,
     },
     Abstained {
+        operation: ArcAgi3TraceOperation,
         completed_cognitive_step_count: u64,
         before: ArcAgi3TraceObservation,
     },
@@ -221,6 +244,7 @@ impl ArcAgi3CognitiveTraceEvent {
             completed_cognitive_step_count: step.completed_cognitive_step_count(),
             before,
             authority: ArcAgi3TraceAuthority {
+                kind: step.authority().kind().into(),
                 selected_action: step.action().into(),
                 cognitive_action: step.cognitive_action().into(),
                 source_state: step.source_state().into(),
@@ -327,6 +351,7 @@ mod tests {
             }
         }
         let event = ArcAgi3CognitiveTraceEvent::Abstained {
+            operation: ArcAgi3TraceOperation::SuccessorInformedUnified,
             completed_cognitive_step_count: 0,
             before: ArcAgi3TraceObservation {
                 game_id: "writer-test".into(),

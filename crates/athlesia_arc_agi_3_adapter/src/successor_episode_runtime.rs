@@ -115,9 +115,10 @@ pub enum ArcAgi3SuccessorEpisodeError {
 pub struct ArcAgi3SuccessorEpisodeRuntime;
 
 impl ArcAgi3SuccessorEpisodeRuntime {
-    /// Each callback must perform exactly one existing successor decision attempt.
-    /// Capture a B3A sink in the callback to stream traces. No requests or records
-    /// are synthesized here; caller-native possibilities/beliefs remain required.
+    /// Each callback must perform exactly one successor decision attempt.
+    /// Capture a B3A sink in the callback to stream traces. No requests or
+    /// records are synthesized here. The callback may use either the frozen
+    /// legacy route or the evidence-faithful successor route.
     pub fn run_with<T, F>(
         runtime: &mut ArcAgi3LiveEnvironmentRuntime<T>,
         policy: ArcAgi3SuccessorEpisodePolicy,

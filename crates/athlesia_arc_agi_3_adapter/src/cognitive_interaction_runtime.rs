@@ -1900,6 +1900,39 @@ pub(crate) mod c16i_successor_informed_two_contract_e2e_tests {
         }
     }
 
+    pub(crate) fn live_evidence_faithful_request<'a>(
+        candidate_actions: &'a [crate::ArcAgi3Action],
+        goal: &'a athlesia_executive_agency::ExecutiveGoal,
+    ) -> ArcAgi3EvidenceFaithfulSuccessorExecutiveRequest<'a> {
+        ArcAgi3EvidenceFaithfulSuccessorExecutiveRequest {
+            candidate_actions,
+            goal,
+
+            /*
+             * Test fixture deliberately disables exploitation so the
+             * evidence-faithful epistemic authority is isolated exactly.
+             *
+             * This value is never consumed by the epistemic branch.
+             */
+            goal_alignment: athlesia_mindstone_sparse_cognition::CognitiveSignal::zero(),
+
+            exploitation_execution_cost: signal(100),
+
+            version_policy: version_policy(),
+
+            discrimination_policy: discrimination_policy(),
+
+            expectation_policy: expectation_policy(),
+
+            priority_policy: priority_policy(),
+
+            exploitation_policy: executive_policy(),
+
+            epistemic_policy: athlesia_executive_agency::EpistemicExecutiveSelectionPolicy::new(8)
+                .unwrap(),
+        }
+    }
+
     pub(crate) fn fixture(game: &str, first_index: u64) -> Fixture {
         use athlesia_autonomous_active_experimentation::{
             AutonomousEpistemicForecastDiscrimination, AutonomousEpistemicResolutionProgress,

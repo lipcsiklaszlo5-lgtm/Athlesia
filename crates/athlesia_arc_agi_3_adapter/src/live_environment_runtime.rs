@@ -1,8 +1,8 @@
 use crate::cognitive_interaction_runtime::{
     ArcAgi3CognitiveInteractionCompletion, ArcAgi3CognitiveInteractionError,
     ArcAgi3CognitiveInteractionRuntime, ArcAgi3CognitiveInteractionStep,
-    ArcAgi3ExperimentDispatchAuthority, ArcAgi3SuccessorInformedUnifiedExecutiveRequest,
-    ArcAgi3UnifiedExecutiveAuthority,
+    ArcAgi3EvidenceFaithfulSuccessorExecutiveRequest, ArcAgi3ExperimentDispatchAuthority,
+    ArcAgi3SuccessorInformedUnifiedExecutiveRequest, ArcAgi3UnifiedExecutiveAuthority,
 };
 use crate::environment_transport_boundary::{
     ArcAgi3EnvironmentTransport, ArcAgi3EnvironmentTransportBoundary, ArcAgi3TransportError,
@@ -122,6 +122,40 @@ impl<'a> ArcAgi3LiveUnifiedActionRequest<'a> {
 
     pub fn policy(self) -> athlesia_executive_agency::ExecutiveAgencyPolicy {
         self.policy
+    }
+
+    pub fn confidence(self) -> CognitiveSignal {
+        self.confidence
+    }
+}
+
+// B3C-C2 CLEAN LIVE SUCCESSOR
+//
+// Live execution wrapper around the already-selected evidence-faithful
+// cognitive authority path.
+//
+// `confidence` belongs only to environment feedback completion. It does
+// not participate in action selection, M48 ranking, C3F priority, B2
+// eligibility, or M50 forecasting.
+#[derive(Clone, Copy, Debug)]
+pub struct ArcAgi3LiveEvidenceFaithfulSuccessorActionRequest<'a> {
+    executive_request: ArcAgi3EvidenceFaithfulSuccessorExecutiveRequest<'a>,
+    confidence: CognitiveSignal,
+}
+
+impl<'a> ArcAgi3LiveEvidenceFaithfulSuccessorActionRequest<'a> {
+    pub fn new(
+        executive_request: ArcAgi3EvidenceFaithfulSuccessorExecutiveRequest<'a>,
+        confidence: CognitiveSignal,
+    ) -> Self {
+        Self {
+            executive_request,
+            confidence,
+        }
+    }
+
+    pub fn executive_request(self) -> ArcAgi3EvidenceFaithfulSuccessorExecutiveRequest<'a> {
+        self.executive_request
     }
 
     pub fn confidence(self) -> CognitiveSignal {
@@ -459,6 +493,94 @@ where
             .map(Some)
     }
 
+    // B3C-C2 CLEAN LIVE SUCCESSOR
+    //
+    // Action authority has already been produced by:
+    //
+    // M47/M50 -> C3F/B2 -> Cut16B -> M48 -> exact M51 binding.
+    //
+    // This layer performs no ranking and invents no missing evidence.
+    pub fn execute_evidence_faithful_successor(
+        &mut self,
+        request: ArcAgi3LiveEvidenceFaithfulSuccessorActionRequest<'_>,
+    ) -> Result<Option<ArcAgi3LiveUnifiedStep>, ArcAgi3LiveEnvironmentError> {
+        self.ensure_active()?;
+
+        let Some(authority) = self
+            .cognitive_runtime
+            .current_evidence_faithful_successor_executive_authority(request.executive_request())
+        else {
+            /*
+             * Evidence-faithful abstention is not an ARC command.
+             *
+             * No transport and no pending state.
+             */
+            return Ok(None);
+        };
+
+        self.execute_unified_authority(authority, request.confidence())
+            .map(Some)
+    }
+
+    pub fn execute_evidence_faithful_successor_with_trace(
+        &mut self,
+        request: ArcAgi3LiveEvidenceFaithfulSuccessorActionRequest<'_>,
+        sink: &mut impl crate::cognitive_trace::ArcAgi3CognitiveTraceSink,
+    ) -> Result<Option<ArcAgi3LiveUnifiedStep>, ArcAgi3LiveEnvironmentError> {
+        use crate::cognitive_trace::{
+            emit, ArcAgi3CognitiveTraceEvent as Event, ArcAgi3TraceObservation,
+            ArcAgi3TraceOperation,
+        };
+
+        let before = ArcAgi3TraceObservation::from(self.cognitive_runtime.observation());
+
+        let result = self.execute_evidence_faithful_successor(request);
+
+        let event = match &result {
+            Ok(Some(step)) => Some(Event::executed(before, step)),
+
+            Ok(None) => Some(Event::Abstained {
+                operation: ArcAgi3TraceOperation::EvidenceFaithfulSuccessor,
+
+                completed_cognitive_step_count: self.completed_cognitive_step_count,
+
+                before,
+            }),
+
+            Err(ArcAgi3LiveEnvironmentError::Transport(error)) => Some(Event::TransportFailure {
+                operation: ArcAgi3TraceOperation::EvidenceFaithfulSuccessor,
+
+                completed_cognitive_step_count: self.completed_cognitive_step_count,
+
+                before,
+
+                error_debug: format!("{error:?}"),
+
+                has_pending_command: self.cognitive_runtime.session().has_pending_command(),
+
+                pending_command_action: self
+                    .cognitive_runtime
+                    .session()
+                    .pending_action()
+                    .map(Into::into),
+
+                produced_cognitive_completion: false,
+            }),
+
+            /*
+             * Precondition/cognitive rejection is neither transport
+             * failure nor legitimate cognitive abstention.
+             */
+            Err(_) => None,
+        };
+
+        if let Some(event) = event {
+            emit(sink, &event);
+        }
+
+        result
+    }
+
     pub fn execute_successor_informed_unified(
         &mut self,
         request: ArcAgi3LiveSuccessorInformedUnifiedActionRequest<'_>,
@@ -495,6 +617,7 @@ where
         let event = match &result {
             Ok(Some(step)) => Some(Event::executed(before, step)),
             Ok(None) => Some(Event::Abstained {
+                operation: ArcAgi3TraceOperation::SuccessorInformedUnified,
                 completed_cognitive_step_count: self.completed_cognitive_step_count,
                 before,
             }),
@@ -626,6 +749,16 @@ impl UniversalArcAgi3LiveEnvironmentRuntime {
         T: ArcAgi3EnvironmentTransport,
     {
         runtime.execute_unified(request)
+    }
+
+    pub fn execute_evidence_faithful_successor<T>(
+        runtime: &mut ArcAgi3LiveEnvironmentRuntime<T>,
+        request: ArcAgi3LiveEvidenceFaithfulSuccessorActionRequest<'_>,
+    ) -> Result<Option<ArcAgi3LiveUnifiedStep>, ArcAgi3LiveEnvironmentError>
+    where
+        T: ArcAgi3EnvironmentTransport,
+    {
+        runtime.execute_evidence_faithful_successor(request)
     }
 
     pub fn execute_successor_informed_unified<T>(
@@ -1007,7 +1140,12 @@ mod successor_informed_live_dispatch_tests {
             .collect();
         assert_eq!(
             keys,
-            vec!["before", "completed_cognitive_step_count", "event"]
+            vec![
+                "before",
+                "completed_cognitive_step_count",
+                "event",
+                "operation",
+            ]
         );
         assert_jsonl_round_trip(&sink.0[0]);
     }
@@ -1201,6 +1339,291 @@ mod successor_informed_live_dispatch_tests {
                     "precondition errors are not transport failures"
                 );
                 assert_eq!(traced.transport().execute_count(), 1);
+            }
+        }
+    }
+
+    #[test]
+    fn b3cc2_clean_epistemic_authority_executes_through_real_live_transport() {
+        let game = "b3cc2-clean-live";
+
+        let (
+            cognition,
+            expected_arc_action,
+            expected_cognitive_action,
+            expected_source_state,
+            _legacy_possibilities,
+            _legacy_beliefs,
+        ) = c16i::fixture(game, 8_600_000).into_live_parts();
+
+        let response = c16i::live_response(game, 6, Some(expected_arc_action));
+
+        let mut runtime = live_runtime(cognition, response);
+
+        let goal = c16i::live_goal();
+
+        let candidate_actions = [expected_arc_action];
+
+        let request = ArcAgi3LiveEvidenceFaithfulSuccessorActionRequest::new(
+            c16i::live_evidence_faithful_request(&candidate_actions, &goal),
+            signal(900),
+        );
+
+        let step = runtime
+            .execute_evidence_faithful_successor(request)
+            .expect("clean live execution must not fail")
+            .expect("retained B2+C3F evidence must authorize one clean live action");
+
+        assert_eq!(
+            step.authority().kind(),
+            crate::cognitive_interaction_runtime::
+                ArcAgi3UnifiedExecutiveAuthorityKind::
+                    EvidenceFaithfulEpistemic,
+        );
+
+        assert_eq!(step.action(), expected_arc_action,);
+
+        assert_eq!(step.cognitive_action(), &expected_cognitive_action,);
+
+        assert_eq!(step.source_state(), &expected_source_state,);
+
+        assert_eq!(
+            step.authority().predicted_outcome(),
+            None,
+            "clean epistemic live execution must not fabricate a concrete outcome",
+        );
+
+        assert!(step.authority().legacy_candidate().is_none(),);
+
+        assert!(step.authority().epistemic_selection().is_some(),);
+
+        assert_eq!(runtime.transport().execute_count(), 1,);
+
+        assert_eq!(
+            runtime.transport().last_executed_action(),
+            Some(expected_arc_action),
+        );
+
+        assert_eq!(runtime.completed_cognitive_step_count(), 1,);
+
+        let evidence = step
+            .completion()
+            .turn()
+            .evidence()
+            .expect("clean live execution must produce real cognitive feedback");
+
+        assert_eq!(
+            evidence.execution_observation().observed_state(),
+            &expected_source_state,
+        );
+
+        assert_eq!(
+            evidence.execution_observation().observed_action(),
+            &expected_cognitive_action,
+        );
+
+        assert_eq!(
+            evidence.experiment_observation().source_state(),
+            &expected_source_state,
+        );
+
+        assert_eq!(
+            evidence.experiment_observation().action(),
+            &expected_cognitive_action,
+        );
+    }
+
+    #[test]
+    fn b3cc2_clean_trace_identifies_epistemic_authority_and_round_trips_jsonl() {
+        use crate::cognitive_trace::{
+            ArcAgi3CognitiveTraceEvent as Event, ArcAgi3TraceAuthorityKind,
+        };
+
+        let game = "b3cc2-clean-trace";
+
+        let (
+            cognition,
+            expected_arc_action,
+            _expected_cognitive_action,
+            _expected_source_state,
+            _legacy_possibilities,
+            _legacy_beliefs,
+        ) = c16i::fixture(game, 8_700_000).into_live_parts();
+
+        let response = c16i::live_response(game, 6, Some(expected_arc_action));
+
+        let mut runtime = live_runtime(cognition, response);
+
+        let goal = c16i::live_goal();
+
+        let candidate_actions = [expected_arc_action];
+
+        let request = ArcAgi3LiveEvidenceFaithfulSuccessorActionRequest::new(
+            c16i::live_evidence_faithful_request(&candidate_actions, &goal),
+            signal(900),
+        );
+
+        let mut sink = Collector::default();
+
+        let step = runtime
+            .execute_evidence_faithful_successor_with_trace(request, &mut sink)
+            .unwrap()
+            .expect("clean trace fixture must execute");
+
+        assert_eq!(
+            step.authority().kind(),
+            crate::cognitive_interaction_runtime::
+                ArcAgi3UnifiedExecutiveAuthorityKind::
+                    EvidenceFaithfulEpistemic,
+        );
+
+        assert_eq!(sink.0.len(), 1);
+
+        match &sink.0[0] {
+            Event::Executed { authority, .. } => {
+                assert_eq!(
+                    authority.kind,
+                    ArcAgi3TraceAuthorityKind::EvidenceFaithfulEpistemic,
+                );
+            }
+
+            other => {
+                panic!("expected Executed trace, got {other:?}");
+            }
+        }
+
+        assert_jsonl_round_trip(&sink.0[0]);
+    }
+
+    #[test]
+    fn b3cc2_clean_abstention_is_zero_transport_and_trace_identifies_clean_path() {
+        use crate::cognitive_trace::{ArcAgi3CognitiveTraceEvent as Event, ArcAgi3TraceOperation};
+
+        let game = "b3cc2-clean-abstain";
+
+        let (
+            cognition,
+            expected_arc_action,
+            _expected_cognitive_action,
+            _expected_source_state,
+            _legacy_possibilities,
+            _legacy_beliefs,
+        ) = c16i::fixture(game, 8_800_000).into_live_parts();
+
+        let response = c16i::live_response(game, 6, Some(expected_arc_action));
+
+        let mut runtime = live_runtime(cognition.clone(), response);
+
+        let goal = c16i::live_goal();
+
+        let candidate_actions: [ArcAgi3Action; 0] = [];
+
+        let request = ArcAgi3LiveEvidenceFaithfulSuccessorActionRequest::new(
+            c16i::live_evidence_faithful_request(&candidate_actions, &goal),
+            signal(900),
+        );
+
+        let snapshot = runtime.cognitive_runtime().clone();
+
+        let mut sink = Collector::default();
+
+        assert_eq!(
+            runtime
+                .execute_evidence_faithful_successor_with_trace(request, &mut sink,)
+                .unwrap(),
+            None,
+        );
+
+        assert_eq!(runtime.transport().execute_count(), 0,);
+
+        assert_eq!(runtime.completed_cognitive_step_count(), 0,);
+
+        assert_eq!(runtime.cognitive_runtime(), &snapshot,);
+
+        assert!(!runtime.cognitive_runtime().session().has_pending_command(),);
+
+        assert_eq!(sink.0.len(), 1);
+
+        match &sink.0[0] {
+            Event::Abstained { operation, .. } => {
+                assert_eq!(*operation, ArcAgi3TraceOperation::EvidenceFaithfulSuccessor,);
+            }
+
+            other => {
+                panic!("expected clean Abstained trace, got {other:?}");
+            }
+        }
+    }
+
+    #[test]
+    fn b3cc2_bounded_episode_driver_executes_clean_path_without_legacy_payloads() {
+        use crate::cognitive_trace::{
+            ArcAgi3CognitiveTraceEvent as Event, ArcAgi3TraceAuthorityKind,
+        };
+
+        use crate::successor_episode_runtime::{
+            ArcAgi3SuccessorEpisodePolicy, ArcAgi3SuccessorEpisodeRuntime,
+            ArcAgi3SuccessorEpisodeTermination,
+        };
+
+        let game = "b3cc2-clean-bounded";
+
+        let (
+            cognition,
+            expected_arc_action,
+            _expected_cognitive_action,
+            _expected_source_state,
+            _legacy_possibilities,
+            _legacy_beliefs,
+        ) = c16i::fixture(game, 8_900_000).into_live_parts();
+
+        let response = c16i::live_response(game, 6, Some(expected_arc_action));
+
+        let mut runtime = live_runtime(cognition, response);
+
+        let goal = c16i::live_goal();
+
+        let candidate_actions = [expected_arc_action];
+
+        let request = ArcAgi3LiveEvidenceFaithfulSuccessorActionRequest::new(
+            c16i::live_evidence_faithful_request(&candidate_actions, &goal),
+            signal(900),
+        );
+
+        let mut sink = Collector::default();
+
+        let result = ArcAgi3SuccessorEpisodeRuntime::run_with(
+            &mut runtime,
+            ArcAgi3SuccessorEpisodePolicy::new(1, 1).unwrap(),
+            |live| live.execute_evidence_faithful_successor_with_trace(request, &mut sink),
+        )
+        .unwrap();
+
+        assert_eq!(
+            result.termination(),
+            ArcAgi3SuccessorEpisodeTermination::DecisionBudgetExhausted,
+        );
+
+        assert_eq!(result.decision_attempts(), 1,);
+
+        assert_eq!(result.executed_steps(), 1,);
+
+        assert_eq!(result.abstentions(), 0,);
+
+        assert_eq!(runtime.transport().execute_count(), 1,);
+
+        assert_eq!(sink.0.len(), 1,);
+
+        match &sink.0[0] {
+            Event::Executed { authority, .. } => {
+                assert_eq!(
+                    authority.kind,
+                    ArcAgi3TraceAuthorityKind::EvidenceFaithfulEpistemic,
+                );
+            }
+
+            other => {
+                panic!("expected clean bounded Executed trace, got {other:?}");
             }
         }
     }
