@@ -2152,6 +2152,55 @@ pub(crate) mod c16i_successor_informed_two_contract_e2e_tests {
         goal()
     }
 
+    /*
+     * B4B4 TEST-ONLY helper.
+     *
+     * Seeds the retained bootstrap coverage owner through its real M51
+     * evidence API. This does NOT create production mutable-cognition
+     * authority and exists only inside this #[cfg(test)] module.
+     */
+    pub(crate) fn retain_bootstrap_coverage_for_test(
+        runtime: &mut ArcAgi3CognitiveInteractionRuntime,
+        event_index: u64,
+        action: crate::ArcAgi3Action,
+    ) {
+        let cognitive_action =
+            crate::cognitive_protocol_bridge::ArcAgi3CognitiveProtocolBridge::encode_action(action);
+
+        let observation =
+            athlesia_integrated_cognitive_agent::EnvironmentInteractionObservation::new(
+                event_index,
+                CognitiveStructure::Ordered(vec![
+                    CognitiveStructure::atom(0x4234_4234_5445_5354),
+                    CognitiveStructure::atom(event_index),
+                ]),
+                signal(900),
+            )
+            .expect("B4B4 synthetic test observation is valid");
+
+        let evidence =
+            athlesia_integrated_cognitive_agent::EnvironmentInteractionEvidence::self_generated(
+                &CognitiveStructure::atom(0x4234_4234_5352_4345),
+                &cognitive_action,
+                &observation,
+            )
+            .expect("B4B4 test evidence must be valid self-generated evidence");
+
+        let result = runtime.cognition.retain_bootstrap_action_coverage_event(
+            &evidence,
+            athlesia_integrated_cognitive_agent::RetainedBootstrapActionCoveragePolicy::new(
+                crate::production_action_frontier::ARC_AGI_3_MAX_PRODUCTION_ACTION_FRONTIER,
+            )
+            .unwrap(),
+        );
+
+        assert_eq!(
+            result.status(),
+            athlesia_integrated_cognitive_agent::RetainedBootstrapActionCoverageStatus::Retained,
+            "B4B4 test bootstrap evidence must retain exactly once",
+        );
+    }
+
     pub(crate) fn live_response(
         game: &str,
         value: u8,

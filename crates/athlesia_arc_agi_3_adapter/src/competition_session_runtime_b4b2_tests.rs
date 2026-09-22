@@ -692,6 +692,208 @@ fn b4b3_multistep_cold_start_uses_global_coverage_before_repeating_action() {
 }
 
 #[test]
+fn b4b4_strict_grounding_disables_bootstrap_authority_even_when_global_coverage_disagrees() {
+    let game = "b4b4-grounded-handoff";
+
+    /*
+     * Canonical mature fixture:
+     *
+     * - strict B0 grounding already exists;
+     * - ACTION3/ACTION4 are both unseen in the exact current grounded
+     *   source state;
+     * - therefore normal grounded ignorance has a clean 0-vs-0
+     *   deterministic decision.
+     */
+    let (mut runtime, actions, expected_source) =
+        c16i::live_production_ignorance_fixture(game, 9_800_000);
+
+    let current = runtime
+        .current_grounded_world_state()
+        .expect("B4B4 fixture must begin with strict B0 grounding");
+
+    let cognitive_actions = actions
+        .iter()
+        .copied()
+        .map(crate::cognitive_protocol_bridge::ArcAgi3CognitiveProtocolBridge::encode_action)
+        .collect::<Vec<_>>();
+
+    let ignorance_policy =
+        athlesia_executive_agency::IgnoranceExplorationSelectionPolicy::new(8).unwrap();
+
+    /*
+     * Establish the normal grounded winner before touching bootstrap
+     * coverage.
+     */
+    let grounded_before = runtime
+        .cognition()
+        .current_selected_ignorance_exploration_action(
+            &current,
+            &cognitive_actions,
+            ignorance_policy,
+        )
+        .expect("exact-state ignorance must select one unseen action");
+
+    assert_eq!(
+        grounded_before.source_state(),
+        &expected_source,
+        "grounded ignorance must preserve exact B0 source identity",
+    );
+
+    let grounded_action =
+        crate::cognitive_protocol_bridge::ArcAgi3CognitiveProtocolBridge::decode_action(
+            grounded_before.action(),
+        )
+        .expect("selected grounded cognitive action must decode");
+
+    let opposite_action = actions
+        .iter()
+        .copied()
+        .find(|candidate| *candidate != grounded_action)
+        .expect("two-action fixture must have an opposite action");
+
+    /*
+     * Deliberately make GLOBAL bootstrap coverage disagree with the
+     * exact grounded selector.
+     *
+     * Give the grounded winner three historical bootstrap samples.
+     * Leave the opposite action globally untried.
+     *
+     * If bootstrap coverage leaked across the B0 boundary, bootstrap
+     * selection would now prefer `opposite_action`.
+     */
+    for event_index in 90_001_u64..=90_003_u64 {
+        c16i::retain_bootstrap_coverage_for_test(&mut runtime, event_index, grounded_action);
+    }
+
+    assert_eq!(
+        runtime
+            .cognition()
+            .bootstrap_action_coverage()
+            .global_action_sample_count(grounded_before.action(),),
+        Some(3),
+    );
+
+    let opposite_cognitive =
+        crate::cognitive_protocol_bridge::ArcAgi3CognitiveProtocolBridge::encode_action(
+            opposite_action,
+        );
+
+    assert_eq!(
+        runtime
+            .cognition()
+            .bootstrap_action_coverage()
+            .global_action_sample_count(&opposite_cognitive,),
+        Some(0),
+    );
+
+    /*
+     * Prove the counterfactual explicitly:
+     * if B4A5A bootstrap authority were consulted here, it would pick
+     * the opposite action.
+     */
+    let bootstrap_counterfactual = runtime
+        .cognition()
+        .current_selected_bootstrap_ignorance_action(
+            &CognitiveSignal::new(777)
+                .map(|signal| {
+                    athlesia_mindstone_sparse_cognition::CognitiveStructure::Ordered(vec![
+                        athlesia_mindstone_sparse_cognition::CognitiveStructure::atom(
+                            0x4234_4234_4F42_53,
+                        ),
+                        athlesia_mindstone_sparse_cognition::CognitiveStructure::atom(u64::from(
+                            signal.value(),
+                        )),
+                    ])
+                })
+                .unwrap(),
+            &cognitive_actions,
+            ignorance_policy,
+        )
+        .expect("counterfactual bootstrap selector must have authority");
+
+    let bootstrap_action =
+        crate::cognitive_protocol_bridge::ArcAgi3CognitiveProtocolBridge::decode_action(
+            bootstrap_counterfactual.action(),
+        )
+        .unwrap();
+
+    assert_eq!(
+        bootstrap_action, opposite_action,
+        "test setup must force bootstrap coverage to disagree with grounded ignorance",
+    );
+
+    /*
+     * Re-evaluate normal exact-state ignorance after corrupting nothing
+     * except the independent GLOBAL bootstrap-coverage memory.
+     *
+     * Its result must remain unchanged.
+     */
+    let grounded_after = runtime
+        .cognition()
+        .current_selected_ignorance_exploration_action(
+            &current,
+            &cognitive_actions,
+            ignorance_policy,
+        )
+        .expect("grounded ignorance must remain available");
+
+    assert_eq!(
+        grounded_after, grounded_before,
+        "global bootstrap coverage must not alter exact-state grounded ignorance",
+    );
+
+    let goal = c16i::live_goal();
+
+    let request = c16i::live_evidence_faithful_request(&actions, &goal);
+
+    /*
+     * This is the real adapter authority boundary.
+     *
+     * Because strict B0 grounding exists, bootstrap authority must be
+     * bypassed regardless of the contradictory global coverage counts.
+     */
+    let authority = runtime
+        .current_evidence_faithful_successor_executive_authority(request)
+        .expect("grounded evidence-faithful path must produce ignorance authority");
+
+    assert_eq!(
+        authority.kind(),
+        crate::cognitive_interaction_runtime::
+            ArcAgi3UnifiedExecutiveAuthorityKind::
+                IgnoranceExploration,
+        "strict B0 grounding must disable bootstrap authority",
+    );
+
+    assert!(
+        authority.bootstrap_ignorance_selection().is_none(),
+        "grounded authority must carry no bootstrap selection payload",
+    );
+
+    let grounded_selection = authority
+        .ignorance_selection()
+        .expect("grounded handoff must expose ordinary exact-state ignorance provenance");
+
+    assert_eq!(
+        grounded_selection, &grounded_before,
+        "production authority must use the exact-state winner, not global bootstrap coverage",
+    );
+
+    assert_eq!(authority.action(), grounded_action,);
+
+    assert_ne!(
+        authority.action(),
+        bootstrap_action,
+        "a conflicting global bootstrap preference must have zero authority after B0 grounding",
+    );
+
+    assert_eq!(
+        authority.source_state(),
+        &expected_source,
+        "post-bootstrap authority must return to strict grounded source provenance",
+    );
+}
+
+#[test]
 fn b4b2_terminal_start_never_invokes_production_callback_or_fake_command() {
     let game_name = "b4b2-terminal-start";
 
