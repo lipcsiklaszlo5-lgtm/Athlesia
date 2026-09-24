@@ -1,0 +1,850 @@
+{
+  "benchmark": "athlesia-open-intelligence-core-v4",
+  "claim": "within each of five separately trained task families, an interaction-inferred geometric role rule transfers to held-out worlds",
+  "elapsed_ms": 174755.31,
+  "external_api_calls": 0,
+  "fixed_core_priors": [
+    "2D locality",
+    "persistent self-position",
+    "four reversible movement effects",
+    "object persistence and scalar terminal feedback",
+    "a fixed five-feature geometric representation"
+  ],
+  "heldout_cold_core": {
+    "episodes": 640,
+    "mean_exploratory_target_failures": 13.67,
+    "mean_motor_actions_learned": 4,
+    "mean_steps": 54.49,
+    "median_steps": 51.5,
+    "success_rate": 0.9703,
+    "successes": 621
+  },
+  "heldout_one_example_core": {
+    "episodes": 640,
+    "mean_exploratory_target_failures": 8.85,
+    "mean_motor_actions_learned": 4,
+    "mean_steps": 45.79,
+    "median_steps": 41.0,
+    "success_rate": 0.9766,
+    "successes": 625
+  },
+  "heldout_random": {
+    "episodes": 640,
+    "mean_exploratory_target_failures": 0,
+    "mean_motor_actions_learned": 0,
+    "mean_steps": 125.11,
+    "median_steps": 128.0,
+    "success_rate": 0.0547,
+    "successes": 35
+  },
+  "heldout_success_95pct_wilson_ci": [
+    0.9912,
+    0.9997
+  ],
+  "heldout_token_memorizer": {
+    "episodes": 640,
+    "mean_exploratory_target_failures": 13.67,
+    "mean_motor_actions_learned": 4,
+    "mean_steps": 54.49,
+    "median_steps": 51.5,
+    "success_rate": 0.9703,
+    "successes": 621
+  },
+  "heldout_trained_core": {
+    "episodes": 640,
+    "mean_exploratory_target_failures": 6.42,
+    "mean_motor_actions_learned": 4,
+    "mean_steps": 36.17,
+    "median_steps": 35.0,
+    "success_rate": 0.9984,
+    "successes": 639
+  },
+  "leakage_guards": {
+    "agent_receives_seed_or_hidden_state": false,
+    "heldout_and_ood_seeds_disjoint": true,
+    "heldout_and_ood_tokens_disjoint": true,
+    "heldout_worlds_created_after_training": true,
+    "task_family_id_not_exposed_to_agent": true,
+    "train_and_heldout_seeds_disjoint": true,
+    "train_and_heldout_tokens_disjoint": true,
+    "train_and_heldout_tokens_disjoint_for_memorizer": true,
+    "train_and_ood_seeds_disjoint": true,
+    "train_and_ood_tokens_disjoint": true,
+    "transition_has_no_collection_oracle": true
+  },
+  "learned_role_schemas_by_family": {
+    "checkerboard": {
+      "feature_counts": {
+        "collectible": {
+          "checkerboard": {
+            "1": 16
+          },
+          "edge": {
+            "0": 16
+          },
+          "left_right": {
+            "0": 9,
+            "1": 7
+          },
+          "near_far": {
+            "0": 12,
+            "1": 4
+          },
+          "upper_lower": {
+            "0": 10,
+            "1": 6
+          }
+        },
+        "terminal": {
+          "checkerboard": {
+            "0": 16
+          },
+          "edge": {
+            "0": 16
+          },
+          "left_right": {
+            "0": 9,
+            "1": 7
+          },
+          "near_far": {
+            "0": 13,
+            "1": 3
+          },
+          "upper_lower": {
+            "0": 10,
+            "1": 6
+          }
+        }
+      },
+      "role_examples": {
+        "collectible": 16,
+        "terminal": 16
+      }
+    },
+    "edge": {
+      "feature_counts": {
+        "collectible": {
+          "checkerboard": {
+            "0": 11,
+            "1": 5
+          },
+          "edge": {
+            "0": 16
+          },
+          "left_right": {
+            "0": 8,
+            "1": 8
+          },
+          "near_far": {
+            "0": 11,
+            "1": 5
+          },
+          "upper_lower": {
+            "0": 9,
+            "1": 7
+          }
+        },
+        "terminal": {
+          "checkerboard": {
+            "0": 9,
+            "1": 7
+          },
+          "edge": {
+            "1": 16
+          },
+          "left_right": {
+            "0": 8,
+            "1": 8
+          },
+          "near_far": {
+            "0": 16
+          },
+          "upper_lower": {
+            "0": 10,
+            "1": 6
+          }
+        }
+      },
+      "role_examples": {
+        "collectible": 16,
+        "terminal": 16
+      }
+    },
+    "left_right": {
+      "feature_counts": {
+        "collectible": {
+          "checkerboard": {
+            "0": 9,
+            "1": 7
+          },
+          "edge": {
+            "0": 16
+          },
+          "left_right": {
+            "1": 16
+          },
+          "near_far": {
+            "0": 13,
+            "1": 3
+          },
+          "upper_lower": {
+            "0": 9,
+            "1": 7
+          }
+        },
+        "terminal": {
+          "checkerboard": {
+            "0": 7,
+            "1": 9
+          },
+          "edge": {
+            "0": 16
+          },
+          "left_right": {
+            "0": 16
+          },
+          "near_far": {
+            "0": 12,
+            "1": 4
+          },
+          "upper_lower": {
+            "0": 8,
+            "1": 8
+          }
+        }
+      },
+      "role_examples": {
+        "collectible": 16,
+        "terminal": 16
+      }
+    },
+    "near_far": {
+      "feature_counts": {
+        "collectible": {
+          "checkerboard": {
+            "0": 5,
+            "1": 11
+          },
+          "edge": {
+            "0": 16
+          },
+          "left_right": {
+            "0": 7,
+            "1": 9
+          },
+          "near_far": {
+            "1": 16
+          },
+          "upper_lower": {
+            "0": 11,
+            "1": 5
+          }
+        },
+        "terminal": {
+          "checkerboard": {
+            "0": 12,
+            "1": 4
+          },
+          "edge": {
+            "0": 16
+          },
+          "left_right": {
+            "0": 9,
+            "1": 7
+          },
+          "near_far": {
+            "0": 16
+          },
+          "upper_lower": {
+            "0": 13,
+            "1": 3
+          }
+        }
+      },
+      "role_examples": {
+        "collectible": 16,
+        "terminal": 16
+      }
+    },
+    "upper_lower": {
+      "feature_counts": {
+        "collectible": {
+          "checkerboard": {
+            "0": 10,
+            "1": 6
+          },
+          "edge": {
+            "0": 16
+          },
+          "left_right": {
+            "0": 9,
+            "1": 7
+          },
+          "near_far": {
+            "0": 13,
+            "1": 3
+          },
+          "upper_lower": {
+            "1": 16
+          }
+        },
+        "terminal": {
+          "checkerboard": {
+            "0": 8,
+            "1": 8
+          },
+          "edge": {
+            "0": 16
+          },
+          "left_right": {
+            "0": 8,
+            "1": 8
+          },
+          "near_far": {
+            "0": 11,
+            "1": 5
+          },
+          "upper_lower": {
+            "0": 16
+          }
+        }
+      },
+      "role_examples": {
+        "collectible": 16,
+        "terminal": 16
+      }
+    }
+  },
+  "not_provided_to_agent": [
+    "world seed",
+    "action meanings",
+    "tile semantics",
+    "key position",
+    "exit position",
+    "hidden inventory state",
+    "task-family rule ID"
+  ],
+  "ood_reversed_roles": {
+    "episodes": 160,
+    "mean_exploratory_target_failures": 19.07,
+    "mean_motor_actions_learned": 4,
+    "mean_steps": 92.31,
+    "median_steps": 92.5,
+    "success_rate": 0.8562,
+    "successes": 137
+  },
+  "ood_reversed_roles_cold": {
+    "episodes": 160,
+    "mean_exploratory_target_failures": 14.77,
+    "mean_motor_actions_learned": 4,
+    "mean_steps": 59.36,
+    "median_steps": 58.0,
+    "success_rate": 0.975,
+    "successes": 156
+  },
+  "paired_one_example_vs_cold": {
+    "episodes_lost": 189,
+    "episodes_tied": 28,
+    "episodes_won": 423,
+    "paired_mean_steps_saved": 8.697,
+    "paired_mean_steps_saved_95pct_bootstrap_ci": [
+      6.362,
+      10.902
+    ]
+  },
+  "paired_ood_trained_vs_cold": {
+    "episodes_lost": 133,
+    "episodes_tied": 10,
+    "episodes_won": 17,
+    "paired_mean_steps_saved": -32.95,
+    "paired_mean_steps_saved_95pct_bootstrap_ci": [
+      -38.462,
+      -27.788
+    ]
+  },
+  "paired_trained_vs_cold": {
+    "episodes_lost": 83,
+    "episodes_tied": 56,
+    "episodes_won": 501,
+    "paired_mean_steps_saved": 18.317,
+    "paired_mean_steps_saved_95pct_bootstrap_ci": [
+      16.461,
+      20.056
+    ]
+  },
+  "per_family_results": {
+    "checkerboard": {
+      "heldout_cold": {
+        "episodes": 128,
+        "mean_exploratory_target_failures": 12.84,
+        "mean_motor_actions_learned": 4,
+        "mean_steps": 52.47,
+        "median_steps": 49.5,
+        "success_rate": 0.9766,
+        "successes": 125
+      },
+      "heldout_memorizer": {
+        "episodes": 128,
+        "mean_exploratory_target_failures": 12.84,
+        "mean_motor_actions_learned": 4,
+        "mean_steps": 52.47,
+        "median_steps": 49.5,
+        "success_rate": 0.9766,
+        "successes": 125
+      },
+      "heldout_trained": {
+        "episodes": 128,
+        "mean_exploratory_target_failures": 6.82,
+        "mean_motor_actions_learned": 4,
+        "mean_steps": 40.09,
+        "median_steps": 41.0,
+        "success_rate": 1.0,
+        "successes": 128
+      },
+      "ood_reversed_roles": {
+        "episodes": 32,
+        "mean_exploratory_target_failures": 15.44,
+        "mean_motor_actions_learned": 4,
+        "mean_steps": 88.22,
+        "median_steps": 99.0,
+        "success_rate": 0.9062,
+        "successes": 29
+      },
+      "ood_reversed_roles_cold": {
+        "episodes": 32,
+        "mean_exploratory_target_failures": 13.12,
+        "mean_motor_actions_learned": 4,
+        "mean_steps": 55.81,
+        "median_steps": 54.0,
+        "success_rate": 0.9688,
+        "successes": 31
+      }
+    },
+    "edge": {
+      "heldout_cold": {
+        "episodes": 128,
+        "mean_exploratory_target_failures": 12.73,
+        "mean_motor_actions_learned": 4,
+        "mean_steps": 55.48,
+        "median_steps": 54.5,
+        "success_rate": 0.9922,
+        "successes": 127
+      },
+      "heldout_memorizer": {
+        "episodes": 128,
+        "mean_exploratory_target_failures": 12.73,
+        "mean_motor_actions_learned": 4,
+        "mean_steps": 55.48,
+        "median_steps": 54.5,
+        "success_rate": 0.9922,
+        "successes": 127
+      },
+      "heldout_trained": {
+        "episodes": 128,
+        "mean_exploratory_target_failures": 6.25,
+        "mean_motor_actions_learned": 4,
+        "mean_steps": 39.26,
+        "median_steps": 39.0,
+        "success_rate": 1.0,
+        "successes": 128
+      },
+      "ood_reversed_roles": {
+        "episodes": 32,
+        "mean_exploratory_target_failures": 18.06,
+        "mean_motor_actions_learned": 4,
+        "mean_steps": 101.31,
+        "median_steps": 105.0,
+        "success_rate": 0.6875,
+        "successes": 22
+      },
+      "ood_reversed_roles_cold": {
+        "episodes": 32,
+        "mean_exploratory_target_failures": 17.62,
+        "mean_motor_actions_learned": 4,
+        "mean_steps": 71.97,
+        "median_steps": 69.0,
+        "success_rate": 0.9688,
+        "successes": 31
+      }
+    },
+    "left_right": {
+      "heldout_cold": {
+        "episodes": 128,
+        "mean_exploratory_target_failures": 16.87,
+        "mean_motor_actions_learned": 4,
+        "mean_steps": 64.66,
+        "median_steps": 62.0,
+        "success_rate": 0.9219,
+        "successes": 118
+      },
+      "heldout_memorizer": {
+        "episodes": 128,
+        "mean_exploratory_target_failures": 16.87,
+        "mean_motor_actions_learned": 4,
+        "mean_steps": 64.66,
+        "median_steps": 62.0,
+        "success_rate": 0.9219,
+        "successes": 118
+      },
+      "heldout_trained": {
+        "episodes": 128,
+        "mean_exploratory_target_failures": 6.62,
+        "mean_motor_actions_learned": 4,
+        "mean_steps": 36.02,
+        "median_steps": 35.0,
+        "success_rate": 0.9922,
+        "successes": 127
+      },
+      "ood_reversed_roles": {
+        "episodes": 32,
+        "mean_exploratory_target_failures": 20.84,
+        "mean_motor_actions_learned": 4,
+        "mean_steps": 92.47,
+        "median_steps": 89.0,
+        "success_rate": 0.9062,
+        "successes": 29
+      },
+      "ood_reversed_roles_cold": {
+        "episodes": 32,
+        "mean_exploratory_target_failures": 14.56,
+        "mean_motor_actions_learned": 4,
+        "mean_steps": 55.22,
+        "median_steps": 54.0,
+        "success_rate": 0.9688,
+        "successes": 31
+      }
+    },
+    "near_far": {
+      "heldout_cold": {
+        "episodes": 128,
+        "mean_exploratory_target_failures": 10.44,
+        "mean_motor_actions_learned": 4,
+        "mean_steps": 42.73,
+        "median_steps": 40.5,
+        "success_rate": 0.9922,
+        "successes": 127
+      },
+      "heldout_memorizer": {
+        "episodes": 128,
+        "mean_exploratory_target_failures": 10.44,
+        "mean_motor_actions_learned": 4,
+        "mean_steps": 42.73,
+        "median_steps": 40.5,
+        "success_rate": 0.9922,
+        "successes": 127
+      },
+      "heldout_trained": {
+        "episodes": 128,
+        "mean_exploratory_target_failures": 6.18,
+        "mean_motor_actions_learned": 4,
+        "mean_steps": 31.73,
+        "median_steps": 30.0,
+        "success_rate": 1.0,
+        "successes": 128
+      },
+      "ood_reversed_roles": {
+        "episodes": 32,
+        "mean_exploratory_target_failures": 19.84,
+        "mean_motor_actions_learned": 4,
+        "mean_steps": 83,
+        "median_steps": 79.5,
+        "success_rate": 0.875,
+        "successes": 28
+      },
+      "ood_reversed_roles_cold": {
+        "episodes": 32,
+        "mean_exploratory_target_failures": 14.12,
+        "mean_motor_actions_learned": 4,
+        "mean_steps": 52.78,
+        "median_steps": 52.0,
+        "success_rate": 0.9688,
+        "successes": 31
+      }
+    },
+    "upper_lower": {
+      "heldout_cold": {
+        "episodes": 128,
+        "mean_exploratory_target_failures": 15.47,
+        "mean_motor_actions_learned": 4,
+        "mean_steps": 57.09,
+        "median_steps": 55.5,
+        "success_rate": 0.9688,
+        "successes": 124
+      },
+      "heldout_memorizer": {
+        "episodes": 128,
+        "mean_exploratory_target_failures": 15.47,
+        "mean_motor_actions_learned": 4,
+        "mean_steps": 57.09,
+        "median_steps": 55.5,
+        "success_rate": 0.9688,
+        "successes": 124
+      },
+      "heldout_trained": {
+        "episodes": 128,
+        "mean_exploratory_target_failures": 6.23,
+        "mean_motor_actions_learned": 4,
+        "mean_steps": 33.75,
+        "median_steps": 33.0,
+        "success_rate": 1.0,
+        "successes": 128
+      },
+      "ood_reversed_roles": {
+        "episodes": 32,
+        "mean_exploratory_target_failures": 21.19,
+        "mean_motor_actions_learned": 4,
+        "mean_steps": 96.53,
+        "median_steps": 95.5,
+        "success_rate": 0.9062,
+        "successes": 29
+      },
+      "ood_reversed_roles_cold": {
+        "episodes": 32,
+        "mean_exploratory_target_failures": 14.41,
+        "mean_motor_actions_learned": 4,
+        "mean_steps": 61,
+        "median_steps": 62.0,
+        "success_rate": 1.0,
+        "successes": 32
+      }
+    }
+  },
+  "protocol": {
+    "acceptance_criteria": {
+      "collection_oracle_field_allowed": false,
+      "heldout_success_rate_minimum": 0.95,
+      "paired_bootstrap_ci_lower_bound_minimum": 0.0,
+      "step_reduction_vs_cold_minimum_pct": 10.0
+    },
+    "action_budget": 128,
+    "bootstrap_resamples": 2000,
+    "distractor_entities_per_world": 12,
+    "heldout_episodes_per_family": 128,
+    "heldout_seed_ranges_by_rule": {
+      "checkerboard": [
+        10030000,
+        10030128
+      ],
+      "edge": [
+        10000000,
+        10000128
+      ],
+      "left_right": [
+        10010000,
+        10010128
+      ],
+      "near_far": [
+        10040000,
+        10040128
+      ],
+      "upper_lower": [
+        10020000,
+        10020128
+      ]
+    },
+    "memorizer_uses_training_raw_token_ids_only": true,
+    "obstacle_cells_requested": 18,
+    "ood_episodes_per_family": 32,
+    "ood_seed_ranges_by_rule": {
+      "checkerboard": [
+        11030000,
+        11030032
+      ],
+      "edge": [
+        11000000,
+        11000032
+      ],
+      "left_right": [
+        11010000,
+        11010032
+      ],
+      "near_far": [
+        11040000,
+        11040032
+      ],
+      "upper_lower": [
+        11020000,
+        11020032
+      ]
+    },
+    "paired_conditions_share_identical_world_specs": true,
+    "primary_metric": "mean environment actions per world; unsuccessful worlds count at the action budget",
+    "primary_training_examples_per_family": 16,
+    "rule_families": [
+      "edge",
+      "left_right",
+      "upper_lower",
+      "checkerboard",
+      "near_far"
+    ],
+    "rule_family_models_trained_independently": true,
+    "spatial_feature_hypotheses": [
+      "edge",
+      "left_right",
+      "upper_lower",
+      "checkerboard",
+      "near_far"
+    ],
+    "total_heldout_episodes": 640,
+    "train_examples_per_family": 16,
+    "train_seed_ranges_by_rule": {
+      "checkerboard": [
+        9030001,
+        9030017
+      ],
+      "edge": [
+        9000001,
+        9000017
+      ],
+      "left_right": [
+        9010001,
+        9010017
+      ],
+      "near_far": [
+        9040001,
+        9040017
+      ],
+      "upper_lower": [
+        9020001,
+        9020017
+      ]
+    },
+    "training_examples_total": 80,
+    "world_size": 13
+  },
+  "protocol_status": "final held-out run",
+  "role_transfer_curve": {
+    "0": {
+      "episodes": 640,
+      "mean_exploratory_target_failures": 13.67,
+      "mean_motor_actions_learned": 4,
+      "mean_steps": 54.49,
+      "median_steps": 51.5,
+      "success_rate": 0.9703,
+      "successes": 621,
+      "vs_cold_ablation": {
+        "episodes_lost": 0,
+        "episodes_tied": 640,
+        "episodes_won": 0,
+        "paired_mean_steps_saved": 0,
+        "paired_mean_steps_saved_95pct_bootstrap_ci": [
+          0.0,
+          0.0
+        ]
+      }
+    },
+    "1": {
+      "episodes": 640,
+      "mean_exploratory_target_failures": 8.85,
+      "mean_motor_actions_learned": 4,
+      "mean_steps": 45.79,
+      "median_steps": 41.0,
+      "success_rate": 0.9766,
+      "successes": 625,
+      "vs_cold_ablation": {
+        "episodes_lost": 189,
+        "episodes_tied": 28,
+        "episodes_won": 423,
+        "paired_mean_steps_saved": 8.697,
+        "paired_mean_steps_saved_95pct_bootstrap_ci": [
+          6.362,
+          11.075
+        ]
+      }
+    },
+    "16": {
+      "episodes": 640,
+      "mean_exploratory_target_failures": 6.42,
+      "mean_motor_actions_learned": 4,
+      "mean_steps": 36.17,
+      "median_steps": 35.0,
+      "success_rate": 0.9984,
+      "successes": 639,
+      "vs_cold_ablation": {
+        "episodes_lost": 83,
+        "episodes_tied": 56,
+        "episodes_won": 501,
+        "paired_mean_steps_saved": 18.317,
+        "paired_mean_steps_saved_95pct_bootstrap_ci": [
+          16.427,
+          20.108
+        ]
+      }
+    },
+    "2": {
+      "episodes": 640,
+      "mean_exploratory_target_failures": 7.7,
+      "mean_motor_actions_learned": 4,
+      "mean_steps": 41.07,
+      "median_steps": 39.0,
+      "success_rate": 0.9922,
+      "successes": 635,
+      "vs_cold_ablation": {
+        "episodes_lost": 146,
+        "episodes_tied": 28,
+        "episodes_won": 466,
+        "paired_mean_steps_saved": 13.422,
+        "paired_mean_steps_saved_95pct_bootstrap_ci": [
+          11.239,
+          15.442
+        ]
+      }
+    },
+    "4": {
+      "episodes": 640,
+      "mean_exploratory_target_failures": 6.42,
+      "mean_motor_actions_learned": 4,
+      "mean_steps": 36.17,
+      "median_steps": 35.0,
+      "success_rate": 0.9984,
+      "successes": 639,
+      "vs_cold_ablation": {
+        "episodes_lost": 83,
+        "episodes_tied": 56,
+        "episodes_won": 501,
+        "paired_mean_steps_saved": 18.317,
+        "paired_mean_steps_saved_95pct_bootstrap_ci": [
+          16.527,
+          20.172
+        ]
+      }
+    },
+    "8": {
+      "episodes": 640,
+      "mean_exploratory_target_failures": 6.42,
+      "mean_motor_actions_learned": 4,
+      "mean_steps": 36.17,
+      "median_steps": 35.0,
+      "success_rate": 0.9984,
+      "successes": 639,
+      "vs_cold_ablation": {
+        "episodes_lost": 83,
+        "episodes_tied": 56,
+        "episodes_won": 501,
+        "paired_mean_steps_saved": 18.317,
+        "paired_mean_steps_saved_95pct_bootstrap_ci": [
+          16.484,
+          20.106
+        ]
+      }
+    }
+  },
+  "train": {
+    "episodes": 80,
+    "mean_exploratory_target_failures": 7.04,
+    "mean_motor_actions_learned": 4,
+    "mean_steps": 37.45,
+    "median_steps": 35.5,
+    "success_rate": 1.0,
+    "successes": 80
+  },
+  "transfer_effect": {
+    "failed_target_reduction_vs_cold_pct": 53.04,
+    "step_reduction_vs_cold_pct": 33.62,
+    "success_lift_vs_random_percentage_points": 94.37
+  },
+  "validation": {
+    "failures": [],
+    "passed": true
+  }
+}

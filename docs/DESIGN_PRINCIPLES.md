@@ -1,45 +1,31 @@
+# Evidence principles
 
-Design Principles
-Structure before domain semantics
+These principles govern the Open Intelligence experiment and any follow-up benchmark.
 
-The kernel should operate on reusable relational structure rather than application-specific rules.
+## Declare the prior
 
-Concrete values stay at the observation boundary
+List what the agent receives and what it must infer. In v4, the feature vocabulary is fixed to five geometric relations; the agent learns their role association through interaction. Do not describe those features as discovered from raw perception.
 
-Persistent concepts should not depend on the values from which they were learned.
+## Freeze the question before scoring
 
-Transfer matters
+Define the task, acceptance criteria, seed ranges, and primary metric before running the final split. Do not use final held-out outcomes to change the policy.
 
-A concept becomes useful when it applies to new observations with the same structure.
+## Compare like with like
 
-Negative cases matter
+Use paired world specifications for trained and control agents. Keep a cold model with the same fixed priors, plus a simple random baseline. Report success and action cost; near-ceiling success alone can hide useful differences.
 
-Recognition must reject near-matches as well as accept correct matches.
+## Treat leakage as a testable property
 
-Prediction makes models testable
+Keep training, held-out, and distribution-shift seeds and surface tokens disjoint. Remap action IDs. Do not expose hidden state, labels, goal coordinates, or family IDs to the policy.
 
-A useful structural concept should expose consequences that can be checked.
+## Publish the failure boundary
 
-Contradictions are information
+Show every task family and distribution-shift result. In v4, role reversal makes the trained model slower than cold; this negative transfer belongs in the abstract and the application.
 
-Prediction failure should remain explicit and should eventually influence memory revision.
+## Separate evidence from ambition
 
-Observation can be active
+A synthetic benchmark result does not establish general intelligence, broad causal reasoning, ARC-AGI performance, or integration with separate Rust components. State the exact system and environment measured.
 
-The system should prefer observations that provide useful structural information.
+## Make reproduction cheap
 
-Determinism first
-
-The current prototype favours reproducibility over stochastic mechanisms.
-
-Memory growth must eventually be bounded
-
-A system that remembers every observation has not solved abstraction.
-
-Tests are architectural contracts
-
-When an established invariant fails, the failure should be treated as information about the architecture.
-
-Claims follow evidence
-
-Implemented, tested and planned capabilities should remain clearly separated.
+Prefer local deterministic tests, standard-library dependencies, explicit commands, and machine-readable outputs. A reviewer should be able to run the visible showcase first and the full benchmark afterward.
