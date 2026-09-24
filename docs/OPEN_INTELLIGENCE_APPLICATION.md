@@ -1,6 +1,6 @@
 # Open Intelligence funding application draft
 
-Prepared 24 September 2026. Replace the two contact placeholders before submission. The technical claims below refer to the [frozen v4 result](../artifacts/open_intelligence/result.json).
+Prepared 24 September 2026. Contact details are omitted from this public draft; enter them directly in the funding form. The technical claims below refer to the frozen v4 release.
 
 ## Form fields
 
@@ -10,11 +10,11 @@ László Lipcsik
 
 **Email**
 
-[YOUR EMAIL]
+Enter your preferred contact email in the form. It is intentionally omitted from this public draft.
 
 **Twitter/X**
 
-[YOUR X HANDLE, OR LEAVE EMPTY]
+Leave blank if you do not use X.
 
 **GitHub profile**
 
@@ -94,9 +94,7 @@ The first command runs the illustrative visible showcase. The second runs syntax
 
 ## Evidence links
 
-- Repository: https://github.com/lipcsiklaszlo5-lgtm/Athlesia
-- [Benchmark guide](../experiments/open_intelligence_core_demo/README.md)
-- [Full runner](../tools/run_open_intelligence_demo.sh)
-- [Frozen result](../artifacts/open_intelligence/result.json)
-
-After publication, replace repository-relative file names with permanent links to the tagged revision.
+- Release commit: https://github.com/lipcsiklaszlo5-lgtm/Athlesia/tree/63d4a535af7e024d80ae83608ff8fe98d6667e2a
+- [Benchmark guide](https://github.com/lipcsiklaszlo5-lgtm/Athlesia/blob/63d4a535af7e024d80ae83608ff8fe98d6667e2a/experiments/open_intelligence_core_demo/README.md)
+- [Full runner](https://github.com/lipcsiklaszlo5-lgtm/Athlesia/blob/63d4a535af7e024d80ae83608ff8fe98d6667e2a/tools/run_open_intelligence_demo.sh)
+- [Frozen result](https://github.com/lipcsiklaszlo5-lgtm/Athlesia/blob/63d4a535af7e024d80ae83608ff8fe98d6667e2a/artifacts/open_intelligence/result.json)
