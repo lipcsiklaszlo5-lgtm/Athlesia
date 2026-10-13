@@ -45,6 +45,11 @@ def solver() -> None:
                 traces = tuple(Trace.from_wire(t) for t in array(request["traces"], 32))
                 agent.fit(traces)
                 payload: dict[str, Json] = {"trained": True}
+            elif isinstance(raw, dict) and raw.get("command") == "predict":
+                request = record(raw, {"command", "observation", "action"})
+                observation = Observation.from_wire(request["observation"])
+                prediction = agent.predict_public(observation, token(request["action"]))
+                payload = {"prediction": {node: value for node, value in prediction}}
             else:
                 request = record(raw, {"command"})
                 if request["command"] == "revise":
@@ -70,11 +75,13 @@ def environment() -> None:
     # This branch and module are absent from the hardened solver image.
     from .environment import World, WorldConfig
     limits = constrain()
-    config = record(read(), {"seed", "guards", "flags", "episode_index"})
+    config = record(read(), {"seed", "guards", "flags", "episode_index",
+                             "opaque_auxiliary_actions"})
     world = World(WorldConfig(integer(config["seed"], 0, 2**63 - 1),
                              tuple(integer(i, 0, 5) for i in array(config["guards"], 6)),
                              tuple(boolean(f) for f in array(config["flags"], 6)),
-                             integer(config["episode_index"], 0, 1_000_000)))
+                             integer(config["episode_index"], 0, 1_000_000),
+                             boolean(config["opaque_auxiliary_actions"])))
     while True:
         raw = read()
         if raw == {"command": "stop"}:

@@ -1,6 +1,6 @@
 # Athlesia: ellenőrizhető akciómodell-tanulás és relációs transzfer
 
-Dátum: 2026-10-13. A „megvalósított” állítások kizárólag a csomagban szereplő kódra vonatkoznak. A további hatnapos munkaterv nem kész funkciók felsorolása.
+Dátum: 2026-10-13. A „megvalósított” állítások kizárólag a csomagban szereplő kódra vonatkoznak. A Day-1 és Day-2 kapu elkészült; a további hatnapos munkaterv többi sora nem kész funkciók felsorolása.
 
 ## 1. Tudományos audit és az állítás pontosítása
 
@@ -24,7 +24,7 @@ Források:
 
 Ez célzott szakirodalmi audit, nem teljes szabadalmi vagy elsőbbségi kutatás. A felsorolt munkák eltérő feladatokra vonatkoznak; nincs összehasonlítható SOTA-pontszám a mostani fixture-re.
 
-**Jelenleg megvédhető állítás:** előre deklarált, determinisztikus, instrumentált Boolean világcsaládban, neurális súlyok nélkül működő referenciaágens explicit hipotézishalmazzal, választott beavatkozásokkal és megőrzött ellenpéldákkal képes egy hiányos akciószabályt javítani; majd azonos mechanizmusú, egyértelműen izomorf, új tokenekkel leírt környezetben a változatlan szabályt végrehajtani. A teljes bemeneti szerződés, keresési korlát és mért költség publikálható.
+**Jelenleg megvédhető állítás:** előre deklarált, determinisztikus, instrumentált Boolean világcsaládban, neurális súlyok nélkül működő referenciaágens vegyes megfigyelési trace-ekből több, átlátszatlan akcióhoz külön hatást és külön véges hipotézisteret indukál. Explicit hipotézishalmazzal, választott beavatkozásokkal és megőrzött ellenpéldákkal képes egy hiányos akciószabályt lokálisan javítani úgy, hogy a többi akciómodell kanonikus lenyomata változatlan; majd azonos mechanizmusú, egyértelműen izomorf, új tokenekkel leírt környezetben a változatlan szabályt végrehajtani. A teljes bemeneti szerződés, keresési korlát és mért költség publikálható.
 
 **Nem megvédhető ebből:** világelsőség; általános emberi intelligencia; tetszőleges új fizika zero-shot megértése; minden LLM számára megoldhatatlanság; korlátlan tanulás fix memórián; feltétel nélküli one-shot pontosság; szubmilliszekundumos teljes futás; robotikában igazolt alkalmazhatóság.
 
@@ -96,7 +96,9 @@ T_r(s,a)=(s\setminus Del)\cup Add.
 
 A referencia ennél szűkebb, teljes Boolean értékelést használ: `Literal(role,value)`, `Rule(action,context,guards,effects)`. A `context` a gráfkötéssel ellenőrzött statikus reláció; a `guards` dinamikus literálok konjunkciója; az `effects` explicit érték-hozzárendelések. A többi fluent változatlan marad. Ha a guard nem teljesül, a feladatakció no-op.
 
-Sikeres nyomvonalból a pozitív hatásjelölt `s'\s`, a negatív `s\s'`. A kód a megfigyelt azonos akcióhoz tartozó delták közös részéből indul, majd az egész normalizált átmenet egyezését ellenőrzi. Nemuniform hatásoknál a jelenlegi modellnyelv kibővítését kéri, nem talál ki egy magyarázatot.
+Minden trace-t egzakt gráfkötés után a forrásvilág belső szerepeire normalizálunk, majd akciószerep szerint particionálunk. Egy akció megfigyelt hatásaláírása a változást tartalmazó trace-ek teljes Boolean deltája. A jelenlegi szűk modell pontosan egy nem üres delta-aláírást enged akciónként; eltérő változó delták esetén elutasít, nem metszi el csendben a bizonyíték egy részét. A hatás által módosított szerepek nem lehetnek ugyanazon szabály guard-jelöltjei. A pozitív példákon invariáns, megfigyelt előállapot-literálokból épül a legfeljebb két elemű konjunktív hipotézistér, amelyet minden pozitív, negatív és idempotens akciólokális tanú teljes utódállapot-egyezése szűr.
+
+A célt adó akciót ebben a benchmarkban az első demonstráció jelöli ki. Ez explicit protokollkonvenció, nem autonóm célindukció. A további akciók tokenjei átlátszatlanok, nyilvános gráfjuk csak általános `acts_on` kötést ad; hatásukat a solver a trace-deltákból tanulja.
 
 Az `?v0`, `?v1`, ... belső változónevek. Nem az azonosítók szövegéből következtetünk arra, melyik a gomb vagy az áramforrás. A tokenek csak a megfigyelésben szereplő csomópontokat nevezik meg.
 
@@ -234,7 +236,7 @@ A kapacitási és osztályon kívüli leállásokat nem szabad feladatsikernek e
 | Nap | Konkrét munka | Kilépési feltétel |
 |---|---|---|
 | 1 | Ez a csomag helyi reprodukciója; szigorú API és valódi konténeres elválasztás bekapcsolása. | 28 teszt; az ötfázisú eset; környezetfájl-/folyamat-/hálózat-hozzáférési támadó kontrollok elutasítva; nincs megosztott privát konfiguráció. |
-| 2 | Több akcióséma; add/delete hatások; pozitív és negatív guardok; külön, solver által nem ismert generátor. | A tanuló által nem látott kombinációkon egzakt átmenetpredikció; a predikátum- és grammatikai előfeltevések tételes listája. |
+| 2 | **Elkészült rész:** több akcióséma, pozitív és negatív Boolean hatások, no-op tanúk, akciólokális verzióterek. | 31 teszt; kevert nyomvonalakból külön verzióterek; nemuniform effektus elutasítása; a lokális revízió két idegen modellt nem módosít. A független második generátor továbbra is nyitott. |
 | 3 | Aktív kísérletválasztás; ellenpélda-indexelés; kontextusfüggő revízió; hiányzó és zajos megfigyelésnél kontrollált visszautasítás. | Szükséges és elégséges beavatkozások számolva; téves korai commit nulla a rögzített negatív kontrollokon; korábbi tanúk regressziója nulla. |
 | 4 | Vak átnevezés mellett valóban új topológiák és új feladatcélok; szükség esetén lokális gráfmotívumok megfeleltetése. | Rögzített mechanizmusú transzfer külön mérve a változott mechanizmus miatti újratanulástól; kétértelmű esetek elutasítva; transzferkor memóriahash változatlan. |
 | 5 | Független generátorok, előre lezárt tesztmagok; 100+ eset családonként; CPU/RAM/kísérletszám és ablatív kontrollok. | A >90% elvárás pontos családra meghatározva; minden hiba benne a nevezőben; 250 MB teljes solverkeret; p50/p95/p99 és időtúllépések közzétéve. |

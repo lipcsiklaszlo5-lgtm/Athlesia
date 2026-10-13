@@ -130,10 +130,85 @@ class GraphTests(unittest.TestCase):
 
 
 class LearningTests(unittest.TestCase):
+    @staticmethod
+    def trace(seed: int, flags: tuple[bool, ...], episode: int,
+              action_index: int | None = None, set_true: bool = True) -> tuple[Trace, World]:
+        world = World(WorldConfig(seed, (0,), flags, episode))
+        before = world.send_action(OBSERVE)
+        action = world.primary if action_index is None else (
+            world.up[action_index] if set_true else world.down[action_index]
+        )
+        return Trace(before, action, world.send_action(action)), world
+
     def test_three_positives_do_not_identify_the_law(self) -> None:
         a, _ = trained()
         self.assertEqual(len(a.version_space), 4)
         self.assertEqual(a.rule.guards, ())
+
+    def test_mixed_actions_are_induced_into_isolated_schema_spaces(self) -> None:
+        def observed(flags: tuple[bool, ...], episode: int,
+                     auxiliary: int | None) -> tuple[Trace, World]:
+            world = World(WorldConfig(17, (0,), flags, episode, True))
+            before = world.send_action(OBSERVE)
+            action = world.primary if auxiliary is None else world.auxiliary[auxiliary]
+            return Trace(before, action, world.send_action(action)), world
+
+        primary = [observed((True, True, True), i, None)[0] for i in range(3)]
+        aux_true, source = observed((False, False, False), 10, 0)
+        aux_true_noop, _ = observed((True, True, True), 11, 0)
+        aux_false, _ = observed((True, True, True), 12, 1)
+        aux_false_noop, _ = observed((False, False, False), 13, 1)
+        agent = Agent()
+        agent.fit(tuple((*primary, aux_true, aux_true_noop,
+                         aux_false, aux_false_noop)))
+
+        primary_role = agent.roles[source.primary]
+        up_role = agent.roles[source.auxiliary[0]]
+        down_role = agent.roles[source.auxiliary[1]]
+        self.assertEqual(set(agent.rules), {primary_role, up_role, down_role})
+        self.assertEqual(len(agent.version_spaces[primary_role]), 7)
+        self.assertEqual(agent.rules[up_role].effects,
+                         (Literal(agent.roles[source.fluents[1]], True),))
+        self.assertEqual(agent.rules[down_role].effects,
+                         (Literal(agent.roles[source.fluents[2]], False),))
+        for action in source.auxiliary:
+            relations = {edge.relation for edge in source.scene.edges if edge.source == action}
+            self.assertEqual(relations, {Relation.ACTS_ON})
+
+        held_out = World(WorldConfig(17, (0,), (True, False, True), 14, True))
+        before = held_out.send_action(OBSERVE)
+        predicted = dict(agent.predict_public(before, held_out.auxiliary[0]))
+        actual = dict(held_out.send_action(held_out.auxiliary[0]).values)
+        self.assertEqual(predicted, actual)
+
+        unrelated_rules = {role: agent.rules[role] for role in (up_role, down_role)}
+        unrelated_spaces = {role: agent.version_spaces[role] for role in (up_role, down_role)}
+        revision = agent.revise(World(WorldConfig(17, (0,), (False, False, False), 20, True)))
+        self.assertTrue(revision["unrelated_models_unchanged"])
+        self.assertEqual({role: agent.rules[role] for role in unrelated_rules}, unrelated_rules)
+        self.assertEqual({role: agent.version_spaces[role] for role in unrelated_spaces},
+                         unrelated_spaces)
+
+    def test_negative_witness_filters_only_inconsistent_guard_models(self) -> None:
+        positive, source = self.trace(31, (True, True), 0)
+        negative, _ = self.trace(31, (False, True), 1)
+        agent = Agent()
+        agent.fit((positive, negative))
+        first_feature = agent.roles[source.fluents[0]]
+        self.assertEqual(len(agent.version_space), 2)
+        self.assertEqual(agent.rule.guards, (Literal(first_feature, True),))
+        self.assertTrue(all(agent.consistent(rule) for rule in agent.version_space))
+
+    def test_nonuniform_effect_for_same_action_is_rejected(self) -> None:
+        first, _ = self.trace(43, (True, True), 0)
+        second, source = self.trace(43, (True, True), 1)
+        values = dict(second.after.values)
+        values[source.fluents[0]] = False
+        corrupted = replace(second, after=replace(second.after,
+                                                   values=tuple(sorted(values.items()))))
+        agent = Agent()
+        with self.assertRaisesRegex(CannotIdentify, "Nonuniform observed effect"):
+            agent.fit((first, corrupted))
 
     def test_day1_exact_local_revision_and_history(self) -> None:
         a, traces = trained()

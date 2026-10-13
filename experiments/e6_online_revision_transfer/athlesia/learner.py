@@ -21,6 +21,7 @@ MAX_FEATURES = 8
 MAX_GUARDS = 2
 MAX_WITNESSES = 64
 MAX_EXPERIMENTS = 8
+MAX_ACTION_SCHEMAS = 16
 
 
 class CannotIdentify(RuntimeError):
@@ -87,6 +88,8 @@ class Agent:
         self.primary: Role | None = None
         self.version_space: tuple[Rule, ...] = ()
         self.witnesses: dict[Witness, int] = {}
+        self.version_spaces: dict[Role, tuple[Rule, ...]] = {}
+        self.witnesses_by_action: dict[Role, dict[Witness, int]] = {}
         self.events: list[dict[str, Json]] = []
         self.commits = 0
 
@@ -115,14 +118,113 @@ class Agent:
         raw = dict(obs.values)
         return tuple(sorted((role, raw[node]) for role, node in binding.items() if node in raw))
 
-    def remember(self, before: Values, after: Values) -> None:
+    def witness_store(self, action: Role | None = None) -> dict[Witness, int]:
+        selected = self.primary if action is None else action
+        if selected is None:
+            return self.witnesses
+        if selected == self.primary:
+            self.witnesses_by_action[selected] = self.witnesses
+            return self.witnesses
+        return self.witnesses_by_action.setdefault(selected, {})
+
+    def remember(self, before: Values, after: Values, action: Role | None = None) -> None:
         w = Witness(before, after)
-        if w not in self.witnesses and len(self.witnesses) >= MAX_WITNESSES:
+        store = self.witness_store(action)
+        distinct = len(self.witnesses) + sum(
+            len(items) for role, items in self.witnesses_by_action.items()
+            if role != self.primary
+        )
+        if w not in store and distinct >= MAX_WITNESSES:
             raise CannotIdentify("Evidence capacity reached; no silent forgetting")
-        self.witnesses[w] = self.witnesses.get(w, 0) + 1
+        store[w] = store.get(w, 0) + 1
 
     def consistent(self, rule: Rule) -> bool:
-        return all(rule.predict(w.before) == w.after for w in self.witnesses)
+        return all(rule.predict(w.before) == w.after
+                   for w in self.witness_store(rule.action))
+
+    def set_primary_version_space(self, hypotheses: tuple[Rule, ...]) -> None:
+        if self.primary is None:
+            raise CannotIdentify("Untrained model")
+        self.version_space = hypotheses
+        self.version_spaces[self.primary] = hypotheses
+
+    def unrelated_model_digest(self) -> str:
+        """Canonical digest of every learned action model except the primary."""
+        payload = {
+            "rules": {action: rule.to_wire() for action, rule in sorted(self.rules.items())
+                      if action != self.primary},
+            "hypotheses": {
+                action: [rule.to_wire() for rule in hypotheses]
+                for action, hypotheses in sorted(self.version_spaces.items())
+                if action != self.primary
+            },
+            "witnesses": {
+                action: [{"before": dict(w.before), "after": dict(w.after), "count": count}
+                         for w, count in sorted(items.items(), key=lambda item: repr(item[0]))]
+                for action, items in sorted(self.witnesses_by_action.items())
+                if action != self.primary
+            },
+        }
+        data = json.dumps(payload, sort_keys=True, separators=(",", ":")).encode()
+        return hashlib.sha256(data).hexdigest()
+
+    @staticmethod
+    def observed_delta(witness: Witness) -> tuple[Literal, ...]:
+        before = dict(witness.before)
+        return tuple(sorted(Literal(role, value) for role, value in witness.after
+                            if before[role] != value))
+
+    def induce_action_schema(
+        self,
+        action: Role,
+        context: tuple[tuple[Role, Relation, Role], ...],
+    ) -> tuple[Rule, tuple[Rule, ...]]:
+        """Induce one bounded deterministic schema from action-local evidence.
+
+        The effect signature and every guard candidate come from observed
+        before/after traces.  No hidden rule, semantic action name, or evaluator
+        label enters this method.
+        """
+        store = self.witness_store(action)
+        changed = {self.observed_delta(w) for w in store if self.observed_delta(w)}
+        if not changed:
+            raise CannotIdentify("No observed effect for action schema")
+        if len(changed) != 1:
+            raise CannotIdentify("Nonuniform observed effect for action schema")
+        effects = next(iter(changed))
+        effect_roles = {effect.role for effect in effects}
+        positive = tuple(w for w in store if self.observed_delta(w) == effects)
+        literals: list[Literal] = []
+        for feature in self.features:
+            if feature in effect_roles:
+                continue
+            observed = {dict(w.before)[feature] for w in positive}
+            if len(observed) == 1:
+                literals.append(Literal(feature, observed.pop()))
+        if len(literals) > MAX_FEATURES:
+            raise CannotIdentify("Action-local feature budget exceeded")
+        base = Rule(action, context, (), effects)
+        hypotheses = tuple(
+            replace(base, guards=tuple(guards))
+            for size in range(min(MAX_GUARDS, len(literals)) + 1)
+            for guards in itertools.combinations(literals, size)
+            if self.consistent(replace(base, guards=tuple(guards)))
+        )
+        if not hypotheses:
+            raise CannotIdentify("No consistent action schema in declared grammar")
+        current = min(hypotheses, key=lambda rule: (len(rule.guards), rule.guards))
+        return current, hypotheses
+
+    def predict_public(self, observation: Observation, action_token: str) -> Values:
+        """Predict a complete public successor state without mutating memory."""
+        binding = self.binding(observation.scene)
+        reverse = {node: role for role, node in binding.items()}
+        if action_token not in reverse or reverse[action_token] not in self.rules:
+            raise CannotIdentify("No induced schema for requested action")
+        prediction = self.rules[reverse[action_token]].predict(
+            self.normalize(observation, binding)
+        )
+        return tuple(sorted((binding[role], value) for role, value in prediction))
 
     def fit(self, traces: tuple[Trace, ...]) -> None:
         if self.template is not None or not 1 <= len(traces) <= 32:
@@ -133,6 +235,7 @@ class Agent:
         # Alpha variables are internal names, not guessed token meanings.
         self.roles = {n.id: f"?v{i}" for i, n in enumerate(self.template.nodes)}
         self.primary = self.roles[first.action]
+        self.witnesses_by_action[self.primary] = self.witnesses
         distance = distances(self.template, first.action)
         features = sorted((n.id for n in self.template.nodes if n.kind == Kind.FLUENT),
                           key=lambda n: distance.get(n, 1_000_000))
@@ -141,41 +244,35 @@ class Agent:
         # Equidistant features are allowed: ordering affects probe cost, not a
         # certified mapping. Graph ambiguity is checked separately.
         self.features = tuple(self.roles[n] for n in features)
-        effects: set[Literal] | None = None
-        first_values: Values | None = None
+        action_counts: dict[Role, int] = {}
         for trace in traces:
             trace.validate()
             binding = self.binding(trace.before.scene)
             reverse = {v: k for k, v in binding.items()}
-            if reverse[trace.action] != self.primary:
-                raise CannotIdentify("Day-1 induction expects one action schema")
+            action = reverse[trace.action]
             before, after = self.normalize(trace.before, binding), self.normalize(trace.after, binding)
-            delta = {Literal(role, val) for role, val in after if dict(before)[role] != val}
-            effects = delta if effects is None else effects & delta
-            self.remember(before, after)
-            first_values = before if first_values is None else first_values
-        if not effects:
-            raise CannotIdentify("No consistent observed effect")
-        if any(e.role in self.features for e in effects):
-            raise CannotIdentify("The probe schema assumes primary action does not change guard channels")
+            self.remember(before, after, action)
+            action_counts[action] = action_counts.get(action, 0) + 1
+        if not 1 <= len(action_counts) <= MAX_ACTION_SCHEMAS:
+            raise CannotIdentify("Action-schema budget exceeded")
         context = tuple((self.roles[e.source], e.relation, self.roles[e.target])
                         for e in self.template.edges if e.relation == Relation.LINK)
-        naive = Rule(self.primary, context, (), tuple(sorted(effects)))
-        if not self.consistent(naive):
-            raise CannotIdentify("Nonuniform effect; expand model class explicitly")
-        self.rules[self.primary] = naive
-        # Both signs are part of the grammar; positive demonstrations remove
-        # impossible ones. Search is finite and capped, not unconstrained ILP.
-        if first_values is None:
-            raise CannotIdentify("No examples")
-        literals = tuple(Literal(f, dict(first_values)[f]) for f in self.features)
-        hypotheses = tuple(replace(naive, guards=tuple(gs))
-                           for k in range(MAX_GUARDS + 1)
-                           for gs in itertools.combinations(literals, k))
-        self.version_space = tuple(h for h in hypotheses if self.consistent(h))
-        self.emit("NAIVE_RULE_INDUCED", demonstrations=len(traces),
+        for action in sorted(action_counts):
+            rule, hypotheses = self.induce_action_schema(action, context)
+            self.rules[action] = rule
+            self.version_spaces[action] = hypotheses
+            self.emit("ACTION_SCHEMA_INDUCED", action_role=action,
+                      demonstrations=action_counts[action],
+                      observed_effects=[{"role": effect.role, "value": effect.value}
+                                        for effect in rule.effects],
+                      remaining_hypotheses=len(hypotheses), rule=rule.to_wire())
+        if self.primary not in self.rules:
+            raise CannotIdentify("Primary action has no identifiable observed effect")
+        self.set_primary_version_space(self.version_spaces[self.primary])
+        self.emit("NAIVE_RULE_INDUCED", demonstrations=action_counts[self.primary],
+                  observed_action_schemas=len(self.rules),
                   remaining_hypotheses=len(self.version_space), exact_identification=False,
-                  rule=naive.to_wire())
+                  rule=self.rule.to_wire())
 
     def intervention(self, scene: Scene, binding: dict[Role, str], literal: Literal) -> str:
         relation = Relation.SET_TRUE if literal.value else Relation.SET_FALSE
@@ -241,6 +338,7 @@ class Agent:
         return obs, count
 
     def revise(self, port: ActionPort) -> dict[str, Json]:
+        unrelated_before = self.unrelated_model_digest()
         obs = port.send_action(OBSERVE)
         binding = self.binding(obs.scene)
         initial = self.normalize(obs, binding)
@@ -251,7 +349,9 @@ class Agent:
         if actual == prediction:
             raise CannotIdentify("No contradiction; this is not the acceptance scenario")
         self.emit("CONTRADICTION_FOUND", predicted=dict(prediction), observed=dict(actual))
-        self.version_space = tuple(h for h in self.version_space if self.consistent(h))
+        self.set_primary_version_space(
+            tuple(h for h in self.version_space if self.consistent(h))
+        )
         if not self.version_space:
             raise CannotIdentify("No consistent hypothesis in declared grammar")
         self.emit("REVISION_HYPOTHESES", count=len(self.version_space),
@@ -280,7 +380,9 @@ class Agent:
             task_attempts += 1
             experiments += 1
             self.remember(before, self.normalize(obs, binding))
-            self.version_space = tuple(h for h in self.version_space if self.consistent(h))
+            self.set_primary_version_space(
+                tuple(h for h in self.version_space if self.consistent(h))
+            )
             self.emit("HYPOTHESES_FILTERED", remaining=len(self.version_space))
             if not self.version_space:
                 raise CannotIdentify("Experiment falsified the declared hypothesis class")
@@ -308,7 +410,7 @@ class Agent:
             experiments += 1
             self.remember(before, self.normalize(obs, binding))
             if not self.consistent(candidate):
-                self.version_space = ()
+                self.set_primary_version_space(())
                 raise CannotIdentify("Confirmatory intervention falsified the model class")
         old_rule = self.rule
         if not self.consistent(candidate):
@@ -316,12 +418,19 @@ class Agent:
         edits = old_rule.guard_edit_distance(candidate)
         # The sole mutation point. Other action schemas remain intact.
         self.rules = self.rules | {candidate.action: candidate}
+        self.set_primary_version_space((candidate,))
+        unrelated_unchanged = unrelated_before == self.unrelated_model_digest()
+        if not unrelated_unchanged:
+            raise AssertionError("Local revision mutated an unrelated action schema")
         self.commits += 1
         self.emit("LOCAL_REVISION_COMMITTED", literal_edits=edits, experiments=experiments,
-                  witnesses_preserved=sum(self.witnesses.values()), rule=candidate.to_wire())
+                  witnesses_preserved=sum(self.witnesses.values()),
+                  unrelated_action_schemas=len(self.rules) - 1,
+                  unrelated_models_unchanged=True, rule=candidate.to_wire())
         return {"experiments": experiments, "task_attempts": task_attempts,
                 "interventions": interventions, "literal_edits": edits,
                 "historical_consistency": self.consistent(candidate),
+                "unrelated_models_unchanged": unrelated_unchanged,
                 "identified_within_declared_class": True}
 
     def transfer(self, port: ActionPort) -> dict[str, Json]:
@@ -357,9 +466,15 @@ class Agent:
         return {"template": self.template.to_wire() if self.template else None,
                 "roles": dict(self.roles), "features": list(self.features),
                 "rules": {a: r.to_wire() for a, r in sorted(self.rules.items())},
-                "hypotheses": [r.to_wire() for r in self.version_space],
-                "witnesses": [{"before": dict(w.before), "after": dict(w.after), "count": count}
-                              for w, count in sorted(self.witnesses.items(), key=lambda item: repr(item[0]))],
+                "hypotheses_by_action": {
+                    action: [rule.to_wire() for rule in hypotheses]
+                    for action, hypotheses in sorted(self.version_spaces.items())
+                },
+                "witnesses_by_action": {
+                    action: [{"before": dict(w.before), "after": dict(w.after), "count": count}
+                             for w, count in sorted(items.items(), key=lambda item: repr(item[0]))]
+                    for action, items in sorted(self.witnesses_by_action.items())
+                },
                 "commits": self.commits}
 
     def memory_bytes(self) -> bytes:

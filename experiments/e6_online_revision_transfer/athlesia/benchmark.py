@@ -13,6 +13,7 @@ import math
 import os
 from pathlib import Path
 import platform
+import random
 import selectors
 import shutil
 import subprocess
@@ -23,7 +24,7 @@ from dataclasses import dataclass
 from typing import cast
 
 from .protocol import (MAX_BYTES, Json, Kind, Observation, Relation, Trace, OBSERVE,
-                       dumps, loads, record)
+                       boolean, dumps, loads, record)
 from .runtime import constrain, peak_rss_bytes
 
 
@@ -104,9 +105,13 @@ class Process:
 
 
 class RemoteWorld:
-    def __init__(self, process: Process, seed: int, guards: tuple[int, ...], flags: tuple[bool, ...], episode: int) -> None:
+    def __init__(self, process: Process, seed: int, guards: tuple[int, ...],
+                 flags: tuple[bool, ...], episode: int,
+                 opaque_auxiliary_actions: bool = False) -> None:
         self.process = process
-        self.process.send({"seed": seed, "guards": list(guards), "flags": list(flags), "episode_index": episode})
+        self.process.send({"seed": seed, "guards": list(guards), "flags": list(flags),
+                           "episode_index": episode,
+                           "opaque_auxiliary_actions": opaque_auxiliary_actions})
         self.peak = 0
         self.calls = 0
         self.actions = 0
@@ -165,43 +170,134 @@ def run_case(seed: int = 17, channels: int = 2, guards: tuple[int, ...] = (0,), 
     environment_peak = 0
     environment_calls, environment_actions = 0, 0
     demonstrations_transcript: list[Json] = []
-    for i in range(3):
+
+    def capture_demo(flags: tuple[bool, ...], episode: int,
+                     selected: str | None = None) -> tuple[str, tuple[str, ...]]:
+        nonlocal environment_peak, environment_calls, environment_actions
         with Process("environment") as process:
-            world = RemoteWorld(process, seed, guards, (True,) * channels, i)
+            world = RemoteWorld(process, seed, guards, flags, episode, True)
             before = world.send_action(OBSERVE)
-            actions = [e.source for e in before.scene.edges if e.relation == Relation.ACTS_ON]
-            if len(actions) != 1:
+            actions = tuple(sorted(e.source for e in before.scene.edges
+                                   if e.relation == Relation.ACTS_ON))
+            incoming = {edge.target for edge in before.scene.edges
+                        if edge.relation == Relation.LINK}
+            roots = {node.id for node in before.scene.nodes
+                     if node.kind == Kind.OBJECT and node.id not in incoming}
+            task_actions = [edge.source for edge in before.scene.edges
+                            if edge.relation == Relation.ACTS_ON and edge.target in roots]
+            action = selected if selected is not None else (
+                task_actions[0] if len(task_actions) == 1 else None
+            )
+            if action is None or action not in actions:
                 raise RuntimeError("Invalid training fixture")
-            after = world.send_action(actions[0])
-            traces.append(Trace(before, actions[0], after))
+            after = world.send_action(action)
+            traces.append(Trace(before, action, after))
             environment_peak = max(environment_peak, world.peak)
             environment_calls += world.calls
             environment_actions += world.actions
-            demonstrations_transcript.extend(world.transcript)
+            return action, actions
+
+    # The first trace identifies the task action by demonstration order, not by
+    # token meaning.  Two unrelated calibration actions are then interleaved as
+    # distractors.  Each has a changing and an idempotent witness.
+    primary, observed_actions = capture_demo((True,) * channels, 0)
+    for i in range(1, 3):
+        capture_demo((True,) * channels, i, primary)
+    auxiliary = tuple(action for action in observed_actions if action != primary)
+    if len(auxiliary) != 2:
+        raise RuntimeError("Expected two opaque auxiliary actions")
+    episode = 10
+    for action in auxiliary:
+        capture_demo((False,) * channels, episode, action)
+        capture_demo((True,) * channels, episode + 1, action)
+        episode += 2
+    tail = traces[1:]
+    random.Random(seed ^ 0xA71E51A).shuffle(tail)
+    traces[:] = [traces[0], *tail]
+    demonstrations_transcript = [
+        event
+        for trace in traces
+        for event in (
+            {"action_token": OBSERVE, "observation": trace.before.to_wire()},
+            {"action_token": trace.action, "observation": trace.after.to_wire()},
+        )
+    ]
     with Process("solver", docker_solver) as solver:
         fit = solver_command(solver, {"command": "fit", "traces": [t.to_wire() for t in traces]})
+        schema_checks: list[dict[str, Json]] = []
+        schema_validation_transcript: list[Json] = []
+        prediction_results: list[dict[str, Json]] = []
+        patterns = (tuple(i % 2 == 0 for i in range(channels)),
+                    tuple(i % 2 == 1 for i in range(channels)))
+        validation_episode = 100
+        for action in auxiliary:
+            for flags in patterns:
+                with Process("environment") as process:
+                    held_out = RemoteWorld(process, seed, guards, flags,
+                                           validation_episode, True)
+                    before = held_out.send_action(OBSERVE)
+                    prediction = solver_command(
+                        solver,
+                        {"command": "predict", "observation": before.to_wire(),
+                         "action": action},
+                    )
+                    prediction_results.append(prediction)
+                    payload = record(prediction["payload"], {"prediction"})
+                    predicted_raw = record(payload["prediction"],
+                                           {node for node, _ in before.values})
+                    predicted = {node: boolean(value)
+                                 for node, value in predicted_raw.items()}
+                    after = held_out.send_action(action)
+                    actual = dict(after.values)
+                    exact = predicted == actual
+                    schema_checks.append({"action_token": action,
+                                          "held_out_flags": list(flags),
+                                          "predicted_values": predicted,
+                                          "actual_values": actual,
+                                          "exact_successor_prediction": exact})
+                    schema_validation_transcript.extend(held_out.transcript)
+                    environment_peak = max(environment_peak, held_out.peak)
+                    environment_calls += held_out.calls
+                    environment_actions += held_out.actions
+                validation_episode += 1
+        schema_prediction_success = all(
+            check["exact_successor_prediction"] is True for check in schema_checks
+        )
         with Process("environment") as process:
-            trap = RemoteWorld(process, seed, guards, (False,) * channels, 3)
+            trap = RemoteWorld(process, seed, guards, (False,) * channels, 3, True)
             revision = solver_command(solver, {"command": "revise"}, trap)
             environment_peak = max(environment_peak, trap.peak)
             environment_calls += trap.calls
             environment_actions += trap.actions
         with Process("environment") as process:
             # Entirely new object and action tokens plus randomized grid layout.
-            target = RemoteWorld(process, seed + 1_000_003, guards, (False,) * channels, 4)
+            target = RemoteWorld(process, seed + 1_000_003, guards,
+                                 (False,) * channels, 4, True)
             transfer = solver_command(solver, {"command": "transfer"}, target)
             environment_peak = max(environment_peak, target.peak)
             environment_calls += target.calls
             environment_actions += target.actions
             evaluator_success = independent_success(target)
-        results = (fit, revision, transfer)
+        results = (fit, *prediction_results, revision, transfer)
         metrics = [cast(dict[str, Json], r["metrics"]) for r in results]
         peak = max(cast(int, m["peak_rss_bytes"]) for m in metrics)
         cpu = sum(cast(int, m["cpu_ns"]) for m in metrics)
         events = [event for r in results for event in cast(list[Json], r["events"])]
+        fit_event_count = len(cast(list[Json], fit["events"]))
+        events.insert(fit_event_count, {
+            "event": "ACTION_SCHEMAS_HELD_OUT_VERIFIED",
+            "source": "independent_broker",
+            "predictions": len(schema_checks),
+            "exact_predictions": sum(
+                check["exact_successor_prediction"] is True for check in schema_checks
+            ),
+        })
         return {"seed": seed, "channels": channels, "hidden_guard_count_evaluator_only": len(guards),
-                "passed": all(r["ok"] is True for r in results) and evaluator_success,
+                "passed": (all(r["ok"] is True for r in results)
+                           and schema_prediction_success and evaluator_success),
                 "independent_evaluator_success": evaluator_success,
+                "action_schema_predictions_passed": schema_prediction_success,
+                "action_schema_checks": schema_checks,
                 "fit": fit, "revision": revision, "transfer": transfer, "events": events,
                 "solver_cpu_ns": cpu, "case_wall_ns_including_startup": time.perf_counter_ns() - start,
                 "solver_peak_rss_bytes": peak, "environment_peak_rss_bytes": environment_peak,
@@ -209,6 +305,7 @@ def run_case(seed: int = 17, channels: int = 2, guards: tuple[int, ...] = (0,), 
                 "sum_of_process_peak_rss_upper_bound": peak + environment_peak + peak_rss_bytes(),
                 "environment_calls": environment_calls, "environment_actions": environment_actions,
                 "public_transcripts": {"demonstrations": demonstrations_transcript,
+                                       "action_schema_validation": schema_validation_transcript,
                                        "revision": trap.transcript, "transfer": target.transcript},
                 "isolation": "docker_solver_network_none" if docker_solver else "trusted_code_subprocess_protocol_only"}
 
@@ -235,7 +332,7 @@ def main() -> None:
         source_hash.update(file.name.encode() + b"\0" + file.read_bytes())
     with run_log.open("w") as output:
         for i in range(args.cases):
-            channels = 2 + (i % 3)
+            channels = 3 + (i % 3)
             guards: tuple[int, ...] = (i % channels,) if i % 4 else (0,)
             if i and i % 5 == 0:
                 guards = (0, channels - 1)
@@ -243,7 +340,8 @@ def main() -> None:
             output.write(json.dumps(result, separators=(",", ":")) + "\n")
             output.flush()
             aggregates.append({k: result[k] for k in ("passed", "solver_cpu_ns", "case_wall_ns_including_startup",
-                                                       "solver_peak_rss_bytes", "sum_of_process_peak_rss_upper_bound")})
+                                                       "solver_peak_rss_bytes", "sum_of_process_peak_rss_upper_bound",
+                                                       "action_schema_checks")})
             if args.cases == 1:
                 for event in cast(list[Json], result["events"]):
                     print(json.dumps(event, ensure_ascii=False))
@@ -252,10 +350,19 @@ def main() -> None:
     successes = sum(x["passed"] is True for x in aggregates)
     cpu_ns = [cast(int, x["solver_cpu_ns"]) for x in aggregates]
     wall_ns = [cast(int, x["case_wall_ns_including_startup"]) for x in aggregates]
-    report = {"benchmark": "Athlesia bounded Day-1 acceptance v0.1",
+    held_out_checks = [
+        cast(dict[str, Json], check)
+        for aggregate in aggregates
+        for check in cast(list[Json], aggregate["action_schema_checks"])
+    ]
+    report = {"benchmark": "Athlesia bounded Day-2 action-schema acceptance v0.2",
               "source_sha256": source_hash.hexdigest(), "python": sys.version.split()[0],
               "platform": platform.platform(), "processor": platform.processor(), **limits,
               "cases": args.cases, "successes": successes, "failures": args.cases - successes,
+              "held_out_action_schema_predictions": len(held_out_checks),
+              "exact_held_out_action_schema_predictions": sum(
+                  check["exact_successor_prediction"] is True for check in held_out_checks
+              ),
               "solver_total_cpu_ms_p50": percentile(cpu_ns, 0.5) / 1e6,
               "solver_total_cpu_ms_p95": percentile(cpu_ns, 0.95) / 1e6,
               "case_wall_ms_p50_including_startup": percentile(wall_ns, 0.5) / 1e6,
@@ -264,7 +371,7 @@ def main() -> None:
               "max_sum_process_peak_rss_bytes": max(cast(int, x["sum_of_process_peak_rss_upper_bound"]) for x in aggregates),
               "isolation": "docker_solver_network_none" if args.docker_solver else "trusted_code_subprocess_protocol_only",
               "novelty_claim": False, "robotics_or_cross_mechanism_transfer_tested": False,
-              "scope": "2..4 guard channels, fixed positive-conjunction grammar, relabelled isomorphic worlds"}
+              "scope": "3..5 guard channels, three mixed opaque action schemas, fixed positive-conjunction grammar, relabelled isomorphic worlds"}
     args.output.write_text(json.dumps(report, indent=2) + "\n")
     print(json.dumps(report, indent=2))
     if successes != args.cases:

@@ -17,6 +17,7 @@ class WorldConfig:
     guards: tuple[int, ...] = (0,)
     flags: tuple[bool, ...] = (True, True)
     episode_index: int = 0
+    opaque_auxiliary_actions: bool = False
 
 
 class World:
@@ -39,16 +40,23 @@ class World:
         self.clear = identifier()
         self.up = tuple(identifier() for _ in range(count))
         self.down = tuple(identifier() for _ in range(count))
+        self.auxiliary = tuple(identifier() for _ in range(2)) if config.opaque_auxiliary_actions else ()
         nodes = [Node(n, Kind.OBJECT) for n in self.objects]
         nodes += [Node(n, Kind.FLUENT) for n in self.fluents]
         nodes += [Node(self.goal, Kind.GOAL)]
-        nodes += [Node(n, Kind.ACTION) for n in (self.primary, self.clear, *self.up, *self.down)]
+        nodes += [Node(n, Kind.ACTION) for n in
+                  (self.primary, self.clear, *self.up, *self.down, *self.auxiliary)]
         edges = [Edge(self.objects[i], Relation.LINK, self.objects[i + 1]) for i in range(count - 1)]
         edges += [Edge(f, Relation.AT, o) for f, o in zip(self.fluents, self.objects)]
         edges += [Edge(self.goal, Relation.AT, self.objects[-1]), Edge(self.primary, Relation.ACTS_ON, self.objects[0])]
         edges += [Edge(self.clear, Relation.CLEAR, self.goal)]
         edges += [Edge(a, Relation.SET_TRUE, f) for a, f in zip(self.up, self.fluents)]
         edges += [Edge(a, Relation.SET_FALSE, f) for a, f in zip(self.down, self.fluents)]
+        if self.auxiliary:
+            # Both actions expose only a generic actuator binding.  Their
+            # state effects are deliberately absent from the public graph.
+            edges += [Edge(self.auxiliary[0], Relation.ACTS_ON, self.objects[1]),
+                      Edge(self.auxiliary[1], Relation.ACTS_ON, self.objects[-1])]
         width, height = rng.randrange(12, 4096), rng.randrange(12, 4096)
         layout = [(n.id, rng.randrange(width), rng.randrange(height)) for n in nodes]
         rng.shuffle(nodes)
@@ -72,6 +80,10 @@ class World:
             self._values[self.fluents[self.up.index(action_token)]] = True
         elif action_token in self.down:
             self._values[self.fluents[self.down.index(action_token)]] = False
+        elif self.auxiliary and action_token == self.auxiliary[0]:
+            self._values[self.fluents[1]] = True
+        elif self.auxiliary and action_token == self.auxiliary[1]:
+            self._values[self.fluents[-1]] = False
         else:
             raise ContractError("Unknown action token")
         self._sequence += 1
