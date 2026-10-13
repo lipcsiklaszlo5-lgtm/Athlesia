@@ -1,0 +1,40 @@
+{
+  "package": "athlesia-e7-raw-grid-transfer",
+  "version": "0.1.0",
+  "recorded_utc": "2026-10-13T21:50:48Z",
+  "baseline_commit": "790aeb5d99c4787c0935d719910280e36c04e850",
+  "scope": "bounded same-author opaque-grid visual transition learner; E6 unchanged",
+  "generated_results_tracked": false,
+  "files": [
+    {
+      "path": ".gitignore",
+      "bytes": 28,
+      "sha256": "5583bf948e1206a468cd30e1e410e3b392a3810401f09fa5ba2dcdfcea4900b1"
+    },
+    {
+      "path": "README.md",
+      "bytes": 2070,
+      "sha256": "884e389a0689490f14c0e068e82e23861e94f80e2a147476913484ae9927f685"
+    },
+    {
+      "path": "agent.py",
+      "bytes": 8821,
+      "sha256": "f8ece20d7fc09f1773ddfae86428cb6b336bca4e248c90e9eaecd49417af1e87"
+    },
+    {
+      "path": "evaluator.py",
+      "bytes": 4337,
+      "sha256": "f3aab54504741340ae8506748ff88c8d6f6c503913c0cb17af51d3938deb4752"
+    },
+    {
+      "path": "test_e7.py",
+      "bytes": 8552,
+      "sha256": "93ffb29f4b56040427bf29a040c089ba8967ea61c59a74aaacd437e85722c94c"
+    },
+    {
+      "path": "E7_EVIDENCE.md",
+      "bytes": 7299,
+      "sha256": "890d29f3f6b45411683f9afb91c10536f5fa67bb21e2e7c147b65e83ca7bc2fa"
+    }
+  ]
+}
