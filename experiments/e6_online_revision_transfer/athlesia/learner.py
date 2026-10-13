@@ -72,6 +72,13 @@ class Witness:
 
 
 @dataclass(frozen=True, slots=True)
+class MechanismCandidate:
+    """Uncommitted alternative causal epoch, isolated from old witnesses."""
+    hypotheses: tuple[Rule, ...]
+    evidence: tuple[tuple[str, Witness], ...]
+
+
+@dataclass(frozen=True, slots=True)
 class Experiment:
     assignment: tuple[Literal, ...]
     worst_case_eliminated: int
@@ -93,6 +100,8 @@ class Agent:
         self.events: list[dict[str, Json]] = []
         self.commits = 0
         self.pending_actions: set[Role] = set()
+        self.mechanism_candidates: dict[Role, MechanismCandidate] = {}
+        self.mechanism_archive: dict[Role, list[tuple[Rule, tuple[Rule, ...], dict[Witness, int]]]] = {}
 
     @property
     def rule(self) -> Rule:
@@ -231,6 +240,114 @@ class Agent:
         )
         return tuple(sorted((binding[role], value) for role, value in prediction))
 
+    def observe_mechanism_shift(self, trace: Trace) -> dict[str, Json]:
+        """Reidentify an existing action's *guard* after a confirmed contradiction.
+
+        Only the original Boolean effect signature and 0..MAX_GUARDS conjunctive
+        guard literals are supported. Old witnesses stay in an archived epoch;
+        they are NOT mixed into the replacement hypothesis space. A single
+        anomaly quarantines this action; it cannot cause an immediate commit.
+        Episode identifiers are public observational provenance, not oracle law.
+        """
+        trace.validate()
+        if self.template is None:
+            raise CannotIdentify("Fit required before mechanism shift")
+        binding = self.binding(trace.before.scene)
+        reverse = {token: role for role, token in binding.items()}
+        action = reverse.get(trace.action)
+        if action is None or action not in self.rules:
+            raise CannotIdentify("Unknown action for mechanism shift")
+        old_rule = self.rules[action]
+        before = self.normalize(trace.before, binding)
+        after = self.normalize(trace.after, binding)
+        # Do not silently learn a new effect signature in this restricted pilot.
+        if any(dict(before)[role] != value for role, value in after
+               if role not in {effect.role for effect in old_rule.effects}):
+            raise CannotIdentify("Unmodelled changed fluent; atomic rejection")
+        witness = Witness(before, after)
+        candidate = self.mechanism_candidates.get(action)
+        if candidate is None:
+            if action in self.pending_actions or len(self.version_spaces.get(action, ())) != 1:
+                raise CannotIdentify("Unidentified existing mechanism; cannot infer drift")
+            if old_rule.predict(before) == after:
+                return {"status": "unchanged", "local_commit": False,
+                        "remaining_hypotheses": 1}
+            # This is a contradiction in a previously identified model.
+            # Construct a separate bounded class without using historical data.
+            roles = tuple(role for role in self.features
+                          if role not in {effect.role for effect in old_rule.effects})
+            all_models: list[Rule] = []
+            for size in range(min(MAX_GUARDS, len(roles)) + 1):
+                for subset in itertools.combinations(roles, size):
+                    for polarity in itertools.product((False, True), repeat=size):
+                        guards = tuple(Literal(role, val) for role, val in zip(subset, polarity))
+                        all_models.append(replace(old_rule, guards=guards))
+            hypotheses = tuple(rule for rule in all_models
+                               if rule.predict(before) == after)
+            if not hypotheses:
+                raise CannotIdentify("Shift outside fixed effect/guard class; atomic rejection")
+            if len(self.events) >= 256:
+                raise CannotIdentify("Audit-event capacity reached; atomic rejection")
+            self.mechanism_candidates[action] = MechanismCandidate(
+                hypotheses, ((trace.before.episode, witness),))
+            self.pending_actions.add(action)
+            self.emit("MECHANISM_SHIFT_QUARANTINED", action_role=action,
+                      remaining_hypotheses=len(hypotheses))
+            return {"status": "quarantined", "local_commit": False,
+                    "remaining_hypotheses": len(hypotheses)}
+
+        evidence = candidate.evidence + ((trace.before.episode, witness),)
+        if len(evidence) > MAX_WITNESSES:
+            raise CannotIdentify("Shift evidence limit reached; atomic rejection")
+        if any(previous_episode == trace.before.episode for previous_episode, _ in candidate.evidence):
+            raise CannotIdentify("Repeated episode in shift evidence; atomic rejection")
+        hypotheses = tuple(rule for rule in candidate.hypotheses
+                           if rule.predict(before) == after)
+        if not hypotheses:
+            raise CannotIdentify("Conflicting new-epoch evidence; atomic rejection")
+        positives = sum(w.before != w.after for _, w in evidence)
+        negatives = len(evidence) - positives
+        certified = len(hypotheses) == 1 and len(evidence) >= 3 and positives >= 1 and negatives >= 1
+        if len(self.events) + (2 if certified else 1) > 256:
+            raise CannotIdentify("Audit-event capacity reached; atomic rejection")
+        if certified:
+            history = self.mechanism_archive.get(action, [])
+            if len(history) >= 4:
+                raise CannotIdentify("Mechanism-epoch archive full; atomic rejection")
+            distinct = len(self.witnesses) + sum(len(store) for role, store in
+                        self.witnesses_by_action.items() if role != self.primary)
+            previous_count = len(self.witness_store(action))
+            fresh_store: dict[Witness, int] = {}
+            for _, item in evidence:
+                fresh_store[item] = fresh_store.get(item, 0) + 1
+            if distinct - previous_count + len(fresh_store) > MAX_WITNESSES:
+                raise CannotIdentify("New epoch witness budget exceeded; atomic rejection")
+            snapshot = (old_rule, self.version_spaces[action], dict(self.witness_store(action)))
+            # Single semantic commit: only this action's current epoch is replaced.
+            self.mechanism_archive[action] = [*history, snapshot]
+            self.rules[action] = hypotheses[0]
+            self.version_spaces[action] = hypotheses
+            self.witnesses_by_action[action] = fresh_store
+            if action == self.primary:
+                self.witnesses = fresh_store
+                self.version_space = hypotheses
+            self.mechanism_candidates.pop(action)
+            self.pending_actions.discard(action)
+            self.commits += 1
+            self.emit("MECHANISM_SHIFT_EVIDENCE", action_role=action,
+                      observations=len(evidence), remaining_hypotheses=1)
+            self.emit("MECHANISM_EPOCH_COMMITTED", action_role=action,
+                      new_rule=hypotheses[0].to_wire(), previous_epochs=len(history) + 1)
+            return {"status": "committed", "local_commit": True,
+                    "remaining_hypotheses": 1, "observations": len(evidence),
+                    "archived_epochs": len(history) + 1}
+
+        self.mechanism_candidates[action] = MechanismCandidate(hypotheses, evidence)
+        self.emit("MECHANISM_SHIFT_EVIDENCE", action_role=action,
+                  observations=len(evidence), remaining_hypotheses=len(hypotheses))
+        return {"status": "quarantined", "local_commit": False,
+                "remaining_hypotheses": len(hypotheses), "observations": len(evidence)}
+
     def observe_transition(self, trace: Trace) -> dict[str, Json]:
         """Admit one externally observed transition into an action-local version space.
 
@@ -247,6 +364,8 @@ class Agent:
         action = reverse.get(trace.action)
         if action is None or action not in self.rules or action not in self.version_spaces:
             raise CannotIdentify("Action has no learned hypothesis space")
+        if action in self.mechanism_candidates:
+            raise CannotIdentify("Mechanism epoch unresolved; ordinary learning blocked")
         before = self.normalize(trace.before, binding)
         after = self.normalize(trace.after, binding)
         hypotheses = tuple(rule for rule in self.version_spaces[action]
@@ -404,6 +523,8 @@ class Agent:
         return obs, count
 
     def revise(self, port: ActionPort) -> dict[str, Json]:
+        if self.primary in self.pending_actions:
+            raise CannotIdentify("Mechanism epoch unresolved; revision blocked")
         unrelated_before = self.unrelated_model_digest()
         obs = port.send_action(OBSERVE)
         binding = self.binding(obs.scene)
@@ -553,6 +674,8 @@ class Agent:
                 "model_unchanged": True, "full_state_verified": True}
 
     def transfer(self, port: ActionPort) -> dict[str, Json]:
+        if self.primary in self.pending_actions:
+            raise CannotIdentify("Mechanism epoch unresolved; transfer blocked")
         if len(self.version_space) != 1:
             raise CannotIdentify("Transfer requires an identified model")
         digest_before = self.memory_digest()
@@ -600,7 +723,20 @@ class Agent:
                     for action, items in sorted(self.witnesses_by_action.items())
                 },
                 "commits": self.commits,
-                "pending_actions": sorted(self.pending_actions)}
+                "pending_actions": sorted(self.pending_actions),
+                "mechanism_candidates": {
+                    action: {"hypotheses": [r.to_wire() for r in item.hypotheses],
+                             "evidence": [{"episode": ep, "before": dict(w.before),
+                                           "after": dict(w.after)} for ep, w in item.evidence]}
+                    for action, item in sorted(self.mechanism_candidates.items())},
+                "mechanism_archive": {
+                    action: [{"rule": old.to_wire(),
+                              "hypotheses": [r.to_wire() for r in space],
+                              "witnesses": [{"before": dict(w.before), "after": dict(w.after),
+                                             "count": count} for w, count in
+                                            sorted(store.items(), key=lambda kv: repr(kv[0]))]}
+                             for old, space, store in snapshots]
+                    for action, snapshots in sorted(self.mechanism_archive.items())}}
 
     def memory_bytes(self) -> bytes:
         return json.dumps(self.memory(), sort_keys=True, separators=(",", ":")).encode()

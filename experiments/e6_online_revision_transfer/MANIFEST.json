@@ -1,8 +1,8 @@
 {
   "package": "athlesia-e6-reference",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "session_date": "2026-10-13",
-  "scope": "Day1–4 AML and topology + Day4b externally declared goal / known-action reuse pilot",
+  "scope": "Day1-4b bounded symbolic AML, topology, goals; Day5a isolated mechanism guard epochs pilot",
   "generated_results_tracked": false,
   "files": [
     {
@@ -26,19 +26,24 @@
       "sha256": "9589aaa9cd6d4abaf37536e9782c775c1b11ce6cd06750d2b5e2aa423d64a228"
     },
     {
+      "path": "DAY5A_EVIDENCE.md",
+      "bytes": 7513,
+      "sha256": "806b97cd92e698d93e4e2224a13ae8927a0d1b72f0960349e03fb2d5abf0afa9"
+    },
+    {
       "path": "Dockerfile.solver",
       "bytes": 303,
       "sha256": "70b3f5a7b3399d88407ad3b6a1846592a0e8cbe488c01dcc7dc0c8e4d0752c1b"
     },
     {
       "path": "README.md",
-      "bytes": 12071,
-      "sha256": "ed0e978c91ab092f771f4949231e6791ce8a4333092ff27ba4645af69307aea6"
+      "bytes": 12520,
+      "sha256": "2556f9f969108b96402fb80e2c182604a4f73c15325fb1ab82469b8280828624"
     },
     {
       "path": "SPEC_HU.md",
-      "bytes": 23617,
-      "sha256": "b31682902c5197187e627e782ea7850c3faf2748e697874db657f6bb85903632"
+      "bytes": 24153,
+      "sha256": "2776850d7fb4fde5b74864e53ddcfc36d5681066694d7f13f868173e0e694d58"
     },
     {
       "path": "athlesia/__init__.py",
@@ -62,8 +67,8 @@
     },
     {
       "path": "athlesia/learner.py",
-      "bytes": 31397,
-      "sha256": "4f94291e25fc4cc37e30121e6b88ce8cad08f1e6f8651a021c91a5d51a48f88f"
+      "bytes": 39925,
+      "sha256": "a638640b8f8701ef4de05f34ae21aed11dfcc6068d87d104590dab2790d453cc"
     },
     {
       "path": "athlesia/protocol.py",
@@ -77,13 +82,13 @@
     },
     {
       "path": "athlesia/worker.py",
-      "bytes": 5037,
-      "sha256": "2a2542c4281977988df0e0331073bce422aa0a9571223834ccd11b8c87bf7c60"
+      "bytes": 5272,
+      "sha256": "8087cc4cbc9300b2d7d58e8db91cc42bf107b3fa5b69a788e98a46a7b468f92d"
     },
     {
       "path": "pyproject.toml",
       "bytes": 399,
-      "sha256": "e10d0c21d00575781c4d6f001d693a348d5382836d1f07d9bd3db35fff31a641"
+      "sha256": "9ea273616fec1e5862362d0a72b165daa181b8a6ee6787d8426e87e6230a3609"
     },
     {
       "path": "results/README.md",
@@ -109,6 +114,11 @@
       "path": "tests/test_day4b_goals.py",
       "bytes": 7773,
       "sha256": "cd59b4d7eb46b4fe8bdb9222aac4adfa722d685fd9ed617a7b5cba0f4efea230"
+    },
+    {
+      "path": "tests/test_day5a_epochs.py",
+      "bytes": 8066,
+      "sha256": "74c0a3f920eed8eec6fdef075d6fdce2d8edc88de0f2ed6da644a1633f47e149"
     }
   ]
 }

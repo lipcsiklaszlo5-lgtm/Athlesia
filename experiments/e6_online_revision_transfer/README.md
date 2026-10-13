@@ -131,3 +131,11 @@ observation is checked against the prediction; uncertainty fails closed.
 Details, reproduction, limitations and measured 100-case pilot are in
 [`DAY4B_EVIDENCE.md`](DAY4B_EVIDENCE.md). This is not goal invention,
 multi-step planning or causal-mechanism relearning.
+
+## Day 5a — bounded mechanism-epoch reidentification
+
+After a contradiction of an identified action, the learner quarantines it,
+tracks separate new-epoch guard candidates, archives the old model and commits
+only after sufficient distinguishing observations. Effect signatures stay fixed;
+there is no autonomous experiment selection for new epochs. See the measured
+pilot, full regressions and limits in [`DAY5A_EVIDENCE.md`](DAY5A_EVIDENCE.md).

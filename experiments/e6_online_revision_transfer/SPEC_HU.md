@@ -283,3 +283,12 @@ legfeljebb egyet választ, ha az összes megmaradt hipotézis ugyanazt a teljes
 utódállapotot jósolja. A valós megfigyelés ellenőrzése kötelező. Ez nem
 önálló célfeltalálás, többlépéses tervezés vagy változott mechanizmus
 újratanulása. A mért eredmény és a negatív kontrollok: `DAY4B_EVIDENCE.md`.
+
+## Day 5a — mechanizmus-epoch pilot
+
+A Day5a kísérlet egy már azonosított akció régi és új bizonyítékait elkülöníti.
+Egy ellentmondás karantént vált ki, nem azonnali új szabályt; későbbi,
+külön epizódokból származó megfigyelések mellett a korlátos feltételnyelven
+újraazonosítás és régi modell archiválása lehetséges. A hatás típusa nem
+változhat, autonóm aktív kísérletválasztás és független környezetgenerátor
+nincs igazolva. A pontos benchmark és korlátok: `DAY5A_EVIDENCE.md`.
