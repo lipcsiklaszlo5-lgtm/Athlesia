@@ -318,3 +318,13 @@ tényleges akcióját. A sikertelen esetek a nevezőben maradnak. A 13-as
 sikertelenségi büntetés külön mutató, nem valós akció. Az értékelő továbbra
 is saját Boolean szimulátor, nem független benchmark és nem ARC-AGI-3.
 Részletek: DAY6A_EVIDENCE.md.
+
+## Day6b — külön megvalósított Boolean értékelő
+
+A Day6b új, külön implementált szimulátora nem importálja az eredeti World
+modult. Négy rejtett feltételcsaládon 100 párosított esetben vizsgálja az
+aktív és a véletlen kísérletválasztást, azonos 12 próbás keret mellett.
+A tényleges akciók és a sikertelen esetek külön szerepelnek a jelentésben.
+A készítő ugyanaz, a nyilvános szimbolikus interfész közös: ez nem független
+szerzői audit, nem általános AGI és nem hivatalos ARC-AGI-3 benchmark.
+Részletek: DAY6B_EVIDENCE.md.

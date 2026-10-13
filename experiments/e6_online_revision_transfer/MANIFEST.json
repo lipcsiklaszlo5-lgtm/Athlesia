@@ -1,8 +1,8 @@
 {
   "package": "athlesia-e6-reference",
-  "version": "0.9.0",
+  "version": "0.10.0",
   "session_date": "2026-10-13",
-  "scope": "Day1-5c bounded symbolic AML, topology, goals, mechanism/effect epochs and active probing; Day6a paired active-vs-random evaluation",
+  "scope": "Day1-6a bounded symbolic AML, epochs, active guard probes and paired ablation; Day6b separately implemented same-author Boolean evaluator and mixed guard laws",
   "generated_results_tracked": false,
   "files": [
     {
@@ -46,19 +46,24 @@
       "sha256": "baa53627902458e5abab8567453b7dd86ac2035d2fc1b3dfd8f5d5d8c367a090"
     },
     {
+      "path": "DAY6B_EVIDENCE.md",
+      "bytes": 16246,
+      "sha256": "bde7fb855d43ee914ac3a0c27d17482cd42772267abb400cfb4469b3c990f4ae"
+    },
+    {
       "path": "Dockerfile.solver",
       "bytes": 303,
       "sha256": "70b3f5a7b3399d88407ad3b6a1846592a0e8cbe488c01dcc7dc0c8e4d0752c1b"
     },
     {
       "path": "README.md",
-      "bytes": 14040,
-      "sha256": "795a24ad9dc71e7d8418fe6297aedbc6b4947bb5e9d04558351d4d4208b00f7d"
+      "bytes": 14467,
+      "sha256": "8918b46f46e8d3ae18dde43cfecbe64280e1a71bbfc5f32de5b47fd85dc32c94"
     },
     {
       "path": "SPEC_HU.md",
-      "bytes": 25579,
-      "sha256": "175c4952c32376c5cdedfc795678c757c8fabef667ad0b7e2b846aa652e21619"
+      "bytes": 26152,
+      "sha256": "14db6c7ecd6f64e26ce7699ae551d5ee28fca3ca6f691c6c175246165dddc44e"
     },
     {
       "path": "athlesia/__init__.py",
@@ -102,13 +107,18 @@
     },
     {
       "path": "pyproject.toml",
-      "bytes": 399,
-      "sha256": "1a5029218b710a2c5f48291320372cb8d97344229c678fbe98d84433e3fae07b"
+      "bytes": 400,
+      "sha256": "5d626dd3bae1133eacbaca925c6aebe7a5bef3fba120306022eb9bfb8a759ea7"
     },
     {
       "path": "results/README.md",
       "bytes": 241,
       "sha256": "8c9541fb3691014f4c1f90c117b4079ca09be9bf2abae7f5247fb15a5d5b3f3f"
+    },
+    {
+      "path": "tests/external_world_v1.py",
+      "bytes": 4701,
+      "sha256": "a402d531c35fdee7b98f5df926598acb4e38f3aec1bc0eac342de0611373b55d"
     },
     {
       "path": "tests/test_core.py",
@@ -149,6 +159,11 @@
       "path": "tests/test_day6a_ablation.py",
       "bytes": 12187,
       "sha256": "fbb913f8efabbf2f5bddf6881af1bcb52b26156555ade64e6d5ec25f3af1ac7a"
+    },
+    {
+      "path": "tests/test_day6b_external.py",
+      "bytes": 12721,
+      "sha256": "227c34c34514dd037cc1d998d59b32128b3014dc7ca1a5741f2faa1ce3971c0b"
     }
   ]
 }

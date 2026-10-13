@@ -166,3 +166,11 @@ a uniform-random setting policy. It accounts for task failures, actual probe
 actions, advertised calibration actions, and a separate failure-penalized
 probe score. Same-author symbolic fixture, not independent ARC-AGI-3.
 See [`DAY6A_EVIDENCE.md`](DAY6A_EVIDENCE.md) for observations and limitations.
+
+## Day6b — separately implemented Boolean evaluation
+
+An author-developed second simulator independently implements the same public
+Boolean interaction contract, with positive, negative and mixed two-literal
+guards. A 100-case paired active-vs-random comparison tracks failures and
+real actions. This is NOT independent authorship, a new public ontology, or
+ARC-AGI-3 evaluation. See [DAY6B_EVIDENCE.md](DAY6B_EVIDENCE.md).
