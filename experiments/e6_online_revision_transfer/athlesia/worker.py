@@ -50,6 +50,9 @@ def solver() -> None:
                 observation = Observation.from_wire(request["observation"])
                 prediction = agent.predict_public(observation, token(request["action"]))
                 payload = {"prediction": {node: value for node, value in prediction}}
+            elif isinstance(raw, dict) and raw.get("command") == "learn":
+                request = record(raw, {"command", "trace"})
+                payload = agent.observe_transition(Trace.from_wire(request["trace"]))
             else:
                 request = record(raw, {"command"})
                 if request["command"] == "revise":

@@ -227,6 +227,8 @@ def run_case(seed: int = 17, channels: int = 2, guards: tuple[int, ...] = (0,), 
         schema_checks: list[dict[str, Json]] = []
         schema_validation_transcript: list[Json] = []
         prediction_results: list[dict[str, Json]] = []
+        online_results: list[dict[str, Json]] = []
+        online_checks: list[dict[str, Json]] = []
         patterns = (tuple(i % 2 == 0 for i in range(channels)),
                     tuple(i % 2 == 1 for i in range(channels)))
         validation_episode = 100
@@ -250,6 +252,17 @@ def run_case(seed: int = 17, channels: int = 2, guards: tuple[int, ...] = (0,), 
                     after = held_out.send_action(action)
                     actual = dict(after.values)
                     exact = predicted == actual
+                    online = solver_command(
+                        solver, {"command": "learn",
+                                 "trace": Trace(before, action, after).to_wire()})
+                    online_results.append(online)
+                    outcome = online.get("payload")
+                    accepted = (online["ok"] is True and isinstance(outcome, dict)
+                                and outcome.get("status") == "validated"
+                                and outcome.get("contradiction") is False
+                                and outcome.get("local_commit") is False)
+                    online_checks.append({"action_token": action,
+                                          "online_validation_accepted": accepted})
                     schema_checks.append({"action_token": action,
                                           "held_out_flags": list(flags),
                                           "predicted_values": predicted,
@@ -278,7 +291,7 @@ def run_case(seed: int = 17, channels: int = 2, guards: tuple[int, ...] = (0,), 
             environment_calls += target.calls
             environment_actions += target.actions
             evaluator_success = independent_success(target)
-        results = (fit, *prediction_results, revision, transfer)
+        results = (fit, *prediction_results, *online_results, revision, transfer)
         metrics = [cast(dict[str, Json], r["metrics"]) for r in results]
         peak = max(cast(int, m["peak_rss_bytes"]) for m in metrics)
         cpu = sum(cast(int, m["cpu_ns"]) for m in metrics)
@@ -294,10 +307,12 @@ def run_case(seed: int = 17, channels: int = 2, guards: tuple[int, ...] = (0,), 
         })
         return {"seed": seed, "channels": channels, "hidden_guard_count_evaluator_only": len(guards),
                 "passed": (all(r["ok"] is True for r in results)
-                           and schema_prediction_success and evaluator_success),
+                           and schema_prediction_success and evaluator_success
+                           and all(x["online_validation_accepted"] is True for x in online_checks)),
                 "independent_evaluator_success": evaluator_success,
                 "action_schema_predictions_passed": schema_prediction_success,
                 "action_schema_checks": schema_checks,
+                "online_transition_checks": online_checks,
                 "fit": fit, "revision": revision, "transfer": transfer, "events": events,
                 "solver_cpu_ns": cpu, "case_wall_ns_including_startup": time.perf_counter_ns() - start,
                 "solver_peak_rss_bytes": peak, "environment_peak_rss_bytes": environment_peak,
@@ -341,7 +356,8 @@ def main() -> None:
             output.flush()
             aggregates.append({k: result[k] for k in ("passed", "solver_cpu_ns", "case_wall_ns_including_startup",
                                                        "solver_peak_rss_bytes", "sum_of_process_peak_rss_upper_bound",
-                                                       "action_schema_checks")})
+                                                       "action_schema_checks",
+                                                       "online_transition_checks")})
             if args.cases == 1:
                 for event in cast(list[Json], result["events"]):
                     print(json.dumps(event, ensure_ascii=False))
@@ -355,7 +371,11 @@ def main() -> None:
         for aggregate in aggregates
         for check in cast(list[Json], aggregate["action_schema_checks"])
     ]
-    report = {"benchmark": "Athlesia bounded Day-2 action-schema acceptance v0.2",
+    validated_online = sum(
+        check["online_validation_accepted"] is True
+        for aggregate in aggregates for check in aggregate["online_transition_checks"]
+    )
+    report = {"benchmark": "Athlesia bounded Day-3 online validation v0.3",
               "source_sha256": source_hash.hexdigest(), "python": sys.version.split()[0],
               "platform": platform.platform(), "processor": platform.processor(), **limits,
               "cases": args.cases, "successes": successes, "failures": args.cases - successes,
@@ -363,6 +383,9 @@ def main() -> None:
               "exact_held_out_action_schema_predictions": sum(
                   check["exact_successor_prediction"] is True for check in held_out_checks
               ),
+              "online_transition_validations": validated_online,
+              "online_transition_validation_attempts": sum(
+                  len(aggregate["online_transition_checks"]) for aggregate in aggregates),
               "solver_total_cpu_ms_p50": percentile(cpu_ns, 0.5) / 1e6,
               "solver_total_cpu_ms_p95": percentile(cpu_ns, 0.95) / 1e6,
               "case_wall_ms_p50_including_startup": percentile(wall_ns, 0.5) / 1e6,

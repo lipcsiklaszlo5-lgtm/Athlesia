@@ -293,5 +293,98 @@ class LearningTests(unittest.TestCase):
                     self.assertNotIn("environment", node.module or "")
 
 
+class OnlineTransitionTests(unittest.TestCase):
+    def test_counterexample_deferred_then_action_local_commit(self) -> None:
+        agent, _ = trained(17, 2, (0,))
+        prior = agent.rule
+        misleading = World(WorldConfig(17, (0,), (False, True), 80))
+        before = misleading.send_action(OBSERVE)
+        after = misleading.send_action(misleading.primary)
+        first = agent.observe_transition(Trace(before, misleading.primary, after))
+        self.assertEqual(first["status"], "deferred")
+        self.assertTrue(first["contradiction"])
+        self.assertEqual(len(agent.version_space), 2)
+        self.assertEqual(agent.rule, prior)
+        with self.assertRaisesRegex(CannotIdentify, "Unresolved online contradiction"):
+            agent.predict_public(before, misleading.primary)
+        discriminating = World(WorldConfig(17, (0,), (True, False), 81))
+        before = discriminating.send_action(OBSERVE)
+        after = discriminating.send_action(discriminating.primary)
+        second = agent.observe_transition(Trace(before, discriminating.primary, after))
+        self.assertEqual(second["status"], "committed")
+        self.assertTrue(second["local_commit"])
+        self.assertEqual(agent.commits, 1)
+        self.assertEqual(len(agent.version_space), 1)
+        self.assertEqual(agent.rule.guards,
+                         (Literal(agent.roles[discriminating.fluents[0]], True),))
+        self.assertFalse(agent.pending_actions)
+        self.assertEqual(dict(agent.predict_public(before, discriminating.primary)),
+                         dict(after.values))
+
+    def test_auxiliary_revision_does_not_change_other_action_models(self) -> None:
+        def trace(flags: tuple[bool, ...], episode: int, selected: int | None) -> Trace:
+            world = World(WorldConfig(27, (0,), flags, episode, True))
+            action = world.primary if selected is None else world.auxiliary[selected]
+            before = world.send_action(OBSERVE)
+            return Trace(before, action, world.send_action(action))
+        demonstrations = tuple(
+            [trace((True, True, True), i, None) for i in range(3)]
+            + [trace((False, False, False), 10, 0),
+               trace((True, True, True), 11, 0),
+               trace((True, True, True), 12, 1),
+               trace((False, False, False), 13, 1)])
+        agent = Agent()
+        agent.fit(demonstrations)
+        target_action = agent.roles[demonstrations[3].action]
+        other_actions = {a: (r, agent.version_spaces[a],
+                             dict(agent.witness_store(a)))
+                         for a, r in agent.rules.items() if a != target_action}
+        # A synthetic but protocol-valid conditional actuator trace. This
+        # tests the learner's declared rule class, not the private fixture law.
+        staged = World(WorldConfig(27, (0,), (True, False, True), 85, True))
+        before = staged.send_action(OBSERVE)
+        unchanged = replace(before, sequence=before.sequence + 1)
+        deferred = agent.observe_transition(
+            Trace(before, staged.auxiliary[0], unchanged))
+        self.assertEqual(deferred["status"], "deferred")
+        separating = World(WorldConfig(27, (0,), (False, False, True), 86, True))
+        before = separating.send_action(OBSERVE)
+        after = separating.send_action(separating.auxiliary[0])
+        confirmed = agent.observe_transition(
+            Trace(before, separating.auxiliary[0], after))
+        self.assertEqual(confirmed["status"], "committed")
+        self.assertEqual(len(agent.version_spaces[target_action]), 1)
+        for role, (rule, hypotheses, witnesses) in other_actions.items():
+            self.assertEqual(agent.rules[role], rule)
+            self.assertEqual(agent.version_spaces[role], hypotheses)
+            self.assertEqual(agent.witness_store(role), witnesses)
+
+    def test_out_of_class_transition_rejected_atomically(self) -> None:
+        agent, _ = trained(19, 2, (0,))
+        world = World(WorldConfig(19, (0,), (True, True), 83))
+        before = world.send_action(OBSERVE)
+        after = world.send_action(world.primary)
+        forged = dict(after.values)
+        forged[world.fluents[0]] = False  # target action does not change this fluent
+        bad = replace(after, values=tuple(sorted(forged.items())))
+        digest = agent.memory_digest()
+        event_count = len(agent.events)
+        with self.assertRaisesRegex(CannotIdentify, "atomic rejection"):
+            agent.observe_transition(Trace(before, world.primary, bad))
+        self.assertEqual(agent.memory_digest(), digest)
+        self.assertEqual(len(agent.events), event_count)
+
+    def test_stale_transition_rejected_atomically(self) -> None:
+        agent, _ = trained(20, 2, (0,))
+        world = World(WorldConfig(20, (0,), (True, True), 84))
+        before = world.send_action(OBSERVE)
+        after = world.send_action(world.primary)
+        stale = replace(after, sequence=before.sequence)
+        digest = agent.memory_digest()
+        with self.assertRaises(ContractError):
+            agent.observe_transition(Trace(before, world.primary, stale))
+        self.assertEqual(agent.memory_digest(), digest)
+
+
 if __name__ == "__main__":
     unittest.main()

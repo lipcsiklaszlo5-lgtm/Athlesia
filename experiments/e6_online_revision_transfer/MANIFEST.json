@@ -1,8 +1,8 @@
 {
   "package": "athlesia-e6-reference",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "session_date": "2026-10-13",
-  "scope": "Day-1 isolation/revision/transfer plus Day-2 action-local multi-action schema induction",
+  "scope": "Day 1 isolation/revision/transfer + Day 2 multi-action schema induction + Day 3 online transition validation",
   "generated_results_tracked": false,
   "files": [
     {
@@ -11,14 +11,19 @@
       "sha256": "9366b74840a4e7b43ef21a732888a75cf23e5f87141cda55e4dc88587c0ddbf2"
     },
     {
+      "path": "DAY3_EVIDENCE.md",
+      "bytes": 2691,
+      "sha256": "c489f059f35ea5729d6334f4341a3e490ca433c79f5ea3e27e7d9c3e3b319181"
+    },
+    {
       "path": "Dockerfile.solver",
       "bytes": 303,
       "sha256": "70b3f5a7b3399d88407ad3b6a1846592a0e8cbe488c01dcc7dc0c8e4d0752c1b"
     },
     {
       "path": "README.md",
-      "bytes": 10756,
-      "sha256": "36b0f9f20de2f9607bf607f4782463710b4f7e95a0928b3c07d37a0e1948000f"
+      "bytes": 11138,
+      "sha256": "9cf6b3c3a586deea3ff366b97e994caaafbfced4cdda987ad89ef38b2be4e4b4"
     },
     {
       "path": "SPEC_HU.md",
@@ -32,8 +37,8 @@
     },
     {
       "path": "athlesia/benchmark.py",
-      "bytes": 19761,
-      "sha256": "ab0f350188e96cdfe52ceab05ef38b58b0f6f8b6d4fdd25b7fda59308b9b23ad"
+      "bytes": 21238,
+      "sha256": "ac8c0bf3632bde0fd79fa340ff1b01ebec1c6c01d1383613c9cd11e0970c3349"
     },
     {
       "path": "athlesia/environment.py",
@@ -47,8 +52,8 @@
     },
     {
       "path": "athlesia/learner.py",
-      "bytes": 23994,
-      "sha256": "9bb2c91e29569627bc06f3c35abac5eddd442e1b27dc00bd09bf09e6f1c455e3"
+      "bytes": 27697,
+      "sha256": "ade3913bb9ea200611b6bb3aaeed1b5323e4c54c0066ca107c871f5bb42fbf70"
     },
     {
       "path": "athlesia/protocol.py",
@@ -62,13 +67,13 @@
     },
     {
       "path": "athlesia/worker.py",
-      "bytes": 4517,
-      "sha256": "cb7f61e3902861d90756566c307dba3a4510985231102f81750442f47897e3d9"
+      "bytes": 4737,
+      "sha256": "e33c5999eccf49e12793a9bd8d682b762c0449876f2e17e968242e10e17722d8"
     },
     {
       "path": "pyproject.toml",
       "bytes": 399,
-      "sha256": "110ce5871ce34128558a8667b5abeddf73267a5da11c9e5bda190f4045ade927"
+      "sha256": "60651e0adbc41a0c32dc12ed8b09013bbd646facc82d4d5434f1f279239dae3c"
     },
     {
       "path": "results/README.md",
@@ -77,8 +82,8 @@
     },
     {
       "path": "tests/test_core.py",
-      "bytes": 14129,
-      "sha256": "07de0100d264519639d0427c4fb958864e6c2930d4935ae81116b1cbe6763802"
+      "bytes": 19309,
+      "sha256": "26207903f649896b43519ef91fce683520ed9f4ba44dbd8a6311e61f72ffea3e"
     }
   ]
 }

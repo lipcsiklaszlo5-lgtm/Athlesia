@@ -108,3 +108,9 @@ Ez korlátos logikai keresés: jelenleg legfeljebb 8 feltételjelöltből legfel
 Nem veszünk el csendben régi bizonyítékot: 64 különböző normalizált tanú után a motor kapacitáshibával megáll. A véges memóriakorlátot elutasításokkal és határokkal tartjuk, nem korlátlan, veszteségmentes tanulás ígéretével.
 
 A 100 eset ugyanazon deklarált feladatcsalád átnevezett példáit vizsgálja. Mindegyik eset három akciómodellt tartalmaz, de ez továbbra sem 100 egymástól független új iparág vagy mechanizmus. A próba nem demonstrál LLM-ekkel szembeni fölényt, általános robotvezérlést vagy új tudományos elsőbbséget.
+
+## Day 3 — Online transition validation
+
+A Day-3 helyi, reprodukálható ellenőrzési jegyzőkönyv: [`DAY3_EVIDENCE.md`](DAY3_EVIDENCE.md).
+Ez a mérés az E6 izolált akciómodell-tanulási feladatcsaládra vonatkozik, nem az ARC-AGI-3 hivatalos értékelésére.
+A futtatott parancsok, a géptől függő CPU-/memóriaadatok és az eseményszámok a jegyzőkönyvben vannak.

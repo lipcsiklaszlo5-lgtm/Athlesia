@@ -92,6 +92,7 @@ class Agent:
         self.witnesses_by_action: dict[Role, dict[Witness, int]] = {}
         self.events: list[dict[str, Json]] = []
         self.commits = 0
+        self.pending_actions: set[Role] = set()
 
     @property
     def rule(self) -> Rule:
@@ -221,10 +222,73 @@ class Agent:
         reverse = {node: role for role, node in binding.items()}
         if action_token not in reverse or reverse[action_token] not in self.rules:
             raise CannotIdentify("No induced schema for requested action")
+        if reverse[action_token] in self.pending_actions:
+            raise CannotIdentify("Unresolved online contradiction; refusing prediction")
         prediction = self.rules[reverse[action_token]].predict(
             self.normalize(observation, binding)
         )
         return tuple(sorted((binding[role], value) for role, value in prediction))
+
+    def observe_transition(self, trace: Trace) -> dict[str, Json]:
+        """Admit one externally observed transition into an action-local version space.
+
+        The observed successor is never silently replaced by a prediction.
+        Unexpected transitions outside the declared model class leave all learned
+        state and audit events unchanged. An ambiguous contradiction makes only
+        that action's public predictions unavailable until identification.
+        """
+        trace.validate()
+        if self.template is None:
+            raise CannotIdentify("Fit required before online validation")
+        binding = self.binding(trace.before.scene)
+        reverse = {token: role for role, token in binding.items()}
+        action = reverse.get(trace.action)
+        if action is None or action not in self.rules or action not in self.version_spaces:
+            raise CannotIdentify("Action has no learned hypothesis space")
+        before = self.normalize(trace.before, binding)
+        after = self.normalize(trace.after, binding)
+        hypotheses = tuple(rule for rule in self.version_spaces[action]
+                           if rule.predict(before) == after)
+        # Prepare everything that can fail before changing learned state.
+        if not hypotheses:
+            raise CannotIdentify("Transition outside declared hypothesis class; atomic rejection")
+        witness = Witness(before, after)
+        store = self.witness_store(action)
+        distinct = len(self.witnesses) + sum(
+            len(items) for role, items in self.witnesses_by_action.items()
+            if role != self.primary)
+        if witness not in store and distinct >= MAX_WITNESSES:
+            raise CannotIdentify("Evidence capacity reached; atomic rejection")
+        previous = self.rules[action]
+        contradicted = previous.predict(before) != after
+        selected = hypotheses[0] if len(hypotheses) == 1 else None
+        commit = selected is not None and selected != previous
+        edits = previous.guard_edit_distance(selected) if commit and selected is not None else 0
+        if len(self.events) + (2 if commit else 1) > 256:
+            raise CannotIdentify("Audit-event capacity reached; atomic rejection")
+        # All admissibility checks passed: append evidence and update ONLY this action.
+        self.remember(before, after, action)
+        self.version_spaces[action] = hypotheses
+        if action == self.primary:
+            self.version_space = hypotheses
+        if selected is not None:
+            self.pending_actions.discard(action)
+        elif contradicted:
+            self.pending_actions.add(action)
+        if commit and selected is not None:
+            self.rules[action] = selected
+            self.commits += 1
+        status = "committed" if commit else (
+            "deferred" if action in self.pending_actions else "validated")
+        self.emit("ONLINE_TRANSITION_VALIDATED", action_role=action,
+                  contradiction=contradicted, remaining_hypotheses=len(hypotheses),
+                  status=status)
+        if commit and selected is not None:
+            self.emit("ONLINE_LOCAL_REVISION_COMMITTED", action_role=action,
+                      literal_edits=edits, rule=selected.to_wire())
+        return {"status": status, "action_role": action,
+                "contradiction": contradicted,
+                "remaining_hypotheses": len(hypotheses), "local_commit": commit}
 
     def fit(self, traces: tuple[Trace, ...]) -> None:
         if self.template is not None or not 1 <= len(traces) <= 32:
@@ -475,7 +539,8 @@ class Agent:
                              for w, count in sorted(items.items(), key=lambda item: repr(item[0]))]
                     for action, items in sorted(self.witnesses_by_action.items())
                 },
-                "commits": self.commits}
+                "commits": self.commits,
+                "pending_actions": sorted(self.pending_actions)}
 
     def memory_bytes(self) -> bytes:
         return json.dumps(self.memory(), sort_keys=True, separators=(",", ":")).encode()
