@@ -1,0 +1,40 @@
+{
+  "package": "athlesia-e9-unlabelled-pixel-affordances",
+  "version": "0.1.0",
+  "recorded_utc": "2026-10-13T22:25:03Z",
+  "baseline_commit": "47235744a9f868e1264e0a0353acc68c99dde669",
+  "scope": "bounded same-author E7 perception to E6 causal guard learning with measured unlabelled reversible pixel control discovery; E6/E7/E8 untouched",
+  "generated_results_tracked": false,
+  "files": [
+    {
+      "path": ".gitignore",
+      "bytes": 28,
+      "sha256": "90eafac535a388eb84b99414b257212570dfa7aee61ee2519d7928fe364e4c23"
+    },
+    {
+      "path": "README.md",
+      "bytes": 2365,
+      "sha256": "2587eafe88ef69876359070bb01577508bc06957035b71084f9f935e6aa6f970"
+    },
+    {
+      "path": "discovery.py",
+      "bytes": 7510,
+      "sha256": "1a81439ba3aa8f52638f886e60e5b0dd7bc2060a45152d9a0a231d230278714f"
+    },
+    {
+      "path": "pixel_world.py",
+      "bytes": 3072,
+      "sha256": "00cd0e76459f7e642e079513abd8221e9740c5073fc3eac8ec08ad2374337b04"
+    },
+    {
+      "path": "test_e9.py",
+      "bytes": 11948,
+      "sha256": "f3c677d5a89af8b98e9e0592c2bccd76bcba52358998c19f8c7190bcc992c652"
+    },
+    {
+      "path": "E9_EVIDENCE.md",
+      "bytes": 13914,
+      "sha256": "5fdbbc11d101b81ae24682dc523fd4943e39e217d4602aaa0d591d034b3e258c"
+    }
+  ]
+}

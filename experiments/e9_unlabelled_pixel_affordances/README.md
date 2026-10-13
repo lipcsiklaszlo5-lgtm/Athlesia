@@ -1,0 +1,11 @@
+# Athlesia E9 — discover unlabelled pixel controls before E6 causal relearning
+
+This experimental bridge uses unchanged E7's learned opaque movement-token mapping and unchanged E6's Boolean hypothesis-version spaces, quarantine and active guard experiments.
+
+Unlike E8, **no switch locations, switch on/off action pairs or gate coordinates are passed to the bridge**. Only a raw 9×9 integer-colour frame, an unordered list of eight opaque actions, and five E7 movement tutorials are publicly available. The bridge identifies four non-movement actions, performs two measured passes (eight interactions), and groups their single-pixel reversible effects into two Boolean visual channels. Low/high colour values define arbitrary visual Boolean polarity; the hidden physical polarity is not assumed. The visually unusual gate marker must be uniquely adjacent to the actor to ground crossing; the E7 motion model identifies the opaque crossing token. These are **deliberate restrictive priors**, not open-world recognition.
+
+The pilot trains historical E6 behavior from four observed old-law traces per arm, **autonomously detects the first contradiction** by exhaustive public combinations of the two discovered Boolean visual controls (at most four externally reset episodes), then delegates subsequent active experiments to the unchanged E6 `Agent.run_active_guard_probe`. An identical-evidence uniform-random arm provides comparison. The scorer checks all four possible complete observable successor transitions on fresh held-out episodes; reporting a commit alone does not count as success.
+
+**Limits:** two single-pixel reversible switches, full observability, unique adjacent gate marker, public action inventory, five external movement demos, four historical E6 traces per arm, fixed E6 ≤2 conjunction grammar, externally supplied fresh episodes/reset, same-author world/scorer. This is **not** spontaneous object-category discovery, arbitrary affordance induction, partial-visibility control, cross-domain evaluation or official ARC-AGI-3.
+
+The result separates discovery interactions, initial contradiction discovery and subsequent causal probing. Movement tutorials (5) and historical old-law traces (4/arm) are stated separately; the benchmark's real-action totals do not include these external training examples. No old production modules are changed.
