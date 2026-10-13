@@ -1,0 +1,40 @@
+{
+  "package": "athlesia-e8-pixel-causal-bridge",
+  "version": "0.1.0",
+  "recorded_utc": "2026-10-13T22:10:24Z",
+  "baseline_commit": "b1c437131c1308cf1a51eb94d340e3e0ce6de11b",
+  "scope": "bounded same-author pixel-to-E6 causal guard probe integration; E6/E7 untouched",
+  "generated_results_tracked": false,
+  "files": [
+    {
+      "path": ".gitignore",
+      "bytes": 28,
+      "sha256": "5583bf948e1206a468cd30e1e410e3b392a3810401f09fa5ba2dcdfcea4900b1"
+    },
+    {
+      "path": "README.md",
+      "bytes": 2641,
+      "sha256": "54517ae9dd0c95fb0ab0b4e702908b0bab3472e89b35d859e79a6a03b3e3491e"
+    },
+    {
+      "path": "bridge.py",
+      "bytes": 6471,
+      "sha256": "3400fa0db1c7969fc66a950fd40484e2f9101508b1bda94b0959e0c4a27f9e23"
+    },
+    {
+      "path": "pixel_gate_world.py",
+      "bytes": 3054,
+      "sha256": "111236cd9da2a6f3e2219e1d98b7255aef5cde029593e16a95e09cbeefe0c4fe"
+    },
+    {
+      "path": "test_e8.py",
+      "bytes": 10480,
+      "sha256": "5804af7f15e865cdb0a646fd5234623d255795d985d4c0e508e3573564ba5584"
+    },
+    {
+      "path": "E8_EVIDENCE.md",
+      "bytes": 9933,
+      "sha256": "ce6eb091e11e8443cb426a65504d2b53e959ca0f2428cdfbe2f945bb7aa68436"
+    }
+  ]
+}
