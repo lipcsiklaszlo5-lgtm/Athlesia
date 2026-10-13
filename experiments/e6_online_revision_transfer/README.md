@@ -122,3 +122,12 @@ larger typed graphs, with fail-closed ambiguity and full-state side-effect
 checks. See [`DAY4_EVIDENCE.md`](DAY4_EVIDENCE.md) for observed 100-case stress,
 separate Day 1–3 regression and limitations. This does **not** demonstrate
 new-goal discovery, novel rule grammars or independent cross-mechanism transfer.
+
+## Day 4b — externally declared goals, learned-action selection
+
+An external Boolean target can be attempted with one previously induced action
+when all surviving models agree on its full successor state. The resulting
+observation is checked against the prediction; uncertainty fails closed.
+Details, reproduction, limitations and measured 100-case pilot are in
+[`DAY4B_EVIDENCE.md`](DAY4B_EVIDENCE.md). This is not goal invention,
+multi-step planning or causal-mechanism relearning.

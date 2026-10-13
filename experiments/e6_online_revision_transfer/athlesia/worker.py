@@ -53,6 +53,11 @@ def solver() -> None:
             elif isinstance(raw, dict) and raw.get("command") == "learn":
                 request = record(raw, {"command", "trace"})
                 payload = agent.observe_transition(Trace.from_wire(request["trace"]))
+            elif isinstance(raw, dict) and raw.get("command") == "goal":
+                request = record(raw, {"command", "target", "desired"})
+                payload = agent.solve_public_goal(
+                    WirePort(), token(request["target"]), boolean(request["desired"])
+                )
             else:
                 request = record(raw, {"command"})
                 if request["command"] == "revise":

@@ -275,3 +275,11 @@ A feladatcelok ujrafelfedezese, a mechanizmusvaltas utani online ujratanulas
 es fuggetlen feladatgenerator meg **nincs igazolva**. A 100/100 siker a
 meghatarozott fixture csalad sajat, in-process tesztjenek eredmenye, nem
 hivatalos ARC-AGI-3 pontszam. Reprodukalhato adat: `DAY4_EVIDENCE.md`.
+
+## Day 4b — declared-goal pilot result
+
+Egy kívülről kapott Boolean cél esetén az Athlesia a tanult akciók közül
+legfeljebb egyet választ, ha az összes megmaradt hipotézis ugyanazt a teljes
+utódállapotot jósolja. A valós megfigyelés ellenőrzése kötelező. Ez nem
+önálló célfeltalálás, többlépéses tervezés vagy változott mechanizmus
+újratanulása. A mért eredmény és a negatív kontrollok: `DAY4B_EVIDENCE.md`.

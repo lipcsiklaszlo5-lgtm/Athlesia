@@ -1,8 +1,8 @@
 {
   "package": "athlesia-e6-reference",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "session_date": "2026-10-13",
-  "scope": "Day 1–3 AML + Day 4 bounded induced-embedding transfer pilot",
+  "scope": "Day1–4 AML and topology + Day4b externally declared goal / known-action reuse pilot",
   "generated_results_tracked": false,
   "files": [
     {
@@ -16,6 +16,11 @@
       "sha256": "c489f059f35ea5729d6334f4341a3e490ca433c79f5ea3e27e7d9c3e3b319181"
     },
     {
+      "path": "DAY4B_EVIDENCE.md",
+      "bytes": 6303,
+      "sha256": "21100293d0f603403fe1c194f5a9e37eaec1c3ecc8dab2ae2d4972dc43804935"
+    },
+    {
       "path": "DAY4_EVIDENCE.md",
       "bytes": 5247,
       "sha256": "9589aaa9cd6d4abaf37536e9782c775c1b11ce6cd06750d2b5e2aa423d64a228"
@@ -27,13 +32,13 @@
     },
     {
       "path": "README.md",
-      "bytes": 11584,
-      "sha256": "052b9fd4ac3a9a1f31a64ab19df41b20bf107f852d2c8fd0cb4dd6bedfb5dce1"
+      "bytes": 12071,
+      "sha256": "ed0e978c91ab092f771f4949231e6791ce8a4333092ff27ba4645af69307aea6"
     },
     {
       "path": "SPEC_HU.md",
-      "bytes": 23169,
-      "sha256": "e5216580d908d767831d4893ea4ec608e07252ea37196ecfe2546d8bd529423d"
+      "bytes": 23617,
+      "sha256": "b31682902c5197187e627e782ea7850c3faf2748e697874db657f6bb85903632"
     },
     {
       "path": "athlesia/__init__.py",
@@ -57,8 +62,8 @@
     },
     {
       "path": "athlesia/learner.py",
-      "bytes": 28258,
-      "sha256": "956106bb9214229cf70cbb21ceb270f91f0d7017191efb31ac8c595dc7e22f53"
+      "bytes": 31397,
+      "sha256": "4f94291e25fc4cc37e30121e6b88ce8cad08f1e6f8651a021c91a5d51a48f88f"
     },
     {
       "path": "athlesia/protocol.py",
@@ -72,13 +77,13 @@
     },
     {
       "path": "athlesia/worker.py",
-      "bytes": 4737,
-      "sha256": "e33c5999eccf49e12793a9bd8d682b762c0449876f2e17e968242e10e17722d8"
+      "bytes": 5037,
+      "sha256": "2a2542c4281977988df0e0331073bce422aa0a9571223834ccd11b8c87bf7c60"
     },
     {
       "path": "pyproject.toml",
       "bytes": 399,
-      "sha256": "2ecdc4c156ed0ad9a88390860f7ac98a392b09efd393c6cde89b1b53e9d883af"
+      "sha256": "e10d0c21d00575781c4d6f001d693a348d5382836d1f07d9bd3db35fff31a641"
     },
     {
       "path": "results/README.md",
@@ -99,6 +104,11 @@
       "path": "tests/test_day4_topology.py",
       "bytes": 5442,
       "sha256": "3a15c0022c4d1c6756fdd24a2fcfd656a23886aa87ffc835cbc2800cbfb64c92"
+    },
+    {
+      "path": "tests/test_day4b_goals.py",
+      "bytes": 7773,
+      "sha256": "cd59b4d7eb46b4fe8bdb9222aac4adfa722d685fd9ed617a7b5cba0f4efea230"
     }
   ]
 }

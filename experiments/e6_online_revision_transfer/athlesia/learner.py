@@ -499,6 +499,59 @@ class Agent:
                 "unrelated_models_unchanged": unrelated_unchanged,
                 "identified_within_declared_class": True}
 
+    def solve_public_goal(self, port: ActionPort, target_node: str, desired: bool) -> dict[str, Json]:
+        """Execute a new *declared public goal* using existing learned action effects.
+
+        This does not discover an unseen predicate, a novel action mechanism, or
+        a goal intrinsically. It accepts an external Boolean target and acts
+        only when surviving action hypotheses agree on its full successor.
+        """
+        if type(desired) is not bool or not isinstance(target_node, str):
+            raise CannotIdentify("Goal must be an explicit Boolean observable token")
+        if not self.rules or self.template is None:
+            raise CannotIdentify("Fit required before goal execution")
+        obs = port.send_action(OBSERVE)
+        binding = self.binding(obs.scene, allow_extension=True)
+        reverse = {node: role for role, node in binding.items()}
+        if target_node not in dict(obs.values) or target_node not in reverse:
+            raise CannotIdentify("Goal not grounded in learned observable roles")
+        target_role = reverse[target_node]
+        normalized = self.normalize(obs, binding)
+        if dict(normalized)[target_role] == desired:
+            return {"status": "already_satisfied", "target": target_node,
+                    "desired": desired, "actions": 0, "model_unchanged": True,
+                    "full_state_verified": True}
+        candidates: list[tuple[Role, Values]] = []
+        for action_role in sorted(self.rules):
+            if action_role in self.pending_actions:
+                continue
+            space = self.version_spaces.get(action_role, ())
+            if not space:
+                continue
+            predictions = {rule.predict(normalized) for rule in space}
+            if len(predictions) != 1:
+                continue  # uncertainty is not resolved by choosing one convenient model
+            successor = next(iter(predictions))
+            if dict(successor)[target_role] == desired:
+                candidates.append((action_role, successor))
+        if len(candidates) != 1:
+            raise CannotIdentify("Goal has no unique hypothesis-agreed learned action")
+        action_role, successor = candidates[0]
+        if action_role not in binding:
+            raise CannotIdentify("Learned action not mapped in current scene")
+        action_token = binding[action_role]
+        memory_before = self.memory_digest()
+        actual = self.checked_action(port, obs, action_token)
+        expected_full = dict(obs.values)
+        expected_full.update({binding[role]: value for role, value in successor})
+        if dict(actual.values) != expected_full or actual.value(target_node) != desired:
+            raise CannotIdentify("Goal action falsified learned transition; no success reported")
+        if self.memory_digest() != memory_before:
+            raise AssertionError("Read-only goal execution mutated learned memory")
+        return {"status": "achieved", "target": target_node, "desired": desired,
+                "chosen_action": action_token, "actions": 1,
+                "model_unchanged": True, "full_state_verified": True}
+
     def transfer(self, port: ActionPort) -> dict[str, Json]:
         if len(self.version_space) != 1:
             raise CannotIdentify("Transfer requires an identified model")
