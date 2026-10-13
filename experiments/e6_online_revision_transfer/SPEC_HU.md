@@ -263,3 +263,15 @@ A felület a protokollt használja; a privát generátorból nem szabad a tanul�
 ## 8. Az első konkrét folytatás
 
 A csomagot az i3-as gépen futtassuk, és a kapott `my_day1.json` / `my_fuzz100.json` eredményből döntsünk a sebességről. Utána az izolációs kaput zárjuk le, majd egy második, a solver szerzőjétől független feladatgenerátort építsünk. Rust-portolás előtt mérjük meg, hol telik az idő. Egy gyors átírás nem pótolja a hiányzó azonosíthatóságot, a szélesebb modellnyelvet vagy a független ellenőrzést.
+
+## Day 4 pilot result (2026-10-13)
+
+Az eredeti Day-4 elfogadasi feltetelekbol a szuk, strukturabovitesi esetet
+vizsgaltuk: ismert szimbolikus mechanizmus egyedileg beagyazhato nagyobb,
+tipizalt grafba. Ketertelmu megfeleltetest es megfigyelt, de elore nem
+jelzett mellekhatast elutasit a rendszer.
+
+A feladatcelok ujrafelfedezese, a mechanizmusvaltas utani online ujratanulas
+es fuggetlen feladatgenerator meg **nincs igazolva**. A 100/100 siker a
+meghatarozott fixture csalad sajat, in-process tesztjenek eredmenye, nem
+hivatalos ARC-AGI-3 pontszam. Reprodukalhato adat: `DAY4_EVIDENCE.md`.

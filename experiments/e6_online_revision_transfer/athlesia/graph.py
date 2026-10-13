@@ -119,3 +119,90 @@ def isomorphism(left: Scene, right: Scene, budget: int = 10_000) -> Match:
     if not solutions:
         return Match(MatchStatus.NO_MATCH, (), states)
     return Match(MatchStatus.UNIQUE, tuple(sorted(solutions[0].items())), states)
+
+
+def induced_embedding(source: Scene, target: Scene, budget: int = 10_000) -> Match:
+    """Unique *induced* injective source embedding within a larger target scene.
+
+    Accepts extra nodes/edges involving those nodes, but requires all edges
+    between mapped roles to agree exactly. Two valid embeddings and exceeded
+    bounds both fail closed. Identifiers and display coordinates are not evidence.
+    """
+    if budget < 1 or len(source.nodes) > len(target.nodes) or len(source.edges) > len(target.edges):
+        return Match(MatchStatus.NO_MATCH, (), 0)
+    if len(source.nodes) == len(target.nodes):
+        return isomorphism(source, target, budget)
+    source_kind = {n.id: n.kind for n in source.nodes}
+    target_kind = {n.id: n.kind for n in target.nodes}
+    source_edges, target_edges = set(source.edges), set(target.edges)
+
+    def signatures(scene: Scene) -> dict[str, tuple[Counter[str], Counter[str]]]:
+        result = {n.id: (Counter(), Counter()) for n in scene.nodes}
+        for edge in scene.edges:
+            result[edge.source][0][edge.relation.value] += 1
+            result[edge.target][1][edge.relation.value] += 1
+        return result
+
+    sig_s, sig_t = signatures(source), signatures(target)
+    candidates: dict[str, tuple[str, ...]] = {}
+    for src in source_kind:
+        sout, sin = sig_s[src]
+        candidates[src] = tuple(dst for dst in target_kind
+            if source_kind[src] == target_kind[dst]
+            and all(sig_t[dst][0][k] >= v for k,v in sout.items())
+            and all(sig_t[dst][1][k] >= v for k,v in sin.items()))
+        if not candidates[src]:
+            return Match(MatchStatus.NO_MATCH, (), 0)
+
+    # Pair relation lookup avoids repeated traversal, and checks both directed
+    # edges including missing edges (the induced-subgraph requirement).
+    def edge_index(edges: set[Edge]) -> dict[tuple[str, str], frozenset[str]]:
+        tmp: dict[tuple[str,str], set[str]] = {}
+        for edge in edges:
+            tmp.setdefault((edge.source,edge.target),set()).add(edge.relation.value)
+        return {key:frozenset(value) for key,value in tmp.items()}
+
+    es, et = edge_index(source_edges), edge_index(target_edges)
+    empty: frozenset[str] = frozenset()
+    chosen: dict[str,str] = {}
+    used: set[str] = set()
+    solutions: list[dict[str,str]] = []
+    states=0
+    exhausted=False
+
+    def search() -> None:
+        nonlocal states, exhausted
+        if exhausted or len(solutions)>=2:
+            return
+        states+=1
+        if states>budget:
+            exhausted=True
+            return
+        if len(chosen)==len(source_kind):
+            solutions.append(dict(chosen))
+            return
+        remaining=[n for n in source_kind if n not in chosen]
+        src=min(remaining,key=lambda n:(sum(t not in used for t in candidates[n]),
+                                    -sum(sig_s[n][0].values())-sum(sig_s[n][1].values())))
+        for dst in candidates[src]:
+            if dst in used or es.get((src,src),empty)!=et.get((dst,dst),empty):
+                continue
+            if any(es.get((src,a),empty)!=et.get((dst,b),empty)
+                   or es.get((a,src),empty)!=et.get((b,dst),empty)
+                   for a,b in chosen.items()):
+                continue
+            chosen[src]=dst
+            used.add(dst)
+            search()
+            used.remove(dst)
+            del chosen[src]
+            if exhausted or len(solutions)>=2:
+                return
+    search()
+    if len(solutions)>=2:
+        return Match(MatchStatus.AMBIGUOUS, (), states)
+    if exhausted:
+        return Match(MatchStatus.BUDGET_EXCEEDED, (), states)
+    if not solutions:
+        return Match(MatchStatus.NO_MATCH, (), states)
+    return Match(MatchStatus.UNIQUE,tuple(sorted(solutions[0].items())),states)

@@ -114,3 +114,11 @@ A 100 eset ugyanazon deklarált feladatcsalád átnevezett példáit vizsgálja.
 A Day-3 helyi, reprodukálható ellenőrzési jegyzőkönyv: [`DAY3_EVIDENCE.md`](DAY3_EVIDENCE.md).
 Ez a mérés az E6 izolált akciómodell-tanulási feladatcsaládra vonatkozik, nem az ARC-AGI-3 hivatalos értékelésére.
 A futtatott parancsok, a géptől függő CPU-/memóriaadatok és az eseményszámok a jegyzőkönyvben vannak.
+
+## Day 4 — bounded induced-subgraph transfer pilot
+
+We now test a unique induced embedding of a previously identified model into
+larger typed graphs, with fail-closed ambiguity and full-state side-effect
+checks. See [`DAY4_EVIDENCE.md`](DAY4_EVIDENCE.md) for observed 100-case stress,
+separate Day 1–3 regression and limitations. This does **not** demonstrate
+new-goal discovery, novel rule grammars or independent cross-mechanism transfer.

@@ -12,7 +12,7 @@ import json
 from dataclasses import dataclass, replace
 from typing import TypeAlias
 
-from .graph import distances, isomorphism
+from .graph import distances, isomorphism, induced_embedding
 from .protocol import ActionPort, ContractError, Json, Kind, Observation, Relation, Scene, Trace, OBSERVE
 
 Role: TypeAlias = str
@@ -105,10 +105,12 @@ class Agent:
             raise CannotIdentify("Audit-event budget exceeded")
         self.events.append({"event": name, **fields})
 
-    def binding(self, scene: Scene) -> dict[Role, str]:
+    def binding(self, scene: Scene, *, allow_extension: bool = False) -> dict[Role, str]:
         if self.template is None:
             raise CannotIdentify("No source graph")
-        match = isomorphism(self.template, scene)
+        match = (induced_embedding(self.template, scene)
+                 if allow_extension and len(scene.nodes) > len(self.template.nodes)
+                 else isomorphism(self.template, scene))
         try:
             mapping = match.unique()
         except ValueError as ex:
@@ -502,7 +504,7 @@ class Agent:
             raise CannotIdentify("Transfer requires an identified model")
         digest_before = self.memory_digest()
         obs = port.send_action(OBSERVE)
-        binding = self.binding(obs.scene)
+        binding = self.binding(obs.scene, allow_extension=True)
         self.emit("STRUCTURAL_MAPPING_VERIFIED", nodes=len(binding), exact_edges=True,
                   mapping=[[a, b] for a, b in sorted(binding.items())])
         prepared = 0
@@ -514,7 +516,12 @@ class Agent:
         expected = self.rule.predict(before)
         after = self.checked_action(port, obs, binding[self.rule.action])
         actual = self.normalize(after, binding)
-        if expected != actual or not all(e.holds(dict(actual)) for e in self.rule.effects):
+        # Projection equality is insufficient on new topologies: any changed
+        # unmapped fluent/goal is an unpredicted side-effect and must fail.
+        full_prediction = dict(obs.values)
+        full_prediction.update({binding[role]: value for role, value in expected})
+        if (expected != actual or dict(after.values) != full_prediction
+                or not all(e.holds(dict(actual)) for e in self.rule.effects)):
             self.emit("TRANSFER_PREDICTION_FAILED")
             raise CannotIdentify("Same observable topology did not imply the same mechanism")
         unchanged = digest_before == self.memory_digest()
