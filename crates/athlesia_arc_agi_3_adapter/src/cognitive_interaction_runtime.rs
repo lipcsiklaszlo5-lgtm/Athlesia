@@ -198,6 +198,30 @@ pub struct ArcAgi3EvidenceFaithfulSuccessorExecutiveRequest<'a> {
     pub ignorance_policy: athlesia_executive_agency::IgnoranceExplorationSelectionPolicy,
 }
 
+#[derive(Clone, Copy, Debug)]
+pub struct ArcAgi3AutonomousSuccessorExecutiveRequest<'a> {
+    pub candidate_actions: &'a [crate::ArcAgi3Action],
+
+    pub exploitation_execution_cost: CognitiveSignal,
+
+    pub version_policy: athlesia_universal_domain_learning::GroundedExplanatoryVersionSpacePolicy,
+
+    pub discrimination_policy:
+        athlesia_autonomous_active_experimentation::EpistemicForecastDiscriminationPolicy,
+
+    pub expectation_policy:
+        athlesia_autonomous_active_experimentation::EmpiricalExpectedEpistemicProgressPolicy,
+
+    pub priority_policy:
+        athlesia_autonomous_active_experimentation::EmpiricalEpistemicActionPriorityPolicy,
+
+    pub exploitation_policy: athlesia_executive_agency::ExecutiveAgencyPolicy,
+
+    pub epistemic_policy: athlesia_executive_agency::EpistemicExecutiveSelectionPolicy,
+
+    pub ignorance_policy: athlesia_executive_agency::IgnoranceExplorationSelectionPolicy,
+}
+
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub enum ArcAgi3UnifiedExecutiveAuthorityKind {
     LegacyGrounded,
@@ -1022,6 +1046,290 @@ impl ArcAgi3CognitiveInteractionRuntime {
     //
     // If BOTH kinds independently produce authority, this transitional
     // path abstains fail-closed.
+
+    pub fn current_autonomous_model_goal_synthesis(
+        &self,
+        candidate_actions: &[crate::ArcAgi3Action],
+        execution_cost: athlesia_mindstone_sparse_cognition::CognitiveSignal,
+    ) -> Option<athlesia_integrated_cognitive_agent::AutonomousModelGoalSynthesis> {
+        let state = self.current_grounded_world_state()?;
+
+        let feedback = self.current_autonomous_bootstrap_feedback();
+
+        let cognitive_actions = candidate_actions
+            .iter()
+            .copied()
+            .map(crate::cognitive_protocol_bridge::ArcAgi3CognitiveProtocolBridge::encode_action)
+            .collect::<Vec<_>>();
+
+        self.cognition.current_autonomous_model_goal_with_feedback(
+                &state, &cognitive_actions, execution_cost,
+                Self::live_transition_schema_policy(),
+                Self::live_executable_world_model_policy(), feedback,
+            )
+    }
+
+    fn current_autonomous_bootstrap_feedback(&self) -> athlesia_integrated_cognitive_agent::autonomous_cognitive_self_bootstrap::BootstrapFeedback {
+        use athlesia_integrated_cognitive_agent::autonomous_cognitive_self_bootstrap::{BootstrapFeedback, BootstrapSignal};
+        let observation = self.observation();
+        if observation.state() == crate::ArcAgi3GameState::Win || observation.levels_completed() > 0 {
+            return BootstrapFeedback::TerminalSuccess;
+        }
+        if observation.state() == crate::ArcAgi3GameState::GameOver {
+            return BootstrapFeedback::TerminalFailure;
+        }
+        let signal = || BootstrapSignal::new(1).expect("positive bootstrap signal");
+        match self.perception.causal_environment_transition() {
+            Some(t) if t.previous_frame().elements() != t.current_frame().elements() =>
+                BootstrapFeedback::Progress(signal()),
+            Some(_) => BootstrapFeedback::Regression(signal()),
+            None => BootstrapFeedback::Unspecified,
+        }
+    }
+
+    fn current_autonomous_model_grounded_authorized_candidates(
+        &self,
+        candidate_actions: &[crate::ArcAgi3Action],
+        goal: &athlesia_executive_agency::ExecutiveGoal,
+        execution_cost: athlesia_mindstone_sparse_cognition::CognitiveSignal,
+    ) -> Vec<crate::action_grounding_bridge::ArcAgi3AuthorizedExecutiveCandidate> {
+        let Some(state) = self.current_grounded_world_state() else {
+            return Vec::new();
+        };
+
+        let mut authorized = Vec::new();
+
+        for &action in candidate_actions {
+            let transformation =
+                crate::cognitive_protocol_bridge::ArcAgi3CognitiveProtocolBridge::encode_action(
+                    action,
+                );
+
+            let Some(candidate) = self
+                .cognition
+                .current_model_grounded_executive_candidate_for_exact_goal(
+                    &state,
+                    &transformation,
+                    goal,
+                    execution_cost,
+                    Self::live_transition_schema_policy(),
+                    Self::live_executable_world_model_policy(),
+                )
+            else {
+                continue;
+            };
+
+            let Ok(grounded) =
+                crate::action_grounding_bridge::
+                    ArcAgi3ActionGroundingBridge::
+                        authorize_executive_candidate(
+                            self.observation(),
+                            &candidate,
+                        )
+            else {
+                continue;
+            };
+
+            if authorized.iter().any(
+                |existing: &crate::action_grounding_bridge::ArcAgi3AuthorizedExecutiveCandidate| {
+                    existing.candidate() == grounded.candidate()
+                },
+            ) {
+                continue;
+            }
+
+            authorized.push(grounded);
+        }
+
+        authorized
+    }
+
+    pub fn current_autonomous_evidence_faithful_successor_executive_authority(
+        &self,
+        request: ArcAgi3AutonomousSuccessorExecutiveRequest<'_>,
+    ) -> Option<ArcAgi3UnifiedExecutiveAuthority> {
+        let ArcAgi3AutonomousSuccessorExecutiveRequest {
+            candidate_actions,
+            exploitation_execution_cost,
+            version_policy,
+            discrimination_policy,
+            expectation_policy,
+            priority_policy,
+            exploitation_policy,
+            epistemic_policy,
+            ignorance_policy,
+        } = request;
+
+        let cognitive_actions = candidate_actions
+            .iter()
+            .copied()
+            .map(crate::cognitive_protocol_bridge::ArcAgi3CognitiveProtocolBridge::encode_action)
+            .collect::<Vec<_>>();
+
+        /*
+         * Preserve the established evidence-neutral cold-start path.
+         */
+        let current_state = match self.current_grounded_world_state() {
+            Some(state) => state,
+
+            None => {
+                let observation_identity =
+                    self.current_evidence_neutral_bootstrap_observation_identity()?;
+
+                let retention_policy = Self::live_bootstrap_action_coverage_policy();
+
+                if self.cognition.bootstrap_action_coverage_event_count()
+                    >= retention_policy.max_events()
+                {
+                    return None;
+                }
+
+                let selected = self.cognition.current_selected_bootstrap_ignorance_action(
+                    &observation_identity,
+                    &cognitive_actions,
+                    ignorance_policy,
+                )?;
+
+                let action =
+                        crate::action_grounding_bridge::
+                            ArcAgi3ActionGroundingBridge::
+                                authorize_environment_action(
+                                    self.observation(),
+                                    selected.action(),
+                                )
+                                .ok()?;
+
+                return Some(ArcAgi3UnifiedExecutiveAuthority::new_bootstrap_ignorance(
+                    action, selected,
+                ));
+            }
+        };
+
+        /*
+         * ENDOGENOUS exploitation:
+         *
+         * current grounded state
+         *   -> retained executable model
+         *   -> empirical predictions
+         *   -> self-bootstrap objective target
+         *   -> exact target-aligned candidate frontier
+         *   -> M48.
+         */
+        let autonomous_goal = self.current_autonomous_model_goal_synthesis(
+            candidate_actions,
+            exploitation_execution_cost,
+        );
+
+        let mut authorized_autonomous_candidate_count = 0usize;
+        let exploitation_authority = autonomous_goal.as_ref().and_then(|synthesis| {
+            let goal = synthesis.goal();
+
+            let authorized = self.current_autonomous_model_grounded_authorized_candidates(
+                candidate_actions,
+                goal,
+                exploitation_execution_cost,
+            );
+            authorized_autonomous_candidate_count = authorized.len();
+
+            self.selected_authorized_executive_candidate(&authorized, goal, exploitation_policy)
+                .map(|selected| {
+                    ArcAgi3UnifiedExecutiveAuthority::
+                                    new(
+                                        athlesia_integrated_cognitive_agent::
+                                            OnlinePersistentCognitiveState::
+                                                grounded_execution_source_state_identity(
+                                                    &current_state,
+                                                ),
+                                        selected,
+                                    )
+                })
+        });
+
+        /*
+         * Existing empirical epistemic authority remains unchanged.
+         */
+        let epistemic_selected = self
+            .cognition
+            .current_selected_successor_informed_epistemic_action_intent(
+                &current_state,
+                &cognitive_actions,
+                version_policy,
+                discrimination_policy,
+                expectation_policy,
+                priority_policy,
+                epistemic_policy,
+            );
+
+        let epistemic_authority = match epistemic_selected {
+            Some(selected) => {
+                let action =
+                        crate::action_grounding_bridge::
+                            ArcAgi3ActionGroundingBridge::
+                                authorize_environment_action(
+                                    self.observation(),
+                                    selected.action(),
+                                )
+                                .ok()?;
+
+                Some(ArcAgi3UnifiedExecutiveAuthority::new_epistemic(
+                    action, selected,
+                ))
+            }
+
+            None => None,
+        };
+
+        if std::env::var_os("ATHLESIA_AUTHORITY_AUDIT").is_some() {
+            eprintln!(
+                "ATHLESIA_AUTHORITY_AUDIT episodes={} progress={} goal_kind={:?} goal_priority={:?} goal_candidates={} authorized_candidates={} exploitation={} epistemic={}",
+                self.cognition.transition_episode_count(),
+                self.cognition.epistemic_progress_event_count(),
+                autonomous_goal.as_ref().map(|g| g.objective_kind()),
+                autonomous_goal.as_ref().map(|g| g.goal().priority().value()),
+                autonomous_goal.as_ref().map_or(0, |g| g.candidate_count()),
+                authorized_autonomous_candidate_count,
+                exploitation_authority.is_some(),
+                epistemic_authority.is_some(),
+            );
+        }
+
+        /*
+         * Same evidence-faithful precedence contract:
+         *
+         * one learned authority  -> execute
+         * conflicting learned    -> abstain
+         * no learned authority   -> ignorance coverage
+         */
+        match (exploitation_authority, epistemic_authority) {
+            (Some(authority), None) | (None, Some(authority)) => Some(authority),
+
+            (Some(_), Some(_)) => None,
+
+            (None, None) => {
+                let selected = self
+                    .cognition
+                    .current_selected_ignorance_exploration_action(
+                        &current_state,
+                        &cognitive_actions,
+                        ignorance_policy,
+                    )?;
+
+                let action =
+                    crate::action_grounding_bridge::
+                        ArcAgi3ActionGroundingBridge::
+                            authorize_environment_action(
+                                self.observation(),
+                                selected.action(),
+                            )
+                            .ok()?;
+
+                Some(ArcAgi3UnifiedExecutiveAuthority::new_ignorance(
+                    action, selected,
+                ))
+            }
+        }
+    }
+
     pub fn current_evidence_faithful_successor_executive_authority(
         &self,
         request: ArcAgi3EvidenceFaithfulSuccessorExecutiveRequest<'_>,

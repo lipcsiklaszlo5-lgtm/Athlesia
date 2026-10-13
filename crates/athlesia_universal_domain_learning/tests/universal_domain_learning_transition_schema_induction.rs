@@ -346,6 +346,41 @@ fn invariant_evidence_deprioritizes_stable_facts_under_hard_candidate_budget_wit
 }
 
 #[test]
+fn bounded_candidate_budget_reaches_each_supported_transformation() {
+    let frequent = atom(100);
+    let other = atom(200);
+    let mut episodes = Vec::new();
+    for _ in 0..4 {
+        episodes.push(transition(&[9], &[9, 10, 11, 12, 13], frequent.clone()));
+    }
+    for _ in 0..2 {
+        episodes.push(transition(&[9], &[9, 99], other.clone()));
+    }
+    let bound = policy(2, 600, 1, 2, 8);
+    let result = TransitionSchemaInduction::induce(&episodes, &[], bound);
+    assert_eq!(result.evaluated_candidate_count(), 2);
+    assert!(result.candidate_generation_truncated());
+    assert!(has_schema(
+        &result,
+        &frequent,
+        TransitionEffectKind::Added,
+        &atom(10)
+    ));
+    assert!(has_schema(
+        &result,
+        &other,
+        TransitionEffectKind::Added,
+        &atom(99)
+    ));
+    let mut reversed = episodes;
+    reversed.reverse();
+    assert_eq!(
+        result,
+        TransitionSchemaInduction::induce(&reversed, &[], bound)
+    );
+}
+
+#[test]
 fn hard_schema_frontier_prefers_stronger_effect_and_is_episode_order_invariant() {
     let original = vec![
         transition(&[9], &[9, 1, 2], atom(100)),

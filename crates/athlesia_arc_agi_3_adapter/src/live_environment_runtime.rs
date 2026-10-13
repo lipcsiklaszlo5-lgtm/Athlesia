@@ -348,7 +348,7 @@ where
         }
     }
 
-    fn ensure_active(&self) -> Result<(), ArcAgi3LiveEnvironmentError> {
+    pub(crate) fn ensure_active(&self) -> Result<(), ArcAgi3LiveEnvironmentError> {
         self.ensure_not_faulted()?;
 
         if self.status() != ArcAgi3LiveEnvironmentStatus::Active {
@@ -431,7 +431,7 @@ where
         })
     }
 
-    fn execute_unified_authority(
+    pub(crate) fn execute_unified_authority(
         &mut self,
         authority: ArcAgi3UnifiedExecutiveAuthority,
         confidence: CognitiveSignal,

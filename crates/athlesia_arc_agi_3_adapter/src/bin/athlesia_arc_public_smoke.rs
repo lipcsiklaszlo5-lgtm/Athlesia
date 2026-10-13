@@ -8,7 +8,7 @@ use athlesia_arc_agi_3_adapter::{
     cognitive_trace::ArcAgi3JsonlTraceSink,
     environment_transport_boundary::ArcAgi3RestTransport,
     live_environment_runtime::ArcAgi3LiveEnvironmentRuntime,
-    production_successor_runtime::ArcAgi3ProductionSuccessorPolicy,
+    production_successor_runtime::ArcAgi3AutonomousProductionSuccessorPolicy,
     successor_episode_runtime::{ArcAgi3SuccessorEpisodePolicy, ArcAgi3SuccessorEpisodeRuntime},
     ArcAgi3GameId,
 };
@@ -51,19 +51,20 @@ fn inert_goal() -> ExecutiveGoal {
     )
 }
 
-fn production_policy<'a>(goal: &'a ExecutiveGoal) -> ArcAgi3ProductionSuccessorPolicy<'a> {
-    let version_policy = GroundedExplanatoryVersionSpacePolicy::new(1, 64, 512, 256).unwrap();
-
-    let discrimination_policy = EpistemicForecastDiscriminationPolicy::new(512, 512).unwrap();
-
-    let expectation_policy = EmpiricalExpectedEpistemicProgressPolicy::new(256, 256, 1).unwrap();
+fn autonomous_policy() -> ArcAgi3AutonomousProductionSuccessorPolicy {
+    let version_policy =
+        GroundedExplanatoryVersionSpacePolicy::new(1, 64, 512, 256).unwrap();
+    let discrimination_policy =
+        EpistemicForecastDiscriminationPolicy::new(512, 512).unwrap();
+    let expectation_policy =
+        EmpiricalExpectedEpistemicProgressPolicy::new(256, 256, 1).unwrap();
 
     let executive_policy = ExecutiveAgencyPolicy::new(
         1,
         8,
         16,
         1,
-        ExecutiveUtilityWeights::new(0, 0, 0, 1000, 0).unwrap(),
+        ExecutiveUtilityWeights::new(700, 200, 100, 0, 0).unwrap(),
         ExecutiveSelectionThresholds::new(
             signal(100),
             signal(100),
@@ -75,13 +76,7 @@ fn production_policy<'a>(goal: &'a ExecutiveGoal) -> ArcAgi3ProductionSuccessorP
     )
     .unwrap();
 
-    ArcAgi3ProductionSuccessorPolicy::new(
-        goal,
-        /*
-         * CRITICAL:
-         * disable externally supplied goal exploitation.
-         */
-        CognitiveSignal::zero(),
+    ArcAgi3AutonomousProductionSuccessorPolicy::new(
         signal(100),
         version_policy,
         discrimination_policy,
@@ -382,7 +377,7 @@ fn run() -> Result<(), String> {
     println!("CANONICAL_GAME={canonical_game_name}");
     println!("CARD_ID={card_id}");
     println!("MAX_STEPS={max_steps}");
-    println!("GOAL_AUTHORITY=DISABLED");
+    println!("GOAL_AUTHORITY=ENDOGENOUS_MODEL");
     println!("TRACE={trace_path}");
     println!("DIAG={diag_path}");
 
@@ -404,9 +399,7 @@ fn run() -> Result<(), String> {
 
     let mut diag_writer = BufWriter::new(diag_file);
 
-    let goal = inert_goal();
-
-    let policy = production_policy(&goal);
+    let policy = autonomous_policy();
 
     let version_policy = policy.version_policy();
 
@@ -422,7 +415,7 @@ fn run() -> Result<(), String> {
             let before = cognitive_snapshot(runtime, version_policy);
 
             let result = runtime
-                .execute_production_evidence_faithful_successor_with_trace(policy, &mut trace_sink);
+                .execute_production_autonomous_successor(policy);
 
             let after = cognitive_snapshot(runtime, version_policy);
 

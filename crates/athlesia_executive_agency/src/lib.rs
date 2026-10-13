@@ -6081,18 +6081,18 @@ mod b3ca_evidence_faithful_epistemic_m48_tests {
 //
 // The only empirical quantity is:
 //
-// exact_source_action_sample_count
+// exact_source_action_sample_count and global_action_sample_count.
 //
-// meaning:
-//
-// how many independently retained real transitions were produced by
-// executing this exact action from this exact grounded source
-// representation.
+// The first count covers this exact grounded source and exact action.
+// The second covers independent real executions of that action in any
+// grounded source. Global coverage is only a tie-break for exploration;
+// it never transfers a causal prediction to a different source.
 //
 // Selection rule:
 //
 // 1. prefer fewer exact source/action samples;
-// 2. break a complete tie only by deterministic structural action identity.
+// 2. on a tie, prefer fewer global action samples;
+// 3. break a complete tie by deterministic structural action identity.
 //
 // This is coverage, not value estimation.
 //
@@ -6105,6 +6105,7 @@ pub struct GroundedIgnoranceExplorationCandidate {
     source_state: CognitiveStructure,
     action: CognitiveStructure,
     exact_source_action_sample_count: usize,
+    global_action_sample_count: usize,
 }
 
 impl GroundedIgnoranceExplorationCandidate {
@@ -6113,10 +6114,20 @@ impl GroundedIgnoranceExplorationCandidate {
         action: CognitiveStructure,
         exact_source_action_sample_count: usize,
     ) -> Self {
+        Self::with_global_coverage(source_state, action, exact_source_action_sample_count, 0)
+    }
+
+    pub fn with_global_coverage(
+        source_state: CognitiveStructure,
+        action: CognitiveStructure,
+        exact_source_action_sample_count: usize,
+        global_action_sample_count: usize,
+    ) -> Self {
         Self {
             source_state,
             action,
             exact_source_action_sample_count,
+            global_action_sample_count,
         }
     }
 
@@ -6130,6 +6141,10 @@ impl GroundedIgnoranceExplorationCandidate {
 
     pub fn exact_source_action_sample_count(&self) -> usize {
         self.exact_source_action_sample_count
+    }
+
+    pub fn global_action_sample_count(&self) -> usize {
+        self.global_action_sample_count
     }
 
     pub fn untried_in_exact_source_state(&self) -> bool {
@@ -6270,6 +6285,10 @@ impl IgnoranceExplorationAgency {
                     left.exact_source_action_sample_count()
                         .cmp(&right.exact_source_action_sample_count())
                 })
+                .then_with(|| {
+                    left.global_action_sample_count()
+                        .cmp(&right.global_action_sample_count())
+                })
         });
 
         let mut unique = Vec::<GroundedIgnoranceExplorationCandidate>::new();
@@ -6303,20 +6322,18 @@ impl IgnoranceExplorationAgency {
         let unique_candidate_count = unique.len();
 
         /*
-         * Primary priority:
-         *
-         * fewer exact source/action interventions first.
-         *
-         * Final complete tie:
-         *
-         * deterministic structural action identity.
-         *
-         * Structural ordering breaks symmetry only. It does NOT
-         * assign semantic value to an action.
+         * Exact source/action coverage comes first. Global action coverage
+         * only resolves equal exact counts; it does not transfer predictions
+         * or claim that another source state is equivalent.
+         * Structural ordering resolves the final complete tie.
          */
         unique.sort_by(|left, right| {
             left.exact_source_action_sample_count()
                 .cmp(&right.exact_source_action_sample_count())
+                .then_with(|| {
+                    left.global_action_sample_count()
+                        .cmp(&right.global_action_sample_count())
+                })
                 .then_with(|| format!("{:?}", left.action()).cmp(&format!("{:?}", right.action())))
         });
 
@@ -6394,6 +6411,26 @@ mod b3da_ignorance_coverage_m48_tests {
         let result = IgnoranceExplorationAgency::select(&[often, less.clone()], policy(8));
 
         assert_eq!(result.selected_candidate(), Some(&less),);
+    }
+
+    #[test]
+    fn global_coverage_resolves_only_exact_source_ties() {
+        let often = GroundedIgnoranceExplorationCandidate::with_global_coverage(a(1), a(10), 0, 9);
+        let less = GroundedIgnoranceExplorationCandidate::with_global_coverage(a(1), a(20), 0, 1);
+        assert_eq!(
+            IgnoranceExplorationAgency::select(&[often.clone(), less.clone()], policy(8))
+                .selected_candidate(),
+            Some(&less),
+        );
+        let exact_priority =
+            GroundedIgnoranceExplorationCandidate::with_global_coverage(a(1), a(10), 0, 9);
+        let sampled_here =
+            GroundedIgnoranceExplorationCandidate::with_global_coverage(a(1), a(20), 1, 1);
+        assert_eq!(
+            IgnoranceExplorationAgency::select(&[sampled_here, exact_priority.clone()], policy(8))
+                .selected_candidate(),
+            Some(&exact_priority),
+        );
     }
 
     #[test]

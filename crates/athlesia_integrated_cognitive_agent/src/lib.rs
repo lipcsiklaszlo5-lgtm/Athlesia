@@ -10003,6 +10003,27 @@ impl EndogenousTransitionSchemaLearningState {
         )
     }
 
+    pub fn global_action_sample_count(&self, action: &CognitiveStructure) -> Option<usize> {
+        if self.episodes.len() != self.event_provenance.len() {
+            return None;
+        }
+        for index in 0..self.event_provenance.len() {
+            let event_index = self.event_provenance[index].event_index();
+            if self.event_provenance[..index]
+                .iter()
+                .any(|prior| prior.event_index() == event_index)
+            {
+                return None;
+            }
+        }
+        Some(
+            self.episodes
+                .iter()
+                .filter(|episode| episode.transformation() == action)
+                .count(),
+        )
+    }
+
     pub fn empirical_successor_representation_qualification(
         &self,
         current_representation: &athlesia_universal_domain_learning::GroundedStateSnapshot,
@@ -11463,6 +11484,199 @@ impl EmpiricallyAuthorizedStructuralPrediction {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
+pub struct AutonomousModelOutcomeEvidence {
+    action: CognitiveStructure,
+    predicted_outcome: CognitiveStructure,
+    evidence_confidence: CognitiveSignal,
+    controllability: CognitiveSignal,
+    execution_cost: CognitiveSignal,
+}
+
+impl AutonomousModelOutcomeEvidence {
+    pub fn new(
+        action: CognitiveStructure,
+        predicted_outcome: CognitiveStructure,
+        evidence_confidence: CognitiveSignal,
+        controllability: CognitiveSignal,
+        execution_cost: CognitiveSignal,
+    ) -> Self {
+        Self {
+            action,
+            predicted_outcome,
+            evidence_confidence,
+            controllability,
+            execution_cost,
+        }
+    }
+
+    pub fn action(&self) -> &CognitiveStructure {
+        &self.action
+    }
+
+    pub fn predicted_outcome(&self) -> &CognitiveStructure {
+        &self.predicted_outcome
+    }
+
+    pub fn evidence_confidence(&self) -> CognitiveSignal {
+        self.evidence_confidence
+    }
+
+    pub fn controllability(&self) -> CognitiveSignal {
+        self.controllability
+    }
+
+    pub fn execution_cost(&self) -> CognitiveSignal {
+        self.execution_cost
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct AutonomousModelGoalSynthesis {
+    goal: athlesia_executive_agency::ExecutiveGoal,
+    objective_kind: autonomous_cognitive_self_bootstrap::BootstrapObjectiveKind,
+    selected_seed_action: CognitiveStructure,
+    candidate_count: usize,
+}
+
+impl AutonomousModelGoalSynthesis {
+    pub fn synthesize(
+        current_state: CognitiveStructure,
+        action_affordances: &[CognitiveStructure],
+        evidence: &[AutonomousModelOutcomeEvidence],
+    ) -> Option<Self> {
+        Self::synthesize_with_feedback(
+            current_state, action_affordances, evidence,
+            feedback,
+        )
+    }
+
+    pub fn synthesize_with_feedback(
+        current_state: CognitiveStructure,
+        action_affordances: &[CognitiveStructure],
+        evidence: &[AutonomousModelOutcomeEvidence],
+        feedback: autonomous_cognitive_self_bootstrap::BootstrapFeedback,
+    ) -> Option<Self> {
+        if action_affordances.is_empty() || evidence.is_empty() {
+            return None;
+        }
+
+        /*
+         * Learned model exploitation has no justified epistemic
+         * information-gain value.
+         *
+         * Zero is preserved explicitly. The autonomous bootstrap ranks
+         * these learned outcomes by controllability, confidence, cost and
+         * exact identity after the zero-IG tie.
+         */
+        let hypotheses = evidence
+            .iter()
+            .map(|item| {
+                autonomous_cognitive_self_bootstrap::OutcomeHypothesis::new(
+                    current_state.clone(),
+                    item.action().clone(),
+                    item.predicted_outcome().clone(),
+                    autonomous_cognitive_self_bootstrap::BootstrapSignal::new(
+                        item.evidence_confidence().value(),
+                    )
+                    .expect("cognitive confidence uses the same bounded scale"),
+                    autonomous_cognitive_self_bootstrap::BootstrapSignal::zero(),
+                    autonomous_cognitive_self_bootstrap::BootstrapSignal::new(
+                        item.controllability().value(),
+                    )
+                    .expect("cognitive controllability uses the same bounded scale"),
+                    autonomous_cognitive_self_bootstrap::BootstrapSignal::new(
+                        item.execution_cost().value(),
+                    )
+                    .expect("cognitive execution cost uses the same bounded scale"),
+                )
+            })
+            .collect::<Vec<_>>();
+
+        let bounds = autonomous_cognitive_self_bootstrap::SelfBootstrapBounds::new(
+            action_affordances.len(),
+            hypotheses.len(),
+            hypotheses.len(),
+        )?;
+
+        let thresholds = autonomous_cognitive_self_bootstrap::SelfBootstrapThresholds::new(
+            autonomous_cognitive_self_bootstrap::BootstrapSignal::new(1)
+                .expect("positive confidence threshold"),
+            autonomous_cognitive_self_bootstrap::BootstrapSignal::zero(),
+            autonomous_cognitive_self_bootstrap::BootstrapSignal::new(1)
+                .expect("positive controllability threshold"),
+            autonomous_cognitive_self_bootstrap::BootstrapSignal::maximum(),
+        );
+
+        let input = autonomous_cognitive_self_bootstrap::SelfBootstrapInput::new(
+            current_state,
+            None,
+            action_affordances.to_vec(),
+            hypotheses,
+            autonomous_cognitive_self_bootstrap::BootstrapFeedback::Unspecified,
+        );
+
+        let digest = OnlineAutonomousCognitiveSelfBootstrapRuntime::evaluate(
+            &input,
+            autonomous_cognitive_self_bootstrap::SelfBootstrapPolicy::new(bounds, thresholds),
+        )
+        .ok()?;
+
+        if digest.status() != autonomous_cognitive_self_bootstrap::SelfBootstrapStatus::Selected {
+            return None;
+        }
+
+        let target = digest.target_state()?.clone();
+
+        let selected_seed_action = digest.selected_action()?.clone();
+
+        let confidence = digest.selected_confidence()?.value();
+
+        let controllability = digest.selected_controllability()?.value();
+
+        /*
+         * Goal priority is grounded in the weaker of the two empirical
+         * authorities. No arbitrary 900/1000 goal strength is injected.
+         */
+        let priority = CognitiveSignal::new(confidence.min(controllability))
+            .expect("bootstrap evidence remains on cognitive signal scale");
+
+        if priority == CognitiveSignal::zero() {
+            return None;
+        }
+
+        Some(Self {
+            goal: athlesia_executive_agency::ExecutiveGoal::new(
+                target,
+                priority,
+                CognitiveSignal::zero(),
+            ),
+
+            objective_kind: digest.objective_kind(),
+
+            selected_seed_action,
+
+            candidate_count: digest.candidate_frontier_len(),
+        })
+    }
+
+    pub fn goal(&self) -> &athlesia_executive_agency::ExecutiveGoal {
+        &self.goal
+    }
+
+    pub fn objective_kind(&self) -> autonomous_cognitive_self_bootstrap::BootstrapObjectiveKind {
+        self.objective_kind
+    }
+
+    pub fn selected_seed_action(&self) -> &CognitiveStructure {
+        &self.selected_seed_action
+    }
+
+    pub fn candidate_count(&self) -> usize {
+        self.candidate_count
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ExecutiveCandidateProvenanceBinding {
     source_state: CognitiveStructure,
     candidate: athlesia_executive_agency::GroundedExecutiveActionCandidate,
@@ -11605,6 +11819,19 @@ impl OnlinePersistentCognitiveState {
         )
     }
 
+    pub fn current_explanatory_version_space_for_transformation(
+        &self,
+        transformation: &CognitiveStructure,
+        policy: athlesia_universal_domain_learning::GroundedExplanatoryVersionSpacePolicy,
+    ) -> athlesia_universal_domain_learning::GroundedExplanatoryVersionSpace {
+        athlesia_universal_domain_learning::GroundedExplanatoryVersionSpaceSynthesis::
+            synthesize_for_transformation(
+                self.transition_schema_learning.episodes(),
+                transformation,
+                policy,
+            )
+    }
+
     pub fn current_factorized_action_discrimination(
         &self,
         state: &athlesia_universal_domain_learning::GroundedStateSnapshot,
@@ -11723,9 +11950,13 @@ impl OnlinePersistentCognitiveState {
     ) -> Option<GroundedSemanticEpistemicExperimentPossibility> {
         let possibility = self.current_m50_epistemic_possibility(state, action, version_policy)?;
 
-        let version_space = self.current_explanatory_version_space(version_policy);
+        let version_space =
+            self.current_explanatory_version_space_for_transformation(action, version_policy);
 
-        if version_space.evaluation_truncated() || version_space.frontier_truncated() {
+        if version_space.context_frontier_truncated()
+            || version_space.evaluation_truncated()
+            || version_space.frontier_truncated()
+        {
             return None;
         }
 
@@ -11765,13 +11996,19 @@ impl OnlinePersistentCognitiveState {
         version_policy: athlesia_universal_domain_learning::GroundedExplanatoryVersionSpacePolicy,
     ) -> Option<athlesia_autonomous_active_experimentation::GroundedEpistemicExperimentPossibility>
     {
-        let version_space = self.current_explanatory_version_space(version_policy);
+        let version_space =
+            self.current_explanatory_version_space_for_transformation(action, version_policy);
 
         /*
-         * A truncated explanatory space is partial knowledge.
+         * The exact action's context, evaluation and active frontiers must all
+         * be complete. Unrelated transformations cannot consume these budgets.
+         * A truncated action-local explanatory space is partial knowledge.
          * It must never be silently promoted to M50 epistemic authority.
          */
-        if version_space.evaluation_truncated() || version_space.frontier_truncated() {
+        if version_space.context_frontier_truncated()
+            || version_space.evaluation_truncated()
+            || version_space.frontier_truncated()
+        {
             return None;
         }
 
@@ -12855,12 +13092,16 @@ impl OnlinePersistentCognitiveState {
             let sample_count = self
                 .transition_schema_learning
                 .exact_source_action_sample_count(state, action)?;
+            let global_count = self
+                .transition_schema_learning
+                .global_action_sample_count(action)?;
 
             candidates.push(
-                athlesia_executive_agency::GroundedIgnoranceExplorationCandidate::new(
+                athlesia_executive_agency::GroundedIgnoranceExplorationCandidate::with_global_coverage(
                     source_state.clone(),
                     action.clone(),
                     sample_count,
+                    global_count,
                 ),
             );
         }
@@ -12873,7 +13114,18 @@ impl OnlinePersistentCognitiveState {
         let result =
             athlesia_executive_agency::IgnoranceExplorationAgency::select(&candidates, policy);
 
-        result.selected_candidate().cloned()
+        let selected = result.selected_candidate().cloned();
+        if std::env::var_os("ATHLESIA_AUTHORITY_AUDIT").is_some() {
+            if let Some(candidate) = &selected {
+                eprintln!(
+                    "ATHLESIA_IGNORANCE_AUDIT action={:?} exact={} global={}",
+                    candidate.action(),
+                    candidate.exact_source_action_sample_count(),
+                    candidate.global_action_sample_count(),
+                );
+            }
+        }
+        selected
     }
 
     pub fn current_successor_informed_native_proposal_input_frontier(
@@ -13109,6 +13361,43 @@ impl OnlinePersistentCognitiveState {
         CognitiveStructure::ordered(terms)
     }
 
+    const MODEL_EFFECT_DELTA_TAG: u64 = 0x5034_4742_3200_0004;
+
+    fn effect_delta_identity(
+        additions: &[CognitiveStructure],
+        removals: &[CognitiveStructure],
+    ) -> Option<CognitiveStructure> {
+        if additions.is_empty() && removals.is_empty() {
+            return None;
+        }
+        if additions.iter().any(|fact| removals.contains(fact)) {
+            return None;
+        }
+        let mut terms = vec![CognitiveStructure::atom(Self::MODEL_EFFECT_DELTA_TAG)];
+        for fact in additions {
+            terms.push(CognitiveStructure::ordered(vec![
+                CognitiveStructure::atom(Self::MODEL_ADDITION_TAG),
+                fact.clone(),
+            ])?);
+        }
+        for fact in removals {
+            terms.push(CognitiveStructure::ordered(vec![
+                CognitiveStructure::atom(Self::MODEL_REMOVAL_TAG),
+                fact.clone(),
+            ])?);
+        }
+        CognitiveStructure::ordered(terms)
+    }
+
+    fn predicted_effect_delta_identity(
+        prediction: &athlesia_universal_domain_learning::GroundedStructuralPrediction,
+    ) -> Option<CognitiveStructure> {
+        if !prediction.predicted() {
+            return None;
+        }
+        Self::effect_delta_identity(prediction.additions(), prediction.removals())
+    }
+
     pub fn current_structural_prediction(
         &self,
         state: &athlesia_universal_domain_learning::GroundedStateSnapshot,
@@ -13211,6 +13500,142 @@ impl OnlinePersistentCognitiveState {
             prediction,
             authority,
         })
+    }
+
+    pub fn current_autonomous_model_goal(
+        &self,
+        state: &athlesia_universal_domain_learning::GroundedStateSnapshot,
+        actions: &[CognitiveStructure],
+        execution_cost: CognitiveSignal,
+        schema_policy: athlesia_universal_domain_learning::TransitionSchemaPolicy,
+        model_policy: athlesia_universal_domain_learning::GroundedExecutableWorldModelPolicy,
+    ) -> Option<AutonomousModelGoalSynthesis> {
+        self.current_autonomous_model_goal_with_feedback(
+            state, actions, execution_cost, schema_policy, model_policy,
+            autonomous_cognitive_self_bootstrap::BootstrapFeedback::Unspecified,
+        )
+    }
+
+    pub fn current_autonomous_model_goal_with_feedback(
+        &self,
+        state: &athlesia_universal_domain_learning::GroundedStateSnapshot,
+        actions: &[CognitiveStructure],
+        execution_cost: CognitiveSignal,
+        schema_policy: athlesia_universal_domain_learning::TransitionSchemaPolicy,
+        model_policy: athlesia_universal_domain_learning::GroundedExecutableWorldModelPolicy,
+        feedback: autonomous_cognitive_self_bootstrap::BootstrapFeedback,
+    ) -> Option<AutonomousModelGoalSynthesis> {
+        /*
+         * Resource guard only.
+         *
+         * Coordinate-action sparsification belongs upstream in the
+         * perceptual action frontier. Until that path is connected,
+         * autonomous model-goal synthesis fails closed rather than
+         * traversing thousands of raw cells.
+         */
+        const MAX_AUTONOMOUS_MODEL_ACTIONS: usize = 256;
+
+        if actions.is_empty() || actions.len() > MAX_AUTONOMOUS_MODEL_ACTIONS {
+            return None;
+        }
+
+        let source_state = Self::grounded_execution_source_state_identity(state);
+
+        let mut evidence = Vec::<AutonomousModelOutcomeEvidence>::new();
+
+        for action in actions {
+            let Some(authorized_prediction) = self
+                .current_empirically_authorized_structural_prediction(
+                    state,
+                    action,
+                    schema_policy,
+                    model_policy,
+                )
+            else {
+                continue;
+            };
+
+            let Some(predicted_outcome) =
+                Self::predicted_effect_delta_identity(authorized_prediction.prediction())
+            else {
+                continue;
+            };
+
+            evidence.push(AutonomousModelOutcomeEvidence::new(
+                action.clone(),
+                predicted_outcome,
+                authorized_prediction.evidence_confidence(),
+                authorized_prediction.controllability(),
+                execution_cost,
+            ));
+        }
+
+        if std::env::var_os("ATHLESIA_AUTHORITY_AUDIT").is_some() {
+            let model = self.current_executable_world_model(schema_policy, model_policy);
+            let predicted_actions = model.as_ref().map_or(0, |model| {
+                actions
+                    .iter()
+                    .filter(|action| model.predict(state, action).predicted())
+                    .count()
+            });
+            eprintln!(
+                "ATHLESIA_MODEL_GOAL_AUDIT actions={} model_schemas={} model_truncated={} predicted_actions={} empirical_successors={}",
+                actions.len(),
+                model.as_ref().map_or(0, |model| model.schema_count()),
+                model.as_ref().is_some_and(|model| model.frontier_truncated()),
+                predicted_actions,
+                evidence.len(),
+            );
+        }
+
+        AutonomousModelGoalSynthesis::synthesize_with_feedback(
+            source_state, actions, &evidence, feedback,
+        )
+    }
+
+    pub fn current_model_grounded_executive_candidate_for_exact_goal(
+        &self,
+        state: &athlesia_universal_domain_learning::GroundedStateSnapshot,
+        transformation: &CognitiveStructure,
+        goal: &athlesia_executive_agency::ExecutiveGoal,
+        execution_cost: CognitiveSignal,
+        schema_policy: athlesia_universal_domain_learning::TransitionSchemaPolicy,
+        model_policy: athlesia_universal_domain_learning::GroundedExecutableWorldModelPolicy,
+    ) -> Option<athlesia_executive_agency::GroundedExecutiveActionCandidate> {
+        let authorized_prediction = self.current_empirically_authorized_structural_prediction(
+            state,
+            transformation,
+            schema_policy,
+            model_policy,
+        )?;
+
+        let predicted_outcome =
+            Self::predicted_effect_delta_identity(authorized_prediction.prediction())?;
+
+        /*
+         * Exact structural target identity is a semantic relation,
+         * not fabricated empirical evidence.
+         *
+         * A prediction either reaches this exact endogenous target or
+         * it does not. Only an exact target match enters the M48
+         * exploitation frontier.
+         */
+        if &predicted_outcome != goal.identity() {
+            return None;
+        }
+
+        Some(
+            athlesia_executive_agency::GroundedExecutiveActionCandidate::new(
+                goal.identity().clone(),
+                transformation.clone(),
+                predicted_outcome,
+                CognitiveSignal::new(1000).expect("exact target identity is maximum alignment"),
+                authorized_prediction.controllability(),
+                authorized_prediction.evidence_confidence(),
+                CognitiveSignal::zero(),
+                execution_cost,
+            ),
+        )
     }
 
     pub fn current_model_grounded_executive_candidate(
@@ -15885,6 +16310,108 @@ mod p4g_c3b_exact_m47_m50_epistemic_bridge_tests {
             "an ungrounded action must not gain fabricated epistemic authority",
         );
     }
+
+    fn unrelated_experience() -> Vec<GroundedTransformationEpisode> {
+        (0..8)
+            .map(|index| episode(&[10 + index], &[10 + index, 1_000 + index], 200 + index))
+            .collect()
+    }
+
+    #[test]
+    fn unrelated_transformations_cannot_suppress_exact_action_m50_authority() {
+        let policy = GroundedExplanatoryVersionSpacePolicy::new(1, 2, 3, 3).unwrap();
+        let clean = owner(experience());
+        let mut episodes = experience();
+        episodes.extend(unrelated_experience());
+        let contaminated = owner(episodes);
+        let global = contaminated.current_explanatory_version_space(policy);
+        assert!(global.context_frontier_truncated());
+        assert!(global.evaluation_truncated());
+        assert_eq!(
+            contaminated.current_explanatory_version_space_for_transformation(&a(100), policy),
+            clean.current_explanatory_version_space(policy)
+        );
+
+        let current = state(&[1]);
+        let action = a(100);
+        let expected = clean
+            .current_m50_epistemic_possibility(&current, &action, policy)
+            .expect("the exact action has complete, unresolved explanations");
+        assert!(AutonomousEpistemicForecastDiscrimination::evaluate(
+            &expected,
+            discrimination_policy(),
+        )
+        .informative());
+        assert_eq!(
+            contaminated.current_m50_epistemic_possibility(&current, &action, policy),
+            Some(expected)
+        );
+        assert_eq!(
+            contaminated.current_semantic_m50_epistemic_possibility(&current, &action, policy),
+            Some(
+                clean
+                    .current_semantic_m50_epistemic_possibility(&current, &action, policy)
+                    .expect("exact-action semantic provenance must remain available")
+            )
+        );
+    }
+
+    #[test]
+    fn context_vocabulary_truncation_alone_prevents_m50_authority() {
+        let owner = owner(experience());
+        let policy = GroundedExplanatoryVersionSpacePolicy::new(1, 1, 128, 64).unwrap();
+        let version_space = owner.current_explanatory_version_space(policy);
+        assert!(version_space.context_frontier_truncated());
+        assert!(!version_space.evaluation_truncated());
+        assert!(!version_space.frontier_truncated());
+        assert!(owner.current_m50_epistemic_possibility(&state(&[1]), &a(100), policy).is_none(),
+            "evaluating every generated context does not make a truncated context vocabulary complete");
+        assert!(owner
+            .current_semantic_m50_epistemic_possibility(&state(&[1]), &a(100), policy)
+            .is_none());
+    }
+
+    #[test]
+    fn each_local_truncation_blocks_m50_with_or_without_unrelated_actions() {
+        for (policy, expected) in [
+            (
+                GroundedExplanatoryVersionSpacePolicy::new(1, 1, 8, 8).unwrap(),
+                (true, false, false),
+            ),
+            (
+                GroundedExplanatoryVersionSpacePolicy::new(1, 8, 2, 8).unwrap(),
+                (false, true, false),
+            ),
+            (
+                GroundedExplanatoryVersionSpacePolicy::new(1, 8, 8, 2).unwrap(),
+                (false, false, true),
+            ),
+        ] {
+            for include_unrelated in [false, true] {
+                let mut episodes = experience();
+                if include_unrelated {
+                    episodes.extend(unrelated_experience());
+                }
+                let owner = owner(episodes);
+                let local =
+                    owner.current_explanatory_version_space_for_transformation(&a(100), policy);
+                assert_eq!(
+                    (
+                        local.context_frontier_truncated(),
+                        local.evaluation_truncated(),
+                        local.frontier_truncated()
+                    ),
+                    expected
+                );
+                assert!(owner
+                    .current_m50_epistemic_possibility(&state(&[1]), &a(100), policy)
+                    .is_none());
+                assert!(owner
+                    .current_semantic_m50_epistemic_possibility(&state(&[1]), &a(100), policy)
+                    .is_none());
+            }
+        }
+    }
 }
 
 #[cfg(test)]
@@ -18140,6 +18667,34 @@ mod p4g_c3f_endogenous_priority_frontier_bridge_tests {
     }
 
     #[test]
+    fn b3db1_global_coverage_breaks_new_state_tie_without_transferring_exact_coverage() {
+        let mut owner = OnlinePersistentCognitiveState::new();
+        let prior = state(&[1]);
+        let novel = state(&[2]);
+        let frequent = a(100);
+        let rare = a(200);
+        c16i_retain_b2_sample(&mut owner, 9_306, &prior, &frequent);
+        c16i_retain_b2_sample(&mut owner, 9_307, &prior, &frequent);
+        c16i_retain_b2_sample(&mut owner, 9_308, &prior, &rare);
+        let selected = owner
+            .current_selected_ignorance_exploration_action(
+                &novel,
+                &[frequent.clone(), rare.clone()],
+                athlesia_executive_agency::IgnoranceExplorationSelectionPolicy::new(8).unwrap(),
+            )
+            .unwrap();
+        assert_eq!(selected.action(), &rare);
+        assert_eq!(selected.exact_source_action_sample_count(), 0);
+        assert_eq!(selected.global_action_sample_count(), 1);
+        assert_eq!(
+            owner
+                .transition_schema_learning()
+                .exact_source_action_sample_count(&novel, &frequent),
+            Some(0)
+        );
+    }
+
+    #[test]
     fn b3db1_corrupted_retained_event_accounting_fails_closed() {
         let mut owner = OnlinePersistentCognitiveState::new();
 
@@ -19186,6 +19741,42 @@ mod b4a5a_absolute_bootstrap_coverage_tests {
                 selection_policy(1),
             ),
             None,
+        );
+    }
+}
+
+#[cfg(test)]
+mod autonomous_model_effect_goal_identity_tests {
+    use super::*;
+
+    fn a(value: u64) -> CognitiveStructure {
+        CognitiveStructure::atom(value)
+    }
+
+    #[test]
+    fn goal_contains_only_predicted_effects() {
+        let actual = OnlinePersistentCognitiveState::effect_delta_identity(&[a(3)], &[a(1)]);
+        let expected = CognitiveStructure::ordered(vec![
+            a(OnlinePersistentCognitiveState::MODEL_EFFECT_DELTA_TAG),
+            CognitiveStructure::ordered(vec![
+                a(OnlinePersistentCognitiveState::MODEL_ADDITION_TAG),
+                a(3),
+            ])
+            .unwrap(),
+            CognitiveStructure::ordered(vec![
+                a(OnlinePersistentCognitiveState::MODEL_REMOVAL_TAG),
+                a(1),
+            ])
+            .unwrap(),
+        ]);
+        assert_eq!(actual, expected);
+        assert_eq!(
+            OnlinePersistentCognitiveState::effect_delta_identity(&[], &[]),
+            None
+        );
+        assert_eq!(
+            OnlinePersistentCognitiveState::effect_delta_identity(&[a(1)], &[a(1)]),
+            None
         );
     }
 }

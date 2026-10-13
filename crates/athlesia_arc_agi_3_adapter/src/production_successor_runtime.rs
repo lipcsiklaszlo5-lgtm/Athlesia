@@ -33,7 +33,9 @@
 // Hypothesis/version-space, forecast discrimination and retained evidence
 // budgets remain exactly caller-supplied internal cognitive resource limits.
 
-use crate::cognitive_interaction_runtime::ArcAgi3EvidenceFaithfulSuccessorExecutiveRequest;
+use crate::cognitive_interaction_runtime::{
+    ArcAgi3AutonomousSuccessorExecutiveRequest, ArcAgi3EvidenceFaithfulSuccessorExecutiveRequest,
+};
 use crate::environment_transport_boundary::ArcAgi3EnvironmentTransport;
 use crate::live_environment_runtime::{
     ArcAgi3LiveEnvironmentError, ArcAgi3LiveEnvironmentRuntime,
@@ -207,6 +209,126 @@ impl<'a> ArcAgi3ProductionSuccessorPolicy<'a> {
     }
 }
 
+#[derive(Clone, Copy, Debug)]
+pub struct ArcAgi3AutonomousProductionSuccessorPolicy {
+    exploitation_execution_cost: CognitiveSignal,
+
+    version_policy: athlesia_universal_domain_learning::GroundedExplanatoryVersionSpacePolicy,
+
+    discrimination_policy:
+        athlesia_autonomous_active_experimentation::EpistemicForecastDiscriminationPolicy,
+
+    expectation_policy:
+        athlesia_autonomous_active_experimentation::EmpiricalExpectedEpistemicProgressPolicy,
+
+    exploitation_policy: athlesia_executive_agency::ExecutiveAgencyPolicy,
+
+    feedback_confidence: CognitiveSignal,
+}
+
+impl ArcAgi3AutonomousProductionSuccessorPolicy {
+    pub fn new(
+        exploitation_execution_cost: CognitiveSignal,
+        version_policy: athlesia_universal_domain_learning::GroundedExplanatoryVersionSpacePolicy,
+        discrimination_policy:
+            athlesia_autonomous_active_experimentation::
+                EpistemicForecastDiscriminationPolicy,
+        expectation_policy:
+            athlesia_autonomous_active_experimentation::
+                EmpiricalExpectedEpistemicProgressPolicy,
+        exploitation_policy: athlesia_executive_agency::ExecutiveAgencyPolicy,
+        feedback_confidence: CognitiveSignal,
+    ) -> Option<Self> {
+        let exploitation_policy = athlesia_executive_agency::ExecutiveAgencyPolicy::new(
+            exploitation_policy.max_goals(),
+            ARC_AGI_3_MAX_PRODUCTION_ACTION_FRONTIER,
+            ARC_AGI_3_MAX_PRODUCTION_ACTION_FRONTIER,
+            exploitation_policy.max_selected_intents(),
+            exploitation_policy.weights(),
+            exploitation_policy.thresholds(),
+        )?;
+
+        Some(Self {
+            exploitation_execution_cost,
+            version_policy,
+            discrimination_policy,
+            expectation_policy,
+            exploitation_policy,
+            feedback_confidence,
+        })
+    }
+
+    pub fn exploitation_execution_cost(self) -> CognitiveSignal {
+        self.exploitation_execution_cost
+    }
+
+    pub fn version_policy(
+        self,
+    ) -> athlesia_universal_domain_learning::GroundedExplanatoryVersionSpacePolicy {
+        self.version_policy
+    }
+
+    pub fn discrimination_policy(
+        self,
+    ) -> athlesia_autonomous_active_experimentation::EpistemicForecastDiscriminationPolicy {
+        self.discrimination_policy
+    }
+
+    pub fn expectation_policy(
+        self,
+    ) -> athlesia_autonomous_active_experimentation::EmpiricalExpectedEpistemicProgressPolicy {
+        self.expectation_policy
+    }
+
+    pub fn exploitation_policy(self) -> athlesia_executive_agency::ExecutiveAgencyPolicy {
+        self.exploitation_policy
+    }
+
+    pub fn feedback_confidence(self) -> CognitiveSignal {
+        self.feedback_confidence
+    }
+
+    fn priority_policy(
+        self,
+    ) -> athlesia_autonomous_active_experimentation::EmpiricalEpistemicActionPriorityPolicy {
+        athlesia_autonomous_active_experimentation::EmpiricalEpistemicActionPriorityPolicy::new(
+            ARC_AGI_3_MAX_PRODUCTION_ACTION_FRONTIER,
+        )
+        .expect("production action frontier bound is nonzero")
+    }
+
+    fn epistemic_policy(self) -> athlesia_executive_agency::EpistemicExecutiveSelectionPolicy {
+        athlesia_executive_agency::EpistemicExecutiveSelectionPolicy::new(
+            ARC_AGI_3_MAX_PRODUCTION_ACTION_FRONTIER,
+        )
+        .expect("production action frontier bound is nonzero")
+    }
+
+    fn ignorance_policy(self) -> athlesia_executive_agency::IgnoranceExplorationSelectionPolicy {
+        athlesia_executive_agency::IgnoranceExplorationSelectionPolicy::new(
+            ARC_AGI_3_MAX_PRODUCTION_ACTION_FRONTIER,
+        )
+        .expect("production action frontier bound is nonzero")
+    }
+
+    fn request_for_frontier<'a>(
+        self,
+        candidate_actions: &'a [ArcAgi3Action],
+    ) -> ArcAgi3AutonomousSuccessorExecutiveRequest<'a> {
+        ArcAgi3AutonomousSuccessorExecutiveRequest {
+            candidate_actions,
+            exploitation_execution_cost: self.exploitation_execution_cost,
+            version_policy: self.version_policy,
+            discrimination_policy: self.discrimination_policy,
+            expectation_policy: self.expectation_policy,
+            priority_policy: self.priority_policy(),
+            exploitation_policy: self.exploitation_policy,
+            epistemic_policy: self.epistemic_policy(),
+            ignorance_policy: self.ignorance_policy(),
+        }
+    }
+}
+
 impl<T> ArcAgi3LiveEnvironmentRuntime<T>
 where
     T: ArcAgi3EnvironmentTransport,
@@ -250,5 +372,33 @@ where
         );
 
         self.execute_evidence_faithful_successor_with_trace(request, sink)
+    }
+}
+
+impl<T> ArcAgi3LiveEnvironmentRuntime<T>
+where
+    T: ArcAgi3EnvironmentTransport,
+{
+    pub fn execute_production_autonomous_successor(
+        &mut self,
+        policy: ArcAgi3AutonomousProductionSuccessorPolicy,
+    ) -> Result<Option<ArcAgi3LiveUnifiedStep>, ArcAgi3LiveEnvironmentError> {
+        self.ensure_active()?;
+
+        let frontier = ArcAgi3ProductionActionFrontier::from_observation(
+            self.cognitive_runtime().observation(),
+        )?;
+
+        let Some(authority) = self
+            .cognitive_runtime()
+            .current_autonomous_evidence_faithful_successor_executive_authority(
+                policy.request_for_frontier(frontier.actions()),
+            )
+        else {
+            return Ok(None);
+        };
+
+        self.execute_unified_authority(authority, policy.feedback_confidence())
+            .map(Some)
     }
 }

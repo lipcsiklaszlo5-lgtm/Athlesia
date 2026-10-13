@@ -2071,15 +2071,51 @@ impl TransitionSchemaInduction {
 
         let possible_effect_candidate_count = candidates.len();
 
-        let evaluated_candidate_count =
-            possible_effect_candidate_count.min(policy.max_candidate_effects());
+        /*
+         * Spend the bounded evaluation frontier across exact transformations.
+         * Global support ranking can otherwise spend the entire budget on one
+         * frequently tried action before another action is evaluated at all.
+         * Zero-support pairs cannot pass the support gate and consume no slots.
+         */
+        let transformations = Self::transformations(episodes);
+        let mut by_transformation = vec![Vec::new(); transformations.len()];
+        let mut supported_candidate_count = 0_usize;
+        for candidate in &candidates {
+            if candidate.observed_support == 0 {
+                break;
+            }
+            let index = transformations
+                .binary_search_by(|transformation| {
+                    PredicateDiscovery::compare_structure(transformation, &candidate.transformation)
+                })
+                .expect("candidate transformation comes from the same episodes");
+            by_transformation[index].push(candidate);
+            supported_candidate_count += 1;
+        }
 
-        let candidate_generation_truncated =
-            possible_effect_candidate_count > policy.max_candidate_effects();
+        let mut evaluated = Vec::new();
+        let mut rank = 0_usize;
+        while evaluated.len() < policy.max_candidate_effects() {
+            let mut found = false;
+            for candidates_for_action in &by_transformation {
+                if let Some(candidate) = candidates_for_action.get(rank) {
+                    evaluated.push(*candidate);
+                    found = true;
+                    if evaluated.len() == policy.max_candidate_effects() {
+                        break;
+                    }
+                }
+            }
+            if !found {
+                break;
+            }
+            rank += 1;
+        }
+        let evaluated_candidate_count = evaluated.len();
+        let candidate_generation_truncated = supported_candidate_count > evaluated_candidate_count;
 
-        let mut admitted = candidates
-            .iter()
-            .take(policy.max_candidate_effects())
+        let mut admitted = evaluated
+            .into_iter()
             .filter_map(|candidate| Self::evaluate_candidate(episodes, candidate, policy))
             .collect::<Vec<_>>();
 
@@ -10285,6 +10321,10 @@ impl GroundedExplanatoryVersionSpace {
         self.generated_context_count
     }
 
+    pub fn context_frontier_truncated(&self) -> bool {
+        self.possible_context_count > self.generated_context_count
+    }
+
     pub fn effect_target_count(&self) -> usize {
         self.effect_target_count
     }
@@ -10446,6 +10486,23 @@ impl GroundedExplanatoryVersionSpaceSynthesis {
                 && context.is_satisfied_by(episode.before())
                 && episode.effect_occurs(effect_kind, effect_fact)
         })
+    }
+
+    /// Scope every synthesis frontier to one exact transformation, including
+    /// context generation and completeness accounting. Keep counterexamples
+    /// and no-effect episodes for that transformation in the evidence set.
+    pub fn synthesize_for_transformation(
+        episodes: &[GroundedTransformationEpisode],
+        transformation: &CognitiveStructure,
+        policy: GroundedExplanatoryVersionSpacePolicy,
+    ) -> GroundedExplanatoryVersionSpace {
+        let matching_episodes = episodes
+            .iter()
+            .filter(|episode| episode.transformation() == transformation)
+            .cloned()
+            .collect::<Vec<_>>();
+
+        Self::synthesize(&matching_episodes, policy)
     }
 
     pub fn synthesize(
