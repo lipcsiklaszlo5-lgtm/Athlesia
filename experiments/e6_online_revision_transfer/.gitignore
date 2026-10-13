@@ -1,0 +1,6 @@
+__pycache__/
+*.py[cod]
+.mypy_cache/
+results/*.json
+results/*.jsonl
+!results/README.md

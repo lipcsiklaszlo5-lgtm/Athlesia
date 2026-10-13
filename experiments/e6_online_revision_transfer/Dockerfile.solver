@@ -1,0 +1,6 @@
+FROM python:3.12-slim
+WORKDIR /app
+COPY athlesia/__init__.py athlesia/protocol.py athlesia/graph.py athlesia/learner.py athlesia/runtime.py athlesia/worker.py /app/athlesia/
+ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1
+USER 65534:65534
+ENTRYPOINT ["python", "-B", "-m", "athlesia.worker", "solver"]

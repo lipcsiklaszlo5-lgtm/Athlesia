@@ -1,0 +1,82 @@
+{
+  "artifact": "Athlesia E6 online revision transfer source",
+  "date": "2026-10-13",
+  "source_test_result": "28/28 unittest tests passed before packaging",
+  "files": [
+    {
+      "path": ".gitignore",
+      "bytes": 86,
+      "sha256": "9366b74840a4e7b43ef21a732888a75cf23e5f87141cda55e4dc88587c0ddbf2"
+    },
+    {
+      "path": "Dockerfile.solver",
+      "bytes": 303,
+      "sha256": "70b3f5a7b3399d88407ad3b6a1846592a0e8cbe488c01dcc7dc0c8e4d0752c1b"
+    },
+    {
+      "path": "README.md",
+      "bytes": 9241,
+      "sha256": "75c2b1bc671f55896ab77649a1e0abfc8b70af71d618c55b1be4fbd6028698e8"
+    },
+    {
+      "path": "SPEC_HU.md",
+      "bytes": 21531,
+      "sha256": "a0ca35be29bc2b0c534bd3565f6b362ead2c18c7d42244144b9626e7a187feb7"
+    },
+    {
+      "path": "pyproject.toml",
+      "bytes": 388,
+      "sha256": "2408c3c18fe26f4f61d4d80c7f5bd30cdddbcb3df623fc5b02fa5dcb77e9b741"
+    },
+    {
+      "path": "athlesia/__init__.py",
+      "bytes": 100,
+      "sha256": "864d39d2e2ea5afe1a635792c4d718bc990f5c001d0250af577847669d7e4150"
+    },
+    {
+      "path": "athlesia/benchmark.py",
+      "bytes": 14093,
+      "sha256": "f6d129f89b0bf91bd680a1ce17cf83ee339a700d67e7456224d11c548e8f3fe6"
+    },
+    {
+      "path": "athlesia/environment.py",
+      "bytes": 3955,
+      "sha256": "067803df8f76ed8c25735590e6010372ee95059ec744b0fafdf079e1a2ba00c6"
+    },
+    {
+      "path": "athlesia/graph.py",
+      "bytes": 4782,
+      "sha256": "61ffbc08c259e56a99bdc6b413c7171bda12acf8bb76efe84accdca8c7ae9629"
+    },
+    {
+      "path": "athlesia/learner.py",
+      "bytes": 18565,
+      "sha256": "e10b13293d4f4c97e6655aa835dbd699fbbd5a2c642245ac4ecf6f0174705321"
+    },
+    {
+      "path": "athlesia/protocol.py",
+      "bytes": 9229,
+      "sha256": "8bda2f094cffb965aafc52fd1bd8fa89e1c48a17e1466cdb6a2cbde19ea286e9"
+    },
+    {
+      "path": "athlesia/runtime.py",
+      "bytes": 905,
+      "sha256": "d372acc187a7c293bf21696f9997624db61c33b919cca5d07c427e51a0aa6e5b"
+    },
+    {
+      "path": "athlesia/worker.py",
+      "bytes": 3983,
+      "sha256": "621192f040ec51d46aab531b479883a24088f954a3d2e05eb74720e7c021acde"
+    },
+    {
+      "path": "tests/test_core.py",
+      "bytes": 9898,
+      "sha256": "f652e061bd35fa5bc06dccb190460e24afc2affe770ad981a527f24b0ec513c3"
+    },
+    {
+      "path": "results/README.md",
+      "bytes": 241,
+      "sha256": "8c9541fb3691014f4c1f90c117b4079ca09be9bf2abae7f5247fb15a5d5b3f3f"
+    }
+  ]
+}

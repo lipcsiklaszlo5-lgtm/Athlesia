@@ -1,0 +1,18 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "athlesia-day1-reference"
+version = "0.1.0"
+description = "Bounded, auditable symbolic AML acceptance fixture"
+requires-python = ">=3.11"
+dependencies = []
+
+[tool.setuptools.packages.find]
+include = ["athlesia*"]
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+files = ["athlesia"]
