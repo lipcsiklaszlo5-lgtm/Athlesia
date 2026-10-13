@@ -351,6 +351,110 @@ class Agent:
         return {"status": "quarantined", "local_commit": False,
                 "observations": len(evidence)}
 
+    def choose_active_guard_probe(self, observation: Observation, action_token: str) -> dict[str, object]:
+        """Read-only bounded minimax experiment design for a quarantined guard epoch.
+
+        Enumerates at most 2**MAX_FEATURES Boolean assignments. All hypotheses
+        see identical trial inputs; no source-world law or private seed is read.
+        When only one hypothesis remains, deliberately gathers any missing
+        positive/negative witness needed by the Day5a certification contract.
+        """
+        if self.template is None:
+            raise CannotIdentify("Fit required for active guard probing")
+        binding = self.binding(observation.scene)
+        reverse = {node: role for role, node in binding.items()}
+        action = reverse.get(action_token)
+        candidate = self.mechanism_candidates.get(action) if action else None
+        if candidate is None or action not in self.pending_actions:
+            raise CannotIdentify("No quarantined guard epoch for requested action")
+        if action in self.effect_candidates:
+            raise CannotIdentify("Effect and guard epochs may not overlap")
+        if any(ep == observation.episode for ep, _ in candidate.evidence):
+            raise CannotIdentify("Active probe requires a fresh episode")
+        if len(candidate.evidence) >= MAX_WITNESSES:
+            raise CannotIdentify("Active probe evidence budget exhausted")
+        hypotheses = candidate.hypotheses
+        if not hypotheses:
+            raise CannotIdentify("No surviving guard hypotheses")
+        effect_roles = {e.role for e in self.rules[action].effects}
+        toggles = tuple(f for f in self.features if f not in effect_roles)
+        if len(toggles) > MAX_FEATURES:
+            raise CannotIdentify("Active probe feature capacity exceeded")
+        initial = dict(self.normalize(observation, binding))
+        if any(f not in initial for f in toggles):
+            raise CannotIdentify("Missing Boolean state in active probe")
+        positives = sum(w.before != w.after for _, w in candidate.evidence)
+        negatives = len(candidate.evidence) - positives
+        desired_polarity = True if positives == 0 else (False if negatives == 0 else None)
+        best: tuple[tuple[object, ...], dict[str, object]] | None = None
+        for bits in itertools.product((False, True), repeat=len(toggles)):
+            trial = initial | dict(zip(toggles, bits))
+            trial_values = tuple(sorted(trial.items()))
+            partitions: dict[Values, int] = {}
+            for h in hypotheses:
+                predicted = h.predict(trial_values)
+                partitions[predicted] = partitions.get(predicted, 0) + 1
+            worst = len(hypotheses) - max(partitions.values())
+            # No distinguished outcome means no information with >1 models.
+            if len(hypotheses) > 1 and worst == 0:
+                continue
+            changes = tuple(Literal(role, value) for role, value in zip(toggles, bits)
+                            if initial[role] != value)
+            if 1 + len(changes) > MAX_EXPERIMENTS:
+                continue
+            try:
+                # Check EVERY advertised calibration token before any action.
+                for literal in changes:
+                    self.intervention(observation.scene, binding, literal)
+            except CannotIdentify:
+                continue
+            if len(hypotheses) == 1:
+                is_positive = next(iter(partitions)) != trial_values
+                polarity_penalty = int(desired_polarity is not None and
+                                       is_positive != desired_polarity)
+                key: tuple[object, ...] = (polarity_penalty, len(changes), bits)
+            else:
+                key = (-worst, len(changes), bits)
+            plan: dict[str, object] = {
+                "action_role": action,
+                "assignment": changes,
+                "worst_case_eliminated": worst,
+                "partition_sizes": tuple(sorted(partitions.values())),
+                "preparation_actions": len(changes),
+                "candidate_models": len(hypotheses),
+            }
+            if best is None or key < best[0]:
+                best = (key, plan)
+        if best is None:
+            raise CannotIdentify("No safe identifiable active guard experiment")
+        if len(hypotheses) == 1 and desired_polarity is not None and best[0][0] != 0:
+            raise CannotIdentify("Required positive/negative witness not reachable")
+        return best[1]
+
+    def run_active_guard_probe(self, port: ActionPort, action_token: str) -> dict[str, Json]:
+        """Perform a selected intervention and submit its real transition.
+
+        One trial per externally supplied fresh episode. Calibration actions are
+        charged, post-action states are verified, and model replacement is
+        delegated solely to the existing Day5a evidence/epoch machinery.
+        """
+        obs = port.send_action(OBSERVE)
+        plan = self.choose_active_guard_probe(obs, action_token)
+        binding = self.binding(obs.scene)
+        for literal in plan["assignment"]:
+            assert isinstance(literal, Literal)
+            obs = self.set_literal(port, obs, binding, literal)
+        # No hypothetical successor may replace this actual observed trace.
+        after = self.checked_action(port, obs, action_token)
+        update = self.observe_mechanism_shift(Trace(obs, action_token, after))
+        return {**update, "action": action_token,
+                "preparation_actions": plan["preparation_actions"],
+                "probe_actions": 1,
+                "candidate_models_before": plan["candidate_models"],
+                "worst_case_eliminated": plan["worst_case_eliminated"],
+                "partition_sizes": list(plan["partition_sizes"]),
+                "active_selection": True}
+
     def observe_mechanism_shift(self, trace: Trace) -> dict[str, Json]:
         """Reidentify an existing action's *guard* after a confirmed contradiction.
 

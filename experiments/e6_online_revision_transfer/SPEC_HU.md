@@ -301,3 +301,11 @@ modell megmarad. Két külön pozitív megfigyelés és egy no-op tanú után a
 régi modell archiválható és a korlátozott új hatásmodell elfogadható.
 Ez nem független benchmark, nem autonóm kísérletválasztás, és nem új,
 eddig nem látott változók megtanulása. Részletes eredmények: DAY5B_EVIDENCE.md.
+
+## Day5c — aktív feltételvizsgálat
+
+A karanténban levő guard-epoch feltételeit a motor korlátos minimax
+beavatkozásokkal vizsgálja. Az állapotbeállítás és a célakció tényleges
+környezetakció; minden új epizódot a broker biztosít. Ez nem automatikus
+reset, nem új predikátum felismerése, és nem hivatalos ARC-AGI-3 mérés.
+A futtatás eredményeit a DAY5C_EVIDENCE.md tartalmazza.

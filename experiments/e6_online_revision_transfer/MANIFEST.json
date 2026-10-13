@@ -1,8 +1,8 @@
 {
   "package": "athlesia-e6-reference",
-  "version": "0.7.0",
+  "version": "0.8.0",
   "session_date": "2026-10-13",
-  "scope": "Day1-5a bounded symbolic AML, topology, goals, guard epochs; Day5b observed one-effect epoch pilot",
+  "scope": "Day1-5b bounded AML, goals, topology, guard/effect epochs; Day5c active guard intervention pilot",
   "generated_results_tracked": false,
   "files": [
     {
@@ -36,19 +36,24 @@
       "sha256": "3add62bd05999c2873e221ac0a34d85b689139ea3812d479180cf118bfb5c2c0"
     },
     {
+      "path": "DAY5C_EVIDENCE.md",
+      "bytes": 9314,
+      "sha256": "9726704f338f6309798d344d30c464721a63d9063a2f51fdad112c69313df1e4"
+    },
+    {
       "path": "Dockerfile.solver",
       "bytes": 303,
       "sha256": "70b3f5a7b3399d88407ad3b6a1846592a0e8cbe488c01dcc7dc0c8e4d0752c1b"
     },
     {
       "path": "README.md",
-      "bytes": 13023,
-      "sha256": "daeeefc8c12b7bc9478d5bf92d3e62a8676d9b54bb256ea62edcf981fa1e21b6"
+      "bytes": 13521,
+      "sha256": "1009b58c38397b903a480adc4d6fef86a36552bc50a41ab5e3a567b924e49c0c"
     },
     {
       "path": "SPEC_HU.md",
-      "bytes": 24676,
-      "sha256": "da970f2320a4122f38b3c6d8a48887de9d9fd2bea25521323374f2780d3c6ace"
+      "bytes": 25086,
+      "sha256": "b1b6735e2fac36a22a3822e1ebd2c02a51ca7acc2dbc8bcbe782bd681379c01e"
     },
     {
       "path": "athlesia/__init__.py",
@@ -72,8 +77,8 @@
     },
     {
       "path": "athlesia/learner.py",
-      "bytes": 46952,
-      "sha256": "dc2523db359520929956b79bb4debe0efd3a104af84da761d1e680fe40344bf4"
+      "bytes": 52806,
+      "sha256": "ef388985553d0d0ba1f2a4527c83aa6a77a2c77a5b29efcc7f97d98e9f76d452"
     },
     {
       "path": "athlesia/protocol.py",
@@ -87,13 +92,13 @@
     },
     {
       "path": "athlesia/worker.py",
-      "bytes": 5501,
-      "sha256": "30292b0c0bc301a049aaafb82c8c92dc2043b0cf6acba1ec3a2e955362cc22d5"
+      "bytes": 5742,
+      "sha256": "8d2bd86aa1da73bf278a7fb0daf5611674549aa606417c2861f4981ce19ee9be"
     },
     {
       "path": "pyproject.toml",
       "bytes": 399,
-      "sha256": "3ec2811798dc9dcd61f203e3a83b0199bfdae97e946a1b84207b9ee9fae2d19c"
+      "sha256": "43e2143809408971f1f868c7255d97e94658fa3d02b11b5fc1768257b3c34d6c"
     },
     {
       "path": "results/README.md",
@@ -129,6 +134,11 @@
       "path": "tests/test_day5b_effects.py",
       "bytes": 9581,
       "sha256": "05a689ef0791f784858d71f744b57d6cc4fdb4bfb80d8e6e7959a0c8463c7b04"
+    },
+    {
+      "path": "tests/test_day5c_active.py",
+      "bytes": 6370,
+      "sha256": "edd248d59b5daf164673e2cd6ebf6d023ce5c16acc44c79b356708a0eefd948c"
     }
   ]
 }

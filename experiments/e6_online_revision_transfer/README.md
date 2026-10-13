@@ -148,3 +148,12 @@ episode traces. The old action model is archived, unrelated models remain
 untouched, and uncertain actions cannot be predicted or selected as goals.
 This is a limited in-process pilot, not autonomous experiments or new features.
 See [`DAY5B_EVIDENCE.md`](DAY5B_EVIDENCE.md) for the actual measurements.
+
+## Day5c — bounded active guard probes
+
+A quarantined identified action can select a minimax discriminating Boolean
+assignment and execute advertised calibration plus a real probe action in each
+externally provided fresh episode. New guard evidence is kept separately from
+archived mechanisms, and uncertain predictions stay blocked.
+This is an author-developed pilot, not open-world discovery or autonomous resets.
+See [`DAY5C_EVIDENCE.md`](DAY5C_EVIDENCE.md) for measurements and limitations.

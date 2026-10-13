@@ -59,6 +59,9 @@ def solver() -> None:
             elif isinstance(raw, dict) and raw.get("command") == "mechanism_shift":
                 request = record(raw, {"command", "trace"})
                 payload = agent.observe_mechanism_shift(Trace.from_wire(request["trace"]))
+            elif isinstance(raw, dict) and raw.get("command") == "active_guard_probe":
+                request = record(raw, {"command", "action"})
+                payload = agent.run_active_guard_probe(WirePort(), token(request["action"]))
             elif isinstance(raw, dict) and raw.get("command") == "goal":
                 request = record(raw, {"command", "target", "desired"})
                 payload = agent.solve_public_goal(
