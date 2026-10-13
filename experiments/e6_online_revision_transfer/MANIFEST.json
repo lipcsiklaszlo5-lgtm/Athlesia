@@ -1,8 +1,8 @@
 {
   "package": "athlesia-e6-reference",
-  "version": "0.8.0",
+  "version": "0.9.0",
   "session_date": "2026-10-13",
-  "scope": "Day1-5b bounded AML, goals, topology, guard/effect epochs; Day5c active guard intervention pilot",
+  "scope": "Day1-5c bounded symbolic AML, topology, goals, mechanism/effect epochs and active probing; Day6a paired active-vs-random evaluation",
   "generated_results_tracked": false,
   "files": [
     {
@@ -41,19 +41,24 @@
       "sha256": "9726704f338f6309798d344d30c464721a63d9063a2f51fdad112c69313df1e4"
     },
     {
+      "path": "DAY6A_EVIDENCE.md",
+      "bytes": 12443,
+      "sha256": "baa53627902458e5abab8567453b7dd86ac2035d2fc1b3dfd8f5d5d8c367a090"
+    },
+    {
       "path": "Dockerfile.solver",
       "bytes": 303,
       "sha256": "70b3f5a7b3399d88407ad3b6a1846592a0e8cbe488c01dcc7dc0c8e4d0752c1b"
     },
     {
       "path": "README.md",
-      "bytes": 13521,
-      "sha256": "1009b58c38397b903a480adc4d6fef86a36552bc50a41ab5e3a567b924e49c0c"
+      "bytes": 14040,
+      "sha256": "795a24ad9dc71e7d8418fe6297aedbc6b4947bb5e9d04558351d4d4208b00f7d"
     },
     {
       "path": "SPEC_HU.md",
-      "bytes": 25086,
-      "sha256": "b1b6735e2fac36a22a3822e1ebd2c02a51ca7acc2dbc8bcbe782bd681379c01e"
+      "bytes": 25579,
+      "sha256": "175c4952c32376c5cdedfc795678c757c8fabef667ad0b7e2b846aa652e21619"
     },
     {
       "path": "athlesia/__init__.py",
@@ -98,7 +103,7 @@
     {
       "path": "pyproject.toml",
       "bytes": 399,
-      "sha256": "43e2143809408971f1f868c7255d97e94658fa3d02b11b5fc1768257b3c34d6c"
+      "sha256": "1a5029218b710a2c5f48291320372cb8d97344229c678fbe98d84433e3fae07b"
     },
     {
       "path": "results/README.md",
@@ -139,6 +144,11 @@
       "path": "tests/test_day5c_active.py",
       "bytes": 6370,
       "sha256": "edd248d59b5daf164673e2cd6ebf6d023ce5c16acc44c79b356708a0eefd948c"
+    },
+    {
+      "path": "tests/test_day6a_ablation.py",
+      "bytes": 12187,
+      "sha256": "fbb913f8efabbf2f5bddf6881af1bcb52b26156555ade64e6d5ec25f3af1ac7a"
     }
   ]
 }

@@ -157,3 +157,12 @@ externally provided fresh episode. New guard evidence is kept separately from
 archived mechanisms, and uncertain predictions stay blocked.
 This is an author-developed pilot, not open-world discovery or autonomous resets.
 See [`DAY5C_EVIDENCE.md`](DAY5C_EVIDENCE.md) for measurements and limitations.
+
+## Day6a — active versus uniform-random paired ablation
+
+A fixed-seed, bounded 100-case comparison uses identical hidden rules, initial
+observations, and probe budget to compare a minimax active guard policy against
+a uniform-random setting policy. It accounts for task failures, actual probe
+actions, advertised calibration actions, and a separate failure-penalized
+probe score. Same-author symbolic fixture, not independent ARC-AGI-3.
+See [`DAY6A_EVIDENCE.md`](DAY6A_EVIDENCE.md) for observations and limitations.

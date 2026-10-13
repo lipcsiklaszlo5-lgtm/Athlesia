@@ -309,3 +309,12 @@ beavatkozásokkal vizsgálja. Az állapotbeállítás és a célakció ténylege
 környezetakció; minden új epizódot a broker biztosít. Ez nem automatikus
 reset, nem új predikátum felismerése, és nem hivatalos ARC-AGI-3 mérés.
 A futtatás eredményeit a DAY5C_EVIDENCE.md tartalmazza.
+
+## Day6a — párosított aktív kontra véletlen mérés
+
+Azonos seed, rejtett szabály, kezdeti bizonyíték és 12 próbás keret mellett
+megmérjük az aktív minimax és a véletlen stratégia sikerarányát és minden
+tényleges akcióját. A sikertelen esetek a nevezőben maradnak. A 13-as
+sikertelenségi büntetés külön mutató, nem valós akció. Az értékelő továbbra
+is saját Boolean szimulátor, nem független benchmark és nem ARC-AGI-3.
+Részletek: DAY6A_EVIDENCE.md.
