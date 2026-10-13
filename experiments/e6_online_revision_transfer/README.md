@@ -139,3 +139,12 @@ tracks separate new-epoch guard candidates, archives the old model and commits
 only after sufficient distinguishing observations. Effect signatures stay fixed;
 there is no autonomous experiment selection for new epochs. See the measured
 pilot, full regressions and limits in [`DAY5A_EVIDENCE.md`](DAY5A_EVIDENCE.md).
+
+## Day5b — one changed Boolean action effect
+
+After a novel observed single-effect signature, a previously identified
+unguarded action may be quarantined and its replacement inferred from distinct
+episode traces. The old action model is archived, unrelated models remain
+untouched, and uncertain actions cannot be predicted or selected as goals.
+This is a limited in-process pilot, not autonomous experiments or new features.
+See [`DAY5B_EVIDENCE.md`](DAY5B_EVIDENCE.md) for the actual measurements.

@@ -79,6 +79,13 @@ class MechanismCandidate:
 
 
 @dataclass(frozen=True, slots=True)
+class EffectCandidate:
+    """Candidate from a new single observed Boolean effect, not an oracle label."""
+    effect: Literal
+    evidence: tuple[tuple[str, Witness], ...]
+
+
+@dataclass(frozen=True, slots=True)
 class Experiment:
     assignment: tuple[Literal, ...]
     worst_case_eliminated: int
@@ -102,6 +109,7 @@ class Agent:
         self.pending_actions: set[Role] = set()
         self.mechanism_candidates: dict[Role, MechanismCandidate] = {}
         self.mechanism_archive: dict[Role, list[tuple[Rule, tuple[Rule, ...], dict[Witness, int]]]] = {}
+        self.effect_candidates: dict[Role, EffectCandidate] = {}
 
     @property
     def rule(self) -> Rule:
@@ -240,6 +248,109 @@ class Agent:
         )
         return tuple(sorted((binding[role], value) for role, value in prediction))
 
+    def observe_effect_shift(self, trace: Trace) -> dict[str, Json]:
+        """Quarantine and relearn ONE new Boolean effect of an unguarded action.
+
+        Grammar: existing identified zero-guard action, exactly one changed
+        observable on a positive trace; the new effect may target another
+        grounded Boolean node or reverse polarity. Certification needs two
+        distinct-episode positive transitions plus an idempotent no-op witness.
+        No simulator internals, reset oracle, probabilities or action semantics.
+        This is *observational*, not autonomously chosen experimentation.
+        """
+        trace.validate()
+        if self.template is None:
+            raise CannotIdentify("Fit required before effect shift")
+        binding = self.binding(trace.before.scene)
+        reverse = {node: role for role, node in binding.items()}
+        action = reverse.get(trace.action)
+        if action is None or action not in self.rules:
+            raise CannotIdentify("Unknown learned action for effect shift")
+        if action in self.mechanism_candidates:
+            raise CannotIdentify("Guard epoch unresolved; effect shift blocked")
+        previous = self.rules[action]
+        if previous.guards or len(self.version_spaces.get(action, ())) != 1:
+            raise CannotIdentify("Effect pilot requires identified unguarded action")
+        before = self.normalize(trace.before, binding)
+        after = self.normalize(trace.after, binding)
+        witness = Witness(before, after)
+        changed = self.observed_delta(witness)
+        candidate = self.effect_candidates.get(action)
+        if candidate is None:
+            if action in self.pending_actions:
+                raise CannotIdentify("Action already uncertain; effect shift blocked")
+            if previous.predict(before) == after:
+                return {"status": "unchanged", "local_commit": False}
+            if len(changed) != 1:
+                raise CannotIdentify("Effect signature not singly identifiable; atomic rejection")
+            effect = changed[0]
+            if effect == previous.effects[0] and len(previous.effects) == 1:
+                raise CannotIdentify("Effect witness does not establish a new signature")
+            if len(self.events) >= 256:
+                raise CannotIdentify("Audit-event capacity reached; atomic rejection")
+            self.effect_candidates[action] = EffectCandidate(
+                effect, ((trace.before.episode, witness),))
+            self.pending_actions.add(action)
+            self.emit("EFFECT_SHIFT_QUARANTINED", action_role=action,
+                      new_effect={"role": effect.role, "value": effect.value})
+            return {"status": "quarantined", "local_commit": False,
+                    "observations": 1}
+
+        if len(candidate.evidence) >= MAX_WITNESSES:
+            raise CannotIdentify("Effect evidence capacity reached; atomic rejection")
+        if any(episode == trace.before.episode for episode, _ in candidate.evidence):
+            raise CannotIdentify("Repeated effect episode; atomic rejection")
+        proposed = replace(previous, guards=(), effects=(candidate.effect,))
+        if proposed.predict(before) != after:
+            raise CannotIdentify("Contradictory effect-epoch observation; atomic rejection")
+        evidence = candidate.evidence + ((trace.before.episode, witness),)
+        positives = sum(w.before != w.after for _, w in evidence)
+        negatives = len(evidence) - positives
+        certified = len(evidence) >= 3 and positives >= 2 and negatives >= 1
+        if len(self.events) + (2 if certified else 1) > 256:
+            raise CannotIdentify("Audit-event capacity reached; atomic rejection")
+        if certified:
+            history = self.mechanism_archive.get(action, [])
+            if len(history) >= 4:
+                raise CannotIdentify("Mechanism-epoch archive full; atomic rejection")
+            fresh: dict[Witness, int] = {}
+            for _, item in evidence:
+                fresh[item] = fresh.get(item, 0) + 1
+            distinct = len(self.witnesses) + sum(
+                len(items) for role, items in self.witnesses_by_action.items()
+                if role != self.primary)
+            existing = len(self.witness_store(action))
+            if distinct - existing + len(fresh) > MAX_WITNESSES:
+                raise CannotIdentify("New effect evidence capacity exceeded; atomic rejection")
+            snapshot = (previous, self.version_spaces[action],
+                        dict(self.witness_store(action)))
+            self.mechanism_archive[action] = [*history, snapshot]
+            self.rules[action] = proposed
+            self.version_spaces[action] = (proposed,)
+            self.witnesses_by_action[action] = fresh
+            if action == self.primary:
+                self.version_space = (proposed,)
+                self.witnesses = fresh
+            self.effect_candidates.pop(action)
+            self.pending_actions.discard(action)
+            self.commits += 1
+            self.emit("EFFECT_SHIFT_EVIDENCE", action_role=action,
+                      observations=len(evidence), positives=positives,
+                      idempotent_witnesses=negatives)
+            self.emit("EFFECT_EPOCH_COMMITTED", action_role=action,
+                      new_effect={"role": candidate.effect.role,
+                                  "value": candidate.effect.value},
+                      archived_epochs=len(history) + 1)
+            return {"status": "committed", "local_commit": True,
+                    "observations": len(evidence), "positive_witnesses": positives,
+                    "idempotent_witnesses": negatives}
+        self.effect_candidates[action] = EffectCandidate(candidate.effect, evidence)
+        self.emit("EFFECT_SHIFT_EVIDENCE", action_role=action,
+                  observations=len(evidence), positives=positives,
+                  idempotent_witnesses=negatives)
+        return {"status": "quarantined", "local_commit": False,
+                "observations": len(evidence)}
+
     def observe_mechanism_shift(self, trace: Trace) -> dict[str, Json]:
         """Reidentify an existing action's *guard* after a confirmed contradiction.
 
@@ -258,6 +369,8 @@ class Agent:
         if action is None or action not in self.rules:
             raise CannotIdentify("Unknown action for mechanism shift")
         old_rule = self.rules[action]
+        if action in self.effect_candidates:
+            raise CannotIdentify("Effect epoch unresolved; guard shift blocked")
         before = self.normalize(trace.before, binding)
         after = self.normalize(trace.after, binding)
         # Do not silently learn a new effect signature in this restricted pilot.
@@ -364,7 +477,7 @@ class Agent:
         action = reverse.get(trace.action)
         if action is None or action not in self.rules or action not in self.version_spaces:
             raise CannotIdentify("Action has no learned hypothesis space")
-        if action in self.mechanism_candidates:
+        if action in self.mechanism_candidates or action in self.effect_candidates:
             raise CannotIdentify("Mechanism epoch unresolved; ordinary learning blocked")
         before = self.normalize(trace.before, binding)
         after = self.normalize(trace.after, binding)
@@ -736,7 +849,15 @@ class Agent:
                                              "count": count} for w, count in
                                             sorted(store.items(), key=lambda kv: repr(kv[0]))]}
                              for old, space, store in snapshots]
-                    for action, snapshots in sorted(self.mechanism_archive.items())}}
+                    for action, snapshots in sorted(self.mechanism_archive.items())},
+                "effect_candidates": {
+                    action: {"effect": {"role": item.effect.role,
+                                        "value": item.effect.value},
+                             "evidence": [{"episode": episode,
+                                           "before": dict(w.before),
+                                           "after": dict(w.after)}
+                                          for episode, w in item.evidence]}
+                    for action, item in sorted(self.effect_candidates.items())}}
 
     def memory_bytes(self) -> bytes:
         return json.dumps(self.memory(), sort_keys=True, separators=(",", ":")).encode()

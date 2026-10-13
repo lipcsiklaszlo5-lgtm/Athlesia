@@ -292,3 +292,12 @@ külön epizódokból származó megfigyelések mellett a korlátos feltételnye
 újraazonosítás és régi modell archiválása lehetséges. A hatás típusa nem
 változhat, autonóm aktív kísérletválasztás és független környezetgenerátor
 nincs igazolva. A pontos benchmark és korlátok: `DAY5A_EVIDENCE.md`.
+
+## Day5b — akcióhatás-epoch pilot
+
+Egy korábban pontosan azonosított, feltétel nélküli akció egyetlen Boolean
+hatása megváltozhat. Az első ellentmondás csak karantént vált ki, a régi
+modell megmarad. Két külön pozitív megfigyelés és egy no-op tanú után a
+régi modell archiválható és a korlátozott új hatásmodell elfogadható.
+Ez nem független benchmark, nem autonóm kísérletválasztás, és nem új,
+eddig nem látott változók megtanulása. Részletes eredmények: DAY5B_EVIDENCE.md.
