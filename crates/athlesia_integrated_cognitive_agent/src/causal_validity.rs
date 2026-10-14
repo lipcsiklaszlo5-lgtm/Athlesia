@@ -222,6 +222,19 @@ impl OnlinePersistentCognitiveState {
         CausalObservationStatus::IndeterminateDispatchQuarantined
     }
 
+    /// The transport boundary can inspect whether a pre-dispatch M47 witness
+    /// still awaits an independent observation. This is not action authority.
+    pub fn pending_causal_prediction_observation(&self) -> Option<&CausalPredictionWitness> {
+        self.causal_validity.pending.as_ref()
+    }
+
+    /// A lost/ambiguous transport result or ungroundable successor must never
+    /// leave an old witness pending or fabricate a positive observation.
+    pub fn quarantine_pending_causal_dispatch(&mut self) -> Option<CausalObservationStatus> {
+        let witness = self.causal_validity.pending_witness()?;
+        Some(self.quarantine_indeterminate_causal_dispatch(&witness))
+    }
+
     pub fn causal_observation_count(&self) -> usize {
         self.causal_validity.events.len()
     }
@@ -279,6 +292,33 @@ mod tests {
         owner.begin_causal_prediction_observation(&state(&[1]), &a(10), s, m)
             .expect("independent positive and negative action evidence should induce a predictive model")
     }
+    #[test]
+    fn r3b_missing_transport_outcome_consumes_pending_without_fabricating_success() {
+        let mut owner = trained();
+        let witness = issued(&mut owner);
+        assert_eq!(
+            owner.pending_causal_prediction_observation(),
+            Some(&witness)
+        );
+        assert_eq!(
+            owner.quarantine_pending_causal_dispatch(),
+            Some(CausalObservationStatus::IndeterminateDispatchQuarantined)
+        );
+        assert!(owner.pending_causal_prediction_observation().is_none());
+        assert_eq!(owner.causal_observation_count(), 0);
+        assert_eq!(owner.causal_quarantine_count(), 1);
+        assert!(owner.quarantine_pending_causal_dispatch().is_none());
+        let (schema, model) = policies();
+        assert!(owner
+            .current_empirically_authorized_structural_prediction(
+                witness.source(),
+                witness.action(),
+                schema,
+                model,
+            )
+            .is_none());
+    }
+
     #[test]
     fn cold_knowledge_must_not_issue_a_prediction_witness() {
         let mut owner = OnlinePersistentCognitiveState::new();

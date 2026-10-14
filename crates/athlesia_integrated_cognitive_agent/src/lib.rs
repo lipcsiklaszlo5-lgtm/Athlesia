@@ -11676,6 +11676,13 @@ impl OnlinePersistentCognitiveState {
             .expect("grounded execution source state contains at least one fact")
     }
 
+    /// Expose the existing tagged M50 source identity without inventing authority.
+    pub fn grounded_epistemic_source_state_identity(
+        state: &athlesia_universal_domain_learning::GroundedStateSnapshot,
+    ) -> CognitiveStructure {
+        Self::c3b_source_state_identity(state)
+    }
+
     fn c3b_source_state_identity(
         state: &athlesia_universal_domain_learning::GroundedStateSnapshot,
     ) -> CognitiveStructure {

@@ -359,6 +359,10 @@ where
     }
 
     fn mark_transport_failure(&mut self, error: &ArcAgi3TransportError) {
+        // Even when a remote action may have executed, uncertain delivery
+        // cannot be promoted to an M47-confirmed transition. Quarantine any
+        // pre-dispatch witness before leaving the live transport boundary.
+        self.cognitive_runtime.quarantine_pending_causal_dispatch();
         self.faulted_pending = true;
         self.fault_disposition = Self::transport_failure_disposition(error);
     }

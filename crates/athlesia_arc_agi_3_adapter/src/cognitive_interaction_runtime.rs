@@ -18,6 +18,10 @@ use athlesia_mindstone_sparse_cognition::{CognitiveSignal, CognitiveStructure};
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum ArcAgi3CognitiveInteractionError {
+    CausalPredictionAlreadyPending,
+    CausalLegacySourceNotGrounded,
+    CausalLegacySourceMismatch,
+    CausalWitnessIssuanceRejected,
     DispatchRejected(EnvironmentActionDispatchStatus),
     ReadyDispatchMissing,
     BootstrapCoverageMissingFeedback,
@@ -414,6 +418,14 @@ impl ArcAgi3CognitiveInteractionRuntime {
             cognition: athlesia_integrated_cognitive_agent::OnlinePersistentCognitiveState::new(),
             pending_bootstrap_coverage_action: None,
         })
+    }
+
+    /// Called only by the live transport boundary after an ambiguous
+    /// command outcome; returns None when no M47 witness was issued.
+    pub(crate) fn quarantine_pending_causal_dispatch(
+        &mut self,
+    ) -> Option<athlesia_integrated_cognitive_agent::CausalObservationStatus> {
+        self.cognition.quarantine_pending_causal_dispatch()
     }
 
     pub fn session(&self) -> &ArcAgi3InteractiveSession {
@@ -1916,19 +1928,80 @@ impl ArcAgi3CognitiveInteractionRuntime {
         &mut self,
         authority: &ArcAgi3UnifiedExecutiveAuthority,
     ) -> Result<ArcAgi3SessionCommand, ArcAgi3CognitiveInteractionError> {
+        // The same M51-owned ledger cannot represent two unresolved actions.
+        // Do not advance the interactive session if an earlier model action
+        // lacks independently grounded completion evidence.
+        if self
+            .cognition
+            .pending_causal_prediction_observation()
+            .is_some()
+        {
+            return Err(ArcAgi3CognitiveInteractionError::CausalPredictionAlreadyPending);
+        }
+
         let pending_bootstrap_coverage_action = authority
             .bootstrap_ignorance_selection()
             .map(|selected| selected.action().clone());
+
+        // Stage an optional M47-derived witness on a clone. A failed session
+        // begin never creates a phantom pending cognitive action.
+        // The adapter supplies only a currently grounded state and the exact
+        // action already selected by M48; it cannot invent predictions.
+        let mut next_cognition = self.cognition.clone();
+        if authority.kind() == ArcAgi3UnifiedExecutiveAuthorityKind::LegacyGrounded {
+            // An authorized M50 continuation can exist before a unique
+            // M47 grounded scene. With no grounded state, no M47 witness
+            // can be issued; preserve the existing M48/M51 authorization.
+            if let Some(source) = self.current_grounded_world_state() {
+                // C1 exploitation and C16I native M50 have distinct, frozen,
+                // M51-owned source contracts. Direct representation equality
+                // is not valid for a tagged C3B epistemic possibility.
+                let direct_source = athlesia_integrated_cognitive_agent::
+                OnlinePersistentCognitiveState::grounded_execution_source_state_identity(&source);
+                let epistemic_source = athlesia_integrated_cognitive_agent::
+                OnlinePersistentCognitiveState::grounded_epistemic_source_state_identity(&source);
+                if authority.source_state() != &direct_source
+                    && authority.source_state() != &epistemic_source
+                {
+                    return Err(ArcAgi3CognitiveInteractionError::CausalLegacySourceMismatch);
+                }
+
+                // An epistemic/native-M50 action may be authorized without an M47
+                // structural prediction; it must not acquire a fabricated witness.
+                if self
+                    .cognition
+                    .current_empirically_authorized_structural_prediction(
+                        &source,
+                        authority.cognitive_action(),
+                        Self::live_transition_schema_policy(),
+                        Self::live_executable_world_model_policy(),
+                    )
+                    .is_some()
+                    && next_cognition
+                        .begin_causal_prediction_observation(
+                            &source,
+                            authority.cognitive_action(),
+                            Self::live_transition_schema_policy(),
+                            Self::live_executable_world_model_policy(),
+                        )
+                        .is_none()
+                {
+                    return Err(ArcAgi3CognitiveInteractionError::CausalWitnessIssuanceRejected);
+                }
+                // With a grounded state the exact provenance check above remains
+                // mandatory. The ungrounded path cannot invent a prediction.
+            }
+        }
 
         let command = self.session.begin_unified_executive_action(
             authority.source_state(),
             authority.cognitive_action(),
         )?;
 
-        debug_assert_eq!(command.action(), authority.action(),);
+        debug_assert_eq!(command.action(), authority.action());
 
+        self.cognition = next_cognition;
         self.pending_bootstrap_coverage_action = pending_bootstrap_coverage_action;
-
         Ok(command)
     }
 
@@ -2350,6 +2423,17 @@ impl ArcAgi3CognitiveInteractionRuntime {
             }
         }
 
+        // R3A consumed the witness only if the real M47 grounding bridge
+        // admitted the matching pre-action source, executed action and after.
+        // No valid projection/scene, no cognitive feedback, or failed M47
+        // admission is NOT evidence of a successful prediction.
+        if next_cognition
+            .pending_causal_prediction_observation()
+            .is_some()
+        {
+            next_cognition.quarantine_pending_causal_dispatch();
+        }
+
         self.session = next_session;
         self.perception = next_perception.clone();
         self.cognition = next_cognition;
@@ -2388,6 +2472,106 @@ impl UniversalArcAgi3CognitiveInteractionRuntime {
 #[cfg(test)]
 pub(crate) mod c16i_successor_informed_two_contract_e2e_tests {
     use super::*;
+
+    #[test]
+    fn r3b_unrelated_source_cannot_bypass_exact_provenance() {
+        let game = "r3b-false-source-must-abstain";
+        let fixture = fixture(game, 9_400_000);
+        let (mut runtime, _action, _cognitive, _source, possibilities, beliefs) =
+            fixture.into_live_parts();
+        let goal = live_goal();
+        let exploitation: [crate::ArcAgi3Action; 0] = [];
+        let mut authority = runtime
+            .current_successor_informed_unified_executive_authority(live_request(
+                &exploitation,
+                &goal,
+                &possibilities,
+                &beliefs,
+            ))
+            .expect("mature fixture must select a genuine action");
+        assert_eq!(
+            authority.kind(),
+            ArcAgi3UnifiedExecutiveAuthorityKind::LegacyGrounded
+        );
+        authority.source_state = CognitiveStructure::atom(u64::MAX - 37);
+        assert_eq!(
+            runtime.begin_unified_executive_authority(&authority),
+            Err(ArcAgi3CognitiveInteractionError::CausalLegacySourceMismatch),
+        );
+        assert!(!runtime.session().has_pending_command());
+        assert!(runtime
+            .cognition()
+            .pending_causal_prediction_observation()
+            .is_none());
+    }
+
+    #[test]
+    fn r3b_real_m48_selected_action_gets_exactly_its_m47_witness_if_supported() {
+        let game = "r3b-actual-authority-binding";
+        let fixture = fixture(game, 9_300_000);
+        let (mut runtime, _action, _cognitive, _source, possibilities, beliefs) =
+            fixture.into_live_parts();
+        let goal = live_goal();
+        let exploitation: [crate::ArcAgi3Action; 0] = [];
+        let authority = runtime
+            .current_successor_informed_unified_executive_authority(live_request(
+                &exploitation,
+                &goal,
+                &possibilities,
+                &beliefs,
+            ))
+            .expect("real M48+M51 selection must exist in the mature fixture");
+        let expected = if authority.kind() == ArcAgi3UnifiedExecutiveAuthorityKind::LegacyGrounded {
+            let source = runtime
+                .current_grounded_world_state()
+                .expect("grounded prior state");
+            let direct = athlesia_integrated_cognitive_agent::
+                OnlinePersistentCognitiveState::grounded_execution_source_state_identity(&source);
+            let epistemic = athlesia_integrated_cognitive_agent::
+                OnlinePersistentCognitiveState::grounded_epistemic_source_state_identity(&source);
+            assert!(
+                authority.source_state() == &direct || authority.source_state() == &epistemic,
+                "actual M51-selected source must match exactly one known source encoding"
+            );
+            runtime
+                .cognition()
+                .current_empirically_authorized_structural_prediction(
+                    &source,
+                    authority.cognitive_action(),
+                    ArcAgi3CognitiveInteractionRuntime::live_transition_schema_policy(),
+                    ArcAgi3CognitiveInteractionRuntime::live_executable_world_model_policy(),
+                )
+                .is_some()
+        } else {
+            false
+        };
+        assert!(runtime
+            .cognition()
+            .pending_causal_prediction_observation()
+            .is_none());
+        let command = runtime
+            .begin_unified_executive_authority(&authority)
+            .expect("the real M48-selected authority must begin");
+        assert_eq!(command.action(), authority.action());
+        assert_eq!(
+            runtime
+                .cognition()
+                .pending_causal_prediction_observation()
+                .is_some(),
+            expected,
+            "a witness exists iff this actual authority has a supported M47 prediction"
+        );
+        if let Some(witness) = runtime.cognition().pending_causal_prediction_observation() {
+            assert_eq!(witness.action(), authority.cognitive_action());
+            assert_eq!(
+                witness.source(),
+                &runtime
+                    .current_grounded_world_state()
+                    .expect("same pre-action grounding"),
+            );
+        }
+    }
+
     mod m51_fixture {
         use crate as athlesia_arc_agi_3_adapter;
 
