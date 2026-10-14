@@ -1,5 +1,25 @@
-/target
-target/
+# Build output (all independent Cargo roots)
+/target/
 **/target/
+
+# Local environments and Python caches
+**/__pycache__/
+**/*.py[cod]
+**/.pytest_cache/
+**/.mypy_cache/
+**/.ruff_cache/
+**/.venv/
+/.venv/
+
+# Local run artifacts and private audit output
+/artifacts/
+/.local/
+/dist/
+/site/
+
+# Historical local captures; do not commit tokens or raw recordings
 /environment_files/
 /recordings/
+
+# Do NOT ignore experiments/e11*, pilot scripts or new source wholesale.
+# Untracked experiment code must remain visible until deliberately reviewed.

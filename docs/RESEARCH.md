@@ -1,69 +1,17 @@
+# Research direction
 
-Research Direction
+Athlesia investigates evidence-grounded abstraction and locally revisable causal models under finite compute. The open problem is not merely whether a bounded solver passes a test, but whether it can form transferable structures from *previously unknown* external interaction data.
 
-Athlesia investigates whether reusable abstraction can emerge from explicit structural representations rather than concrete-value memorization.
+## Falsifiable research hypotheses
 
-The current research hypothesis is that useful concepts should satisfy several properties:
+- Structural analogy can reduce target-environment interaction cost while refusing unsupported transfers.
+- An evidence-backed explanatory model can detect explicit contradictions and localize the authority that must be withdrawn.
+- Active experiments can reduce surviving hypotheses under a strict resource budget, without inventing outcomes.
+- Deterministic selection can be implemented without presuming the observed environment is itself deterministic.
+- The same cognitive boundary can serve interactive ARC-AGI-3 research and externally authored tool-state tasks without encoding target-specific solutions.
 
-transfer across different concrete values
-explain repeated structural evidence
-compress observations
-produce testable predictions
-survive negative examples
-preserve contradictory evidence
-support active evidence gathering
+## Evaluation discipline
 
-The current implementation demonstrates these properties only in a restricted sequence-based representation.
+Use cold-start, blind transfer, adversarial negative transfer and transport-failure controls. Measure action count, error/false-accept rate, abstention, retained evidence, CPU time and memory on specified hardware. Report failure modes as prominently as successes.
 
-The implemented primitive relation is equality between positions.
-
-Current evidence
-
-The frozen baseline has:
-
-162 passing tests
-19 / 19 high-level architecture invariants
-
-The integrity suite includes:
-
-value invariance
-positive transfer
-negative rejection
-partial-match rejection
-extra-tail rejection
-anti-memorization
-memory purity
-prediction generation
-prediction confirmation
-prediction violation
-active experiment generation
-active experiment selection
-active state transition
-Next question
-
-The next major research problem is memory revision.
-
-A future concept should not simply exist or not exist.
-
-It should be possible to represent:
-
-support
-contradiction
-confidence
-competition
-revision
-
-This would allow several explanations to coexist and change as new evidence arrives.
-
-Later research may explore:
-
-hierarchical concepts
-competing models
-sparse relational structure
-temporal models
-bounded search
-uncertainty
-planning
-richer observation interfaces
-
-These are research objectives, not current capabilities.
+The [architecture](ARCHITECTURE.md) describes current Rust ownership and planned DCR integration; [evidence](EVIDENCE_AND_LIMITS.md) distinguishes separate prototypes from validated end-to-end behavior.
