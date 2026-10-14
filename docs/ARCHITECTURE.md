@@ -29,7 +29,7 @@ This table describes **source ownership**, not proof that all modules share a pe
 | E8 | Pixel-to-causal bridge |
 | E9 | Unlabelled pixel affordance discovery |
 | E10 | Adversarial out-of-class falsification and documented late-drift weakness |
-| E11 | **Locally untracked at the audited branch**, not published or validated as part of its tracked Git revision |
+| E11 | Python continuous monitoring, provisional validity, contradiction-triggered quarantine; not integrated into Rust DCR |
 
 Each experiment has its own evidence scope. They must not be silently collapsed into a claimed end-to-end result.
 

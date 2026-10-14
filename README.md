@@ -37,7 +37,7 @@ observations / external actions
 
   M45: finite compute and sparse processing
   M51 + ARC adapter: orchestration, grounding, execution feedback
-  E6–E10: separate Python reference and falsification experiments
+  E6–E11: separate Python reference, falsification and monitoring experiments
 ```
 
 **A diagram is not an end-to-end performance claim.** The existing modules contain working, separately tested mechanisms; the unified DCR knowledge state and execution authority are still planned. See [Architecture](docs/ARCHITECTURE.md) for the integration gaps.
@@ -50,7 +50,7 @@ Requirements: Rust as pinned in `rust-toolchain.toml` and a Linux environment. D
 ./tools/verify_repo.sh
 ```
 
-This is the canonical verification path. It checks the **33 manifest entries** in `tools/repo_manifests.txt`, in sequence. It does **not** run the Python E6–E10 experiments or an official ARC-AGI-3 scorecard. `cargo test` from the repository root only tests the root package.
+This is the canonical verification path. It checks the **33 manifest entries** in `tools/repo_manifests.txt`, in sequence. It does **not** run the Python E6–E11 experiments or an official ARC-AGI-3 scorecard. `cargo test` from the repository root only tests the root package.
 
 For E6:
 
@@ -76,8 +76,8 @@ Details and experiment-specific caveats: [Evidence and limits](docs/EVIDENCE_AND
 
 - The active cognition line is **M45–M51, executive/experiment modules and the ARC adapter**, not every historical crate.
 - M23–M44 and their recursive crates remain in the verification inventory as **preserved research history**.
-- E5–E10 are research environments and test oracles, not interchangeable production cognitive engines.
-- Untracked work such as E11 must be reviewed and committed explicitly before being cited as a published component.
+- E5–E11 are research environments and test oracles, not interchangeable production cognitive engines.
+- E11 is a separately tested Python monitor, not an integrated Rust DCR or an independently validated drift guarantee.
 - Avoid new crates for each micro-feature; keep one canonical owner for execution authority and evidence provenance.
 
 The code in this repository is currently released under the [MIT License](LICENSE). Do not assume an AGPL relicensing has already occurred. Third-party code and future commercial distribution must honor applicable license obligations.

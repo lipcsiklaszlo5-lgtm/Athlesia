@@ -11,7 +11,7 @@ This document separates tested *local mechanisms* from an integrated or external
 | Online revision | `experiments/e6_online_revision_transfer/` | Python reference rules and tests; see E6 evidence reports | Rust DCR end-to-end equivalence |
 | Pixel affordance discovery | E7–E9 experiment READMEs | Bounded evaluation within their defined environment grammars | General visual perception |
 | Out-of-class falsification | E10 `README.md` and `E10_EVIDENCE.md` | Known late-drift blind spot and stress tests | Perfect rejection of unseen semantics |
-| E11 monitoring | Local working tree only in audited snapshot | No tracked-source claim until committed/reviewed | Published or independently repeated outcome |
+| E11 monitoring | `experiments/e11_continuous_affordance_monitor/` | Six local Python regressions passed, including delayed-drift quarantine and post-quarantine action refusal | Rust DCR integration, universal drift detection or independent evaluation |
 | ARC-AGI-3 | ARC adapter and blind benchmark crates | Protocol, runner and tests exist | Verified official score or general task success |
 | Fast native/WASM runtime | Proposed DCR work | A target to benchmark | 0.2 ms bound, memory footprint guarantee or certified safety |
 

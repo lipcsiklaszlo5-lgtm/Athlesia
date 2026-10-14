@@ -1,0 +1,33 @@
+{
+  "package": "athlesia-e11-continuous-affordance-monitor",
+  "version": "0.1.0",
+  "recorded_utc": "2026-10-14T18:36:47.296588+00:00",
+  "baseline_commit": "d88c635",
+  "scope": "Local Python regression of continuous monitoring and quarantine",
+  "same_author_evaluation": true,
+  "official_arc_agi_3": false,
+  "integrated_rust_dcr": false,
+  "generated_results_tracked": false,
+  "files": [
+    {
+      "path": ".gitignore",
+      "bytes": 22,
+      "sha256": "3c9f3aa8cc90718b4b544b01fafa74cecce1940a8e1317c6aae06f169ae27467"
+    },
+    {
+      "path": "README.md",
+      "bytes": 2554,
+      "sha256": "7b811c05808438081ba818c6c80489f02ebbcc3a2142bb27dbfc725ac8d0cb40"
+    },
+    {
+      "path": "monitor.py",
+      "bytes": 4414,
+      "sha256": "2e666b98ae7bb998cbd58047632a684ce0fa1caa997457f502044c44116bb6f7"
+    },
+    {
+      "path": "test_e11.py",
+      "bytes": 10206,
+      "sha256": "53212ff43e811a3ac7aaff7d2c84231a065932c2556899d58d00fb0e2ea8849a"
+    }
+  ]
+}

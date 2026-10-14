@@ -28,7 +28,7 @@ These ten modules are the currently designated active line; that does not establ
 
 ## Python research and falsification
 
-`experiments/e6_online_revision_transfer` contains Python causal revision/transfer reference code; E7 through E9 move toward raw-grid and pixel grounding; E10 is the adversarial falsification pilot. Their local tests should be kept together with their SHA manifests and evidence reports. The checked Git revision does not include E11: an untracked local E11 tree needs a separate provenance review and deliberate commit.
+`experiments/e6_online_revision_transfer` contains Python causal revision/transfer reference code; E7 through E9 move toward raw-grid and pixel grounding; E10 is the adversarial falsification pilot. Their local tests should be kept together with their SHA manifests and evidence reports. E11 adds a separately tested Python monitoring and quarantine reference. It is not yet connected to the active Rust execution authority.
 
 ## Historical notes
 
