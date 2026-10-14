@@ -11545,8 +11545,10 @@ impl AutonomousModelGoalSynthesis {
         evidence: &[AutonomousModelOutcomeEvidence],
     ) -> Option<Self> {
         Self::synthesize_with_feedback(
-            current_state, action_affordances, evidence,
-            feedback,
+            current_state,
+            action_affordances,
+            evidence,
+            autonomous_cognitive_self_bootstrap::BootstrapFeedback::Unspecified,
         )
     }
 
@@ -11612,7 +11614,7 @@ impl AutonomousModelGoalSynthesis {
             None,
             action_affordances.to_vec(),
             hypotheses,
-            autonomous_cognitive_self_bootstrap::BootstrapFeedback::Unspecified,
+            feedback,
         );
 
         let digest = OnlineAutonomousCognitiveSelfBootstrapRuntime::evaluate(
@@ -13511,7 +13513,11 @@ impl OnlinePersistentCognitiveState {
         model_policy: athlesia_universal_domain_learning::GroundedExecutableWorldModelPolicy,
     ) -> Option<AutonomousModelGoalSynthesis> {
         self.current_autonomous_model_goal_with_feedback(
-            state, actions, execution_cost, schema_policy, model_policy,
+            state,
+            actions,
+            execution_cost,
+            schema_policy,
+            model_policy,
             autonomous_cognitive_self_bootstrap::BootstrapFeedback::Unspecified,
         )
     }
@@ -13589,7 +13595,10 @@ impl OnlinePersistentCognitiveState {
         }
 
         AutonomousModelGoalSynthesis::synthesize_with_feedback(
-            source_state, actions, &evidence, feedback,
+            source_state,
+            actions,
+            &evidence,
+            feedback,
         )
     }
 

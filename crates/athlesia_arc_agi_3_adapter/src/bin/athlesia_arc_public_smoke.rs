@@ -52,12 +52,9 @@ fn inert_goal() -> ExecutiveGoal {
 }
 
 fn autonomous_policy() -> ArcAgi3AutonomousProductionSuccessorPolicy {
-    let version_policy =
-        GroundedExplanatoryVersionSpacePolicy::new(1, 64, 512, 256).unwrap();
-    let discrimination_policy =
-        EpistemicForecastDiscriminationPolicy::new(512, 512).unwrap();
-    let expectation_policy =
-        EmpiricalExpectedEpistemicProgressPolicy::new(256, 256, 1).unwrap();
+    let version_policy = GroundedExplanatoryVersionSpacePolicy::new(1, 64, 512, 256).unwrap();
+    let discrimination_policy = EpistemicForecastDiscriminationPolicy::new(512, 512).unwrap();
+    let expectation_policy = EmpiricalExpectedEpistemicProgressPolicy::new(256, 256, 1).unwrap();
 
     let executive_policy = ExecutiveAgencyPolicy::new(
         1,
@@ -414,8 +411,7 @@ fn run() -> Result<(), String> {
 
             let before = cognitive_snapshot(runtime, version_policy);
 
-            let result = runtime
-                .execute_production_autonomous_successor(policy);
+            let result = runtime.execute_production_autonomous_successor(policy);
 
             let after = cognitive_snapshot(runtime, version_policy);
 

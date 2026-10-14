@@ -1063,16 +1063,25 @@ impl ArcAgi3CognitiveInteractionRuntime {
             .collect::<Vec<_>>();
 
         self.cognition.current_autonomous_model_goal_with_feedback(
-                &state, &cognitive_actions, execution_cost,
-                Self::live_transition_schema_policy(),
-                Self::live_executable_world_model_policy(), feedback,
-            )
+            &state,
+            &cognitive_actions,
+            execution_cost,
+            Self::live_transition_schema_policy(),
+            Self::live_executable_world_model_policy(),
+            feedback,
+        )
     }
 
-    fn current_autonomous_bootstrap_feedback(&self) -> athlesia_integrated_cognitive_agent::autonomous_cognitive_self_bootstrap::BootstrapFeedback {
-        use athlesia_integrated_cognitive_agent::autonomous_cognitive_self_bootstrap::{BootstrapFeedback, BootstrapSignal};
+    fn current_autonomous_bootstrap_feedback(
+        &self,
+    ) -> athlesia_integrated_cognitive_agent::autonomous_cognitive_self_bootstrap::BootstrapFeedback
+    {
+        use athlesia_integrated_cognitive_agent::autonomous_cognitive_self_bootstrap::{
+            BootstrapFeedback, BootstrapSignal,
+        };
         let observation = self.observation();
-        if observation.state() == crate::ArcAgi3GameState::Win || observation.levels_completed() > 0 {
+        if observation.state() == crate::ArcAgi3GameState::Win || observation.levels_completed() > 0
+        {
             return BootstrapFeedback::TerminalSuccess;
         }
         if observation.state() == crate::ArcAgi3GameState::GameOver {
@@ -1080,8 +1089,9 @@ impl ArcAgi3CognitiveInteractionRuntime {
         }
         let signal = || BootstrapSignal::new(1).expect("positive bootstrap signal");
         match self.perception.causal_environment_transition() {
-            Some(t) if t.previous_frame().elements() != t.current_frame().elements() =>
-                BootstrapFeedback::Progress(signal()),
+            Some(t) if t.previous_frame().elements() != t.current_frame().elements() => {
+                BootstrapFeedback::Progress(signal())
+            }
             Some(_) => BootstrapFeedback::Regression(signal()),
             None => BootstrapFeedback::Unspecified,
         }
