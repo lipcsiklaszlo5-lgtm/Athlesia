@@ -808,6 +808,7 @@ mod successor_informed_live_dispatch_tests {
 
     // Committed strict behavior and causal-ablation regression.
     include!("r3c_causal_behavior_tests.rs");
+    include!("r3d_positive_adaptation_tests.rs");
 
     #[derive(Debug)]
     struct RecordingTransport {
