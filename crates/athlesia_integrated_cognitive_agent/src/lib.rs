@@ -7952,6 +7952,9 @@ impl UniversalOnlineCognitiveOrchestration {
     }
 }
 
+mod causal_validity;
+pub use causal_validity::{CausalCounterexample, CausalObservationStatus, CausalPredictionWitness};
+
 // Recurrent control has its own module; public API stays at crate root.
 mod recurrent_loop;
 pub use recurrent_loop::{
@@ -10478,6 +10481,7 @@ impl RetainedBootstrapActionCoverageState {
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct OnlinePersistentCognitiveState {
     transition_schema_learning: EndogenousTransitionSchemaLearningState,
+    causal_validity: causal_validity::CausalValidityLedger,
 
     bootstrap_action_coverage: RetainedBootstrapActionCoverageState,
     epistemic_progress_history: Vec<RetainedEpistemicProgressEvent>,
@@ -13151,6 +13155,9 @@ impl OnlinePersistentCognitiveState {
          * Structural prediction therefore belongs here rather than in a
          * protocol adapter.
          */
+        if self.causal_validity.blocked(state, transformation) {
+            return None;
+        }
         let model = self.current_executable_world_model(schema_policy, model_policy)?;
 
         Some(model.predict(state, transformation))
