@@ -806,6 +806,9 @@ mod successor_informed_live_dispatch_tests {
 
     use crate::cognitive_interaction_runtime::c16i_successor_informed_two_contract_e2e_tests as c16i;
 
+    // Committed strict behavior and causal-ablation regression.
+    include!("r3c_causal_behavior_tests.rs");
+
     #[derive(Debug)]
     struct RecordingTransport {
         responses: RefCell<VecDeque<Result<crate::ArcAgi3Observation, ArcAgi3TransportError>>>,
