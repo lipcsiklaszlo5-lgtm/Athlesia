@@ -80,6 +80,10 @@ pub(super) struct CausalValidityLedger {
 }
 
 impl CausalValidityLedger {
+    pub(super) fn pending_witness(&self) -> Option<CausalPredictionWitness> {
+        self.pending.clone()
+    }
+
     pub(super) fn blocked(
         &self,
         source: &GroundedStateSnapshot,

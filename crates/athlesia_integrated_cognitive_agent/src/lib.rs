@@ -13662,8 +13662,64 @@ impl OnlinePersistentCognitiveState {
             policy,
         );
 
-        self.transition_schema_learning = result.state().clone();
+        // Preserve the existing learning path when no causal prediction witness
+        // was issued. Exploratory actions cannot invent a prediction witness.
+        let Some(witness) = self.causal_validity.pending_witness() else {
+            self.transition_schema_learning = result.state().clone();
+            return result;
+        };
 
+        // Resolve the pre-action witness against exactly the grounded M47
+        // transition accepted by the existing perception/evidence bridge.
+        // Always do this BEFORE changing the retained model's evidence epoch.
+        let projected =
+            PerceptualDomainLearningEvidenceBridge::derive(input, context, environment_evidence);
+        let admissible = matches!(
+            result.status(),
+            EndogenousTransitionSchemaLearningStatus::AccumulatingContrast
+                | EndogenousTransitionSchemaLearningStatus::NoAdmittedHypothesis
+                | EndogenousTransitionSchemaLearningStatus::HypothesisInduced
+        );
+        let episode = projected.episode();
+        let correctly_bound = episode.is_some_and(|episode| {
+            episode.before() == witness.source() && episode.transformation() == witness.action()
+        });
+
+        if !admissible || !correctly_bound {
+            self.quarantine_indeterminate_causal_dispatch(&witness);
+            return EndogenousTransitionSchemaLearningResult {
+                status: EndogenousTransitionSchemaLearningStatus::EvidenceRejected,
+                bridge_status: result.bridge_status(),
+                state: self.transition_schema_learning.clone(),
+                induction: None,
+            };
+        }
+
+        let observed = episode
+            .expect("checked grounded source/action binding")
+            .after();
+        let validation = self.complete_causal_prediction_observation(
+            &witness,
+            environment_evidence.action_observation().event_index(),
+            observed,
+        );
+        if !matches!(
+            validation,
+            CausalObservationStatus::ConfirmedProvisional
+                | CausalObservationStatus::ContradictedQuarantined
+        ) {
+            return EndogenousTransitionSchemaLearningResult {
+                status: EndogenousTransitionSchemaLearningStatus::EvidenceRejected,
+                bridge_status: result.bridge_status(),
+                state: self.transition_schema_learning.clone(),
+                induction: None,
+            };
+        }
+
+        // Both confirming and falsifying real events are retained as M47
+        // evidence. Quarantined action authority remains revoked until a
+        // separately justified revalidation path exists.
+        self.transition_schema_learning = result.state().clone();
         result
     }
 }
@@ -14832,6 +14888,121 @@ mod endogenous_transition_schema_learning_tests {
         assert_eq!(eligibility.distinct_successor_count(), 0,);
 
         assert!(!eligibility.eligible_as_supplemental_evidence(),);
+    }
+
+    fn causal_trained_owner() -> OnlinePersistentCognitiveState {
+        let mut owner = OnlinePersistentCognitiveState::new();
+        let first = owner.observe_environment_transition(
+            &perceptual_input(1, 3, true),
+            context(),
+            &environment_evidence(2, ActionSource::SelfGenerated, 500, 600),
+            policy(16),
+        );
+        assert_eq!(
+            first.status(),
+            EndogenousTransitionSchemaLearningStatus::AccumulatingContrast
+        );
+        let second = owner.observe_environment_transition(
+            &perceptual_input(4, 6, false),
+            context(),
+            &environment_evidence(5, ActionSource::SelfGenerated, 501, 601),
+            policy(16),
+        );
+        assert_eq!(
+            second.status(),
+            EndogenousTransitionSchemaLearningStatus::HypothesisInduced
+        );
+        owner
+    }
+
+    fn causal_witness(owner: &mut OnlinePersistentCognitiveState) -> CausalPredictionWitness {
+        let input = perceptual_input(10, 12, true);
+        let evidence = environment_evidence(11, ActionSource::SelfGenerated, 500, 600);
+        let derived = PerceptualDomainLearningEvidenceBridge::derive(&input, context(), &evidence);
+        let episode = derived
+            .episode()
+            .expect("grounded independent pre-action state");
+        owner
+            .begin_causal_prediction_observation(
+                episode.before(),
+                episode.transformation(),
+                policy(16).schema_policy(),
+                athlesia_universal_domain_learning::GroundedExecutableWorldModelPolicy::new(64)
+                    .unwrap(),
+            )
+            .expect("observed contrast must support M47 prediction")
+    }
+
+    #[test]
+    fn r3a_confirmed_action_resolves_witness_before_retaining_m47_episode() {
+        let mut owner = causal_trained_owner();
+        let _ticket = causal_witness(&mut owner);
+        let result = owner.observe_environment_transition(
+            &perceptual_input(10, 12, true),
+            context(),
+            &environment_evidence(11, ActionSource::SelfGenerated, 500, 600),
+            policy(16),
+        );
+        assert_ne!(
+            result.status(),
+            EndogenousTransitionSchemaLearningStatus::EvidenceRejected
+        );
+        assert_eq!(owner.transition_episode_count(), 3);
+        assert_eq!(owner.causal_observation_count(), 1);
+        assert_eq!(owner.causal_quarantine_count(), 0);
+        assert!(owner.causal_counterexamples().is_empty());
+    }
+
+    #[test]
+    fn r3a_real_contradiction_quarantines_but_retains_negative_m47_evidence() {
+        let mut owner = causal_trained_owner();
+        let ticket = causal_witness(&mut owner);
+        let result = owner.observe_environment_transition(
+            &perceptual_input(10, 12, false),
+            context(),
+            &environment_evidence(11, ActionSource::SelfGenerated, 500, 600),
+            policy(16),
+        );
+        assert_ne!(
+            result.status(),
+            EndogenousTransitionSchemaLearningStatus::EvidenceRejected
+        );
+        assert_eq!(owner.transition_episode_count(), 3);
+        assert_eq!(owner.causal_observation_count(), 1);
+        assert_eq!(owner.causal_counterexamples().len(), 1);
+        assert_eq!(owner.causal_quarantine_count(), 1);
+        assert_eq!(
+            owner.causal_counterexamples()[0].observed(),
+            ticket.source()
+        );
+        assert!(owner
+            .current_empirically_authorized_structural_prediction(
+                ticket.source(),
+                ticket.action(),
+                policy(16).schema_policy(),
+                athlesia_universal_domain_learning::GroundedExecutableWorldModelPolicy::new(64)
+                    .unwrap(),
+            )
+            .is_none());
+    }
+
+    #[test]
+    fn r3a_action_mismatch_quarantines_without_learning_fabricated_transition() {
+        let mut owner = causal_trained_owner();
+        let _ticket = causal_witness(&mut owner);
+        let result = owner.observe_environment_transition(
+            &perceptual_input(10, 12, true),
+            context(),
+            &environment_evidence(11, ActionSource::SelfGenerated, 501, 600),
+            policy(16),
+        );
+        assert_eq!(
+            result.status(),
+            EndogenousTransitionSchemaLearningStatus::EvidenceRejected
+        );
+        assert_eq!(owner.transition_episode_count(), 2);
+        assert_eq!(owner.causal_observation_count(), 0);
+        assert_eq!(owner.causal_quarantine_count(), 1);
     }
 
     #[test]
