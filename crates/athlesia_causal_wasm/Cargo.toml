@@ -1,0 +1,14 @@
+[package]
+name = "athlesia_causal_wasm"
+version = "0.1.0"
+edition = "2021"
+description = "Browser-facing WASM bridge for the Athlesia Fresh World Challenge"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+athlesia_integrated_cognitive_agent = { path = "../athlesia_integrated_cognitive_agent" }
+wasm-bindgen = "0.2"
+
+[workspace]
