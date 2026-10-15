@@ -1,4 +1,5 @@
 use athlesia_integrated_cognitive_agent::custom_mechanism::{run_custom, CustomChallengeSpec};
+use athlesia_integrated_cognitive_agent::opaque_action_port::run_opaque_custom;
 use athlesia_integrated_cognitive_agent::fresh_world_session::FreshWorldSession;
 use wasm_bindgen::prelude::*;
 
@@ -57,9 +58,20 @@ pub fn run_custom_challenge_json(spec_json: String) -> Result<String, JsValue> {
     Ok(report.jsonl().to_owned())
 }
 
+/// Execute the same JSON fixture through the strict opaque action-port
+/// boundary.  The environment owns the world specification; the solver sees
+/// only interaction logs and reconstructed observations.
+#[wasm_bindgen]
+pub fn run_opaque_challenge_json(spec_json: String) -> Result<String, JsValue> {
+    let spec =
+        CustomChallengeSpec::from_json(&spec_json).map_err(|error| JsValue::from_str(&error))?;
+    let report = run_opaque_custom(spec).map_err(|error| JsValue::from_str(&error))?;
+    Ok(report.jsonl().to_owned())
+}
+
 #[cfg(test)]
 mod tests {
-    use super::{run_custom_challenge_json, WasmFreshWorldSession};
+    use super::{run_custom_challenge_json, run_opaque_challenge_json, WasmFreshWorldSession};
 
     #[test]
     fn bridge_preserves_the_three_real_phase_boundaries() {
@@ -120,5 +132,47 @@ mod tests {
         }"#;
         let output = run_custom_challenge_json(json.to_owned()).expect("custom bridge");
         assert!(output.contains("HOLDOUT_VERIFIED"), "{output}");
+    }
+
+    #[test]
+    fn opaque_json_bridge_reports_observation_only_solver_input() {
+        let json = r#"{
+          "name":"opaque clamp",
+          "seed":42,
+          "source":{"action":"press","effect":"open","nodes":[
+            {"id":"press","kind":"operation","type_tag":10},
+            {"id":"pressure","kind":"state_field","type_tag":11},
+            {"id":"latch","kind":"state_field","type_tag":12},
+            {"id":"open","kind":"state_field","type_tag":13}],
+            "edges":[
+              {"from":"press","to":"pressure","kind":"requires"},
+              {"from":"press","to":"latch","kind":"requires"},
+              {"from":"press","to":"open","kind":"writes"}]},
+          "source_examples":[
+            {"before":{"pressure":true,"latch":true,"open":false},"after":{"pressure":true,"latch":true,"open":true}},
+            {"before":{"pressure":true,"latch":true,"open":false},"after":{"pressure":true,"latch":true,"open":true}},
+            {"before":{"pressure":true,"latch":true,"open":false},"after":{"pressure":true,"latch":true,"open":true}}],
+          "target":{"action":"fire_grip","effect":"jaws_closed","nodes":[
+            {"id":"fire_grip","kind":"operation","type_tag":10},
+            {"id":"hydraulic_ok","kind":"state_field","type_tag":11},
+            {"id":"safety_pin","kind":"state_field","type_tag":12},
+            {"id":"jaws_closed","kind":"state_field","type_tag":13}],
+            "edges":[
+              {"from":"fire_grip","to":"hydraulic_ok","kind":"requires"},
+              {"from":"fire_grip","to":"safety_pin","kind":"requires"},
+              {"from":"fire_grip","to":"jaws_closed","kind":"writes"}]},
+          "holdout":{"action":"engage","effect":"locked","nodes":[
+            {"id":"engage","kind":"operation","type_tag":10},
+            {"id":"line_live","kind":"state_field","type_tag":11},
+            {"id":"interlock_clear","kind":"state_field","type_tag":12},
+            {"id":"locked","kind":"state_field","type_tag":13}],
+            "edges":[
+              {"from":"engage","to":"line_live","kind":"requires"},
+              {"from":"engage","to":"interlock_clear","kind":"requires"},
+              {"from":"engage","to":"locked","kind":"writes"}]}
+        }"#;
+        let output = run_opaque_challenge_json(json.to_owned()).expect("opaque bridge");
+        assert!(output.contains("HOLDOUT_VERIFIED"), "{output}");
+        assert!(output.contains("observation_logs_only"), "{output}");
     }
 }

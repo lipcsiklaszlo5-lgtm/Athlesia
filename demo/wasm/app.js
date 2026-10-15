@@ -1,4 +1,4 @@
-import init, { WasmFreshWorldSession, run_custom_challenge_json } from "./pkg/athlesia_causal_wasm.js";
+import init, { WasmFreshWorldSession, run_opaque_challenge_json } from "./pkg/athlesia_causal_wasm.js";
 
 const $ = (id) => document.getElementById(id);
 const STORAGE_KEY = "athlesia.fresh-world.session.v1";
@@ -166,13 +166,14 @@ function render(jsonl, callMs) {
   const records = recordsFrom(jsonl);
   const world = recordOf(records, "fresh_world");
   const custom = recordOf(records, "custom_challenge");
+  const opaque = recordOf(records, "opaque_challenge");
   const summary = latestSummary(records);
   const stages = records.filter((record) => record.record === "stage");
   const graphs = records.filter((record) => record.record === "graph");
   const tokens = recordOf(records, "tokens");
 
-  $("phase").textContent = world?.phase || summary?.status || session?.phase() || "—";
-  $("seed").textContent = world?.seed ?? custom?.seed ?? session?.seed() ?? "—";
+  $("phase").textContent = world?.phase || (opaque ? `OPAQUE · ${summary?.status || "RUNNING"}` : summary?.status) || session?.phase() || "—";
+  $("seed").textContent = world?.seed ?? custom?.seed ?? opaque?.seed ?? session?.seed() ?? "—";
   $("latency").textContent = `${callMs.toFixed(2)} ms`;
   $("digest").textContent = summary?.report_digest ? String(summary.report_digest) : "pending";
 
@@ -186,6 +187,12 @@ function render(jsonl, callMs) {
       <code>source graph: ${escapeHtml(custom.source_graph_digest)}</code>
       <code>target graph: ${escapeHtml(custom.target_graph_digest)}</code>
       <code>holdout graph: ${escapeHtml(custom.holdout_graph_digest)}</code>
+    </div>` : opaque ? `
+    <div class="world-card"><h3>OPAQUE ACTION PORT</h3>
+      <code>name: ${escapeHtml(opaque.name)}</code>
+      <code>solver input: ${escapeHtml(opaque.solver_input)}</code>
+      <code>world rules: environment-only</code>
+      <code>report digest: ${escapeHtml(opaque.report_digest)}</code>
     </div>` : "<div class=\"empty\">Token records appear after generation.</div>";
   $("worlds").innerHTML = tokenCards;
 
@@ -262,7 +269,7 @@ $("runCustom").addEventListener("click", () => {
   try {
     const input = $("customSpec").value;
     JSON.parse(input);
-    run("Custom mechanism", () => run_custom_challenge_json(input));
+    run("Opaque action-port mechanism", () => run_opaque_challenge_json(input));
   } catch (error) {
     setStatus(`Custom mechanism rejected before execution: ${error}`, true);
   }

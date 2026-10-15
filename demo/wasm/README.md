@@ -1,8 +1,8 @@
 # Athlesia Fresh World Challenge — WASM demo
 
 This is a static browser UI over the Rust `FreshWorldSession` state machine and
-the user-supplied `CustomChallengeSpec` runner. It has no Python server and no
-model/API dependency.
+the user-supplied mechanism runner. It has no Python server and no model/API
+dependency.
 
 ## Build
 
@@ -33,7 +33,7 @@ WASM can be inspected by the person running it.
 
 ## Bring your own mechanism
 
-The **RUN CUSTOM HOLDOUT** panel accepts a JSON mechanism with:
+The **RUN OPAQUE-PORT HOLDOUT** panel accepts a JSON mechanism with:
 
 - a typed source, target and holdout graph;
 - one or more source transition traces;
@@ -41,10 +41,12 @@ The **RUN CUSTOM HOLDOUT** panel accepts a JSON mechanism with:
   when omitted, the fixture derives the guard from the seed and structural
   type tags.
 
-The Rust core receives only the source traces, typed graphs and observed probe
-outcomes. It does not receive the guard as a learner fact. A structurally
-ambiguous or incompatible graph returns `ABSTAIN`/`REFUSED`; it is never counted
-as a success.
+The Rust core does not receive the world specification as a learner input. A
+private environment adapter emits opaque observation frames; the solver receives
+only `before → action → after` logs and reconstructs its bounded structural
+representation from those frames. It does not receive guard membership as a
+learner fact. A structurally ambiguous or incompatible graph returns
+`ABSTAIN`/`REFUSED`; it is never counted as a success.
 
 The current contract is intentionally bounded: at most 32 nodes, 96 edges, 32
 source examples and one or two hidden guard literals. This is a reproducible
@@ -60,3 +62,11 @@ cargo run \
 
 The command emits the same JSONL evidence format used by the WASM UI and exits
 non-zero for `ABSTAIN`, `REFUSED` or invalid input.
+
+To exercise the same challenge through the strict black-box boundary:
+
+```bash
+cargo run \
+  --manifest-path crates/athlesia_integrated_cognitive_agent/Cargo.toml \
+  --example opaque_action_port -- path/to/challenge.json
+```

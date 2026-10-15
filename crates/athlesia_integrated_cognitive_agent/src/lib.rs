@@ -2,14 +2,16 @@ use athlesia_mindstone_sparse_cognition::{CognitiveSignal, CognitiveStructure};
 
 /// First bounded integration boundary for the cross-domain causal core.
 pub mod cross_domain_causal_core;
+#[cfg(test)]
+mod cross_domain_relational_bridge_tests;
+/// User-supplied bounded mechanism challenge and fail-closed verifier.
+pub mod custom_mechanism;
 /// Seeded adversarial challenge generator for the browser-facing demo.
 pub mod fresh_world_challenge;
 /// Stateful API for driving the challenge from a UI or WASM host.
 pub mod fresh_world_session;
-/// User-supplied bounded mechanism challenge and fail-closed verifier.
-pub mod custom_mechanism;
-#[cfg(test)]
-mod cross_domain_relational_bridge_tests;
+/// Solver/environment boundary that exposes only opaque interaction traces.
+pub mod opaque_action_port;
 
 #[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub enum IntegratedCognitiveLayer {
