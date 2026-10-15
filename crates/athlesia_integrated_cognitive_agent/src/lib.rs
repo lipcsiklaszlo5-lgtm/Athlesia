@@ -2,6 +2,8 @@ use athlesia_mindstone_sparse_cognition::{CognitiveSignal, CognitiveStructure};
 
 /// First bounded integration boundary for the cross-domain causal core.
 pub mod cross_domain_causal_core;
+#[cfg(test)]
+mod cross_domain_relational_bridge_tests;
 
 #[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub enum IntegratedCognitiveLayer {
