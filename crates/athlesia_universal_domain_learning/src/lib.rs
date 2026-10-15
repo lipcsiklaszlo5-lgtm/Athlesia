@@ -1,5 +1,7 @@
 use athlesia_mindstone_sparse_cognition::{CognitiveSignal, CognitiveStructure};
 
+pub mod relational_effect_transfer;
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct GroundedLearningEpisode {
     facts: Vec<CognitiveStructure>,
@@ -9113,6 +9115,13 @@ pub enum GroundedStructuralPredictionStatus {
     EffectConflict,
 }
 
+/// Provenance of a structural forecast; a learned transfer is not a literal schema.
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+pub enum GroundedStructuralPredictionOrigin {
+    LiteralSchema,
+    RelationalTransfer,
+}
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct GroundedStructuralPrediction {
     transformation: CognitiveStructure,
@@ -9120,9 +9129,40 @@ pub struct GroundedStructuralPrediction {
     additions: Vec<CognitiveStructure>,
     removals: Vec<CognitiveStructure>,
     applicable_schema_count: usize,
+    origin: GroundedStructuralPredictionOrigin,
 }
 
 impl GroundedStructuralPrediction {
+    /// Convert a *previously derived* M47 relational hypothesis to a forecast.
+    /// This is not an execution/causal authorization; M51 must revalidate it
+    /// against its own retained episodes and the exact current source/action.
+    pub fn from_relational_transfer(
+        transformation: &CognitiveStructure,
+        learned: &relational_effect_transfer::RelationalEffectTransferPrediction,
+    ) -> Option<Self> {
+        if learned.applicable_patterns() == 0
+            || (learned.additions().is_empty() && learned.removals().is_empty())
+            || learned
+                .additions()
+                .iter()
+                .any(|fact| learned.removals().contains(fact))
+        {
+            return None;
+        }
+        Some(Self {
+            transformation: transformation.clone(),
+            status: GroundedStructuralPredictionStatus::Predicted,
+            additions: learned.additions().to_vec(),
+            removals: learned.removals().to_vec(),
+            applicable_schema_count: 0, // not literal schema support
+            origin: GroundedStructuralPredictionOrigin::RelationalTransfer,
+        })
+    }
+
+    pub fn origin(&self) -> GroundedStructuralPredictionOrigin {
+        self.origin
+    }
+
     pub fn transformation(&self) -> &CognitiveStructure {
         &self.transformation
     }
@@ -9207,6 +9247,7 @@ impl GroundedStructuralPredictionEngine {
                 additions: Vec::new(),
                 removals: Vec::new(),
                 applicable_schema_count,
+                origin: GroundedStructuralPredictionOrigin::LiteralSchema,
             };
         }
 
@@ -9243,6 +9284,7 @@ impl GroundedStructuralPredictionEngine {
                 additions: Vec::new(),
                 removals: Vec::new(),
                 applicable_schema_count,
+                origin: GroundedStructuralPredictionOrigin::LiteralSchema,
             };
         }
 
@@ -9252,6 +9294,7 @@ impl GroundedStructuralPredictionEngine {
             additions,
             removals,
             applicable_schema_count,
+            origin: GroundedStructuralPredictionOrigin::LiteralSchema,
         }
     }
 }
