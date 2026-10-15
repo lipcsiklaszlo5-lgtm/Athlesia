@@ -1,8 +1,10 @@
 import init, { WasmFreshWorldSession } from "./pkg/athlesia_causal_wasm.js";
 
 const $ = (id) => document.getElementById(id);
+const STORAGE_KEY = "athlesia.fresh-world.session.v1";
 let session = null;
 let latestJsonl = "";
+let lastCallMs = 0;
 
 function recordsFrom(jsonl) {
   return jsonl.trim().split(/\n+/).filter(Boolean).map((line) => JSON.parse(line));
@@ -28,6 +30,81 @@ function escapeHtml(value) {
 function setStatus(message, error = false) {
   $("status").textContent = message;
   $("status").classList.toggle("error", error);
+}
+
+function persistSession() {
+  if (!session) return;
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({
+      version: 1,
+      seed: session.seed(),
+      phase: session.phase(),
+      lastCallMs,
+      updatedAt: new Date().toISOString(),
+    }));
+  } catch (error) {
+    // Private browsing or a restrictive embedded frame may disable storage.
+    // The live session still works; persistence is an enhancement only.
+    console.warn("Athlesia session persistence unavailable", error);
+  }
+}
+
+function clearPersistedSession() {
+  try {
+    localStorage.removeItem(STORAGE_KEY);
+  } catch (error) {
+    console.warn("Athlesia session storage could not be cleared", error);
+  }
+}
+
+function restoreSession() {
+  let saved;
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return false;
+    saved = JSON.parse(raw);
+  } catch (error) {
+    clearPersistedSession();
+    return false;
+  }
+
+  if (!saved || saved.version !== 1 || !Number.isSafeInteger(saved.seed) || saved.seed < 1) {
+    clearPersistedSession();
+    return false;
+  }
+
+  const expectedPhase = String(saved.phase || "");
+  if (!["GENERATED", "SABOTAGED", "HOLDOUT_VERIFIED"].includes(expectedPhase)) {
+    clearPersistedSession();
+    return false;
+  }
+
+  try {
+    session = new WasmFreshWorldSession(saved.seed);
+    let jsonl = session.world_jsonl();
+    if (expectedPhase === "SABOTAGED" || expectedPhase === "HOLDOUT_VERIFIED") {
+      jsonl = session.sabotage();
+    }
+    if (expectedPhase === "HOLDOUT_VERIFIED") {
+      jsonl = session.transfer_to_unknown();
+    }
+    if (session.phase() !== expectedPhase) throw new Error("restored phase mismatch");
+
+    latestJsonl = jsonl;
+    lastCallMs = Number.isFinite(Number(saved.lastCallMs)) ? Number(saved.lastCallMs) : 0;
+    render(jsonl, lastCallMs);
+    $("sabotage").disabled = expectedPhase !== "GENERATED";
+    $("transfer").disabled = expectedPhase !== "SABOTAGED";
+    setStatus(`Restored local session ${saved.seed} at ${expectedPhase}.`);
+    return true;
+  } catch (error) {
+    clearPersistedSession();
+    session = null;
+    latestJsonl = "";
+    lastCallMs = 0;
+    console.warn("Athlesia saved session was discarded", error);
+    return false;
+  }
 }
 
 function render(jsonl, callMs) {
@@ -85,7 +162,9 @@ function run(label, callback) {
     const start = performance.now();
     const jsonl = callback();
     const elapsed = performance.now() - start;
+    lastCallMs = elapsed;
     render(jsonl, elapsed);
+    persistSession();
     setStatus(`${label} completed in ${elapsed.toFixed(2)} ms of browser-observed WASM time.`);
     return true;
   } catch (error) {
@@ -97,7 +176,9 @@ function run(label, callback) {
 $("generate").addEventListener("click", () => {
   const seed = randomSeed();
   session = new WasmFreshWorldSession(seed);
+  lastCallMs = 0;
   render(session.world_jsonl(), 0);
+  persistSession();
   $("sabotage").disabled = false;
   $("transfer").disabled = true;
   setStatus(`Fresh world ${seed} generated. The solver has not acted.`);
@@ -129,7 +210,9 @@ $("download").addEventListener("click", () => {
 try {
   await init();
   $("generate").disabled = false;
-  setStatus("Rust/WASM kernel loaded. Generate a fresh world to begin.");
+  if (!restoreSession()) setStatus("Rust/WASM kernel loaded. Generate a fresh world to begin.");
 } catch (error) {
   setStatus(`WASM load failed: ${error}`, true);
 }
+
+window.addEventListener("pagehide", persistSession);
