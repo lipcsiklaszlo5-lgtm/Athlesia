@@ -1,5 +1,8 @@
 use athlesia_mindstone_sparse_cognition::{CognitiveSignal, CognitiveStructure};
 
+/// First bounded integration boundary for the cross-domain causal core.
+pub mod cross_domain_causal_core;
+
 #[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub enum IntegratedCognitiveLayer {
     PerceptualGrounding,
@@ -13148,6 +13151,31 @@ impl OnlinePersistentCognitiveState {
         Self::effect_delta_identity(prediction.additions(), prediction.removals())
     }
 
+    /// M51 is the only owner of the retained episodes and causal quarantine.
+    /// Relational transfer is attempted only at a genuinely unobserved
+    /// source/action pair; known sources retain their existing literal path.
+    fn current_relational_transfer(
+        &self,
+        state: &athlesia_universal_domain_learning::GroundedStateSnapshot,
+        transformation: &CognitiveStructure,
+    ) -> Option<athlesia_universal_domain_learning::relational_effect_transfer::RelationalEffectTransferPrediction>{
+        if self.causal_validity.blocked(state, transformation) {
+            return None;
+        }
+        let episodes = self.transition_schema_learning().episodes();
+        if episodes
+            .iter()
+            .any(|episode| episode.before() == state && episode.transformation() == transformation)
+        {
+            return None;
+        }
+        athlesia_universal_domain_learning::relational_effect_transfer::predict_relational_effect_transfer(
+            episodes,
+            state,
+            transformation,
+        )
+    }
+
     pub fn current_structural_prediction(
         &self,
         state: &athlesia_universal_domain_learning::GroundedStateSnapshot,
@@ -13165,8 +13193,16 @@ impl OnlinePersistentCognitiveState {
         if self.causal_validity.blocked(state, transformation) {
             return None;
         }
-        let model = self.current_executable_world_model(schema_policy, model_policy)?;
 
+        // An empirically induced relative rule must outrank a memorized
+        // literal effect on an unseen source. The legacy model otherwise
+        // predicts stale constants (R3E-B) despite genuine role evidence.
+        if let Some(learned) = self.current_relational_transfer(state, transformation) {
+            return athlesia_universal_domain_learning::GroundedStructuralPrediction::
+                from_relational_transfer(transformation, &learned);
+        }
+
+        let model = self.current_executable_world_model(schema_policy, model_policy)?;
         Some(model.predict(state, transformation))
     }
 
@@ -13178,7 +13214,13 @@ impl OnlinePersistentCognitiveState {
     ) -> Option<StructuralPredictionEmpiricalAuthority> {
         use athlesia_universal_domain_learning::TransitionEffectKind;
 
-        if !prediction.predicted() {
+        // A relational prediction may NOT borrow confidence from a partially
+        // overlapping literal schema. Only state-bound recomputation below
+        // can authorize it. This public legacy helper fails closed.
+        if !prediction.predicted()
+            || prediction.origin()
+                != athlesia_universal_domain_learning::GroundedStructuralPredictionOrigin::LiteralSchema
+        {
             return None;
         }
 
@@ -13243,11 +13285,40 @@ impl OnlinePersistentCognitiveState {
         let prediction =
             self.current_structural_prediction(state, transformation, schema_policy, model_policy)?;
 
-        let authority = self.empirical_authority_for_structural_prediction(
-            &prediction,
-            schema_policy,
-            model_policy,
-        )?;
+        let authority = match prediction.origin() {
+            athlesia_universal_domain_learning::GroundedStructuralPredictionOrigin::LiteralSchema =>
+                self.empirical_authority_for_structural_prediction(
+                    &prediction,
+                    schema_policy,
+                    model_policy,
+                )?,
+            athlesia_universal_domain_learning::GroundedStructuralPredictionOrigin::RelationalTransfer => {
+                // Never trust provenance metadata on its own. Re-derive the
+                // entire effect from M51-retained episodes and exact grounding.
+                let learned = self.current_relational_transfer(state, transformation)?;
+                if prediction.transformation() != transformation
+                    || prediction.additions() != learned.additions()
+                    || prediction.removals() != learned.removals()
+                {
+                    return None;
+                }
+                let evidence_confidence = CognitiveSignal::new(
+                    learned.minimum_precision_per_mille(),
+                )?;
+                let controllability = CognitiveSignal::new(
+                    learned.minimum_association_lift_per_mille(),
+                )?;
+                if evidence_confidence == CognitiveSignal::zero()
+                    || controllability == CognitiveSignal::zero()
+                {
+                    return None;
+                }
+                StructuralPredictionEmpiricalAuthority {
+                    evidence_confidence,
+                    controllability,
+                }
+            }
+        };
 
         Some(EmpiricallyAuthorizedStructuralPrediction {
             prediction,
