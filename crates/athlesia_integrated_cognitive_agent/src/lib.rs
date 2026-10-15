@@ -4,6 +4,8 @@ use athlesia_mindstone_sparse_cognition::{CognitiveSignal, CognitiveStructure};
 pub mod cross_domain_causal_core;
 /// Seeded adversarial challenge generator for the browser-facing demo.
 pub mod fresh_world_challenge;
+/// Stateful API for driving the challenge from a UI or WASM host.
+pub mod fresh_world_session;
 #[cfg(test)]
 mod cross_domain_relational_bridge_tests;
 
