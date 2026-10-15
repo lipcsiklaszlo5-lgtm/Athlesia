@@ -32,6 +32,24 @@
         <p id="status" class="status">Loading the Rust/WASM kernel…</p>
       </section>
 
+      <section class="panel custom-panel">
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow">BRING YOUR OWN MECHANISM</p>
+            <h2>Give the kernel a world you invented</h2>
+          </div>
+          <button id="runCustom" class="button button-violet" disabled>RUN CUSTOM HOLDOUT</button>
+        </div>
+        <p class="custom-help">
+          Edit the JSON, then run it. If no guard is supplied, the local
+          environment derives one from the seed and structural type tags. The
+          guard is used only to answer probes; it is not passed into the causal
+          learner. Invalid, ambiguous or mismatched worlds must return
+          <code>ABSTAIN</code>/<code>REFUSED</code>, never a fake success.
+        </p>
+        <textarea id="customSpec" spellcheck="false" aria-label="Custom mechanism JSON"></textarea>
+      </section>
+
       <section class="kpis">
         <article class="kpi panel"><span>PHASE</span><strong id="phase">—</strong></article>
         <article class="kpi panel"><span>SEED</span><strong id="seed">—</strong></article>
@@ -75,7 +93,8 @@
 
       <footer class="footer">
         No model API · no network call · no pre-recorded success flag.<br />
-        This is a bounded, reproducible causal-revision fixture—not a claim of general AGI.
+        Generated and custom challenges are bounded, reproducible causal-revision
+        tests—not a claim of general AGI.
       </footer>
     </main>
     <script type="module" src="./app.js"></script>

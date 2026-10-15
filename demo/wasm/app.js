@@ -1,10 +1,64 @@
-import init, { WasmFreshWorldSession } from "./pkg/athlesia_causal_wasm.js";
+import init, { WasmFreshWorldSession, run_custom_challenge_json } from "./pkg/athlesia_causal_wasm.js";
 
 const $ = (id) => document.getElementById(id);
 const STORAGE_KEY = "athlesia.fresh-world.session.v1";
 let session = null;
 let latestJsonl = "";
 let lastCallMs = 0;
+
+const DEFAULT_CUSTOM_SPEC = {
+  name: "hydraulic clamp / user supplied mechanism",
+  seed: 42,
+  source: {
+    action: "press",
+    effect: "open",
+    nodes: [
+      { id: "press", kind: "operation", type_tag: 10 },
+      { id: "pressure", kind: "state_field", type_tag: 11 },
+      { id: "latch", kind: "state_field", type_tag: 12 },
+      { id: "open", kind: "state_field", type_tag: 13 },
+    ],
+    edges: [
+      { from: "press", to: "pressure", kind: "requires" },
+      { from: "press", to: "latch", kind: "requires" },
+      { from: "press", to: "open", kind: "writes" },
+    ],
+  },
+  source_examples: [1, 2, 3].map(() => ({
+    before: { pressure: true, latch: true, open: false },
+    after: { pressure: true, latch: true, open: true },
+  })),
+  target: {
+    action: "fire_grip",
+    effect: "jaws_closed",
+    nodes: [
+      { id: "fire_grip", kind: "operation", type_tag: 10 },
+      { id: "hydraulic_ok", kind: "state_field", type_tag: 11 },
+      { id: "safety_pin", kind: "state_field", type_tag: 12 },
+      { id: "jaws_closed", kind: "state_field", type_tag: 13 },
+    ],
+    edges: [
+      { from: "fire_grip", to: "hydraulic_ok", kind: "requires" },
+      { from: "fire_grip", to: "safety_pin", kind: "requires" },
+      { from: "fire_grip", to: "jaws_closed", kind: "writes" },
+    ],
+  },
+  holdout: {
+    action: "engage",
+    effect: "locked",
+    nodes: [
+      { id: "engage", kind: "operation", type_tag: 10 },
+      { id: "line_live", kind: "state_field", type_tag: 11 },
+      { id: "interlock_clear", kind: "state_field", type_tag: 12 },
+      { id: "locked", kind: "state_field", type_tag: 13 },
+    ],
+    edges: [
+      { from: "engage", to: "line_live", kind: "requires" },
+      { from: "engage", to: "interlock_clear", kind: "requires" },
+      { from: "engage", to: "locked", kind: "writes" },
+    ],
+  },
+};
 
 function recordsFrom(jsonl) {
   return jsonl.trim().split(/\n+/).filter(Boolean).map((line) => JSON.parse(line));
@@ -111,13 +165,14 @@ function render(jsonl, callMs) {
   latestJsonl = jsonl;
   const records = recordsFrom(jsonl);
   const world = recordOf(records, "fresh_world");
+  const custom = recordOf(records, "custom_challenge");
   const summary = latestSummary(records);
   const stages = records.filter((record) => record.record === "stage");
   const graphs = records.filter((record) => record.record === "graph");
   const tokens = recordOf(records, "tokens");
 
-  $("phase").textContent = world?.phase || session?.phase() || "—";
-  $("seed").textContent = world?.seed ?? session?.seed() ?? "—";
+  $("phase").textContent = world?.phase || summary?.status || session?.phase() || "—";
+  $("seed").textContent = world?.seed ?? custom?.seed ?? session?.seed() ?? "—";
   $("latency").textContent = `${callMs.toFixed(2)} ms`;
   $("digest").textContent = summary?.report_digest ? String(summary.report_digest) : "pending";
 
@@ -125,7 +180,13 @@ function render(jsonl, callMs) {
   const tokenCards = tokens ? Object.entries(tokens).map(([worldName, values]) => {
     const items = Object.entries(values).map(([role, token]) => `<code>${escapeHtml(role)}: ${escapeHtml(token)}</code>`).join("");
     return `<div class="world-card"><h3>${escapeHtml(worldName.toUpperCase())}</h3>${items}</div>`;
-  }).join("") : "<div class=\"empty\">Token records appear after generation.</div>";
+  }).join("") : custom ? `
+    <div class="world-card"><h3>USER MECHANISM</h3>
+      <code>name: ${escapeHtml(custom.name)}</code>
+      <code>source graph: ${escapeHtml(custom.source_graph_digest)}</code>
+      <code>target graph: ${escapeHtml(custom.target_graph_digest)}</code>
+      <code>holdout graph: ${escapeHtml(custom.holdout_graph_digest)}</code>
+    </div>` : "<div class=\"empty\">Token records appear after generation.</div>";
   $("worlds").innerHTML = tokenCards;
 
   $("timeline").classList.remove("empty");
@@ -197,6 +258,16 @@ $("transfer").addEventListener("click", () => {
   }
 });
 
+$("runCustom").addEventListener("click", () => {
+  try {
+    const input = $("customSpec").value;
+    JSON.parse(input);
+    run("Custom mechanism", () => run_custom_challenge_json(input));
+  } catch (error) {
+    setStatus(`Custom mechanism rejected before execution: ${error}`, true);
+  }
+});
+
 $("download").addEventListener("click", () => {
   const blob = new Blob([latestJsonl], { type: "application/jsonl" });
   const url = URL.createObjectURL(blob);
@@ -210,6 +281,8 @@ $("download").addEventListener("click", () => {
 try {
   await init();
   $("generate").disabled = false;
+  $("runCustom").disabled = false;
+  $("customSpec").value = JSON.stringify(DEFAULT_CUSTOM_SPEC, null, 2);
   if (!restoreSession()) setStatus("Rust/WASM kernel loaded. Generate a fresh world to begin.");
 } catch (error) {
   setStatus(`WASM load failed: ${error}`, true);

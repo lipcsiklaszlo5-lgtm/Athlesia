@@ -6,6 +6,8 @@ pub mod cross_domain_causal_core;
 pub mod fresh_world_challenge;
 /// Stateful API for driving the challenge from a UI or WASM host.
 pub mod fresh_world_session;
+/// User-supplied bounded mechanism challenge and fail-closed verifier.
+pub mod custom_mechanism;
 #[cfg(test)]
 mod cross_domain_relational_bridge_tests;
 
