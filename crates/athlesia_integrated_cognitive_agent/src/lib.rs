@@ -2,6 +2,8 @@ use athlesia_mindstone_sparse_cognition::{CognitiveSignal, CognitiveStructure};
 
 /// Opt-in, bounded goal-directed action learning; independent of the demo UI.
 pub mod autonomous_causal_agent;
+/// Context-indexed epochs for non-destructive online rule revision.
+pub mod contextual_causal_agent;
 
 /// First bounded integration boundary for the cross-domain causal core.
 pub mod cross_domain_causal_core;

@@ -1,4 +1,4 @@
-# Autonomous causal agent — bounded milestones A1/A2
+# Autonomous causal agent — bounded milestones A1/A2/A3
 
 This is not an implementation of general human intuition. It is an opt-in,
 goal-directed learning loop built from the repository's existing `State`,
@@ -11,6 +11,12 @@ The demo/session previously drove a prescribed learn/transfer/sabotage/probe
 sequence. This agent receives a visible graph, an observation, a goal and a
 sandbox-approved action catalogue. It chooses its own next action. It has no
 environment handle, no state setter, no hidden rule and no slot-order input.
+
+The A3 wrapper adds a second, deliberately explicit boundary: the host may
+provide an opaque `ContextId` at an episode boundary. The kernel may compare
+that token for equality, but it cannot assign it semantic meaning. Each token
+retains its own model epochs, so a complete out-of-class observation opens a
+new epoch while preserving the old one for audit and replay.
 
 1. Generate a **complete, bounded** hypothesis language for each action.
 2. Search consensus transitions for a route to the observed-state goal.
@@ -55,8 +61,9 @@ search, not a zero-search architecture or an unbounded brute-force solver.
   temporal mechanism epochs remain outside the current language.
 - A true law change contradicting retained same-state/same-action outcomes is
   reported as model insufficiency. Temporal context discovery and separate
-  learned mechanism epochs are the NEXT milestone, not silently implemented by
-  deleting history. A changed state exposing a previously hidden guard is
+  learned mechanism epochs are exposed by the opt-in A3 `ContextualCausalAgent`.
+  It still requires an observed context token and does not infer arbitrary
+  hidden context. A changed state exposing a previously hidden guard is
   different from changing the transition law itself.
 
 ## Persistence and evidence limits
@@ -78,6 +85,7 @@ Run from the repo root:
 bash tools/verify_autonomous_causal_agent.sh 128
 # Explicit A2 two-effect benchmark (the default remains A1-compatible):
 bash tools/verify_autonomous_causal_agent.sh 128 --multi-effects
+bash tools/verify_contextual_causal_agent.sh 128
 ```
 
 The named integration target includes cold goal solving, warm restart,
@@ -95,6 +103,11 @@ The benchmark reports actual actions for cold, restored and transferred runs.
 It measures wall intervals separately from whole-child CPU and RSS, and pins
 the native binary to one allowed CPU. No fixed latency or fabricated memory
 values, and no animation delay is included in the claimed kernel timing.
+
+The A3 verifier reports first-episode solving, epoch revisions after same-state
+law drift, and reuse of the revised epoch. Its benchmark scope is intentionally
+bounded: one opaque context token, deterministic Boolean transitions and a
+host-controlled sandbox.
 
 ## Existing matcher fix
 
