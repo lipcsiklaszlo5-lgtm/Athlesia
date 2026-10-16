@@ -1,5 +1,8 @@
 use athlesia_mindstone_sparse_cognition::{CognitiveSignal, CognitiveStructure};
 
+/// Opt-in, bounded goal-directed action learning; independent of the demo UI.
+pub mod autonomous_causal_agent;
+
 /// First bounded integration boundary for the cross-domain causal core.
 pub mod cross_domain_causal_core;
 #[cfg(test)]
@@ -12,6 +15,8 @@ pub mod fresh_world_challenge;
 pub mod fresh_world_session;
 /// Solver/environment boundary that exposes only opaque interaction traces.
 pub mod opaque_action_port;
+/// Multi-action robot-workshop vertical slice over the causal kernel.
+pub mod robot_workshop;
 
 #[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub enum IntegratedCognitiveLayer {

@@ -273,7 +273,9 @@ impl CanonicalCausalGraph {
             &mut used,
             &mut solutions,
         );
-        if states >= budget.max_search_states && solutions.is_empty() {
+        // One solution is not proof of uniqueness if the remaining search was
+        // cut off. Two solutions already prove ambiguity; otherwise abstain.
+        if states >= budget.max_search_states && solutions.len() < 2 {
             return MappingVerdict::ResourceLimit { visited_states: states };
         }
         match solutions.len() {
