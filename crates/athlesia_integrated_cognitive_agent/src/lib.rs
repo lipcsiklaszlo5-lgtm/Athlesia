@@ -4,6 +4,8 @@ use athlesia_mindstone_sparse_cognition::{CognitiveSignal, CognitiveStructure};
 pub mod autonomous_causal_agent;
 /// Context-indexed epochs for non-destructive online rule revision.
 pub mod contextual_causal_agent;
+/// Bounded discovery of observable context projections from transition traces.
+pub mod discovered_context_causal_agent;
 
 /// First bounded integration boundary for the cross-domain causal core.
 pub mod cross_domain_causal_core;

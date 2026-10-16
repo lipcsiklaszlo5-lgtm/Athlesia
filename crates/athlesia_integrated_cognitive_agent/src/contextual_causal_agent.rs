@@ -16,7 +16,7 @@ use super::autonomous_causal_agent::{
     AbstainReason, ActionProposal, AgentBounds, AgentDecision, AgentError, AgentObservation,
     AgentTask, AutonomousCausalAgent, EvidenceVerdict,
 };
-use super::cross_domain_causal_core::Literal;
+use super::cross_domain_causal_core::{Literal, TransitionExample};
 
 /// Opaque context supplied by the host at episode boundaries.
 ///
@@ -194,6 +194,112 @@ impl ContextualCausalAgent {
             .flat_map(|memory| memory.epochs.iter())
             .map(|epoch| epoch.agent.evidence_count())
             .sum()
+    }
+
+    /// Ingest one complete, externally observed transition without issuing a
+    /// command. This is the replay/trace ingestion path used by the discovery
+    /// layer; it never treats the transition as a trusted rule.
+    pub(crate) fn learn_trace(
+        &mut self,
+        context: ContextId,
+        initial: AgentObservation,
+        goal: Vec<Literal>,
+        example: TransitionExample,
+    ) -> Result<ContextualVerdict, ContextualError> {
+        if self.pending.is_some() {
+            return Err(ContextualError::CommandPending);
+        }
+        if !self.contexts.contains_key(&context) {
+            let mut task = self.task_template.clone();
+            task.goal = goal.clone();
+            let agent = AutonomousCausalAgent::new(task, initial, self.bounds)?;
+            self.contexts.insert(
+                context,
+                ContextMemory {
+                    goal: goal.clone(),
+                    epochs: vec![ContextEpoch { number: 0, agent }],
+                },
+            );
+        }
+        let memory = self
+            .contexts
+            .get_mut(&context)
+            .ok_or(ContextualError::NoActiveContext)?;
+        memory.goal = goal;
+        let epoch = memory.epochs.last_mut().expect("context has an epoch");
+        let verdict = epoch.agent.learn_trace(example)?;
+        self.active_context = Some(context);
+        Ok(match verdict {
+            EvidenceVerdict::Consistent => ContextualVerdict::Consistent,
+            EvidenceVerdict::ContradictionAndLocalRevision => {
+                ContextualVerdict::ContradictionAndLocalRevision
+            }
+            EvidenceVerdict::TransferFalsified => ContextualVerdict::TransferFalsified,
+            EvidenceVerdict::OutOfModelClass => ContextualVerdict::OutOfModelClass,
+        })
+    }
+
+    /// Rebuild a context-indexed memory from independently validated traces.
+    ///
+    /// This is crate-private on purpose: callers must not be able to inject a
+    /// claimed model. The observable-context layer uses it only after replaying
+    /// every transition through the same bounded learner. The active context
+    /// may start from a current observation so discovery can continue in the
+    /// episode in which the counterexample was observed.
+    pub(crate) fn from_partitioned_traces(
+        task_template: AgentTask,
+        bounds: AgentBounds,
+        partitions: BTreeMap<ContextId, Vec<TransitionExample>>,
+        goal: Vec<Literal>,
+        active: Option<(ContextId, AgentObservation)>,
+    ) -> Result<Self, ContextualError> {
+        if partitions.is_empty() {
+            return Err(ContextualError::Agent(AgentError::InvalidTask(
+                "empty context partition",
+            )));
+        }
+        let active_context = active.as_ref().map(|(context, _)| *context);
+        let mut contexts = BTreeMap::new();
+        for (context, examples) in partitions {
+            let first = examples
+                .first()
+                .ok_or(ContextualError::Agent(AgentError::InvalidTask(
+                    "empty context partition",
+                )))?;
+            let initial = active
+                .as_ref()
+                .filter(|(active_id, _)| *active_id == context)
+                .map(|(_, observation)| observation.clone())
+                .unwrap_or_else(|| AgentObservation {
+                    episode: first.episode,
+                    sequence: 0,
+                    state: first.before.clone(),
+                });
+            let mut task = task_template.clone();
+            task.goal = goal.clone();
+            let mut agent = AutonomousCausalAgent::new(task, initial, bounds)?;
+            for example in examples {
+                if agent.learn_trace(example)? == EvidenceVerdict::OutOfModelClass {
+                    return Err(ContextualError::Agent(AgentError::InvalidTask(
+                        "context partition is outside hypothesis class",
+                    )));
+                }
+            }
+            contexts.insert(
+                context,
+                ContextMemory {
+                    goal: goal.clone(),
+                    epochs: vec![ContextEpoch { number: 0, agent }],
+                },
+            );
+        }
+        Ok(Self {
+            task_template,
+            bounds,
+            contexts,
+            active_context,
+            pending: None,
+        })
     }
 
     pub fn decide(&mut self) -> Result<ContextualDecision, ContextualError> {
