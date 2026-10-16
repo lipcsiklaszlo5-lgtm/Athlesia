@@ -86,6 +86,18 @@ impl World {
         }
     }
 
+    /// A2 fixture: the first action changes the causal field and an otherwise
+    /// irrelevant distractor field in the same transition. The solver receives
+    /// neither this constructor nor the hidden law.
+    pub fn multi_effect(seed: u64, distractor_value: bool) -> Self {
+        let mut world = Self::new(seed);
+        world.laws[0].effects = vec![
+            Literal::new(world.fields[0], true),
+            Literal::new(world.fields[3], distractor_value),
+        ];
+        world
+    }
+
     /// 64 distinct stationary mechanisms: signed effects, signed guards,
     /// optional two-literal guards and an irrelevant fourth fluent.
     pub fn variable(tokens_seed: u64, mechanism: u64) -> Self {

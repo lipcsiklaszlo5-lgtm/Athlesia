@@ -8,13 +8,28 @@ use agent_world::{run, World};
 
 fn main() -> Result<(), String> {
     let args: Vec<_> = std::env::args().collect();
-    let cases = match args.as_slice() {
-        [_] => 128,
-        [_, flag, count] if flag == "--cases" => {
-            count.parse::<usize>().map_err(|_| "invalid case count")?
+    let mut cases = 128;
+    let mut multi_effects = false;
+    let mut index = 1;
+    while index < args.len() {
+        match args[index].as_str() {
+            "--cases" => {
+                index += 1;
+                let Some(value) = args.get(index) else {
+                    return Err("missing case count".to_owned());
+                };
+                cases = value.parse::<usize>().map_err(|_| "invalid case count")?;
+            }
+            "--multi-effects" => multi_effects = true,
+            _ => {
+                return Err(
+                    "usage: autonomous_causal_bench [--cases 1..=10000] [--multi-effects]"
+                        .to_owned(),
+                )
+            }
         }
-        _ => return Err("usage: autonomous_causal_bench [--cases 1..=10000]".to_owned()),
-    };
+        index += 1;
+    }
     if !(1..=10000).contains(&cases) {
         return Err("case bound must be 1..=10000".to_owned());
     }
@@ -24,13 +39,25 @@ fn main() -> Result<(), String> {
     let mut improved = 0;
     let mut max_memory = 0;
     let mut walls = Vec::new();
+    let bounds = if multi_effects {
+        AgentBounds {
+            max_effects_per_action: 2,
+            max_hypotheses_per_action: 1024,
+            ..AgentBounds::default()
+        }
+    } else {
+        AgentBounds::default()
+    };
     for case in 0..cases {
         let start = Instant::now();
         let mechanism = (case % 64) as u64;
-        let mut world = World::variable(5000 + case as u64, mechanism);
-        let mut agent =
-            AutonomousCausalAgent::new(world.task(), world.observation(), AgentBounds::default())
-                .map_err(|e| format!("new: {e:?}"))?;
+        let mut world = if multi_effects {
+            World::multi_effect(5000 + case as u64, case % 2 == 0)
+        } else {
+            World::variable(5000 + case as u64, mechanism)
+        };
+        let mut agent = AutonomousCausalAgent::new(world.task(), world.observation(), bounds)
+            .map_err(|e| format!("new: {e:?}"))?;
         let (cold, cold_steps, _) = run(&mut agent, &mut world);
         if !cold {
             return Err(format!("cold failed in case {case}"));
@@ -40,20 +67,20 @@ fn main() -> Result<(), String> {
             .map_err(|e| format!("memory: {e:?}"))?;
         max_memory = max_memory.max(memory.len());
         world.reset();
-        let mut warm = AutonomousCausalAgent::restore(
-            world.task(),
-            world.observation(),
-            AgentBounds::default(),
-            &memory,
-        )
-        .map_err(|e| format!("restore: {e:?}"))?;
+        let mut warm =
+            AutonomousCausalAgent::restore(world.task(), world.observation(), bounds, &memory)
+                .map_err(|e| format!("restore: {e:?}"))?;
         let (solved, warm_steps, _) = run(&mut warm, &mut world);
         if !solved {
             return Err(format!("warm failed in case {case}"));
         }
         // Use only autonomously collected experience for this transfer.
         // The exact-source truth-table test is a separate, explicitly labelled test.
-        let mut unknown = World::variable(25000 + case as u64, mechanism);
+        let mut unknown = if multi_effects {
+            World::multi_effect(25000 + case as u64, case % 2 == 0)
+        } else {
+            World::variable(25000 + case as u64, mechanism)
+        };
         let mut target = warm
             .transfer_to(unknown.task(), unknown.observation())
             .map_err(|e| format!("transfer: {e:?}"))?;
@@ -85,12 +112,14 @@ fn main() -> Result<(), String> {
     println!(
         "{}",
         serde_json::json!({"record":"benchmark", "cases":cases,
-        "stationary_mechanism_classes":cases.min(64), "cold_solved":cases, "warm_solved":cases,
+        "stationary_mechanism_classes": if multi_effects { 2 } else { cases.min(64) },
+        "cold_solved":cases, "warm_solved":cases,
         "transfer_solved":cases, "cold_action_total":cold_total, "warm_action_total":warm_total,
         "transfer_action_total":transfer_total, "strict_warm_improvement_cases":improved,
         "max_serialized_local_evidence_bytes":max_memory,
         "whole_case_wall_ns_p50":percentile(50), "whole_case_wall_ns_p95":percentile(95),
-        "scope":"4 complete Boolean fluents; 3 opaque actions; signed 0..2-guard, single-assignment laws; typed isomorphic transfer",
+        "scope": if multi_effects { "A2: 4 complete Boolean fluents; 3 opaque actions; bounded two-effect laws; typed isomorphic transfer" } else { "A1: 4 complete Boolean fluents; 3 opaque actions; signed 0..2-guard, single-assignment laws; typed isomorphic transfer" },
+        "multi_effects":multi_effects,
         "human_intuition_claim":false, "physical_robot_tested":false, "neural_weights":0})
     );
     Ok(())

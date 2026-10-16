@@ -4,10 +4,12 @@
 //! a host-approved sandbox action catalogue. No environment, mechanism,
 //! intervention setter, slot order or hidden guard crosses this interface.
 //!
-//! Hypothesis language: identity, or one constant Boolean assignment guarded
-//! by a conjunction of at most two signed, distinct, non-effect fluents.
-//! This is an explicit inductive bias, NOT human intuition or universal AI.
-//! All predictions remain relative to that language and the observed scope.
+//! Hypothesis language: identity, or up to a bounded number of constant
+//! Boolean assignments guarded by a conjunction of at most two signed,
+//! distinct, non-effect fluents. The default remains the one-effect A1
+//! grammar; callers can opt into two-effect hypotheses explicitly. This is an
+//! explicit inductive bias, NOT human intuition or universal AI. All
+//! predictions remain relative to that language and the observed scope.
 
 use std::collections::{BTreeMap, BTreeSet, VecDeque};
 
@@ -22,6 +24,9 @@ use super::cross_domain_causal_core::{
 pub struct AgentBounds {
     pub max_fluents: usize,
     pub max_actions: usize,
+    /// Maximum number of state fields one action may change in the grammar.
+    /// A1 defaults to one; A2 permits two as an explicit bounded extension.
+    pub max_effects_per_action: usize,
     pub max_hypotheses_per_action: usize,
     pub max_evidence: usize,
     pub max_events: usize,
@@ -38,6 +43,7 @@ impl Default for AgentBounds {
         Self {
             max_fluents: 8,
             max_actions: 16,
+            max_effects_per_action: 1,
             max_hypotheses_per_action: 2048,
             max_evidence: 512,
             max_events: 2048,
@@ -207,21 +213,46 @@ fn satisfied(state: &State, goal: &[Literal]) -> bool {
         .all(|lit| state.get(lit.role) == Some(lit.value))
 }
 
-fn grammar(action: ActionId, roles: &[TokenId], cap: usize) -> Result<Vec<ActionRule>, AgentError> {
-    let mut result = vec![ActionRule {
-        action,
-        guards: Vec::new(),
-        effects: Vec::new(),
-    }];
-    for effect in roles
-        .iter()
-        .flat_map(|r| [Literal::new(*r, false), Literal::new(*r, true)])
-    {
-        let guards: Vec<_> = roles
-            .iter()
-            .filter(|r| **r != effect.role)
-            .flat_map(|r| [Literal::new(*r, false), Literal::new(*r, true)])
-            .collect();
+fn enumerate_effect_sets(
+    roles: &[TokenId],
+    start: usize,
+    remaining: usize,
+    chosen: &mut Vec<Literal>,
+    result: &mut Vec<Vec<Literal>>,
+) {
+    if remaining == 0 {
+        result.push(chosen.clone());
+        return;
+    }
+    if roles.len().saturating_sub(start) < remaining {
+        return;
+    }
+    let last = roles.len() - remaining;
+    for index in start..=last {
+        for value in [false, true] {
+            chosen.push(Literal::new(roles[index], value));
+            enumerate_effect_sets(roles, index + 1, remaining - 1, chosen, result);
+            chosen.pop();
+        }
+    }
+}
+
+fn effect_sets(roles: &[TokenId], max_effects: usize) -> Vec<Vec<Literal>> {
+    let mut result = vec![Vec::new()];
+    for size in 1..=max_effects.min(roles.len()) {
+        enumerate_effect_sets(roles, 0, size, &mut Vec::new(), &mut result);
+    }
+    result
+}
+
+fn grammar(
+    action: ActionId,
+    roles: &[TokenId],
+    max_effects: usize,
+    cap: usize,
+) -> Result<Vec<ActionRule>, AgentError> {
+    let mut result = Vec::new();
+    for effects in effect_sets(roles, max_effects) {
         let mut insert = |condition: Vec<Literal>| -> Result<(), AgentError> {
             if result.len() >= cap {
                 return Err(AgentError::InvalidTask("hypothesis bound exceeded"));
@@ -229,24 +260,44 @@ fn grammar(action: ActionId, roles: &[TokenId], cap: usize) -> Result<Vec<Action
             result.push(ActionRule {
                 action,
                 guards: condition,
-                effects: vec![effect],
+                effects: effects.clone(),
             });
             Ok(())
         };
-        insert(vec![])?;
+
+        // Guards on a no-op are observationally irrelevant. Keeping one
+        // identity rule avoids a large duplicate family and preserves the
+        // original A1 grammar exactly.
+        if effects.is_empty() {
+            insert(Vec::new())?;
+            continue;
+        }
+
+        insert(Vec::new())?;
+        let effect_roles: BTreeSet<_> = effects.iter().map(|literal| literal.role).collect();
+        let guards: Vec<_> = roles
+            .iter()
+            .filter(|role| !effect_roles.contains(role))
+            .flat_map(|role| [Literal::new(*role, false), Literal::new(*role, true)])
+            .collect();
         for (i, first) in guards.iter().enumerate() {
             insert(vec![*first])?;
             for second in guards
                 .iter()
                 .skip(i + 1)
-                .filter(|lit| lit.role != first.role)
+                .filter(|literal| literal.role != first.role)
             {
                 insert(vec![*first, *second])?;
             }
         }
     }
     result.sort_by(|a, b| {
-        (a.guards.len(), &a.guards, &a.effects).cmp(&(b.guards.len(), &b.guards, &b.effects))
+        (a.guards.len(), a.effects.len(), &a.guards, &a.effects).cmp(&(
+            b.guards.len(),
+            b.effects.len(),
+            &b.guards,
+            &b.effects,
+        ))
     });
     Ok(result)
 }
@@ -306,6 +357,8 @@ impl AutonomousCausalAgent {
             || bounds.max_fluents > 8
             || bounds.max_actions == 0
             || bounds.max_actions > 16
+            || bounds.max_effects_per_action == 0
+            || bounds.max_effects_per_action > 2
             || bounds.max_evidence == 0
             || bounds.max_evidence > 4096
             || bounds.max_events == 0
@@ -372,7 +425,12 @@ impl AutonomousCausalAgent {
             beliefs.insert(
                 action.id,
                 ActionBelief {
-                    candidates: grammar(action.id, &fluents, bounds.max_hypotheses_per_action)?,
+                    candidates: grammar(
+                        action.id,
+                        &fluents,
+                        bounds.max_effects_per_action,
+                        bounds.max_hypotheses_per_action,
+                    )?,
                     priors: Vec::new(),
                     evidence: Vec::new(),
                     epoch: 0,
@@ -842,7 +900,7 @@ impl AutonomousCausalAgent {
         }
         let memory = MemoryFile {
             version: 1,
-            layout: layout(&self.task),
+            layout: layout(&self.task, self.bounds.max_effects_per_action),
             evidence: self
                 .beliefs
                 .values()
@@ -870,7 +928,7 @@ impl AutonomousCausalAgent {
             serde_json::from_str(json).map_err(|_| AgentError::InvalidSnapshot)?;
         let mut agent = Self::new(task, initial, bounds)?;
         if memory.version != 1
-            || memory.layout != layout(&agent.task)
+            || memory.layout != layout(&agent.task, agent.bounds.max_effects_per_action)
             || memory.evidence.len() > bounds.max_evidence
         {
             return Err(AgentError::InvalidSnapshot);
@@ -943,9 +1001,17 @@ struct VisibleLayout {
     nodes: Vec<(u32, u8, u64)>,
     edges: Vec<(u32, u32, u8)>,
     actions: Vec<ActionId>,
+    /// The grammar is part of the memory contract. Old A1 snapshots omitted
+    /// this field and are interpreted as the default one-effect grammar.
+    #[serde(default = "default_effect_bound")]
+    max_effects_per_action: usize,
 }
 
-fn layout(task: &AgentTask) -> VisibleLayout {
+fn default_effect_bound() -> usize {
+    1
+}
+
+fn layout(task: &AgentTask, max_effects_per_action: usize) -> VisibleLayout {
     use super::cross_domain_causal_core::EdgeKind;
     let nodes = task
         .graph
@@ -990,6 +1056,7 @@ fn layout(task: &AgentTask) -> VisibleLayout {
         nodes,
         edges,
         actions: task.actions.iter().map(|a| a.id).collect(),
+        max_effects_per_action,
     }
 }
 

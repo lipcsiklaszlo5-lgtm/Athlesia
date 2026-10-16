@@ -1,4 +1,4 @@
-# Autonomous causal agent — bounded milestone A1
+# Autonomous causal agent — bounded milestones A1/A2
 
 This is not an implementation of general human intuition. It is an opt-in,
 goal-directed learning loop built from the repository's existing `State`,
@@ -35,8 +35,11 @@ search, not a zero-search architecture or an unbounded brute-force solver.
 
 - At most 8 complete Boolean state fields and 16 opaque, discrete actions.
 - At most 32 visible graph nodes and 96 directed typed edges.
-- An action is identity, or one constant Boolean assignment, with 0..2 signed
-  guard literals on distinct, non-effect fields. Missing fields are rejected.
+- An action is identity, or a bounded set of constant Boolean assignments, with
+  0..2 signed guard literals on distinct, non-effect fields. A1 uses one effect
+  by default. A2 can opt into two simultaneous effects through
+  `AgentBounds::max_effects_per_action = 2`; the bound is explicit and the
+  complete generated grammar must fit the hypothesis cap.
 - Maximum 2048 candidates per action by default. Truncating this language is an
   error, not an excuse to claim identification over a partially searched set.
 - Observation, evidence, event, planning, matching and work budgets are explicit.
@@ -46,8 +49,10 @@ search, not a zero-search architecture or an unbounded brute-force solver.
   structural type tags. Arbitrary symbol meaning is NOT inferred from nothing.
 - Full observation consistency is checked; perceptual grounding from pixels,
   partial observability, stochasticity and delayed effects are not solved here.
-- The hypothesis class does not express XOR, arbitrary OR, numeric dynamics,
-  multiple simultaneous effects or time-dependent mechanisms.
+- The hypothesis class does not express XOR, arbitrary OR, numeric dynamics or
+  time-dependent mechanisms. Two simultaneous constant effects are now
+  supported only in the explicit A2 bound; conditional effect branches and
+  temporal mechanism epochs remain outside the current language.
 - A true law change contradicting retained same-state/same-action outcomes is
   reported as model insufficiency. Temporal context discovery and separate
   learned mechanism epochs are the NEXT milestone, not silently implemented by
@@ -58,6 +63,8 @@ search, not a zero-search architecture or an unbounded brute-force solver.
 
 `export_memory` stores visible layout and complete empirical transitions.
 `restore` requires the matching layout and re-filters the entire grammar. It
+also records the effect-grammar bound, so an A1 memory cannot silently be
+replayed under A2 (and old snapshots without that field default to A1). It
 does not claim cryptographic evidence authenticity or snapshot all transient
 execution state, analogy priors, telemetry and event chronology. A caller must
 provide the factual provenance of tutorial/trace data. Limits stop learning
@@ -69,12 +76,14 @@ Run from the repo root:
 
 ```bash
 bash tools/verify_autonomous_causal_agent.sh 128
+# Explicit A2 two-effect benchmark (the default remains A1-compatible):
+bash tools/verify_autonomous_causal_agent.sh 128 --multi-effects
 ```
 
 The named integration target includes cold goal solving, warm restart,
 retained negative experience, signed/two-guard mechanisms, transfer, false
 analogy, wrong commands, stale/cross-episode observations, partial frames,
-XOR/multi-effect out-of-language cases and allocation/work/search limits.
+XOR and bounded multi-effect cases, plus allocation/work/search limits.
 
 The fuzz family has 64 mechanism classes with different signs/guards and
 multiple opaque relabellings. That is **not 128 arbitrary domains**. One transfer
@@ -100,6 +109,7 @@ test uses two symmetric nodes and a budget expiring at the first full map.
    failures as well as successes.
 2. Expand the model language with explicit coverage tests and computational
    budgets (OR/XOR/conditional effects), not hand-coded solutions per level.
+   The current A2 two-effect extension is the first such bounded step.
 3. Temporal context/epoch learning for genuine mechanism changes. Preserve
    both old and new evidence under their contexts, test correct retrieval.
 4. Remove stable role tags in held-out cases; handle symmetries by experiments

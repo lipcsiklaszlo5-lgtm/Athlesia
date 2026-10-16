@@ -21,6 +21,11 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--binary", required=True, type=Path)
     parser.add_argument("--cases", type=int, default=128)
+    parser.add_argument(
+        "--multi-effects",
+        action="store_true",
+        help="run the explicit A2 two-effect grammar instead of the A1 default",
+    )
     parser.add_argument("--output", required=True, type=Path)
     args = parser.parse_args()
     if not 1 <= args.cases <= 10000:
@@ -36,8 +41,11 @@ def main() -> None:
     # This fresh Python process starts exactly one child. RUSAGE_CHILDREN's
     # maximum therefore belongs to that binary, never to a previous cargo run.
     start = time.perf_counter_ns()
+    command = [str(binary), "--cases", str(args.cases)]
+    if args.multi_effects:
+        command.append("--multi-effects")
     result = subprocess.run(
-        [str(binary), "--cases", str(args.cases)],
+        command,
         text=True, capture_output=True, check=True, timeout=120,
     )
     wall_ms = (time.perf_counter_ns() - start) / 1_000_000

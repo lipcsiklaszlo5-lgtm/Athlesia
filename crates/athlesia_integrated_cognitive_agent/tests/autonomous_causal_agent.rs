@@ -410,6 +410,90 @@ fn unsupported_two_effect_action_must_abstain_not_fake_recovery() {
 }
 
 #[test]
+fn opt_in_two_effect_grammar_learns_and_transfers_a_composed_action() {
+    let bounds = AgentBounds {
+        max_effects_per_action: 2,
+        max_hypotheses_per_action: 1024,
+        ..AgentBounds::default()
+    };
+    for seed in 0..128 {
+        let mut source = World::new(10_000 + seed);
+        source.laws[0].effects = vec![
+            Literal::new(source.fields[0], true),
+            Literal::new(source.fields[3], seed % 2 == 0),
+        ];
+        let mut learned =
+            AutonomousCausalAgent::new(source.task(), source.observation(), bounds).unwrap();
+        let (solved, steps, _) = run(&mut learned, &mut source);
+        assert!(solved, "source seed={seed}, steps={steps}");
+        assert!(learned
+            .candidates(source.actions[0])
+            .unwrap()
+            .iter()
+            .any(|rule| {
+                rule.effects.len() == 2
+                    && rule.effects.contains(&Literal::new(source.fields[0], true))
+                    && rule
+                        .effects
+                        .contains(&Literal::new(source.fields[3], seed % 2 == 0))
+            }));
+
+        let mut target = World::new(20_000 + seed);
+        target.laws[0].effects = vec![
+            Literal::new(target.fields[0], true),
+            Literal::new(target.fields[3], seed % 2 == 0),
+        ];
+        let mut transferred = learned
+            .transfer_to(target.task(), target.observation())
+            .unwrap();
+        let (solved, steps, _) = run(&mut transferred, &mut target);
+        assert!(solved, "target seed={seed}, steps={steps}");
+    }
+}
+
+#[test]
+fn effect_bound_rejects_unbounded_hypothesis_generation() {
+    let world = World::new(91);
+    let invalid = AgentBounds {
+        max_effects_per_action: 3,
+        ..AgentBounds::default()
+    };
+    assert!(matches!(
+        AutonomousCausalAgent::new(world.task(), world.observation(), invalid),
+        Err(AgentError::InvalidTask("invalid bounds"))
+    ));
+}
+
+#[test]
+fn multi_effect_transfer_falsifies_changed_target_law_without_mutating_source() {
+    let bounds = AgentBounds {
+        max_effects_per_action: 2,
+        max_hypotheses_per_action: 1024,
+        ..AgentBounds::default()
+    };
+    let mut source = World::new(30_001);
+    source.laws[0].effects = vec![
+        Literal::new(source.fields[0], true),
+        Literal::new(source.fields[1], true),
+    ];
+    let mut learned =
+        AutonomousCausalAgent::new(source.task(), source.observation(), bounds).unwrap();
+    source.teach_table(&mut learned);
+    let source_memory = learned.export_memory().unwrap();
+
+    // The target preserves the visible graph shape but restores a different
+    // law: the second field is no longer changed by the first action.
+    let mut target = World::new(30_002);
+    let mut transferred = learned
+        .transfer_to(target.task(), target.observation())
+        .unwrap();
+    let (solved, _, _) = run(&mut transferred, &mut target);
+    assert!(solved);
+    assert!(transferred.telemetry().transfer_falsifications > 0);
+    assert_eq!(learned.export_memory().unwrap(), source_memory);
+}
+
+#[test]
 fn incompatible_historical_behavior_is_reported_not_erased_as_drift() {
     let world = World::new(41);
     let mut agent =
@@ -447,6 +531,28 @@ fn memory_roundtrip_replays_evidence_and_preserves_next_decision() {
     .unwrap();
     assert_eq!(restored.evidence_count(), agent.evidence_count());
     assert_eq!(restored.decide().unwrap(), agent.decide().unwrap());
+}
+
+#[test]
+fn memory_rejects_a_different_effect_grammar() {
+    let world = World::new(44);
+    let a2 = AgentBounds {
+        max_effects_per_action: 2,
+        max_hypotheses_per_action: 1024,
+        ..AgentBounds::default()
+    };
+    let agent = AutonomousCausalAgent::new(world.task(), world.observation(), a2).unwrap();
+    let memory = agent.export_memory().unwrap();
+    assert!(AutonomousCausalAgent::restore(
+        world.task(),
+        world.observation(),
+        AgentBounds::default(),
+        &memory,
+    )
+    .is_err());
+    assert!(
+        AutonomousCausalAgent::restore(world.task(), world.observation(), a2, &memory,).is_ok()
+    );
 }
 
 #[test]
