@@ -1,8 +1,13 @@
-import init, { WasmFreshWorldSession, run_opaque_challenge_json } from "./pkg/athlesia_causal_wasm.js";
+import init, {
+  WasmFreshWorldSession,
+  WasmOpaqueInteractionSession,
+  run_opaque_challenge_json,
+} from "./pkg/athlesia_causal_wasm.js";
 
 const $ = (id) => document.getElementById(id);
 const STORAGE_KEY = "athlesia.fresh-world.session.v1";
 let session = null;
+let opaqueSession = null;
 let latestJsonl = "";
 let lastCallMs = 0;
 
@@ -167,13 +172,23 @@ function render(jsonl, callMs) {
   const world = recordOf(records, "fresh_world");
   const custom = recordOf(records, "custom_challenge");
   const opaque = recordOf(records, "opaque_challenge");
+  const opaqueSessionRecord = recordOf(records, "opaque_session");
   const summary = latestSummary(records);
   const stages = records.filter((record) => record.record === "stage");
   const graphs = records.filter((record) => record.record === "graph");
   const tokens = recordOf(records, "tokens");
 
-  $("phase").textContent = world?.phase || (opaque ? `OPAQUE · ${summary?.status || "RUNNING"}` : summary?.status) || session?.phase() || "—";
-  $("seed").textContent = world?.seed ?? custom?.seed ?? opaque?.seed ?? session?.seed() ?? "—";
+  $("phase").textContent = world?.phase
+    || (opaqueSessionRecord ? `OPAQUE · ${summary?.status || opaqueSessionRecord.phase}` : null)
+    || (opaque ? `OPAQUE · ${summary?.status || "RUNNING"}` : summary?.status)
+    || session?.phase()
+    || "—";
+  $("seed").textContent = world?.seed
+    ?? custom?.seed
+    ?? opaqueSessionRecord?.seed
+    ?? opaque?.seed
+    ?? session?.seed()
+    ?? "—";
   $("latency").textContent = `${callMs.toFixed(2)} ms`;
   $("digest").textContent = summary?.report_digest ? String(summary.report_digest) : "pending";
 
@@ -193,6 +208,12 @@ function render(jsonl, callMs) {
       <code>solver input: ${escapeHtml(opaque.solver_input)}</code>
       <code>world rules: environment-only</code>
       <code>report digest: ${escapeHtml(opaque.report_digest)}</code>
+    </div>` : opaqueSessionRecord ? `
+    <div class="world-card"><h3>LIVE OPAQUE SESSION</h3>
+      <code>seed: ${escapeHtml(opaqueSessionRecord.seed)}</code>
+      <code>action token: ${escapeHtml(opaqueSessionRecord.action_token)}</code>
+      <code>solver input: ${escapeHtml(opaqueSessionRecord.solver_input)}</code>
+      <code>mechanism: environment-only</code>
     </div>` : "<div class=\"empty\">Token records appear after generation.</div>";
   $("worlds").innerHTML = tokenCards;
 
@@ -241,6 +262,33 @@ function run(label, callback) {
   }
 }
 
+function runOpaque(label, callback) {
+  try {
+    const start = performance.now();
+    const jsonl = callback();
+    const elapsed = performance.now() - start;
+    lastCallMs = elapsed;
+    render(jsonl, elapsed);
+    updateOpaqueControls();
+    setStatus(`${label} completed in ${elapsed.toFixed(2)} ms of browser-observed WASM time.`);
+    return true;
+  } catch (error) {
+    setStatus(`${label} failed: ${error}`, true);
+    return false;
+  }
+}
+
+function updateOpaqueControls() {
+  const phase = opaqueSession?.phase() || "";
+  $("opaqueAction").disabled = !opaqueSession || phase !== "READY_FOR_ACTION";
+  $("opaqueSabotage").disabled = !opaqueSession || phase !== "TARGET_CONFIRMED";
+  $("opaqueProbe").disabled = !opaqueSession || !["CONTRADICTED", "PROBING"].includes(phase);
+  $("opaqueHoldout").disabled = !opaqueSession || phase !== "REVISED";
+  $("opaqueAction").textContent = opaqueSession
+    ? `SEND ${opaqueSession.action_token()}`
+    : "SEND OPAQUE ACTION";
+}
+
 $("generate").addEventListener("click", () => {
   const seed = randomSeed();
   session = new WasmFreshWorldSession(seed);
@@ -265,6 +313,41 @@ $("transfer").addEventListener("click", () => {
   }
 });
 
+$("opaqueGenerate").addEventListener("click", () => {
+  try {
+    const seed = randomSeed();
+    opaqueSession = new WasmOpaqueInteractionSession(seed);
+    lastCallMs = 0;
+    render(opaqueSession.snapshot(), 0);
+    updateOpaqueControls();
+    setStatus(`Opaque session ${seed} generated. The browser sees tokens, not the mechanism.`);
+  } catch (error) {
+    opaqueSession = null;
+    updateOpaqueControls();
+    setStatus(`Opaque session generation failed: ${error}`, true);
+  }
+});
+
+$("opaqueAction").addEventListener("click", () => {
+  if (!opaqueSession) return;
+  runOpaque("Target trial", () => opaqueSession.send_action(opaqueSession.action_token()));
+});
+
+$("opaqueSabotage").addEventListener("click", () => {
+  if (!opaqueSession) return;
+  runOpaque("Environmental sabotage", () => opaqueSession.sabotage());
+});
+
+$("opaqueProbe").addEventListener("click", () => {
+  if (!opaqueSession) return;
+  runOpaque("Discriminating probe", () => opaqueSession.probe());
+});
+
+$("opaqueHoldout").addEventListener("click", () => {
+  if (!opaqueSession) return;
+  runOpaque("Holdout verification", () => opaqueSession.verify_holdout());
+});
+
 $("runCustom").addEventListener("click", () => {
   try {
     const input = $("customSpec").value;
@@ -280,7 +363,8 @@ $("download").addEventListener("click", () => {
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
   link.href = url;
-  link.download = `athlesia-fresh-world-${session?.seed() ?? "unknown"}.jsonl`;
+  const seed = opaqueSession?.seed() ?? session?.seed() ?? "unknown";
+  link.download = `athlesia-${opaqueSession ? "opaque-session" : "fresh-world"}-${seed}.jsonl`;
   link.click();
   URL.revokeObjectURL(url);
 });
@@ -288,8 +372,10 @@ $("download").addEventListener("click", () => {
 try {
   await init();
   $("generate").disabled = false;
+  $("opaqueGenerate").disabled = false;
   $("runCustom").disabled = false;
   $("customSpec").value = JSON.stringify(DEFAULT_CUSTOM_SPEC, null, 2);
+  updateOpaqueControls();
   if (!restoreSession()) setStatus("Rust/WASM kernel loaded. Generate a fresh world to begin.");
 } catch (error) {
   setStatus(`WASM load failed: ${error}`, true);

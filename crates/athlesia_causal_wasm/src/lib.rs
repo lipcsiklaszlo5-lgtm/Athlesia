@@ -1,6 +1,8 @@
 use athlesia_integrated_cognitive_agent::custom_mechanism::{run_custom, CustomChallengeSpec};
-use athlesia_integrated_cognitive_agent::opaque_action_port::run_opaque_custom;
 use athlesia_integrated_cognitive_agent::fresh_world_session::FreshWorldSession;
+use athlesia_integrated_cognitive_agent::opaque_action_port::{
+    run_opaque_custom, OpaqueInteractionSession,
+};
 use wasm_bindgen::prelude::*;
 
 /// The only stateful object exposed to the browser.
@@ -69,9 +71,70 @@ pub fn run_opaque_challenge_json(spec_json: String) -> Result<String, JsValue> {
     Ok(report.jsonl().to_owned())
 }
 
+/// Stateful black-box session for the interactive browser demonstration.
+/// The browser submits only the visible opaque action token; all environment
+/// state and the hidden mechanism remain inside the Rust host.
+#[wasm_bindgen]
+pub struct WasmOpaqueInteractionSession {
+    inner: OpaqueInteractionSession,
+}
+
+#[wasm_bindgen]
+impl WasmOpaqueInteractionSession {
+    #[wasm_bindgen(constructor)]
+    pub fn new(seed: u32) -> Result<WasmOpaqueInteractionSession, JsValue> {
+        OpaqueInteractionSession::new(u64::from(seed))
+            .map(|inner| Self { inner })
+            .map_err(|error| JsValue::from_str(&error))
+    }
+
+    pub fn seed(&self) -> u32 {
+        self.inner.seed() as u32
+    }
+
+    pub fn phase(&self) -> String {
+        self.inner.phase().label().to_owned()
+    }
+
+    pub fn action_token(&self) -> String {
+        self.inner.action_token().to_owned()
+    }
+
+    pub fn snapshot(&self) -> String {
+        self.inner.observation_jsonl()
+    }
+
+    pub fn send_action(&mut self, token: String) -> Result<String, JsValue> {
+        self.inner
+            .send_action(&token)
+            .map_err(|error| JsValue::from_str(&error))
+    }
+
+    pub fn sabotage(&mut self) -> Result<String, JsValue> {
+        self.inner
+            .sabotage()
+            .map_err(|error| JsValue::from_str(&error))
+    }
+
+    pub fn probe(&mut self) -> Result<String, JsValue> {
+        self.inner
+            .probe()
+            .map_err(|error| JsValue::from_str(&error))
+    }
+
+    pub fn verify_holdout(&mut self) -> Result<String, JsValue> {
+        self.inner
+            .verify_holdout()
+            .map_err(|error| JsValue::from_str(&error))
+    }
+}
+
 #[cfg(test)]
 mod tests {
-    use super::{run_custom_challenge_json, run_opaque_challenge_json, WasmFreshWorldSession};
+    use super::{
+        run_custom_challenge_json, run_opaque_challenge_json, WasmFreshWorldSession,
+        WasmOpaqueInteractionSession,
+    };
 
     #[test]
     fn bridge_preserves_the_three_real_phase_boundaries() {
@@ -174,5 +237,28 @@ mod tests {
         let output = run_opaque_challenge_json(json.to_owned()).expect("opaque bridge");
         assert!(output.contains("HOLDOUT_VERIFIED"), "{output}");
         assert!(output.contains("observation_logs_only"), "{output}");
+    }
+
+    #[test]
+    fn interactive_opaque_session_runs_the_real_ordered_cycle() {
+        let mut session = WasmOpaqueInteractionSession::new(77).expect("session");
+        let action = session.action_token();
+        assert_eq!(session.phase(), "READY_FOR_ACTION");
+        let first = session.send_action(action).expect("target action");
+        assert!(first.contains("TARGET_TRIAL"), "{first}");
+        let sabotaged = session.sabotage().expect("sabotage");
+        assert!(sabotaged.contains("CONTRADICTION_FOUND"), "{sabotaged}");
+        for _ in 0..8 {
+            if session.phase() == "REVISED" {
+                break;
+            }
+            session.probe().expect("probe");
+        }
+        assert_eq!(session.phase(), "REVISED");
+        let result = session.verify_holdout().expect("holdout");
+        assert_eq!(session.phase(), "HOLDOUT_VERIFIED");
+        assert!(result.contains("\"holdout_positive\":true"), "{result}");
+        assert!(result.contains("\"holdout_negative\":true"), "{result}");
+        assert!(!result.contains("hidden_guard"), "{result}");
     }
 }

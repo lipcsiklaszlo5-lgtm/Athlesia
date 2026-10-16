@@ -1,8 +1,8 @@
 # Athlesia Fresh World Challenge — WASM demo
 
-This is a static browser UI over the Rust `FreshWorldSession` state machine and
-the user-supplied mechanism runner. It has no Python server and no model/API
-dependency.
+This is a static browser UI over the Rust `FreshWorldSession` state machine,
+the interactive opaque action-port session, and the user-supplied mechanism
+runner. It has no Python server and no model/API dependency.
 
 ## Build
 
@@ -31,9 +31,34 @@ The browser receives the guard commitment, not the hidden guard itself. This is
 solver-interface isolation, not a claim of cryptographic secrecy: client-side
 WASM can be inspected by the person running it.
 
+## Interactive opaque session
+
+The primary demo path is **NEW OPAQUE SESSION**. Every click creates a new
+seeded fixture inside Rust with fresh token identifiers and a private hidden
+guard. The browser never receives the graph specification or the guard. It can
+only submit the visible action token and ask the host-owned environment for the
+next observation.
+
+The four phase-gated actions are:
+
+```text
+SEND OPAQUE ACTION
+→ TRIGGER CONTRADICTION
+→ RUN DISCRIMINATING PROBE (one or more if ambiguity remains)
+→ VERIFY HOLDOUT
+```
+
+The JSONL panel is the actual observation/evidence stream emitted by the Rust
+session. `CONTRADICTION_FOUND`, `ACTIVE_PROBE`, `REVISE` and
+`HOLDOUT_VERIFIED` are state-machine events, not pre-recorded UI text. The
+session is deliberately bounded and deterministic for a given seed; it is a
+demonstration of opaque action-model induction and local revision, not a claim
+of unrestricted physical-world understanding.
+
 ## Bring your own mechanism
 
-The **RUN OPAQUE-PORT HOLDOUT** panel accepts a JSON mechanism with:
+The **RUN FIXTURE HOLDOUT** panel is a fixture/regression path accepting a JSON
+mechanism with:
 
 - a typed source, target and holdout graph;
 - one or more source transition traces;

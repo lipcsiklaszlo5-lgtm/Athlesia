@@ -32,13 +32,39 @@
         <p id="status" class="status">Loading the Rust/WASM kernel…</p>
       </section>
 
+      <section class="panel interactive-panel">
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow">BLACK-BOX INTERACTION · NO FIXED TRACE</p>
+            <h2>Let the kernel discover the mechanism</h2>
+          </div>
+          <button id="opaqueGenerate" class="button button-violet" disabled>NEW OPAQUE SESSION</button>
+        </div>
+        <p class="interactive-help">
+          This is the live challenge. Rust generates a fresh private mechanism and
+          exposes only an opaque action token plus observation frames. You can
+          deliberately break the environment, then watch the solver probe and
+          revise its rule before a separate holdout check.
+        </p>
+        <div class="button-row">
+          <button id="opaqueAction" class="button button-primary" disabled>SEND OPAQUE ACTION</button>
+          <button id="opaqueSabotage" class="button button-danger" disabled>TRIGGER CONTRADICTION</button>
+          <button id="opaqueProbe" class="button button-warning" disabled>RUN DISCRIMINATING PROBE</button>
+          <button id="opaqueHoldout" class="button button-success" disabled>VERIFY HOLDOUT</button>
+        </div>
+        <p class="interactive-hint">
+          The buttons are phase-gated by the Rust session. A disabled action is
+          not a UI guess: the underlying state machine has not authorized it yet.
+        </p>
+      </section>
+
       <section class="panel custom-panel">
         <div class="section-heading">
           <div>
-            <p class="eyebrow">BRING YOUR OWN MECHANISM</p>
+            <p class="eyebrow">FIXTURE / REGRESSION INPUT</p>
             <h2>Give the kernel a world you invented</h2>
           </div>
-          <button id="runCustom" class="button button-violet" disabled>RUN OPAQUE-PORT HOLDOUT</button>
+          <button id="runCustom" class="button button-violet" disabled>RUN FIXTURE HOLDOUT</button>
         </div>
         <p class="custom-help">
           Edit the JSON, then run it. The environment owns the hidden law and

@@ -23,8 +23,8 @@ use super::cross_domain_causal_core::{
     State, TransferStatus, TransitionExample,
 };
 use super::custom_mechanism::{
-    CustomChallengeSpec, CustomEdgeKind, CustomNodeKind, CustomTransitionSpec, CustomWorldSpec,
-    HiddenGuardSpec,
+    CustomChallengeSpec, CustomEdgeKind, CustomEdgeSpec, CustomNodeKind, CustomNodeSpec,
+    CustomTransitionSpec, CustomWorldSpec, HiddenGuardSpec,
 };
 
 const MAPPING_BUDGET: u64 = 16_384;
@@ -647,6 +647,553 @@ impl OpaqueActionPort for OpaqueEnvironment {
         self.state.insert(self.effect.clone(), false);
         Ok(self.observation())
     }
+}
+
+/// Interactive phase for the browser-facing opaque session.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum OpaqueSessionPhase {
+    ReadyForAction,
+    TargetConfirmed,
+    Contradicted,
+    Probing,
+    Revised,
+    HoldoutVerified,
+    Abstain,
+}
+
+impl OpaqueSessionPhase {
+    pub fn label(self) -> &'static str {
+        match self {
+            Self::ReadyForAction => "READY_FOR_ACTION",
+            Self::TargetConfirmed => "TARGET_CONFIRMED",
+            Self::Contradicted => "CONTRADICTED",
+            Self::Probing => "PROBING",
+            Self::Revised => "REVISED",
+            Self::HoldoutVerified => "HOLDOUT_VERIFIED",
+            Self::Abstain => "ABSTAIN",
+        }
+    }
+}
+
+/// Stateful, host-owned interaction session for the public demonstration.
+///
+/// The session owns its private fixture environment, while all learner-facing
+/// calls still cross the `OpaqueActionPort` boundary. The browser can submit
+/// an opaque action token, trigger a host-authorized sabotage, request one
+/// discriminating probe, and finally ask for holdout verification. It never
+/// receives the graph specification or the hidden guard.
+#[derive(Clone, Debug)]
+pub struct OpaqueInteractionSession {
+    seed: u64,
+    solver: OpaqueActionSolver,
+    target_environment: OpaqueEnvironment,
+    holdout_environment: OpaqueEnvironment,
+    target_action: OpaqueAction,
+    holdout_action: OpaqueAction,
+    holdout_world: CustomWorldSpec,
+    holdout_guard: Vec<String>,
+    target_before: OpaqueObservation,
+    sabotage_before: Option<OpaqueObservation>,
+    probe_base: Option<OpaqueObservation>,
+    phase: OpaqueSessionPhase,
+    source_traces: usize,
+    probe_count: usize,
+    holdout_positive: bool,
+    holdout_negative: bool,
+    lines: Vec<String>,
+}
+
+impl OpaqueInteractionSession {
+    pub fn new(seed: u64) -> Result<Self, String> {
+        let fixture = generated_opaque_fixture(seed)?;
+        let source_guard = source_guard_from_target(
+            &fixture.spec.source,
+            &fixture.spec.target,
+            &fixture.hidden_guard.target,
+        )?;
+        let mut source_environment =
+            OpaqueEnvironment::from_world(&fixture.spec.source, &source_guard)?;
+        let mut target_environment =
+            OpaqueEnvironment::from_world(&fixture.spec.target, &fixture.hidden_guard.target)?;
+        let holdout_environment =
+            OpaqueEnvironment::from_world(&fixture.spec.holdout, &fixture.hidden_guard.holdout)?;
+        let source_logs = source_logs(&mut source_environment, &fixture.spec.source_examples)?;
+        let mut solver = OpaqueActionSolver::new();
+        solver.learn_source(&source_logs)?;
+
+        let target_before_state = session_state(&fixture.spec.target, &fixture.hidden_guard.target);
+        let target_before = target_environment
+            .apply_intervention(&OpaqueIntervention {
+                state: target_before_state,
+            })
+            .map_err(|error| error.to_string())?;
+        let target_action = target_environment.action.clone();
+        if solver.install_target(&target_before, &target_action)?
+            != TransferStatus::StructuralCandidate
+        {
+            return Err(
+                "generated opaque session could not install a unique target mapping".to_owned(),
+            );
+        }
+
+        let holdout_action = holdout_environment.action.clone();
+        let mut session = Self {
+            seed,
+            solver,
+            target_environment,
+            holdout_environment,
+            target_action,
+            holdout_action,
+            holdout_world: fixture.spec.holdout.clone(),
+            holdout_guard: fixture.hidden_guard.holdout,
+            target_before,
+            sabotage_before: None,
+            probe_base: None,
+            phase: OpaqueSessionPhase::ReadyForAction,
+            source_traces: source_logs.len(),
+            probe_count: 0,
+            holdout_positive: false,
+            holdout_negative: false,
+            lines: Vec::new(),
+        };
+        session.push_session_header();
+        session.push_stage(
+            "OBSERVE",
+            format!(
+                "{} source traces accepted through the opaque action port",
+                session.source_traces
+            ),
+        );
+        session.push_stage(
+            "ABSTRACT",
+            "structure reconstructed from visible observation frames".to_owned(),
+        );
+        session.push_stage(
+            "TRANSFER",
+            "unique target mapping installed; hidden law remains environment-only".to_owned(),
+        );
+        session.push_observation("target_before_action", &session.target_before.clone());
+        Ok(session)
+    }
+
+    pub fn seed(&self) -> u64 {
+        self.seed
+    }
+
+    pub fn phase(&self) -> OpaqueSessionPhase {
+        self.phase
+    }
+
+    pub fn action_token(&self) -> &str {
+        &self.target_action.token
+    }
+
+    pub fn observation_jsonl(&self) -> String {
+        let mut output = self.lines.join("\n");
+        if !output.is_empty() {
+            output.push('\n');
+        }
+        let digest = stable_hash(
+            &format!(
+                "{}:{}:{}:{}:{}:{}",
+                self.seed,
+                self.phase.label(),
+                self.probe_count,
+                self.holdout_positive,
+                self.holdout_negative,
+                self.solver.ledger_event_count()
+            ),
+            0x53455353,
+        );
+        let _ = writeln!(
+            output,
+            "{{\"record\":\"summary\",\"status\":{},\"source_traces\":{},\"probes\":{},\"holdout_positive\":{},\"holdout_negative\":{},\"ledger_verified\":{},\"source_model_unchanged\":{},\"first_attempt_transfer\":true,\"report_digest\":{}}}",
+            json_string(self.phase.label()),
+            self.source_traces,
+            self.probe_count,
+            self.holdout_positive,
+            self.holdout_negative,
+            self.solver.ledger_verified(),
+            self.solver.source_model_unchanged(),
+            digest,
+        );
+        output
+    }
+
+    /// Submit the opaque action token shown by `target_before_action`.
+    pub fn send_action(&mut self, token: &str) -> Result<String, String> {
+        if self.phase != OpaqueSessionPhase::ReadyForAction {
+            return Err(format!(
+                "target action is not available in phase {}",
+                self.phase.label()
+            ));
+        }
+        if token != self.target_action.token {
+            return Err("unknown opaque action token".to_owned());
+        }
+        let before = self.target_before.clone();
+        let after = self
+            .target_environment
+            .send_action(&self.target_action)
+            .map_err(|error| error.to_string())?;
+        let log = ObservationLog {
+            episode: 30_001,
+            before: before.clone(),
+            action: self.target_action.clone(),
+            after: after.clone(),
+        };
+        match self.solver.observe_target(&log)? {
+            ObservationVerdict::Confirmed => {
+                self.phase = OpaqueSessionPhase::TargetConfirmed;
+                let action = self.target_action.clone();
+                self.push_action("target_action", &action);
+                self.push_observation("target_after_action", &after);
+                self.push_stage(
+                    "TARGET_TRIAL",
+                    "first target action confirmed the transferred effect".to_owned(),
+                );
+                Ok(self.observation_jsonl())
+            }
+            other => Err(format!("unexpected target trial verdict: {other:?}")),
+        }
+    }
+
+    /// Apply a private environment sabotage and expose only its observation.
+    pub fn sabotage(&mut self) -> Result<String, String> {
+        if self.phase != OpaqueSessionPhase::TargetConfirmed {
+            return Err("sabotage requires a confirmed target action".to_owned());
+        }
+        let sabotage_state = self
+            .target_environment
+            .state
+            .keys()
+            .map(|label| (label.clone(), false))
+            .collect();
+        let before = self
+            .target_environment
+            .apply_intervention(&OpaqueIntervention {
+                state: sabotage_state,
+            })
+            .map_err(|error| error.to_string())?;
+        let after = self
+            .target_environment
+            .send_action(&self.target_action)
+            .map_err(|error| error.to_string())?;
+        let log = ObservationLog {
+            episode: 30_002,
+            before: before.clone(),
+            action: self.target_action.clone(),
+            after: after.clone(),
+        };
+        if !matches!(
+            self.solver.observe_target(&log)?,
+            ObservationVerdict::ContradictionFound { .. }
+        ) {
+            return Err("sabotage did not produce a contradiction".to_owned());
+        }
+        self.sabotage_before = Some(before.clone());
+        self.probe_base = Some(before.clone());
+        self.phase = OpaqueSessionPhase::Contradicted;
+        let action = self.target_action.clone();
+        self.push_action("sabotaged_action", &action);
+        self.push_observation("sabotage_before", &before);
+        self.push_observation("sabotage_after", &after);
+        self.push_stage(
+            "FALSIFY",
+            "CONTRADICTION_FOUND; previous target permit quarantined".to_owned(),
+        );
+        Ok(self.observation_jsonl())
+    }
+
+    /// Execute exactly one selected discriminating probe.
+    pub fn probe(&mut self) -> Result<String, String> {
+        if !matches!(
+            self.phase,
+            OpaqueSessionPhase::Contradicted | OpaqueSessionPhase::Probing
+        ) {
+            return Err("a probe requires a contradiction".to_owned());
+        }
+        let base = self
+            .probe_base
+            .clone()
+            .ok_or_else(|| "probe base is missing".to_owned())?;
+        let Some(intervention) = self.solver.choose_probe(&base, &self.target_action)? else {
+            self.phase = OpaqueSessionPhase::Abstain;
+            self.push_stage(
+                "ABSTAIN",
+                "no bounded experiment can distinguish the surviving hypotheses".to_owned(),
+            );
+            return Ok(self.observation_jsonl());
+        };
+        self.probe_count += 1;
+        let before = self
+            .target_environment
+            .apply_intervention(&intervention)
+            .map_err(|error| error.to_string())?;
+        let after = self
+            .target_environment
+            .send_action(&self.target_action)
+            .map_err(|error| error.to_string())?;
+        let log = ObservationLog {
+            episode: 30_002 + self.probe_count as u64,
+            before: before.clone(),
+            action: self.target_action.clone(),
+            after: after.clone(),
+        };
+        match self.solver.apply_probe(&log)? {
+            ObservationVerdict::Revised { epoch } => {
+                self.phase = OpaqueSessionPhase::Revised;
+                let action = self.target_action.clone();
+                self.push_action("discriminating_probe", &action);
+                self.push_observation("probe_before", &before);
+                self.push_observation("probe_after", &after);
+                self.push_stage(
+                    "REVISE",
+                    format!("local revision committed at epoch={epoch}; prior witnesses retained"),
+                );
+            }
+            ObservationVerdict::Abstain => {
+                self.phase = OpaqueSessionPhase::Probing;
+                self.probe_base = Some(before.clone());
+                let action = self.target_action.clone();
+                self.push_action("discriminating_probe", &action);
+                self.push_observation("probe_before", &before);
+                self.push_observation("probe_after", &after);
+                self.push_stage(
+                    "ACTIVE_PROBE",
+                    format!(
+                        "probe #{} retained competing hypotheses; another probe is allowed",
+                        self.probe_count
+                    ),
+                );
+            }
+            other => return Err(format!("unexpected probe verdict: {other:?}")),
+        }
+        Ok(self.observation_jsonl())
+    }
+
+    /// Evaluate independent positive and negative holdout traces.
+    pub fn verify_holdout(&mut self) -> Result<String, String> {
+        if self.phase != OpaqueSessionPhase::Revised {
+            return Err("holdout requires a committed local revision".to_owned());
+        }
+        let positive_state = session_state(&self.holdout_world, &self.holdout_guard);
+        let positive_before = self
+            .holdout_environment
+            .apply_intervention(&OpaqueIntervention {
+                state: positive_state,
+            })
+            .map_err(|error| error.to_string())?;
+        let positive_after = self
+            .holdout_environment
+            .send_action(&self.holdout_action)
+            .map_err(|error| error.to_string())?;
+        let negative_state = session_state(&self.holdout_world, &[]);
+        let negative_before = self
+            .holdout_environment
+            .apply_intervention(&OpaqueIntervention {
+                state: negative_state,
+            })
+            .map_err(|error| error.to_string())?;
+        let negative_after = self
+            .holdout_environment
+            .send_action(&self.holdout_action)
+            .map_err(|error| error.to_string())?;
+        let positive = ObservationLog {
+            episode: 40_001,
+            before: positive_before,
+            action: self.holdout_action.clone(),
+            after: positive_after,
+        };
+        let negative = ObservationLog {
+            episode: 40_002,
+            before: negative_before,
+            action: self.holdout_action.clone(),
+            after: negative_after,
+        };
+        let (positive_ok, negative_ok) = self.solver.verify_holdout(&positive, &negative)?;
+        self.holdout_positive = positive_ok;
+        self.holdout_negative = negative_ok;
+        self.phase = if positive_ok && negative_ok {
+            OpaqueSessionPhase::HoldoutVerified
+        } else {
+            OpaqueSessionPhase::Abstain
+        };
+        self.push_stage(
+            "HOLDOUT",
+            format!("positive={positive_ok}; negative={negative_ok}; no target retraining"),
+        );
+        Ok(self.observation_jsonl())
+    }
+
+    fn push_session_header(&mut self) {
+        let action = json_string(&self.target_action.token);
+        let _ = self.lines.push(format!(
+            "{{\"record\":\"opaque_session\",\"seed\":{},\"phase\":{},\"solver_input\":\"observation_logs_only\",\"action_token\":{}}}",
+            self.seed,
+            json_string(self.phase.label()),
+            action,
+        ));
+    }
+
+    fn push_stage(&mut self, stage: &str, detail: String) {
+        self.lines.push(format!(
+            "{{\"record\":\"stage\",\"stage\":{},\"detail\":{}}}",
+            json_string(stage),
+            json_string(&detail),
+        ));
+    }
+
+    fn push_action(&mut self, kind: &str, action: &OpaqueAction) {
+        let encoded = serde_json::to_string(action).unwrap_or_else(|_| "null".to_owned());
+        self.lines.push(format!(
+            "{{\"record\":\"action\",\"kind\":{},\"value\":{}}}",
+            json_string(kind),
+            encoded,
+        ));
+    }
+
+    fn push_observation(&mut self, kind: &str, observation: &OpaqueObservation) {
+        let encoded = serde_json::to_string(observation).unwrap_or_else(|_| "null".to_owned());
+        self.lines.push(format!(
+            "{{\"record\":\"observation\",\"kind\":{},\"value\":{}}}",
+            json_string(kind),
+            encoded,
+        ));
+    }
+}
+
+fn json_string(value: &str) -> String {
+    serde_json::to_string(value).unwrap_or_else(|_| "\"<invalid>\"".to_owned())
+}
+
+struct GeneratedOpaqueFixture {
+    spec: CustomChallengeSpec,
+    hidden_guard: HiddenGuardSpec,
+}
+
+fn session_token(seed: u64, domain: &str, role: &str) -> String {
+    format!(
+        "{}_{}_{}",
+        domain,
+        role,
+        stable_hash(&format!("{seed}:{domain}:{role}"), 0x544f4b45) as u32
+    )
+}
+
+fn session_world(seed: u64, domain: &str) -> (CustomWorldSpec, Vec<String>) {
+    let action = session_token(seed, domain, "act");
+    let guard_a = session_token(seed, domain, "guard_a");
+    let guard_b = session_token(seed, domain, "guard_b");
+    let effect = session_token(seed, domain, "effect");
+    let nodes = vec![
+        CustomNodeSpec {
+            id: action.clone(),
+            kind: CustomNodeKind::Operation,
+            type_tag: 10,
+        },
+        CustomNodeSpec {
+            id: guard_a.clone(),
+            kind: CustomNodeKind::StateField,
+            type_tag: 11,
+        },
+        CustomNodeSpec {
+            id: guard_b.clone(),
+            kind: CustomNodeKind::StateField,
+            type_tag: 12,
+        },
+        CustomNodeSpec {
+            id: effect.clone(),
+            kind: CustomNodeKind::StateField,
+            type_tag: 13,
+        },
+    ];
+    let edges = vec![
+        CustomEdgeSpec {
+            from: action.clone(),
+            to: guard_a.clone(),
+            kind: CustomEdgeKind::Requires,
+        },
+        CustomEdgeSpec {
+            from: action.clone(),
+            to: guard_b.clone(),
+            kind: CustomEdgeKind::Requires,
+        },
+        CustomEdgeSpec {
+            from: action.clone(),
+            to: effect.clone(),
+            kind: CustomEdgeKind::Writes,
+        },
+    ];
+    (
+        CustomWorldSpec {
+            action,
+            nodes,
+            edges,
+            effect,
+        },
+        vec![guard_a, guard_b],
+    )
+}
+
+fn session_state(world: &CustomWorldSpec, guard: &[String]) -> BTreeMap<String, bool> {
+    world
+        .nodes
+        .iter()
+        .filter(|node| matches!(node.kind, CustomNodeKind::StateField))
+        .map(|node| {
+            (
+                node.id.clone(),
+                node.id != world.effect && guard.iter().any(|label| label == &node.id),
+            )
+        })
+        .collect()
+}
+
+fn generated_opaque_fixture(seed: u64) -> Result<GeneratedOpaqueFixture, String> {
+    let (source, source_roles) = session_world(seed, "source");
+    let (target, target_roles) = session_world(seed, "target");
+    let (holdout, holdout_roles) = session_world(seed, "holdout");
+    let guard_count = if seed & 1 == 0 { 1 } else { 2 };
+    let target_guard = target_roles
+        .into_iter()
+        .take(guard_count)
+        .collect::<Vec<_>>();
+    let holdout_guard = holdout_roles
+        .into_iter()
+        .take(guard_count)
+        .collect::<Vec<_>>();
+    let source_guard = source_roles
+        .into_iter()
+        .take(guard_count)
+        .collect::<Vec<_>>();
+    let source_before = session_state(&source, &source_guard);
+    let mut source_after = source_before.clone();
+    source_after.insert(source.effect.clone(), true);
+    let source_examples = (0..3)
+        .map(|_| CustomTransitionSpec {
+            before: source_before.clone(),
+            after: source_after.clone(),
+        })
+        .collect();
+    Ok(GeneratedOpaqueFixture {
+        spec: CustomChallengeSpec {
+            name: format!("opaque interactive mechanism {seed}"),
+            seed,
+            source,
+            source_examples,
+            target,
+            holdout,
+            hidden_guard: Some(HiddenGuardSpec {
+                target: target_guard.clone(),
+                holdout: holdout_guard.clone(),
+            }),
+        },
+        hidden_guard: HiddenGuardSpec {
+            target: target_guard,
+            holdout: holdout_guard,
+        },
+    })
 }
 
 fn labels_with_type_tags(
@@ -1309,5 +1856,26 @@ mod tests {
         assert!(json.contains("hydraulic_ok"));
         assert!(!json.contains("hidden_guard"));
         assert!(!json.contains("target_guard"));
+    }
+
+    #[test]
+    fn interactive_session_verifies_multiple_fresh_seeds() {
+        for seed in 1..=32 {
+            let mut session = OpaqueInteractionSession::new(seed).expect("session");
+            let token = session.action_token().to_owned();
+            session.send_action(&token).expect("target trial");
+            session.sabotage().expect("sabotage");
+            for _ in 0..8 {
+                if session.phase() == OpaqueSessionPhase::Revised {
+                    break;
+                }
+                session.probe().expect("bounded probe");
+            }
+            assert_eq!(session.phase(), OpaqueSessionPhase::Revised, "seed={seed}");
+            let output = session.verify_holdout().expect("holdout");
+            assert!(output.contains("\"holdout_positive\":true"), "seed={seed}");
+            assert!(output.contains("\"holdout_negative\":true"), "seed={seed}");
+            assert!(!output.contains("hidden_guard"), "seed={seed}");
+        }
     }
 }
