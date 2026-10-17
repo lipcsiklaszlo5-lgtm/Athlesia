@@ -26,6 +26,8 @@ pub mod deterministic_abstraction;
 pub mod end_to_end_causal_runtime;
 /// Authenticated, replay-guarded execution receipt transfer over CKS/1.
 pub mod causal_execution_sync;
+/// Multi-origin causal admission, conflict quarantine, and signed revocation.
+pub mod causal_trust_mesh;
 #[cfg(test)]
 mod cross_domain_relational_bridge_tests;
 /// User-supplied bounded mechanism challenge and fail-closed verifier.

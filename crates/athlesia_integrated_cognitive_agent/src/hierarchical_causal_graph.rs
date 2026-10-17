@@ -592,6 +592,22 @@ impl CausalHierarchy {
         Ok(())
     }
 
+    /// Remove one atomic module through a fail-closed internal boundary.
+    ///
+    /// Existing composite modules are deliberately retained. Their captured
+    /// child digest frontier will fail validation until the exact dependency
+    /// is deliberately restored or the composite is recomposed.
+    pub(crate) fn remove_atomic(&mut self, id: ModuleId) -> Result<(), HierarchyError> {
+        let Some(existing) = self.modules.get(&id) else {
+            return Err(HierarchyError::MissingModule(id));
+        };
+        if !matches!(existing, HierarchyModule::Atomic(_)) {
+            return Err(HierarchyError::NotAtomic(id));
+        }
+        self.modules.remove(&id);
+        Ok(())
+    }
+
     pub fn compose(
         &mut self,
         id: ModuleId,
