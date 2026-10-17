@@ -2,6 +2,9 @@ use athlesia_mindstone_sparse_cognition::{CognitiveSignal, CognitiveStructure};
 
 /// Opt-in, bounded goal-directed action learning; independent of the demo UI.
 pub mod autonomous_causal_agent;
+/// Active perception wrapper: preserves Unknown instead of treating missing
+/// observations as false, and selects an explicit inspection before acting.
+pub mod active_context_agent;
 /// Context-indexed epochs for non-destructive online rule revision.
 pub mod contextual_causal_agent;
 /// Bounded discovery of observable context projections from transition traces.
