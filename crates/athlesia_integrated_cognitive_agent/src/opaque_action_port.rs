@@ -17,10 +17,14 @@ use std::fmt::Write as _;
 
 use serde::{Deserialize, Serialize};
 
+use super::causal_proof::FrozenTransferModel;
 use super::cross_domain_causal_core::{
     ActionId, CanonicalCausalGraph, CausalEdge, CausalLearner, CausalNode, CrossDomainCausalCore,
     Digest, EdgeKind, Literal, MappingBudget, MappingVerdict, NodeId, NodeKind, ObservationVerdict,
     State, TransferStatus, TransitionExample,
+};
+use super::deterministic_abstraction::{
+    ContinuousFrame, DeterministicAbstraction, SymbolicAbstraction, SymbolicObservation,
 };
 use super::custom_mechanism::{
     CustomChallengeSpec, CustomEdgeKind, CustomEdgeSpec, CustomNodeKind, CustomNodeSpec,
@@ -329,6 +333,20 @@ fn transition_from_log(
     ))
 }
 
+/// Convert a bounded continuous frame before it enters the causal learner.
+///
+/// The schema and abstraction digests returned inside the observation must be
+/// carried into the prediction scope used by causal proof. This keeps the
+/// quantization policy and symbolic state in one auditable commitment.
+pub fn symbolize_continuous_frame(
+    abstraction: &mut DeterministicAbstraction,
+    frame: &ContinuousFrame,
+) -> Result<SymbolicObservation, String> {
+    abstraction
+        .abstract_frame(frame)
+        .map_err(|error| format!("continuous abstraction rejected: {error:?}"))
+}
+
 /// The solver-side object.  Its methods accept only opaque observations and
 /// interaction logs; no `CustomWorldSpec`, guard or environment type appears
 /// in this API.
@@ -452,6 +470,24 @@ impl OpaqueActionSolver {
             return Err("probe observation does not match target structure".to_owned());
         }
         Ok(self.core.apply_target_probe(example))
+    }
+
+    /// Freeze the installed target learner before an external action is
+    /// authorized. The returned view is detached from later online revision.
+    pub fn freeze_target_model(
+        &self,
+        max_candidates: usize,
+        max_outcomes: usize,
+    ) -> Result<FrozenTransferModel, String> {
+        if !matches!(self.core.status(), TransferStatus::Supported | TransferStatus::Revised) {
+            return Err("target proof freeze requires supported or revised transfer".to_owned());
+        }
+        let target = self
+            .core
+            .target()
+            .ok_or_else(|| "target model has not been installed".to_owned())?;
+        FrozenTransferModel::from_learner(target, max_candidates, max_outcomes)
+            .map_err(|error| format!("target proof freeze rejected: {error:?}"))
     }
 
     pub fn verify_holdout(
@@ -1856,6 +1892,82 @@ mod tests {
         assert!(json.contains("hydraulic_ok"));
         assert!(!json.contains("hidden_guard"));
         assert!(!json.contains("target_guard"));
+    }
+
+    #[test]
+    fn continuous_adapter_returns_bounded_state_and_scope_digests() {
+        let config = crate::deterministic_abstraction::DeterministicAbstractionConfig::new(
+            vec![
+                crate::deterministic_abstraction::ChannelRange::new(10, 0, 1_000_000)
+                    .expect("range"),
+            ],
+            4,
+            25_000,
+            1,
+            4,
+            77,
+        )
+        .expect("config");
+        let schema_digest = config.schema_digest();
+        let mut abstraction = DeterministicAbstraction::new(config);
+        let frame = ContinuousFrame::new(vec![
+            crate::deterministic_abstraction::FixedScalar::from_micros(10, 250_000),
+        ])
+        .expect("frame");
+        let observation =
+            symbolize_continuous_frame(&mut abstraction, &frame).expect("symbolic observation");
+        assert_eq!(observation.schema_digest(), schema_digest);
+        assert_eq!(observation.atoms().len(), 1);
+        assert_eq!(observation.state().literals().count(), 4);
+        assert_eq!(observation.hypervector().len(), 1);
+    }
+
+    #[test]
+    fn proof_freeze_requires_supported_target_evidence() {
+        let spec = sample_spec();
+        let hidden_guard =
+            derive_guard(&spec.target, &spec.holdout, spec.seed).expect("guard");
+        let source_guard =
+            source_guard_from_target(&spec.source, &spec.target, &hidden_guard.target)
+                .expect("source guard");
+        let mut source_environment =
+            OpaqueEnvironment::from_world(&spec.source, &source_guard).expect("source env");
+        let source_logs =
+            source_logs(&mut source_environment, &spec.source_examples).expect("source logs");
+        let mut solver = OpaqueActionSolver::new();
+        solver.learn_source(&source_logs).expect("source learning");
+
+        let mut target_environment =
+            OpaqueEnvironment::from_world(&spec.target, &hidden_guard.target)
+                .expect("target env");
+        let target_before = target_environment
+            .apply_intervention(&OpaqueIntervention {
+                state: session_state(&spec.target, &hidden_guard.target),
+            })
+            .expect("target before");
+        let target_action = target_environment.action.clone();
+        assert_eq!(
+            solver
+                .install_target(&target_before, &target_action)
+                .expect("target install"),
+            TransferStatus::StructuralCandidate
+        );
+        assert!(solver.freeze_target_model(8, 8).is_err());
+
+        let target_after = target_environment
+            .send_action(&target_action)
+            .expect("target action");
+        let target_trial = ObservationLog {
+            episode: 90_001,
+            before: target_before,
+            action: target_action,
+            after: target_after,
+        };
+        assert_eq!(
+            solver.observe_target(&target_trial).expect("target trial"),
+            ObservationVerdict::Confirmed
+        );
+        assert!(solver.freeze_target_model(8, 8).is_ok());
     }
 
     #[test]

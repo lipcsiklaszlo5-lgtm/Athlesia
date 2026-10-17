@@ -2,6 +2,8 @@ use athlesia_mindstone_sparse_cognition::{CognitiveSignal, CognitiveStructure};
 
 /// Opt-in, bounded goal-directed action learning; independent of the demo UI.
 pub mod autonomous_causal_agent;
+/// User-authored opaque mechanism arena over the autonomous learner.
+pub mod cognitive_arena;
 /// Active perception wrapper: preserves Unknown instead of treating missing
 /// observations as false, and selects an explicit inspection before acting.
 pub mod active_context_agent;
@@ -12,6 +14,14 @@ pub mod discovered_context_causal_agent;
 
 /// First bounded integration boundary for the cross-domain causal core.
 pub mod cross_domain_causal_core;
+/// Bounded JSONL causal knowledge exchange over replayable evidence.
+pub mod causal_knowledge_sync;
+/// Bounded hierarchical composition over canonical causal modules.
+pub mod hierarchical_causal_graph;
+/// Frozen prediction commitments and one-shot execution proof boundary.
+pub mod causal_proof;
+/// Bounded fixed-point and HDC abstraction before causal state ingestion.
+pub mod deterministic_abstraction;
 #[cfg(test)]
 mod cross_domain_relational_bridge_tests;
 /// User-supplied bounded mechanism challenge and fail-closed verifier.
