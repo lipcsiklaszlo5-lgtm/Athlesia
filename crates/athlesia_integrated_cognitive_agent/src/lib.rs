@@ -22,6 +22,8 @@ pub mod hierarchical_causal_graph;
 pub mod causal_proof;
 /// Bounded fixed-point and HDC abstraction before causal state ingestion.
 pub mod deterministic_abstraction;
+/// Transactional continuous-input to verified composite-execution runtime.
+pub mod end_to_end_causal_runtime;
 #[cfg(test)]
 mod cross_domain_relational_bridge_tests;
 /// User-supplied bounded mechanism challenge and fail-closed verifier.

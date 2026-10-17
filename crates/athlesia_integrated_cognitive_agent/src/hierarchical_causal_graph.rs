@@ -419,6 +419,25 @@ impl CompositePlan {
         mix(mix(FNV_OFFSET, PLAN_DOMAIN), self.digest)
     }
 
+    /// Return the exact executable atomic action sequence behind this plan.
+    ///
+    /// The sequence is exposed only after the complete dependency frontier is
+    /// revalidated. Callers must still cross the causal proof boundary before
+    /// dispatching any returned action.
+    pub fn execution_actions(
+        &self,
+        hierarchy: &CausalHierarchy,
+    ) -> Result<Vec<ActionId>, HierarchyError> {
+        hierarchy.validate_plan(self)?;
+        self.atomic_steps
+            .iter()
+            .map(|module_id| match hierarchy.modules.get(module_id) {
+                Some(HierarchyModule::Atomic(module)) => Ok(module.rule().action),
+                _ => Err(HierarchyError::InvalidPlan(self.root_id)),
+            })
+            .collect()
+    }
+
     /// Freeze the deterministic composite result through the existing proof
     /// boundary. The returned commitment still requires a host permit before
     /// any external executor may resolve it.
