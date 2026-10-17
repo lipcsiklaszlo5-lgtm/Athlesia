@@ -571,6 +571,11 @@ pub struct VerifiedExecutionReceipt {
     dispatch_digest: Digest,
     result: CommitmentResult,
     evidence: OutcomeEvidence,
+    before: State,
+    observed_after: Option<State>,
+    atomic_actions: Vec<ActionId>,
+    host_policy_digest: Digest,
+    authorization_nonce: u64,
 }
 
 impl VerifiedExecutionReceipt {
@@ -585,6 +590,31 @@ impl VerifiedExecutionReceipt {
     }
     pub fn evidence(&self) -> &OutcomeEvidence {
         &self.evidence
+    }
+
+    /// Exact symbolic state bound before dispatch. This is retained for
+    /// audit/export only and grants no execution authority.
+    pub fn before(&self) -> &State {
+        &self.before
+    }
+
+    /// Exact symbolic outcome when observation succeeded. Indeterminate
+    /// receipts deliberately carry no fabricated after-state.
+    pub fn observed_after(&self) -> Option<&State> {
+        self.observed_after.as_ref()
+    }
+
+    /// Atomic sequence that was exposed by the consumed one-shot dispatch.
+    pub fn atomic_actions(&self) -> &[ActionId] {
+        &self.atomic_actions
+    }
+
+    pub fn host_policy_digest(&self) -> Digest {
+        self.host_policy_digest
+    }
+
+    pub fn authorization_nonce(&self) -> u64 {
+        self.authorization_nonce
     }
 }
 
@@ -813,10 +843,11 @@ impl EndToEndCausalRuntime {
             pending.prepared.proof_action,
             &pending.before,
         )?;
-        let dispatch_digest = dispatch_digest(
+        let dispatch_digest = composite_dispatch_digest(
             pending.prepared.commitment_digest,
             &pending.atomic_actions,
-            authorization,
+            authorization.policy_digest,
+            authorization.nonce,
         );
         let dispatch = AuthorizedCompositeDispatch {
             dispatch_digest,
@@ -867,6 +898,9 @@ impl EndToEndCausalRuntime {
             bound.state(),
         )?;
         self.abstraction = next_abstraction;
+        let host_policy_digest = awaiting.permit.host_policy_digest();
+        let authorization_nonce = awaiting.permit.nonce();
+        let observed_after = bound.state().clone();
         let receipt = VerifiedExecutionReceipt {
             prepared: awaiting.pending.prepared,
             dispatch_digest: awaiting.dispatch_digest,
@@ -876,6 +910,11 @@ impl EndToEndCausalRuntime {
                 abstraction_digest: bound.abstraction_digest(),
                 after_digest: bound.state().digest(),
             },
+            before: awaiting.pending.before,
+            observed_after: Some(observed_after),
+            atomic_actions: awaiting.pending.atomic_actions,
+            host_policy_digest,
+            authorization_nonce,
         };
         self.state = RuntimeState::Terminal(receipt.clone());
         Ok(receipt)
@@ -917,11 +956,18 @@ impl EndToEndCausalRuntime {
             awaiting.pending.prepared.proof_action,
             &awaiting.pending.before,
         )?;
+        let host_policy_digest = awaiting.permit.host_policy_digest();
+        let authorization_nonce = awaiting.permit.nonce();
         let receipt = VerifiedExecutionReceipt {
             prepared: awaiting.pending.prepared,
             dispatch_digest: awaiting.dispatch_digest,
             result,
             evidence,
+            before: awaiting.pending.before,
+            observed_after: None,
+            atomic_actions: awaiting.pending.atomic_actions,
+            host_policy_digest,
+            authorization_nonce,
         };
         self.state = RuntimeState::Terminal(receipt.clone());
         Ok(receipt)
@@ -936,15 +982,16 @@ impl EndToEndCausalRuntime {
     }
 }
 
-fn dispatch_digest(
+pub(crate) fn composite_dispatch_digest(
     commitment_digest: Digest,
     actions: &[ActionId],
-    authorization: HostAuthorization,
+    host_policy_digest: Digest,
+    authorization_nonce: u64,
 ) -> Digest {
     let mut digest = mix(FNV_OFFSET, DISPATCH_DOMAIN);
     digest = mix(digest, commitment_digest);
-    digest = mix(digest, authorization.policy_digest);
-    digest = mix(digest, authorization.nonce);
+    digest = mix(digest, host_policy_digest);
+    digest = mix(digest, authorization_nonce);
     digest = mix(digest, actions.len() as u64);
     for action in actions {
         digest = mix(digest, *action);

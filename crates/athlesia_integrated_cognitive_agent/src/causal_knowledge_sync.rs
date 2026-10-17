@@ -18,6 +18,7 @@ use super::cross_domain_causal_core::{
 const RECORD_TAG: &str = "athlesia/cks/1";
 const FNV_OFFSET: u64 = 14_695_981_039_346_656_037;
 const FNV_PRIME: u64 = 1_099_511_628_211;
+const EVIDENCE_DOMAIN: u64 = 0x4154_4c45_5349_4556;
 
 /// Hard parser and replay limits. A limit breach rejects the whole bundle.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -123,6 +124,8 @@ pub struct SyncedKnowledgeCandidate {
     target_graph_digest: Digest,
     target_action: ActionId,
     evidence_count: usize,
+    evidence_digest: Digest,
+    source_evidence: Vec<TransitionExample>,
     bundle_digest: Digest,
     target_roles: Vec<TokenId>,
     rule: ActionRule,
@@ -155,6 +158,16 @@ impl SyncedKnowledgeCandidate {
 
     pub fn evidence_count(&self) -> usize {
         self.evidence_count
+    }
+
+    pub fn evidence_digest(&self) -> Digest {
+        self.evidence_digest
+    }
+
+    /// Exact bounded source witnesses retained for authenticated receipt
+    /// comparison. They remain read-only and grant no execution authority.
+    pub fn source_evidence(&self) -> &[TransitionExample] {
+        &self.source_evidence
     }
 
     pub fn bundle_digest(&self) -> Digest {
@@ -263,6 +276,20 @@ fn chain_digest(previous: Digest, bytes: &[u8]) -> Digest {
         state = state.wrapping_mul(FNV_PRIME);
     }
     state.max(1)
+}
+
+/// Stable commitment to the exact ordered transition evidence carried by a
+/// CKS bundle. This remains a deterministic integrity handle; authentication
+/// is supplied by the execution-sync signature boundary.
+pub(crate) fn transition_evidence_digest(evidence: &[TransitionExample]) -> Digest {
+    let mut digest = chain_digest(EVIDENCE_DOMAIN, &(evidence.len() as u64).to_le_bytes());
+    for example in evidence {
+        digest = chain_digest(digest, &example.episode.to_le_bytes());
+        digest = chain_digest(digest, &example.action.to_le_bytes());
+        digest = chain_digest(digest, &example.before.digest().to_le_bytes());
+        digest = chain_digest(digest, &example.after.digest().to_le_bytes());
+    }
+    digest
 }
 
 fn digest_for(sequence: u64, previous_digest: Digest, body: &WireBody) -> Digest {
@@ -824,6 +851,8 @@ impl KnowledgeSyncCodec for JsonlKnowledgeSync {
             target_graph_digest: target_graph.digest(),
             target_action,
             evidence_count: examples.len(),
+            evidence_digest: transition_evidence_digest(&examples),
+            source_evidence: examples,
             bundle_digest: previous_digest,
             target_roles,
             rule,
