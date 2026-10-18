@@ -1,0 +1,307 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <meta name="theme-color" content="#f8f9f5">
+  <meta name="description" content="An interactive, explicitly labelled preview of Athlesia's causal learning, fail-closed trust leases and frozen structural transfer.">
+  <title>Athlesia — The Causal Theater</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23080b0e'/%3E%3Cpath d='M7 24 16 6l9 18M11 18h10' fill='none' stroke='%23d6ff8a' stroke-width='2'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="./style.css">
+  <link rel="stylesheet" href="./light.css">
+  <script type="module" src="./app.js"></script>
+  <script type="module" src="./telemetry.js"></script>
+  <link rel="stylesheet" href="./byod.css">
+  <script type="module" src="./byod-ui.js"></script>
+</head>
+<body data-phase="ready" data-engine="wasm">
+  <a class="skip-link" href="#experience">Skip to the experience</a>
+  <div class="ambient" aria-hidden="true"></div>
+  <header class="site-header">
+    <a class="brand" href="./" aria-label="Athlesia home">
+      <svg viewBox="0 0 32 32" aria-hidden="true"><path d="M5 26 16 5l11 21M10 19h12"/></svg>
+      ATHLESIA<span class="brand-separator"></span><span class="brand-subtitle">CAUSAL INTELLIGENCE</span>
+    </a>
+    <div class="header-right">
+      <span class="engine-indicator" id="engine-indicator"><i></i><span id="engine-label">RUST / WASM · WAITING</span></span>
+      <button class="icon-button" id="restart" type="button" aria-label="Restart the experience" title="Restart the experience">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 10a8 8 0 1 1 1.2 6.2M4 4v6h6"/></svg>
+      </button>
+    </div>
+  </header>
+
+  <main id="experience">
+    <section class="break-test" id="break-test" aria-labelledby="break-test-title">
+      <header class="break-hero">
+        <div>
+          <p class="break-kicker"><span></span> ATHLESIA / LIVE BREAK TEST 001</p>
+          <h1 id="break-test-title">Edit one row.<br><em>It proves it—or refuses.</em></h1>
+          <p class="break-lede">Bring two tiny evidence tables. Athlesia freezes a causal rule in one domain, maps it into another, and lets you try to break the claim yourself.</p>
+        </div>
+        <div class="break-engine" id="byod-engine"><i></i><strong>LOADING RUST / WASM</strong><span>No server model. No mock success.</span></div>
+      </header>
+
+      <div class="proof-principles" aria-label="Proof contract">
+        <span><strong>0</strong> neural weights</span>
+        <span><strong>0</strong> target training updates</span>
+        <span><strong>3</strong> fail-closed verdicts</span>
+        <span><strong>≤128</strong> bounded episodes</span>
+      </div>
+
+      <section class="evidence-workbench" aria-label="Editable causal evidence">
+        <article class="evidence-domain source-domain">
+          <div class="domain-heading">
+            <div><span class="domain-number">01</span><p>KNOWN DOMAIN</p><h2>Source evidence</h2></div>
+            <label class="file-button" for="byod-source-file">Upload CSV<input id="byod-source-file" type="file" accept=".csv,text/csv"></label>
+          </div>
+          <p class="domain-note">Interventions used to freeze one deterministic effect rule.</p>
+          <div class="evidence-table" id="byod-source-table"></div>
+          <details class="raw-csv"><summary>Inspect or paste raw source CSV</summary><textarea id="byod-source-raw" spellcheck="false" aria-label="Raw source CSV"></textarea><button id="byod-source-apply" type="button">Apply raw CSV to table</button></details>
+        </article>
+
+        <div class="mapping-spine" aria-hidden="true"><span class="mapping-dot"></span><div><i></i><i></i><i></i></div><b>STRUCTURE<br>NOT NAMES</b><span class="mapping-arrow">→</span></div>
+
+        <article class="evidence-domain target-domain">
+          <div class="domain-heading">
+            <div><span class="domain-number">02</span><p>UNKNOWN DOMAIN</p><h2>Target evidence</h2></div>
+            <label class="file-button" for="byod-target-file">Upload CSV<input id="byod-target-file" type="file" accept=".csv,text/csv"></label>
+          </div>
+          <p class="domain-note">Episode 1 maps roles. Every later row is sealed holdout evidence.</p>
+          <div class="evidence-table" id="byod-target-table"></div>
+          <details class="raw-csv"><summary>Inspect or paste raw target CSV</summary><textarea id="byod-target-raw" spellcheck="false" aria-label="Raw target CSV"></textarea><button id="byod-target-apply" type="button">Apply raw CSV to table</button></details>
+        </article>
+      </section>
+
+      <div class="proof-runner">
+        <button class="run-proof" id="byod-run" type="button" disabled><span class="run-pulse"></span><span id="byod-run-label">RUN THE PROOF</span><b aria-hidden="true">→</b></button>
+        <p id="byod-run-note">The visible verdict must come back from compiled Rust.</p>
+      </div>
+
+      <section class="break-controls" aria-labelledby="break-controls-title">
+        <div><p class="break-kicker">DON'T TRUST THE GREEN RESULT</p><h2 id="break-controls-title">Try to break it.</h2><p>Each control changes the actual target CSV bytes and re-enters the Rust kernel. These are not presentation states.</p></div>
+        <button type="button" data-byod-edit="harmless"><span>01</span><strong>Change context</strong><small>A non-causal cell changes. The claim should survive with a new proof ID.</small></button>
+        <button type="button" data-byod-edit="contradiction"><span>02</span><strong>Flip the outcome</strong><small>A held-out result violates the prediction. Rust must name the episode.</small></button>
+        <button type="button" data-byod-edit="starvation"><span>03</span><strong>Remove holdouts</strong><small>With no independent test left, the kernel must abstain.</small></button>
+      </section>
+
+      <section class="verdict-panel" id="byod-verdict-panel" data-verdict="IDLE" aria-live="polite" aria-atomic="true">
+        <div class="verdict-mark" aria-hidden="true"><span></span><i></i></div>
+        <div class="verdict-copy"><p id="byod-verdict-code">AWAITING EVIDENCE</p><h2 id="byod-verdict-title">The UI cannot award itself a pass.</h2><p id="byod-verdict-detail">Run the compiled kernel. Verified, contradicted, abstain and refused are Rust-owned outcomes.</p></div>
+        <dl class="verdict-metrics">
+          <div><dt>Proof ID</dt><dd id="byod-proof-id">—</dd></div>
+          <div><dt>Target holdouts</dt><dd id="byod-holdouts">—</dd></div>
+          <div><dt>Target updates</dt><dd id="byod-updates">—</dd></div>
+          <div><dt>Measured WASM call</dt><dd id="byod-latency">—</dd></div>
+          <div><dt>Evidence ledger</dt><dd id="byod-ledger">—</dd></div>
+          <div><dt>Execution authority</dt><dd id="byod-authority">NOT ISSUED</dd></div>
+        </dl>
+      </section>
+
+      <section class="proof-evidence" aria-label="Causal proof evidence">
+        <article><p class="break-kicker">ROLE MAPPING</p><h2>The structure that moved.</h2><div class="mapping-graph" id="byod-mapping"></div></article>
+        <article><p class="break-kicker">HELD-OUT PREDICTIONS</p><h2>Prediction vs observation.</h2><div class="episode-results" id="byod-episodes"></div></article>
+      </section>
+
+      <section class="proof-export" aria-labelledby="proof-export-title">
+        <div><p class="break-kicker">TAKE THE RECEIPT</p><h2 id="proof-export-title">Recompute it outside the browser.</h2><p>The download contains the exact input bytes, Rust report and deterministic replay digest. It is an integrity receipt, not a cryptographic signature or remote attestation.</p></div>
+        <div class="proof-actions"><button id="byod-download" type="button" disabled>Download proof bundle ↓</button><button id="byod-verify" type="button" disabled>Replay &amp; verify in Rust ↻</button></div>
+        <output id="byod-replay-result">No proof has been issued.</output>
+        <details><summary>Native verification command</summary><code id="byod-native-command">Download a proof bundle first.</code></details>
+      </section>
+
+      <section class="contract-strip" aria-label="Boundaries and hardware">
+        <div><p class="break-kicker">THIS DEVICE</p><span id="byod-hardware">Detecting browser-visible hardware…</span></div>
+        <div><p class="break-kicker">BOUNDED CONTRACT</p><span>Boolean paired CSV · ≤16 fields · ≤128 episodes · ≤256 KiB per domain.</span></div>
+        <div><p class="break-kicker">HONEST BOUNDARY</p><span>P13 proves bounded causal transfer and refusal. It does not claim general AGI, remote attestation, or issue a P9 execution lease.</span></div>
+      </section>
+
+      <footer class="break-footer"><span>ATHLESIA / CAUSAL INTELLIGENCE KERNEL</span><button id="byod-reset" type="button">Restore reference evidence ↺</button></footer>
+    </section>
+
+
+    <section class="hero" aria-labelledby="headline">
+      <div class="hero-copy">
+        <p class="eyebrow"><span class="tiny-cross">+</span> THE CAUSAL THEATER <span class="edition">/ 001</span></p>
+        <h1 id="headline">Intelligence.<br><span>Without the guesswork.</span></h1>
+        <p class="hero-description">Learn the cause. Know when to stop.<br>Take the structure into another world.</p>
+      </div>
+      <div class="hero-note"><span class="note-line"></span><span>A different kind<br>of decision engine.</span></div>
+    </section>
+
+    <ol class="chapter-track" aria-label="Three chapters">
+      <li class="current" data-chapter="1" aria-current="step"><span class="chapter-number">01</span><span>Understand the cause</span><span class="chapter-dot"></span></li>
+      <li data-chapter="2"><span class="chapter-number">02</span><span>Protect the decision</span><span class="chapter-dot"></span></li>
+      <li data-chapter="3"><span class="chapter-number">03</span><span>Transfer the intelligence</span><span class="chapter-dot"></span></li>
+    </ol>
+
+    <section class="theater" aria-label="Interactive causal mechanism">
+      <div class="stage-topline">
+        <div class="world-label"><span class="status-dot" id="world-dot"></span><span id="world-label">SOURCE DOMAIN</span><span class="world-name" id="world-name">/ REACTOR 01</span></div>
+        <span class="stage-state" id="stage-state">AWAITING INTERACTION</span>
+      </div>
+
+      <div class="stage-viewport" id="stage-viewport" role="img" aria-label="A resource, a valve and a sealed door. Initialize the kernel to reveal their causal structure.">
+        <svg class="world-svg" viewBox="0 0 1120 500" aria-hidden="true">
+          <defs>
+            <linearGradient id="floor-grad" x2="0" y2="1"><stop stop-color="#162226" stop-opacity=".7"/><stop offset="1" stop-color="#080b0e" stop-opacity="0"/></linearGradient>
+            <linearGradient id="top-metal" x2=".9" y2="1"><stop stop-color="#303b3e"/><stop offset="1" stop-color="#172024"/></linearGradient>
+            <linearGradient id="front-metal" x2="0" y2="1"><stop stop-color="#222c30"/><stop offset="1" stop-color="#10171a"/></linearGradient>
+            <linearGradient id="side-metal" x2="0" y2="1"><stop stop-color="#141d21"/><stop offset="1" stop-color="#0c1115"/></linearGradient>
+            <linearGradient id="reactor-glass" x2="1" y2="1"><stop stop-color="#d6ff8a" stop-opacity=".5"/><stop offset=".4" stop-color="#97bd61" stop-opacity=".05"/><stop offset="1" stop-color="#d6ff8a" stop-opacity=".24"/></linearGradient>
+            <linearGradient id="warm-grad" x2="0" y2="1"><stop stop-color="#ffb36f"/><stop offset="1" stop-color="#f27539"/></linearGradient>
+            <linearGradient id="graph-grad"><stop stop-color="#d6ff8a"/><stop offset="1" stop-color="#68d0b7"/></linearGradient>
+            <radialGradient id="source-glow"><stop stop-color="#9bbb74" stop-opacity=".16"/><stop offset="1" stop-color="#9bbb74" stop-opacity="0"/></radialGradient>
+            <radialGradient id="alien-glow"><stop stop-color="#ff9d5c" stop-opacity=".14"/><stop offset="1" stop-color="#ff9d5c" stop-opacity="0"/></radialGradient>
+            <pattern id="grid" width="52" height="28" patternUnits="userSpaceOnUse" patternTransform="matrix(1 .25 -1 .25 560 225)"><path d="M52 0H0V28" fill="none" stroke="#526264" stroke-opacity=".17" stroke-width=".8"/></pattern>
+            <filter id="soft-glow" x="-100%" y="-100%" width="300%" height="300%"><feGaussianBlur stdDeviation="5"/></filter>
+          </defs>
+
+          <ellipse class="source-halo" cx="560" cy="325" rx="480" ry="155" fill="url(#source-glow)"/>
+          <ellipse class="alien-halo" cx="560" cy="325" rx="480" ry="155" fill="url(#alien-glow)"/>
+          <path d="M55 265 560 150l505 115-505 200Z" fill="url(#floor-grad)"/>
+          <path d="M55 265 560 150l505 115-505 200Z" fill="url(#grid)"/>
+          <path d="M110 306 560 414l450-108" stroke="#344140" stroke-opacity=".3" fill="none"/>
+
+          <g class="source-world">
+            <g class="physical-connections" fill="none" stroke-linecap="round">
+              <path class="pipe-underlay" d="M330 304 455 335l100-30 135 33 104-30"/>
+              <path class="energy-pipe" d="M330 304 455 335l100-30 135 33 104-30"/>
+              <path class="energy-pulse" d="M330 304 455 335l100-30 135 33 104-30"/>
+            </g>
+            <g class="machine-node resource-node">
+              <ellipse cx="300" cy="330" rx="90" ry="24" fill="#000" opacity=".35"/>
+              <path d="M220 278 300 250l80 28-80 30Z" fill="url(#top-metal)" stroke="#45504f"/>
+              <path d="m220 278 80 30v42l-80-29Z" fill="url(#front-metal)" stroke="#303b3e"/>
+              <path d="m300 308 80-30v43l-80 29Z" fill="url(#side-metal)" stroke="#303b3e"/>
+              <ellipse cx="300" cy="268" rx="47" ry="16" fill="#101817" stroke="#73806a"/>
+              <path d="M253 195v70c0 21 94 21 94 0v-70" fill="url(#reactor-glass)" stroke="#87a568" stroke-opacity=".75"/>
+              <g class="reactor-core"><path d="M285 204h30v58h-30Z" fill="#d6ff8a" opacity=".1"/><path d="M300 205v57" stroke="#d6ff8a" stroke-width="12" stroke-linecap="round"/><path d="M300 205v57" stroke="#e4ffc1" stroke-width="3" stroke-linecap="round"/><ellipse cx="300" cy="235" rx="31" ry="9" fill="none" stroke="#d6ff8a" stroke-opacity=".6"/><ellipse cx="300" cy="250" rx="31" ry="9" fill="none" stroke="#d6ff8a" stroke-opacity=".3"/></g>
+              <ellipse cx="300" cy="195" rx="47" ry="16" fill="#1e2929" stroke="#7c8c70"/>
+              <ellipse cx="300" cy="195" rx="28" ry="8" fill="#334234" stroke="#a1be7e"/>
+              <path d="m236 300 29 10" stroke="#d6ff8a" stroke-width="3"/>
+              <text x="300" y="392" class="node-index">01 / ENERGY</text><text x="300" y="414" class="node-label">Resource</text>
+            </g>
+            <g class="machine-node valve-node">
+              <ellipse cx="558" cy="345" rx="90" ry="24" fill="#000" opacity=".35"/>
+              <path d="m478 295 80-27 80 27-80 29Z" fill="url(#top-metal)" stroke="#45504f"/>
+              <path d="m478 295 80 29v40l-80-28Z" fill="url(#front-metal)" stroke="#303b3e"/>
+              <path d="m558 324 80-29v41l-80 28Z" fill="url(#side-metal)" stroke="#303b3e"/>
+              <path d="M541 251v44l17 7 17-7v-44" fill="#263338" stroke="#5e6d6b"/>
+              <g class="valve-wheel"><ellipse cx="558" cy="245" rx="48" ry="19" fill="#182022" stroke="#f0a16b" stroke-width="4"/><path d="m515 239 86 12m-74 7 61-25M558 228v33" stroke="#b87d55" stroke-width="3"/><ellipse cx="558" cy="245" rx="9" ry="4" fill="#ffc28c"/></g>
+              <path d="m490 317 29 10" stroke="#f3a46f" stroke-width="3"/>
+              <path class="fracture" d="m555 232-12 21 24 4-18 24 19 14" fill="none" stroke="#ff6c68" stroke-width="4"/>
+              <text x="558" y="407" class="node-index">02 / INTERLOCK</text><text x="558" y="429" class="node-label">Valve</text>
+            </g>
+            <g class="machine-node door-node">
+              <ellipse cx="820" cy="330" rx="98" ry="25" fill="#000" opacity=".35"/>
+              <path d="m731 298 88-28 88 28-88 30Z" fill="url(#top-metal)" stroke="#45504f"/>
+              <path d="m731 298 88 30v30l-88-30Z" fill="url(#front-metal)" stroke="#303b3e"/>
+              <path d="m819 328 88-30v30l-88 30Z" fill="url(#side-metal)" stroke="#303b3e"/>
+              <path d="m769 193 53-15 54 16v111l-54 18-53-19Z" fill="#182124" stroke="#64726b"/>
+              <path d="m822 178 54 16v111l-54 18Z" fill="#10181c"/>
+              <path d="m780 205 42-12 43 13v89l-43 14-42-14Z" fill="#070d11" stroke="#40504e"/>
+              <g class="door-panels"><path d="m782 207 40-11v110l-40-13Z" fill="#293434" stroke="#55645d"/><path d="m822 196 41 12v85l-41 13Z" fill="#1d292b" stroke="#43534d"/></g>
+              <path class="door-seam" d="M822 202v96" stroke="#d6ff8a" stroke-width="2"/>
+              <path d="m746 316 29 10" stroke="#d6ff8a" stroke-opacity=".5" stroke-width="3"/>
+              <text x="820" y="392" class="node-index">03 / OUTCOME</text><text x="820" y="414" class="node-label">Door</text>
+            </g>
+          </g>
+
+          <g class="alien-world">
+            <g class="alien-connections" fill="none"><path d="M310 290 560 356l250-66M310 290l250-78 250 78" stroke="#60402e" stroke-width="2"/><path class="alien-pulse" d="M310 290 560 356l250-66" stroke="#ffac72" stroke-width="2"/></g>
+            <g class="replica-node">
+              <ellipse cx="310" cy="332" rx="90" ry="22" fill="#000" opacity=".4"/>
+              <g class="database-stack"><path d="M251 228v82c0 27 118 27 118 0v-82" fill="url(#front-metal)" stroke="#8d6550"/><ellipse cx="310" cy="228" rx="59" ry="20" fill="#363029" stroke="#c28c65"/><path d="M251 255c0 27 118 27 118 0m-118 28c0 27 118 27 118 0" fill="none" stroke="#795840"/><ellipse cx="310" cy="228" rx="27" ry="9" fill="#d8915d" opacity=".5"/><path d="M271 259v8m0 20v8" stroke="#ffb77f" stroke-width="4" stroke-linecap="round"/></g>
+              <text x="310" y="392" class="node-index">α / REPLICATION</text><text x="310" y="414" class="node-label">Replica</text>
+            </g>
+            <g class="quorum-node">
+              <ellipse cx="560" cy="282" rx="72" ry="18" fill="#000" opacity=".4"/>
+              <path d="m560 160 64 59-64 70-64-70Z" fill="#1c262a" stroke="#c1895f"/><path d="m560 160 64 59-64 14-64-14Z" fill="#3c352b"/><path d="m560 233 64-14-64 70Z" fill="#111b20"/><path d="m532 211 21 20 33-38" fill="none" stroke="#ffc294" stroke-width="3"/>
+              <text x="560" y="322" class="node-index">β / CONSENSUS</text><text x="560" y="344" class="node-label">Quorum</text>
+            </g>
+            <g class="commit-node">
+              <ellipse cx="810" cy="332" rx="90" ry="22" fill="#000" opacity=".4"/>
+              <path d="m747 225 63-31 63 31v84l-63 31-63-31Z" fill="url(#side-metal)" stroke="#ac7d59"/><path d="m747 225 63 32 63-32-63-31Z" fill="#3d352c"/><path d="m747 225 63 32v83l-63-31Z" fill="#262826"/>
+              <g class="commit-ring" fill="none" stroke="#ffba85"><ellipse cx="810" cy="264" rx="83" ry="29" stroke-opacity=".4"/><ellipse cx="810" cy="264" rx="72" ry="23" stroke-width="2"/><path d="m790 263 13 12 29-24" stroke-width="3"/></g>
+              <text x="810" y="392" class="node-index">γ / TRANSACTION</text><text x="810" y="414" class="node-label">Commit</text>
+            </g>
+          </g>
+
+          <g class="mapping-beams" fill="none" stroke="#d6ff8a" stroke-dasharray="4 7"><path d="M420 112 310 228"/><path d="M560 65 560 183"/><path d="M700 112 810 230"/></g>
+          <g class="causal-graph">
+            <g class="graph-body">
+              <path class="graph-aura" d="M420 112 560 65 700 112 560 160Z" fill="#b9e887" fill-opacity=".025" stroke="#c4f791" stroke-opacity=".13"/>
+              <path class="graph-edge" d="M433 112 686 112M569 74 690 105" fill="none" stroke="url(#graph-grad)" stroke-width="1.4"/>
+              <path class="graph-dots" d="M433 112 686 112M569 74 690 105" fill="none" stroke="#e6ffc7" stroke-width="2" stroke-dasharray="3 24"/>
+              <circle class="graph-node-halo" cx="420" cy="112" r="21"/><circle class="graph-node-halo" cx="560" cy="65" r="21"/><circle class="graph-node-halo" cx="700" cy="112" r="21"/>
+              <circle class="graph-point" cx="420" cy="112" r="7"/><circle class="graph-point" cx="560" cy="65" r="7"/><circle class="graph-point" cx="700" cy="112" r="7"/>
+              <text x="420" y="143" class="graph-label">RESOURCE</text><text x="560" y="40" class="graph-label">VALVE</text><text x="700" y="143" class="graph-label">DOOR</text>
+              <text x="554" y="99" class="graph-operator">↗</text><text x="625" y="90" class="graph-operator">⇒</text>
+            </g>
+          </g>
+        </svg>
+        <div class="graph-caption" id="graph-caption"><span class="live-square"></span> STRUCTURE, NOT APPEARANCE</div>
+        <div class="shield-overlay" id="shield-overlay" aria-hidden="true">
+          <div class="shield-orbit"></div>
+          <svg viewBox="0 0 96 108"><path d="M48 5 83 20v30c0 25-35 49-35 49S13 75 13 50V20Z"/><path d="m34 38 28 28M62 38 34 66"/></svg>
+          <strong>ABSTAIN</strong><span>EXECUTION WITHHELD</span>
+        </div>
+        <div class="mapping-label" id="mapping-label"><span></span> APPLYING FROZEN STRUCTURE</div>
+        <div class="stage-coordinates" aria-hidden="true"><span>SYS / ATH—01</span><span id="world-coordinate">DOMAIN 01 · PHYSICAL</span></div>
+      </div>
+
+      <div class="theater-caption">
+        <div class="narrative" aria-live="polite" aria-atomic="true">
+          <p class="scene-kicker" id="scene-kicker">01 — THE PHYSICIST</p>
+          <h2 id="scene-title">First, discover what makes it work.</h2>
+          <p id="scene-description">A resource. An interlock. An outcome. Extract a rule from interventions, not from the names.</p>
+        </div>
+        <div class="action-area">
+          <label class="seed-label" for="theater-seed">Your challenge seed <input id="theater-seed" type="number" inputmode="numeric" min="0" max="4294967295" step="1" value="42"></label>
+          <button class="primary-action" id="primary-action" type="button" disabled><span class="action-led"></span><span id="action-label">LOADING EXPERIENCE</span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14m-6-6 6 6-6 6"/></svg></button>
+          <span class="action-hint" id="action-hint">One mechanism. Three moments of understanding.</span>
+        </div>
+      </div>
+    </section>
+
+    <section class="proof-strip" aria-label="Evidence summary">
+      <div><span class="metric-value">0<span class="metric-unit"> weights</span></span><span class="metric-label">No neural model</span></div>
+      <div><span class="metric-value" id="training-value">—</span><span class="metric-label">Target training updates</span></div>
+      <div><span class="metric-value" id="authority-value">Not issued</span><span class="metric-label">Execution authority</span></div>
+      <div class="provenance-cell"><span class="provenance-dot"></span><p id="provenance">Live P9 Rust/WASM.<br>Software plant → local database.</p></div>
+    </section>
+
+    <section class="hardware-strip" aria-label="Browser-visible hardware and measured runtime">
+      <div><span class="hardware-value" id="hw-cores">—</span><span>Logical cores reported</span></div>
+      <div><span class="hardware-value" id="hw-ram">—</span><span>Device RAM estimate</span></div>
+      <div><span class="hardware-value" id="hw-wasm">Not loaded</span><span>Three Workers · WASM linear memory</span></div>
+      <div><span class="hardware-value" id="hw-call">Not measured</span><span>Last live WASM call</span></div>
+      <div><span class="hardware-value" id="hw-heap">Unavailable</span><span>Browser JS heap</span></div>
+      <p>Measured on this browser. OS CPU usage, temperature and power draw are not exposed.</p>
+    </section>
+
+    <section class="proof-lab" aria-labelledby="proof-title">
+      <div class="proof-heading"><div><p class="eyebrow">THE CONSEQUENCE IS REAL</p><h2 id="proof-title">Don't trust the animation.<br><span>Check the operation.</span></h2></div><span class="proof-engine" id="proof-engine">P9 NOT RUN YET</span></div>
+      <p class="proof-intro">The journey above calls the Rust kernel. Revoking an endorsement blocks the prepared operation. A fresh, admitted transfer then commits one actual record to your browser's database.</p>
+      <p class="proof-scope">The source machine is a software plant. Two local origin Workers hold separate ephemeral Ed25519 keys; they are not two independent factories. The receiver gets public keys and signed packets. Physical robot validation requires a hardware trial.</p>
+      <div class="proof-result" aria-live="polite"><span class="proof-result-label" id="proof-phase">WAITING FOR YOUR CHALLENGE</span><h3 id="proof-outcome">0 database writes issued.</h3><p id="proof-detail">Use the main button above. The protected database driver is called only after the P9 gate returns an authorized dispatch.</p></div>
+      <div class="proof-steps" aria-label="P9 checks"><span id="check-signature">Signed packet</span><span id="check-lease">Revoked lease</span><span id="check-policy">Host policy</span><span id="check-database">Database readback</span><span id="check-replay">Replay attempt</span></div>
+      <details class="proof-artifact"><summary>Inspect the executable and reproduce the P9 verdicts</summary><p>SHA-256 of the loaded executable:</p><code id="proof-hash">Not loaded.</code><p>Build provenance:</p><code id="proof-build">Not loaded.</code><p>Download the proof, place it in the repository root and run:</p><code id="proof-replay-command">cargo run --manifest-path crates/athlesia_causal_wasm/Cargo.toml --example theater_p9_replay -- --verify athlesia-p9-proof.json</code><p>The native command rechecks signed packets and P9 verdicts without signing secrets or JavaScript. It does not remotely attest browser storage. An external person can build and repeat the run on their own machine.</p><p>Local database: <code>athlesia-p9-proof / dispatches</code>. Current record key:</p><code id="proof-record-key">Not created.</code></details>
+      <div class="proof-footer"><button type="button" id="proof-download" disabled>Download native replay proof ↓</button><button type="button" id="proof-readback" disabled>Read the actual database ↗</button><button type="button" id="proof-attack" disabled>Try executing the same lease again ↗</button><span id="proof-records">No P9 calls yet.</span></div>
+    </section>
+
+    <footer class="page-footer"><span>LEARN. WITHHOLD. TRANSFER.</span><button type="button" id="ledger-open" aria-haspopup="dialog"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M4 3h12v14H4ZM7 7h6m-6 3h6m-6 3h4"/></svg>Inspect Causal Ledger <span class="ledger-count" id="ledger-count">0</span><span class="ledger-arrow">↗</span></button></footer>
+    <noscript><p class="noscript">JavaScript is required for this interactive presentation. No backend action has been issued.</p></noscript>
+  </main>
+
+  <dialog class="ledger-drawer" id="ledger-dialog" aria-labelledby="ledger-title" aria-describedby="ledger-description">
+    <div class="drawer-grip" aria-hidden="true"></div>
+    <div class="drawer-header"><div><p class="eyebrow">OBSERVABILITY / NOT THE MAIN EVENT</p><h2 id="ledger-title">The Causal Ledger<span>.</span></h2></div><button type="button" class="icon-button" id="ledger-close" aria-label="Close causal ledger"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg></button></div>
+    <p class="ledger-disclosure" id="ledger-description">Illustrative browser events, not signed Rust evidence. Animation duration is not kernel latency. Typed role mappings are supplied by the fixture.</p>
+    <div class="ledger-toolbar"><span id="ledger-summary">Waiting for the first interaction</span><button type="button" id="ledger-download" disabled>Download JSONL <span aria-hidden="true">↓</span></button></div>
+    <ol id="ledger-events" class="ledger-events"></ol>
+    <details class="raw-evidence"><summary>Raw event envelopes</summary><pre id="ledger-raw">No records yet.</pre></details>
+  </dialog>
+</body>
+</html>

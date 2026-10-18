@@ -1,9 +1,16 @@
+pub mod theater;
+
 use athlesia_integrated_cognitive_agent::custom_mechanism::{run_custom, CustomChallengeSpec};
 use athlesia_integrated_cognitive_agent::fresh_world_session::FreshWorldSession;
 use athlesia_integrated_cognitive_agent::opaque_action_port::{
     run_opaque_custom, OpaqueInteractionSession,
 };
 use wasm_bindgen::prelude::*;
+
+mod byod;
+pub use byod::{
+    run_byod_break_test_json, run_byod_transfer_json, verify_byod_break_test_json,
+};
 
 /// The only stateful object exposed to the browser.
 ///

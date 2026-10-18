@@ -28,6 +28,8 @@ pub mod end_to_end_causal_runtime;
 pub mod causal_execution_sync;
 /// Multi-origin causal admission, conflict quarantine, and signed revocation.
 pub mod causal_trust_mesh;
+/// Bounded user-data ingestion, structural zero-shot transfer and replayable proof.
+pub mod byod_causal_transfer;
 #[cfg(test)]
 mod cross_domain_relational_bridge_tests;
 /// User-supplied bounded mechanism challenge and fail-closed verifier.

@@ -1,128 +1,14 @@
 <!doctype html>
 <html lang="en">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Athlesia / Fresh World Challenge</title>
-    <link rel="stylesheet" href="./style.css" />
-  </head>
-  <body>
-    <main class="shell">
-      <header class="hero">
-        <p class="eyebrow">ATHLESIA · RUST / WASM · LOCAL EXECUTION</p>
-        <h1>Fresh World Challenge</h1>
-        <p class="lede">
-          A small causal kernel gets a new world, survives a deliberate failure,
-          revises locally, and validates the transferred rule on a holdout world.
-        </p>
-      </header>
-
-      <section class="controls panel">
-        <div class="controls-heading">
-          <div>
-            <p class="eyebrow">DRIVE THE REAL SESSION</p>
-            <h2>Three irreversible phases</h2>
-          </div>
-          <button id="generate" class="button button-primary" disabled>GENERATE NEW WORLD</button>
-        </div>
-        <div class="button-row">
-          <button id="sabotage" class="button button-danger" disabled>SABOTAGE THE ENVIRONMENT</button>
-          <button id="transfer" class="button button-success" disabled>TRANSFER TO UNKNOWN WORLD</button>
-        </div>
-        <p id="status" class="status">Loading the Rust/WASM kernel…</p>
-      </section>
-
-      <section class="panel interactive-panel">
-        <div class="section-heading">
-          <div>
-            <p class="eyebrow">BLACK-BOX INTERACTION · NO FIXED TRACE</p>
-            <h2>Let the kernel discover the mechanism</h2>
-          </div>
-          <button id="opaqueGenerate" class="button button-violet" disabled>NEW OPAQUE SESSION</button>
-        </div>
-        <p class="interactive-help">
-          This is the live challenge. Rust generates a fresh private mechanism and
-          exposes only an opaque action token plus observation frames. You can
-          deliberately break the environment, then watch the solver probe and
-          revise its rule before a separate holdout check.
-        </p>
-        <div class="button-row">
-          <button id="opaqueAction" class="button button-primary" disabled>SEND OPAQUE ACTION</button>
-          <button id="opaqueSabotage" class="button button-danger" disabled>TRIGGER CONTRADICTION</button>
-          <button id="opaqueProbe" class="button button-warning" disabled>RUN DISCRIMINATING PROBE</button>
-          <button id="opaqueHoldout" class="button button-success" disabled>VERIFY HOLDOUT</button>
-        </div>
-        <p class="interactive-hint">
-          The buttons are phase-gated by the Rust session. A disabled action is
-          not a UI guess: the underlying state machine has not authorized it yet.
-        </p>
-      </section>
-
-      <section class="panel custom-panel">
-        <div class="section-heading">
-          <div>
-            <p class="eyebrow">FIXTURE / REGRESSION INPUT</p>
-            <h2>Give the kernel a world you invented</h2>
-          </div>
-          <button id="runCustom" class="button button-violet" disabled>RUN FIXTURE HOLDOUT</button>
-        </div>
-        <p class="custom-help">
-          Edit the JSON, then run it. The environment owns the hidden law and
-          the solver receives only opaque interaction logs. If no guard is
-          supplied, the local environment derives one from the seed and
-          structural type tags. Invalid, ambiguous or mismatched worlds must
-          return <code>ABSTAIN</code>/<code>REFUSED</code>, never a fake success.
-        </p>
-        <textarea id="customSpec" spellcheck="false" aria-label="Custom mechanism JSON"></textarea>
-      </section>
-
-      <section class="kpis">
-        <article class="kpi panel"><span>PHASE</span><strong id="phase">—</strong></article>
-        <article class="kpi panel"><span>SEED</span><strong id="seed">—</strong></article>
-        <article class="kpi panel"><span>LAST WASM CALL</span><strong id="latency">—</strong></article>
-        <article class="kpi panel"><span>REPORT DIGEST</span><strong id="digest">—</strong></article>
-      </section>
-
-      <section class="grid">
-        <article class="panel">
-          <div class="section-heading">
-            <p class="eyebrow">VISIBLE WORLD MODEL</p>
-            <h2>Relabelled tokens</h2>
-          </div>
-          <div id="worlds" class="worlds empty">Generate a world to inspect its fresh tokens.</div>
-        </article>
-        <article class="panel">
-          <div class="section-heading">
-            <p class="eyebrow">EVIDENCE LEDGER</p>
-            <h2>Algorithmic trace</h2>
-          </div>
-          <div id="timeline" class="timeline empty">No events yet.</div>
-        </article>
-      </section>
-
-      <section class="panel comparison">
-        <div class="section-heading">
-          <p class="eyebrow">HOLDOUT CHECK</p>
-          <h2>Prediction is not permission</h2>
-        </div>
-        <div id="comparison" class="comparison-grid">
-          <div class="comparison-card"><span>NAIVE BASELINE</span><strong>—</strong><small>waiting for holdout</small></div>
-          <div class="comparison-card"><span>ATHLESIA</span><strong>—</strong><small>waiting for revision</small></div>
-        </div>
-      </section>
-
-      <details class="panel raw">
-        <summary>Machine-readable JSONL evidence</summary>
-        <pre id="raw">No snapshot yet.</pre>
-        <button id="download" class="button button-secondary" disabled>DOWNLOAD JSONL</button>
-      </details>
-
-      <footer class="footer">
-        No model API · no network call · no pre-recorded success flag.<br />
-        Generated and custom challenges are bounded, reproducible causal-revision
-        tests—not a claim of general AGI.
-      </footer>
-    </main>
-    <script type="module" src="./app.js"></script>
-  </body>
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="refresh" content="0; url=/causal-theater/">
+  <title>Athlesia Causal Theater</title>
+  <script>
+    window.location.replace("/causal-theater/");
+  </script>
+</head>
+<body>
+  <a href="/causal-theater/">Open Athlesia Causal Theater</a>
+</body>
 </html>
