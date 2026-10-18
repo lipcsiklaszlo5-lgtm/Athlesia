@@ -17,6 +17,9 @@ use std::collections::{BTreeMap, BTreeSet};
 use super::causal_proof::{
     CommitmentResult, ExecutionPermit, PredictionCommitment, PredictionScope, ProofError,
 };
+use super::causal_trust_mesh::{
+    CausalExecutionLease, CausalTrustAdmission, CausalTrustError, CausalTrustMesh,
+};
 use super::contextual_causal_agent::ContextId;
 use super::cross_domain_causal_core::{
     ActionId, CanonicalCausalGraph, Digest, Literal, State, TokenId,
@@ -516,6 +519,7 @@ pub struct AuthorizedCompositeDispatch {
     atomic_actions: Vec<ActionId>,
     host_policy_digest: Digest,
     nonce: u64,
+    trust_admission: Option<CausalTrustAdmission>,
 }
 
 impl AuthorizedCompositeDispatch {
@@ -542,6 +546,10 @@ impl AuthorizedCompositeDispatch {
     }
     pub fn nonce(&self) -> u64 {
         self.nonce
+    }
+
+    pub fn trust_admission(&self) -> Option<CausalTrustAdmission> {
+        self.trust_admission
     }
 }
 
@@ -576,6 +584,7 @@ pub struct VerifiedExecutionReceipt {
     atomic_actions: Vec<ActionId>,
     host_policy_digest: Digest,
     authorization_nonce: u64,
+    trust_admission: Option<CausalTrustAdmission>,
 }
 
 impl VerifiedExecutionReceipt {
@@ -616,6 +625,10 @@ impl VerifiedExecutionReceipt {
     pub fn authorization_nonce(&self) -> u64 {
         self.authorization_nonce
     }
+
+    pub fn trust_admission(&self) -> Option<CausalTrustAdmission> {
+        self.trust_admission
+    }
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -636,6 +649,7 @@ pub enum CausalRuntimeError {
     PolicyDenied,
     InvalidAuthorization,
     DispatchPlanChanged,
+    TrustAdmission(CausalTrustError),
     Proof(ProofError),
 }
 
@@ -671,6 +685,12 @@ impl From<HierarchyProofError> for CausalRuntimeError {
     }
 }
 
+impl From<CausalTrustError> for CausalRuntimeError {
+    fn from(error: CausalTrustError) -> Self {
+        Self::TrustAdmission(error)
+    }
+}
+
 impl From<ProofError> for CausalRuntimeError {
     fn from(error: ProofError) -> Self {
         Self::Proof(error)
@@ -691,6 +711,7 @@ struct AwaitingExecution {
     pending: PendingExecution,
     permit: ExecutionPermit,
     dispatch_digest: Digest,
+    trust_admission: Option<CausalTrustAdmission>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -817,8 +838,46 @@ impl EndToEndCausalRuntime {
         hierarchy: &CausalHierarchy,
         policy: &P,
     ) -> Result<AuthorizedCompositeDispatch, CausalRuntimeError> {
+        let (pending, authorization) = self.validated_dispatch_request(hierarchy, policy)?;
+        self.finalize_dispatch(pending, authorization, None)
+    }
+
+    /// Cross the host-policy and causal-proof boundaries only while the exact
+    /// P8 trust frontier captured after `prepare` is still live.
+    ///
+    /// Trust is checked before ordinary hierarchy revalidation so a revoked
+    /// or reinstalled transferred dependency reports a stale lease and never
+    /// reaches proof-permit consumption. The mutable lease is marked consumed
+    /// only after both trust and host policy have accepted the request.
+    pub fn authorize_and_dispatch_trusted<P: CausalExecutionPolicy>(
+        &mut self,
+        hierarchy: &CausalHierarchy,
+        policy: &P,
+        mesh: &CausalTrustMesh,
+        lease: &mut CausalExecutionLease,
+    ) -> Result<AuthorizedCompositeDispatch, CausalRuntimeError> {
         self.require_phase(CausalRuntimePhase::Prepared)?;
-        let RuntimeState::Prepared(mut pending) = self.state.clone() else {
+        let RuntimeState::Prepared(pending) = &self.state else {
+            unreachable!("phase checked")
+        };
+        let trust_admission = mesh.validate_execution_lease(
+            lease,
+            &pending.plan,
+            hierarchy,
+            pending.prepared.commitment_digest,
+        )?;
+        let (pending, authorization) = self.validated_dispatch_request(hierarchy, policy)?;
+        lease.consume_validated();
+        self.finalize_dispatch(pending, authorization, Some(trust_admission))
+    }
+
+    fn validated_dispatch_request<P: CausalExecutionPolicy>(
+        &self,
+        hierarchy: &CausalHierarchy,
+        policy: &P,
+    ) -> Result<(PendingExecution, HostAuthorization), CausalRuntimeError> {
+        self.require_phase(CausalRuntimePhase::Prepared)?;
+        let RuntimeState::Prepared(pending) = self.state.clone() else {
             unreachable!("phase checked")
         };
         let current_actions = pending.plan.execution_actions(hierarchy)?;
@@ -833,6 +892,15 @@ impl EndToEndCausalRuntime {
         if authorization.policy_digest == 0 || authorization.nonce == 0 {
             return Err(CausalRuntimeError::InvalidAuthorization);
         }
+        Ok((pending, authorization))
+    }
+
+    fn finalize_dispatch(
+        &mut self,
+        mut pending: PendingExecution,
+        authorization: HostAuthorization,
+        trust_admission: Option<CausalTrustAdmission>,
+    ) -> Result<AuthorizedCompositeDispatch, CausalRuntimeError> {
         let mut permit = pending
             .commitment
             .issue_permit(authorization.policy_digest, authorization.nonce);
@@ -858,11 +926,13 @@ impl EndToEndCausalRuntime {
             atomic_actions: pending.atomic_actions.clone(),
             host_policy_digest: authorization.policy_digest,
             nonce: authorization.nonce,
+            trust_admission,
         };
         self.state = RuntimeState::Awaiting(AwaitingExecution {
             pending,
             permit,
             dispatch_digest,
+            trust_admission,
         });
         Ok(dispatch)
     }
@@ -915,6 +985,7 @@ impl EndToEndCausalRuntime {
             atomic_actions: awaiting.pending.atomic_actions,
             host_policy_digest,
             authorization_nonce,
+            trust_admission: awaiting.trust_admission,
         };
         self.state = RuntimeState::Terminal(receipt.clone());
         Ok(receipt)
@@ -968,6 +1039,7 @@ impl EndToEndCausalRuntime {
             atomic_actions: awaiting.pending.atomic_actions,
             host_policy_digest,
             authorization_nonce,
+            trust_admission: awaiting.trust_admission,
         };
         self.state = RuntimeState::Terminal(receipt.clone());
         Ok(receipt)

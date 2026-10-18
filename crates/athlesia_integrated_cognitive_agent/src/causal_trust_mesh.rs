@@ -19,7 +19,7 @@ use super::causal_execution_sync::{
     ExecutionSyncLimits,
 };
 use super::cross_domain_causal_core::{ActionId, CanonicalCausalGraph, Digest, Literal, TokenId};
-use super::hierarchical_causal_graph::{CausalHierarchy, HierarchyError, ModuleId};
+use super::hierarchical_causal_graph::{CausalHierarchy, CompositePlan, HierarchyError, ModuleId};
 
 const REVOCATION_RECORD: &str = "athlesia/causal-revocation/1";
 const REVOCATION_VERSION: u16 = 1;
@@ -27,6 +27,7 @@ const FNV_OFFSET: u64 = 14_695_981_039_346_656_037;
 const FNV_PRIME: u64 = 1_099_511_628_211;
 const CLAIM_DOMAIN: u64 = 0x4154_4c45_5349_434c;
 const REVOCATION_PAYLOAD_DOMAIN: u64 = 0x4154_4c45_5349_5256;
+const EXECUTION_LEASE_DOMAIN: u64 = 0x4154_4c45_5349_4c53;
 
 fn mix(mut state: u64, value: u64) -> u64 {
     for byte in value.to_le_bytes() {
@@ -209,6 +210,28 @@ fn claim_digest(scope: CausalClaimScope, guards: &[Literal], effects: &[Literal]
     digest.max(1)
 }
 
+fn execution_lease_digest(
+    lease_sequence: u64,
+    commitment_digest: Digest,
+    plan_digest: Digest,
+    dependencies: &[TrustedDependencySnapshot],
+) -> Digest {
+    let mut digest = mix(FNV_OFFSET, EXECUTION_LEASE_DOMAIN);
+    digest = mix(digest, lease_sequence);
+    digest = mix(digest, commitment_digest);
+    digest = mix(digest, plan_digest);
+    digest = mix(digest, dependencies.len() as u64);
+    for dependency in dependencies {
+        digest = mix(digest, dependency.scope.target_graph_digest);
+        digest = mix(digest, dependency.scope.target_action);
+        digest = mix(digest, dependency.claim_digest);
+        digest = mix(digest, dependency.scope_epoch);
+        digest = mix(digest, u64::from(dependency.module_id));
+        digest = mix(digest, dependency.module_digest);
+    }
+    digest.max(1)
+}
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum CausalClaimStatus {
     Unknown,
@@ -263,6 +286,20 @@ pub enum CausalTrustError {
     SigningFailed,
     AuthenticationFailed,
     InvalidRevocation,
+    TrustEpochExhausted,
+    LeaseSequenceExhausted,
+    EmptyCommitment,
+    NoTrustedPlanDependency,
+    ExecutionLeaseAlreadyConsumed,
+    ExecutionLeaseCommitmentMismatch {
+        expected: Digest,
+        observed: Digest,
+    },
+    ExecutionLeasePlanMismatch {
+        expected: Digest,
+        observed: Digest,
+    },
+    StaleExecutionLease,
     Hierarchy(HierarchyError),
 }
 
@@ -289,12 +326,84 @@ struct ClaimVariant {
 struct ScopeState {
     variants: BTreeMap<CausalClaim, ClaimVariant>,
     saturated_conflict: bool,
+    epoch: u64,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 struct InstalledClaim {
     claim: CausalClaim,
     module_id: ModuleId,
+}
+
+#[derive(Clone, Debug, Eq, Ord, PartialEq, PartialOrd)]
+struct TrustedDependencySnapshot {
+    scope: CausalClaimScope,
+    claim_digest: Digest,
+    scope_epoch: u64,
+    module_id: ModuleId,
+    module_digest: Digest,
+}
+
+/// Immutable audit record retained by a trusted dispatch and its receipt.
+///
+/// The digest binds one exact prepared commitment to the complete set of
+/// trust-mesh-owned atomic dependencies present in its hierarchical plan.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct CausalTrustAdmission {
+    lease_digest: Digest,
+    lease_sequence: u64,
+    commitment_digest: Digest,
+    plan_digest: Digest,
+    dependency_count: usize,
+}
+
+impl CausalTrustAdmission {
+    pub fn lease_digest(self) -> Digest {
+        self.lease_digest
+    }
+
+    pub fn lease_sequence(self) -> u64 {
+        self.lease_sequence
+    }
+
+    pub fn commitment_digest(self) -> Digest {
+        self.commitment_digest
+    }
+
+    pub fn plan_digest(self) -> Digest {
+        self.plan_digest
+    }
+
+    pub fn dependency_count(self) -> usize {
+        self.dependency_count
+    }
+}
+
+/// Non-cloneable, one-shot authority to cross the trust-mesh execution gate.
+///
+/// This is not an action permit. It only proves that every mesh-owned atomic
+/// dependency captured by one prepared plan is still admitted at dispatch.
+/// The existing causal proof permit and host policy remain mandatory.
+#[derive(Debug, Eq, PartialEq)]
+pub struct CausalExecutionLease {
+    admission: CausalTrustAdmission,
+    dependencies: Vec<TrustedDependencySnapshot>,
+    consumed: bool,
+}
+
+impl CausalExecutionLease {
+    pub fn admission(&self) -> CausalTrustAdmission {
+        self.admission
+    }
+
+    pub fn consumed(&self) -> bool {
+        self.consumed
+    }
+
+    pub(crate) fn consume_validated(&mut self) {
+        debug_assert!(!self.consumed);
+        self.consumed = true;
+    }
 }
 
 /// Bounded local admission state. Trusted keys are deployment policy, not
@@ -306,6 +415,8 @@ pub struct CausalTrustMesh {
     last_origin_sequences: BTreeMap<u64, u64>,
     scopes: BTreeMap<CausalClaimScope, ScopeState>,
     installations: BTreeMap<CausalClaimScope, InstalledClaim>,
+    next_epoch: u64,
+    next_lease_sequence: u64,
 }
 
 impl CausalTrustMesh {
@@ -336,6 +447,8 @@ impl CausalTrustMesh {
             last_origin_sequences: BTreeMap::new(),
             scopes: BTreeMap::new(),
             installations: BTreeMap::new(),
+            next_epoch: 0,
+            next_lease_sequence: 0,
         })
     }
 
@@ -355,6 +468,10 @@ impl CausalTrustMesh {
         self.installations
             .get(&scope)
             .map(|installation| installation.module_id)
+    }
+
+    pub fn scope_epoch(&self, scope: CausalClaimScope) -> Option<u64> {
+        self.scopes.get(&scope).map(|state| state.epoch)
     }
 
     pub fn status(&self, scope: CausalClaimScope) -> CausalClaimStatus {
@@ -401,6 +518,7 @@ impl CausalTrustMesh {
         let scope = CausalClaim::from_authenticated(&knowledge)?.scope();
         let mut next = self.clone();
         let status = next.observe_inner(knowledge)?;
+        next.advance_scope_epoch(scope)?;
         next.reconcile_scope(scope, hierarchy)?;
         *self = next;
         Ok(status)
@@ -435,6 +553,7 @@ impl CausalTrustMesh {
         let state = self.scopes.entry(scope).or_insert_with(|| ScopeState {
             variants: BTreeMap::new(),
             saturated_conflict: false,
+            epoch: 0,
         });
         if !state.variants.contains_key(&claim)
             && state.variants.len() >= self.policy.max_variants_per_scope
@@ -490,11 +609,32 @@ impl CausalTrustMesh {
                 )
             })
             .ok_or(CausalTrustError::NotAdmitted(scope))?;
+        let next_epoch = self
+            .next_epoch
+            .checked_add(1)
+            .ok_or(CausalTrustError::TrustEpochExhausted)?;
         representative.install_atomic(hierarchy, module_id, target_graph)?;
         debug_assert!(hierarchy.module_digest(module_id).is_some());
         self.installations
             .insert(scope, InstalledClaim { claim, module_id });
+        self.next_epoch = next_epoch;
+        self.scopes
+            .get_mut(&scope)
+            .expect("admitted scope remains present during installation")
+            .epoch = next_epoch;
         Ok(())
+    }
+
+    fn advance_scope_epoch(&mut self, scope: CausalClaimScope) -> Result<u64, CausalTrustError> {
+        let next = self
+            .next_epoch
+            .checked_add(1)
+            .ok_or(CausalTrustError::TrustEpochExhausted)?;
+        self.next_epoch = next;
+        if let Some(state) = self.scopes.get_mut(&scope) {
+            state.epoch = next;
+        }
+        Ok(next)
     }
 
     fn admitted_variant(&self, scope: CausalClaimScope) -> Option<(&CausalClaim, &ClaimVariant)> {
@@ -504,6 +644,169 @@ impl CausalTrustMesh {
         }
         let (claim, variant) = state.variants.iter().next()?;
         (variant.by_origin.len() >= self.policy.min_distinct_origins).then_some((claim, variant))
+    }
+
+    /// Freeze the trust frontier for one already-prepared composite action.
+    ///
+    /// Only atomic dependencies installed by this mesh are included. Local
+    /// modules remain governed by the hierarchy and host policy boundaries.
+    /// A local-only plan must use the ordinary runtime path and cannot obtain
+    /// a misleading trust admission record.
+    pub fn issue_execution_lease(
+        &mut self,
+        plan: &CompositePlan,
+        hierarchy: &CausalHierarchy,
+        commitment_digest: Digest,
+    ) -> Result<CausalExecutionLease, CausalTrustError> {
+        if commitment_digest == 0 {
+            return Err(CausalTrustError::EmptyCommitment);
+        }
+        plan.execution_actions(hierarchy)?;
+        let dependencies = self.collect_trusted_dependencies(plan, hierarchy)?;
+        if dependencies.is_empty() {
+            return Err(CausalTrustError::NoTrustedPlanDependency);
+        }
+        let lease_sequence = self
+            .next_lease_sequence
+            .checked_add(1)
+            .ok_or(CausalTrustError::LeaseSequenceExhausted)?;
+        let lease_digest = execution_lease_digest(
+            lease_sequence,
+            commitment_digest,
+            plan.digest(),
+            &dependencies,
+        );
+        let admission = CausalTrustAdmission {
+            lease_digest,
+            lease_sequence,
+            commitment_digest,
+            plan_digest: plan.digest(),
+            dependency_count: dependencies.len(),
+        };
+        self.next_lease_sequence = lease_sequence;
+        Ok(CausalExecutionLease {
+            admission,
+            dependencies,
+            consumed: false,
+        })
+    }
+
+    /// Revalidate an unconsumed lease against the live mesh and hierarchy.
+    ///
+    /// The runtime calls this immediately before consuming its existing proof
+    /// permit. No action list is exposed when any epoch, claim, installation,
+    /// module digest, plan, or commitment differs from the frozen frontier.
+    pub fn validate_execution_lease(
+        &self,
+        lease: &CausalExecutionLease,
+        plan: &CompositePlan,
+        hierarchy: &CausalHierarchy,
+        commitment_digest: Digest,
+    ) -> Result<CausalTrustAdmission, CausalTrustError> {
+        if lease.consumed {
+            return Err(CausalTrustError::ExecutionLeaseAlreadyConsumed);
+        }
+        if lease.admission.commitment_digest != commitment_digest {
+            return Err(CausalTrustError::ExecutionLeaseCommitmentMismatch {
+                expected: lease.admission.commitment_digest,
+                observed: commitment_digest,
+            });
+        }
+        if lease.admission.plan_digest != plan.digest() {
+            return Err(CausalTrustError::ExecutionLeasePlanMismatch {
+                expected: lease.admission.plan_digest,
+                observed: plan.digest(),
+            });
+        }
+        for dependency in &lease.dependencies {
+            self.validate_dependency_snapshot(dependency, plan, hierarchy)?;
+        }
+        plan.execution_actions(hierarchy)?;
+        let current = self.collect_trusted_dependencies(plan, hierarchy)?;
+        if current != lease.dependencies
+            || execution_lease_digest(
+                lease.admission.lease_sequence,
+                commitment_digest,
+                plan.digest(),
+                &current,
+            ) != lease.admission.lease_digest
+        {
+            return Err(CausalTrustError::StaleExecutionLease);
+        }
+        Ok(lease.admission)
+    }
+
+    fn collect_trusted_dependencies(
+        &self,
+        plan: &CompositePlan,
+        hierarchy: &CausalHierarchy,
+    ) -> Result<Vec<TrustedDependencySnapshot>, CausalTrustError> {
+        let atomic_steps: BTreeSet<ModuleId> = plan.atomic_steps().iter().copied().collect();
+        let mut dependencies = Vec::new();
+        for (scope, installation) in &self.installations {
+            if !atomic_steps.contains(&installation.module_id) {
+                continue;
+            }
+            let state = self
+                .scopes
+                .get(scope)
+                .ok_or(CausalTrustError::StaleExecutionLease)?;
+            let (claim, _) = self
+                .admitted_variant(*scope)
+                .ok_or(CausalTrustError::StaleExecutionLease)?;
+            if claim != &installation.claim {
+                return Err(CausalTrustError::StaleExecutionLease);
+            }
+            let module_digest = hierarchy
+                .module_digest(installation.module_id)
+                .ok_or(CausalTrustError::StaleExecutionLease)?;
+            if !plan
+                .dependency_digests()
+                .contains(&(installation.module_id, module_digest))
+            {
+                return Err(CausalTrustError::StaleExecutionLease);
+            }
+            dependencies.push(TrustedDependencySnapshot {
+                scope: *scope,
+                claim_digest: claim.digest(),
+                scope_epoch: state.epoch,
+                module_id: installation.module_id,
+                module_digest,
+            });
+        }
+        dependencies.sort();
+        Ok(dependencies)
+    }
+
+    fn validate_dependency_snapshot(
+        &self,
+        dependency: &TrustedDependencySnapshot,
+        plan: &CompositePlan,
+        hierarchy: &CausalHierarchy,
+    ) -> Result<(), CausalTrustError> {
+        let state = self
+            .scopes
+            .get(&dependency.scope)
+            .ok_or(CausalTrustError::StaleExecutionLease)?;
+        let installation = self
+            .installations
+            .get(&dependency.scope)
+            .ok_or(CausalTrustError::StaleExecutionLease)?;
+        let (claim, _) = self
+            .admitted_variant(dependency.scope)
+            .ok_or(CausalTrustError::StaleExecutionLease)?;
+        if state.epoch != dependency.scope_epoch
+            || installation.module_id != dependency.module_id
+            || installation.claim.digest() != dependency.claim_digest
+            || claim.digest() != dependency.claim_digest
+            || hierarchy.module_digest(dependency.module_id) != Some(dependency.module_digest)
+            || !plan
+                .dependency_digests()
+                .contains(&(dependency.module_id, dependency.module_digest))
+        {
+            return Err(CausalTrustError::StaleExecutionLease);
+        }
+        Ok(())
     }
 
     fn reconcile_scope(
@@ -570,6 +873,7 @@ impl CausalTrustMesh {
         }
         next.last_origin_sequences
             .insert(verified.origin_key, verified.origin_sequence);
+        next.advance_scope_epoch(scope)?;
         next.reconcile_scope(scope, hierarchy)?;
         let status = next.status(scope);
         *self = next;
@@ -934,6 +1238,26 @@ mod tests {
         CategoricalStateBinding::new(config, source, patterns).unwrap()
     }
 
+    fn target_binding(
+        config: &DeterministicAbstractionConfig,
+        target: &CanonicalCausalGraph,
+    ) -> CategoricalStateBinding {
+        let mut patterns = Vec::new();
+        for (channel, role) in [(100, 20), (200, 21), (300, 22)] {
+            patterns.push(SymbolicStatePattern::new(
+                channel,
+                0,
+                vec![Literal::new(role, false)],
+            ));
+            patterns.push(SymbolicStatePattern::new(
+                channel,
+                1,
+                vec![Literal::new(role, true)],
+            ));
+        }
+        CategoricalStateBinding::new(config, target, patterns).unwrap()
+    }
+
     fn frame(a: i64, b: i64, c: i64) -> ContinuousFrame {
         ContinuousFrame::new(vec![
             FixedScalar::from_micros(300, c),
@@ -1043,6 +1367,72 @@ mod tests {
             Literal::new(21, true),
             Literal::new(22, false),
         ])
+    }
+
+    fn admitted_target_fixture() -> (
+        TestKey,
+        TestKey,
+        CanonicalCausalGraph,
+        CausalClaim,
+        CausalTrustMesh,
+        CausalHierarchy,
+        CompositePlan,
+    ) {
+        let key_a = TestKey {
+            key_id: 7001,
+            secret: 11,
+        };
+        let key_b = TestKey {
+            key_id: 7002,
+            secret: 22,
+        };
+        let target = graph(20);
+        let mut receiver = ExecutionKnowledgeReceiver::new(8).unwrap();
+        let first = authenticated(key_a, 1, true, &target, &mut receiver);
+        let claim = CausalClaim::from_authenticated(&first).unwrap();
+        let second = authenticated(key_b, 1, true, &target, &mut receiver);
+        let scope = claim.scope();
+        let mut hierarchy = CausalHierarchy::default();
+        let mut mesh = CausalTrustMesh::new(policy(4), [7001, 7002]).unwrap();
+        mesh.observe_authenticated(first, &mut hierarchy).unwrap();
+        mesh.observe_authenticated(second, &mut hierarchy).unwrap();
+        mesh.install_admitted_atomic(scope, &mut hierarchy, 8, &target)
+            .unwrap();
+        let plan = hierarchy.compose(101, vec![8]).unwrap();
+        (key_a, key_b, target, claim, mesh, hierarchy, plan)
+    }
+
+    fn prepare_target_runtime(
+        target: &CanonicalCausalGraph,
+        hierarchy: &CausalHierarchy,
+        plan: &CompositePlan,
+    ) -> (
+        EndToEndCausalRuntime,
+        crate::end_to_end_causal_runtime::PreparedCompositeExecution,
+    ) {
+        let abstraction_config = config();
+        let mut runtime = EndToEndCausalRuntime::new(
+            DeterministicAbstraction::new(abstraction_config.clone()),
+            target_binding(&abstraction_config, target),
+        )
+        .unwrap();
+        let prepared = runtime
+            .prepare(
+                hierarchy,
+                plan,
+                &frame(900_000, 900_000, 100_000),
+                CausalCycleIdentity {
+                    context: Some(ContextId(9)),
+                    clock: CausalCycleClock {
+                        epoch: 1,
+                        episode: 1,
+                        sequence: 1,
+                    },
+                },
+                500,
+            )
+            .unwrap();
+        (runtime, prepared)
     }
 
     #[test]
@@ -1326,5 +1716,133 @@ mod tests {
                 ..
             }
         ));
+    }
+
+    #[test]
+    fn trusted_dispatch_requires_live_lease_and_records_admission() {
+        let (_key_a, _key_b, target, _claim, mut mesh, hierarchy, plan) = admitted_target_fixture();
+        let (mut runtime, prepared) = prepare_target_runtime(&target, &hierarchy, &plan);
+        let mut lease = mesh
+            .issue_execution_lease(&plan, &hierarchy, prepared.commitment_digest())
+            .unwrap();
+        let policy = |_: &crate::end_to_end_causal_runtime::PreparedCompositeExecution| {
+            HostAuthorization::new(700, 1)
+        };
+        let dispatch = runtime
+            .authorize_and_dispatch_trusted(&hierarchy, &policy, &mesh, &mut lease)
+            .unwrap();
+        assert!(lease.consumed());
+        let admission = dispatch.trust_admission().expect("trusted dispatch record");
+        assert_eq!(admission.commitment_digest(), prepared.commitment_digest());
+        assert_eq!(admission.plan_digest(), plan.digest());
+        assert_eq!(admission.dependency_count(), 1);
+        let receipt = runtime
+            .resolve_after(&frame(900_000, 900_000, 900_000))
+            .unwrap();
+        assert_eq!(receipt.trust_admission(), Some(admission));
+    }
+
+    #[test]
+    fn revocation_invalidates_prepared_lease_until_a_fresh_frontier_is_issued() {
+        let (key_a, _key_b, target, claim, mut mesh, mut hierarchy, plan) =
+            admitted_target_fixture();
+        let (mut runtime, prepared) = prepare_target_runtime(&target, &hierarchy, &plan);
+        let mut lease = mesh
+            .issue_execution_lease(&plan, &hierarchy, prepared.commitment_digest())
+            .unwrap();
+        let revocation = CausalRevocationSync
+            .export_jsonl(2, &claim, 902, &key_a, ExecutionSyncLimits::default())
+            .unwrap();
+        mesh.apply_revocation_jsonl(
+            &revocation,
+            &mut hierarchy,
+            &key_a,
+            ExecutionSyncLimits::default(),
+        )
+        .unwrap();
+        let policy = |_: &crate::end_to_end_causal_runtime::PreparedCompositeExecution| {
+            HostAuthorization::new(700, 1)
+        };
+        assert_eq!(
+            runtime.authorize_and_dispatch_trusted(&hierarchy, &policy, &mesh, &mut lease,),
+            Err(
+                crate::end_to_end_causal_runtime::CausalRuntimeError::TrustAdmission(
+                    CausalTrustError::StaleExecutionLease,
+                )
+            )
+        );
+        assert!(!lease.consumed());
+        assert_eq!(
+            runtime.phase(),
+            crate::end_to_end_causal_runtime::CausalRuntimePhase::Prepared
+        );
+
+        let mut receiver = ExecutionKnowledgeReceiver::new(8).unwrap();
+        let restored = authenticated(key_a, 3, true, &target, &mut receiver);
+        assert!(matches!(
+            mesh.observe_authenticated(restored, &mut hierarchy)
+                .unwrap(),
+            CausalClaimStatus::Admitted { .. }
+        ));
+        mesh.install_admitted_atomic(claim.scope(), &mut hierarchy, 8, &target)
+            .unwrap();
+        assert_eq!(
+            mesh.validate_execution_lease(&lease, &plan, &hierarchy, prepared.commitment_digest(),),
+            Err(CausalTrustError::StaleExecutionLease)
+        );
+        let mut fresh = mesh
+            .issue_execution_lease(&plan, &hierarchy, prepared.commitment_digest())
+            .unwrap();
+        runtime
+            .authorize_and_dispatch_trusted(&hierarchy, &policy, &mesh, &mut fresh)
+            .unwrap();
+    }
+
+    #[test]
+    fn policy_denial_does_not_consume_trust_lease() {
+        let (_key_a, _key_b, target, _claim, mut mesh, hierarchy, plan) = admitted_target_fixture();
+        let (mut runtime, prepared) = prepare_target_runtime(&target, &hierarchy, &plan);
+        let mut lease = mesh
+            .issue_execution_lease(&plan, &hierarchy, prepared.commitment_digest())
+            .unwrap();
+        let denied = |_: &crate::end_to_end_causal_runtime::PreparedCompositeExecution| None;
+        assert_eq!(
+            runtime.authorize_and_dispatch_trusted(&hierarchy, &denied, &mesh, &mut lease,),
+            Err(crate::end_to_end_causal_runtime::CausalRuntimeError::PolicyDenied)
+        );
+        assert!(!lease.consumed());
+        let allowed = |_: &crate::end_to_end_causal_runtime::PreparedCompositeExecution| {
+            HostAuthorization::new(700, 2)
+        };
+        runtime
+            .authorize_and_dispatch_trusted(&hierarchy, &allowed, &mesh, &mut lease)
+            .unwrap();
+        assert!(lease.consumed());
+    }
+
+    #[test]
+    fn local_only_plan_cannot_claim_trust_mesh_admission() {
+        let target = graph(20);
+        let mut hierarchy = CausalHierarchy::default();
+        hierarchy
+            .add_atomic(
+                AtomicCausalModule::new(
+                    8,
+                    target.clone(),
+                    ActionRule {
+                        action: 199,
+                        guards: vec![Literal::new(20, true), Literal::new(21, true)],
+                        effects: vec![Literal::new(22, true)],
+                    },
+                )
+                .unwrap(),
+            )
+            .unwrap();
+        let plan = hierarchy.compose(101, vec![8]).unwrap();
+        let mut mesh = CausalTrustMesh::new(policy(2), [7001, 7002]).unwrap();
+        assert_eq!(
+            mesh.issue_execution_lease(&plan, &hierarchy, 123),
+            Err(CausalTrustError::NoTrustedPlanDependency)
+        );
     }
 }
